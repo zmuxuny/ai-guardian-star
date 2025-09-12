@@ -1,23 +1,16 @@
+import { AppStorageV2 } from '@kit.ArkUI';
+
 @Entry
 @Component
 struct Index {
-  @State message: string = 'Hello World';
+  //pathStack : NavPathStack = new NavPathStack();
+  pathStack : NavPathStack = AppStorageV2.connect(NavPathStack,'navStack',()=>new NavPathStack())!;
 
   build() {
-    RelativeContainer() {
-      Text(this.message)
-        .id('HelloWorld')
-        .fontSize($r('app.float.page_text_font_size'))
-        .fontWeight(FontWeight.Bold)
-        .alignRules({
-          center: { anchor: '__container__', align: VerticalAlign.Center },
-          middle: { anchor: '__container__', align: HorizontalAlign.Center }
-        })
-        .onClick(() => {
-          this.message = 'Welcome';
-        })
-    }
-    .height('100%')
-    .width('100%')
+    Navigation(this.pathStack){
+    }.onAppear(() => {
+      this.pathStack.replacePathByName("Login", null, false);//控制跳转
+    })
+    .hideNavBar(true)//不会把自己放在控制跳转的对象里面->点返回的时候不会回到这个导航页
   }
 }
