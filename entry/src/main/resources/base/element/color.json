@@ -1,0 +1,36 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "login_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "login_text_primary",
+      "value": "#000000"
+    },
+    {
+      "name": "login_text_secondary",
+      "value": "#333333"
+    },
+    {
+      "name": "login_text_hint",
+      "value": "#666666"
+    },
+    {
+      "name": "login_divider",
+      "value": "#EEEEEE"
+    },
+    {
+      "name": "login_button_bg",
+      "value": "#6DB7FF"
+    },
+    {
+      "name": "login_button_text",
+      "value": "#FFFFFF"
+    }
+  ]
+}
