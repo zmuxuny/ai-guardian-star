@@ -9,7 +9,7 @@ struct Index {
   build() {
     Navigation(this.pathStack){
     }.onAppear(() => {
-      this.pathStack.pushPathByName("Start", null, false);//控制跳转
+      this.pathStack.replacePathByName("Login", null, false);//控制跳转
     })
     .hideNavBar(true)//不会把自己放在控制跳转的对象里面->点返回的时候不会回到这个导航页
   }
