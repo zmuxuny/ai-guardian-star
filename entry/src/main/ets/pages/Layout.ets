@@ -1,7 +1,9 @@
 import { mainpage } from "./mainpage"
+import { record } from "./record"
+
 @Builder
 export function LayoutBuilder(){
-  Index()
+  Layout()
 }
 interface TabClass{
   text:string
@@ -9,8 +11,9 @@ interface TabClass{
 }
 
 @ComponentV2
-struct Index {
+struct Layout {
   @Local currentIndex:number=0
+  pathStack: NavPathStack = new NavPathStack();
   tabData:TabClass[]=[
     {text:'主页',icon:$r('app.media.mainpage')},
     {text:'记录',icon:$r('app.media.record')}
@@ -28,15 +31,16 @@ struct Index {
   }
 
   build() {
-    Column(){
+    NavDestination(){
       Tabs({barPosition:BarPosition.End}){
         ForEach(this.tabData,(item:TabClass,index:number)=>{
           TabContent(){
             if(this.currentIndex===0){
               mainpage()
             }
-            //else if(this.currentIndex===1){
-            //record()
+            else if(this.currentIndex===1) {
+              record()
+            }
           }
           .tabBar(this.tabBuilder(item,index))
           .backgroundColor('#fff')
@@ -47,6 +51,10 @@ struct Index {
         this.currentIndex=index
       })
       .backgroundColor('#D3D3D3')
+      .expandSafeArea([SafeAreaType.SYSTEM],[SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
+      .onReady((context: NavDestinationContext) => {
+        this.pathStack = context.pathStack;
+      })
   }
 }

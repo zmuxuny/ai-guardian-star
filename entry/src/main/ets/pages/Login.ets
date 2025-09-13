@@ -8,23 +8,19 @@ export function LoginBuilder() {
 struct Login {
   //控制跳转的对象
   pathStack: NavPathStack = new NavPathStack();
-  aboutToAppear(): void {
-    setTimeout(()=>{
-      this.pathStack.replacePathByName("Layout",null,false)
-    },30000)//单位是毫秒
-  }
 
   build() {
     NavDestination() {
       Column() {
         // 导航栏区域
         Row() {
-          Text('×')
+          Text('✖')
             .fontSize(24)
             .fontColor(Color.Black)
             .fontWeight(FontWeight.Normal)
             .onClick(() => {
-              // 关闭登录页面
+              // 使用replacePathByName确保不能返回
+              this.pathStack.replacePathByName('Layout', null, false);
             })
           
           Blank()
@@ -97,8 +93,8 @@ struct Login {
           .borderRadius(8)
           .margin({ bottom: 40 })
           .onClick(() => {
-            // 直接跳转，不进行数据验证
-            this.pathStack.pushPath({ name: 'Layout' });
+            // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
+            this.pathStack.replacePathByName('Layout', null, false);
           })
       }
       .width('100%')

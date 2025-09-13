@@ -1,0 +1,20 @@
+{
+  "routerMap": [
+    {
+      "name": "Login",
+      "pageSourceFile": "src/main/ets/pages/Login.ets",
+      "buildFunction": "LoginBuilder",
+      "data": {
+        "description" : "this is Login"
+      }
+    },
+    {
+      "name": "Layout",
+      "pageSourceFile": "src/main/ets/pages/Layout.ets",
+      "buildFunction": "LayoutBuilder",
+      "data": {
+        "description" : "this is Layout"
+      }
+    }
+  ]
+}
