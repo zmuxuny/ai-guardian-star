@@ -1,4 +1,5 @@
-import { mainpage } from "./mainpage"
+import { mainPage } from "./mainpage"
+import { person } from "./person"
 import { record } from "./record"
 
 @Builder
@@ -16,7 +17,8 @@ struct Layout {
   pathStack: NavPathStack = new NavPathStack();
   tabData:TabClass[]=[
     {text:'主页',icon:$r('app.media.mainpage')},
-    {text:'记录',icon:$r('app.media.record')}
+    {text:'记录',icon:$r('app.media.record')},
+    {text:'个人',icon:$r("app.media.person")},
   ]
 
   @Builder tabBuilder(item:TabClass,index:number){
@@ -36,10 +38,13 @@ struct Layout {
         ForEach(this.tabData,(item:TabClass,index:number)=>{
           TabContent(){
             if(this.currentIndex===0){
-              mainpage()
+              mainPage()
             }
             else if(this.currentIndex===1) {
               record()
+            }
+            else if(this.currentIndex===2) {
+              person()
             }
           }
           .tabBar(this.tabBuilder(item,index))
@@ -50,7 +55,7 @@ struct Layout {
       .onChange((index:number)=>{
         this.currentIndex=index
       })
-      .backgroundColor('#D3D3D3')
+      .backgroundColor('#f2f2f7')
       .expandSafeArea([SafeAreaType.SYSTEM],[SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
       .onReady((context: NavDestinationContext) => {

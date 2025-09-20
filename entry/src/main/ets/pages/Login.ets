@@ -24,7 +24,7 @@ struct Login {
             })
           
           Blank()
-          
+
           Text('验证码登录')
             .fontSize(16)
             .fontColor('#007AFF')
@@ -43,9 +43,8 @@ struct Login {
           .fontSize(24)
           .fontColor(Color.Black)
           .fontWeight(FontWeight.Bold)
-          .margin({ top: 20, bottom: 40 })
+          .margin({ top: 30, bottom: 40,left: 20 })
           .alignSelf(ItemAlign.Start)
-          .margin({ left: 16 })
 
         // 输入区域
         Column() {
@@ -84,18 +83,26 @@ struct Login {
         Blank()
 
         // 登录按钮
-        Button('登录')
-          .width('90%')
+        Button('登录/注册')
+          .width('80%')
           .height(50)
           .fontSize(18)
           .fontColor(Color.White)
           .backgroundColor('#007AFF')
-          .borderRadius(8)
-          .margin({ bottom: 40 })
+          .borderRadius(30)
+          //.margin({ bottom: 40 })
           .onClick(() => {
             // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
             this.pathStack.replacePathByName('Layout', null, false);
           })
+
+        //提示
+        Text('未注册将会自动注册账号')
+          .fontSize(14)
+          .fontColor('#007AFF')
+          .margin({ top: 10,bottom:30 })
+          .alignSelf(ItemAlign.Center)
+
       }
       .width('100%')
       .height('100%')
