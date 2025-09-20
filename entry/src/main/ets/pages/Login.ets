@@ -22,7 +22,7 @@ struct Login {
               // 使用replacePathByName确保不能返回
               this.pathStack.replacePathByName('Layout', null, false);
             })
-          
+
           Blank()
 
           Text('验证码登录')
@@ -30,6 +30,8 @@ struct Login {
             .fontColor('#007AFF')
             .onClick(() => {
               // 切换到验证码登录
+              this.pathStack.pushPathByName('LoginCode',null,true)
+
             })
         }
         .width('100%')
@@ -74,11 +76,61 @@ struct Login {
             .alignSelf(ItemAlign.Start)
             .onClick(() => {
               // 处理登录问题
+              this.pathStack.pushPathByName('LoginProblem',null,true)
             })
         }
         .width('100%')
         .padding({ left: 16, right: 16 })
         .alignItems(HorizontalAlign.Start)
+
+        Row() {
+
+          Column() {
+            Column() {
+              Button() {
+                Image($r('app.media.img_7'))
+                  .width(40)
+                  .height(40)
+              }
+              .backgroundColor(Color.White)
+              .borderWidth(2)
+              .padding(5)
+
+              Text('QQ登录')
+                .fontColor(Color.Black)
+                .margin({ top:6})
+            }
+            .alignItems(HorizontalAlign.Center)
+            .margin({ right:60 })
+          }
+          .onClick(() => {
+            // QQ跳转逻辑
+          })
+
+
+          Column() {
+            Button() {
+              Image($r('app.media.img_8'))
+                .width(50)
+                .height(50)
+                .padding(5)
+            }
+            .borderWidth(2)
+            .backgroundColor('#07C160')
+
+            .onClick(() => {
+              //微信跳转页面
+            })
+
+            Text('微信登录')
+              .margin({top:6,left:10})
+              .fontColor(Color.Black)
+          }
+
+        }
+        .margin({top:30})
+
+
 
         Blank()
 

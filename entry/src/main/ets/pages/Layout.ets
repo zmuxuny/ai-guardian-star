@@ -44,7 +44,11 @@ struct Layout {
               record()
             }
             else if(this.currentIndex===2) {
-              person()
+              Column() {
+                person({ pathStack: this.pathStack })
+              }
+              .width('100%')
+              .height('100%')
             }
           }
           .tabBar(this.tabBuilder(item,index))

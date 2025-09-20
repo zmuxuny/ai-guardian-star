@@ -5,7 +5,6 @@ export struct mainPage {
   build() {
 
     Column() {
-
       // 标题栏
       Text('  智能居家监护')
         .fontSize(20)
@@ -15,27 +14,23 @@ export struct mainPage {
 
       //搜索框
       Row() {
-        TextInput({
-          placeholder: '日期＋时间 (例:11.12 5:00)'
-        })
-          .placeholderColor('#817083')
-          .padding({ left: 10 }) // 调整内边距以适应文本
-          .fontColor('#817083') // 使用十六进制颜色代码以保持一致性
-          .layoutWeight(1)
-          .height(40) // 设置高度以匹配图像中的输入框高度
-          .backgroundColor('#fff') // 设置背景颜色以匹配图像中的浅灰色
-          .border({ width: 1, color: '#CCCCCC' }) // 添加边框以匹配图像
+        Stack({alignContent:Alignment.End}) {
+          TextInput({ placeholder: '日期＋时间 (例:11.12 5:00)' })
+            .placeholderColor('#817D83')
+            .fontSize(16)
+            .fontColor(Color.Black)
+            .padding({ left: 16, right: 8 })
+            .layoutWeight(1)
 
-        Image($r('app.media.img')) // 替换为实际的图像资源
-          .width(20)
-          .height(20)
-          .margin({ left: 8, right: 10 }) // 调整图像的边距
+          Image($r('app.media.search'))
+            .width(20)
+            .fillColor(Color.Black)
+            .height(20)
+            .margin(10)
+        }
       }
       .padding(10) // 调整整个Row的内边距
       .backgroundColor('#FFFFFF') // 设置Row的背景颜色
-
-      // 视角选择下拉框
-
 
       // 监控画面区域
       Row() {
@@ -64,7 +59,7 @@ export struct mainPage {
 
       // 设备状态提示
       Row() {
-        Text('         ')
+        //Text('         ')
         Image($r('app.media.img_3')) // 假设有设备连接图标资源
           .width(20)
           .height(20)
@@ -74,10 +69,11 @@ export struct mainPage {
         Image($r('app.media.img_4')) // 假设有WiFi正常图标资源
           .width(20)
           .height(20)
-          .margin({ left: 16 })
+          //.margin({ left: 16 })
         Text('网络正常')
           .margin({ left: 8 })
       }
+      .justifyContent(FlexAlign.Center)
       .padding(5)
       .width('90%')
       .margin(10)
@@ -135,12 +131,9 @@ export struct mainPage {
       .margin({bottom:10})
 
       Row() {
-
             Image($r('app.media.img_6'))
             .width(30)
             .height(30)
-
-
         // 右侧音量滑动条
         Slider({
           value: this.volumeLevel,
@@ -162,31 +155,6 @@ export struct mainPage {
       .backgroundColor('#CCCCCC') // 灰色背景，带透明度
       .borderRadius(20) // 圆角
 
-      // Row() {
-      //
-      //   Button(this.isMuted ? '🔇' : '🔈') // 静音和音量图标切换
-      //     .width(40)
-      //     .height(40)
-      //     .onClick(() => {
-      //       this.isMuted = !this.isMuted;
-      //     })
-      //
-      //   Slider({
-      //     value: this.volumeLevel,
-      //     min: 0,
-      //     max: 100
-      //   })
-      //     .onChange((value: number) => {
-      //       this.volumeLevel = value;
-      //     })
-      //     .width(150)
-      //     .margin({ left: 16 })
-      //
-      //
-      //
-      // }
-      // .margin({ left: 16, right: 16, bottom: 16 })
     }
-
   }
 }
