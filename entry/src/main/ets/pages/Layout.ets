@@ -1,7 +1,10 @@
-import { mainpage } from "./mainpage"
+import { mainPage } from "./mainpage"
+import { person } from "./person"
+import { record } from "./record"
+
 @Builder
 export function LayoutBuilder(){
-  Index()
+  Layout()
 }
 interface TabClass{
   text:string
@@ -9,11 +12,13 @@ interface TabClass{
 }
 
 @ComponentV2
-struct Index {
+struct Layout {
   @Local currentIndex:number=0
+  pathStack: NavPathStack = new NavPathStack();
   tabData:TabClass[]=[
     {text:'主页',icon:$r('app.media.mainpage')},
-    {text:'记录',icon:$r('app.media.record')}
+    {text:'记录',icon:$r('app.media.record')},
+    {text:'个人',icon:$r("app.media.person")},
   ]
 
   @Builder tabBuilder(item:TabClass,index:number){
@@ -28,15 +33,23 @@ struct Index {
   }
 
   build() {
-    Column(){
+    NavDestination(){
       Tabs({barPosition:BarPosition.End}){
         ForEach(this.tabData,(item:TabClass,index:number)=>{
           TabContent(){
             if(this.currentIndex===0){
-              mainpage()
+              mainPage()
             }
-            //else if(this.currentIndex===1){
-            //record()
+            else if(this.currentIndex===1) {
+              record()
+            }
+            else if(this.currentIndex===2) {
+              Column() {
+                person({ pathStack: this.pathStack })
+              }
+              .width('100%')
+              .height('100%')
+            }
           }
           .tabBar(this.tabBuilder(item,index))
           .backgroundColor('#fff')
@@ -46,7 +59,11 @@ struct Index {
       .onChange((index:number)=>{
         this.currentIndex=index
       })
-      .backgroundColor('#D3D3D3')
+      .backgroundColor('#f2f2f7')
+      .expandSafeArea([SafeAreaType.SYSTEM],[SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
+      .onReady((context: NavDestinationContext) => {
+        this.pathStack = context.pathStack;
+      })
   }
 }

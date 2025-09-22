@@ -8,32 +8,30 @@ export function LoginBuilder() {
 struct Login {
   //控制跳转的对象
   pathStack: NavPathStack = new NavPathStack();
-  aboutToAppear(): void {
-    setTimeout(()=>{
-      this.pathStack.replacePathByName("Layout",null,false)
-    },30000)//单位是毫秒
-  }
 
   build() {
     NavDestination() {
       Column() {
         // 导航栏区域
         Row() {
-          Text('×')
+          Text('✖')
             .fontSize(24)
             .fontColor(Color.Black)
             .fontWeight(FontWeight.Normal)
             .onClick(() => {
-              // 关闭登录页面
+              // 使用replacePathByName确保不能返回
+              this.pathStack.replacePathByName('Layout', null, false);
             })
-          
+
           Blank()
-          
+
           Text('验证码登录')
             .fontSize(16)
             .fontColor('#007AFF')
             .onClick(() => {
               // 切换到验证码登录
+              this.pathStack.pushPathByName('LoginCode',null,true)
+
             })
         }
         .width('100%')
@@ -47,9 +45,8 @@ struct Login {
           .fontSize(24)
           .fontColor(Color.Black)
           .fontWeight(FontWeight.Bold)
-          .margin({ top: 20, bottom: 40 })
+          .margin({ top: 30, bottom: 40,left: 20 })
           .alignSelf(ItemAlign.Start)
-          .margin({ left: 16 })
 
         // 输入区域
         Column() {
@@ -79,27 +76,85 @@ struct Login {
             .alignSelf(ItemAlign.Start)
             .onClick(() => {
               // 处理登录问题
+              this.pathStack.pushPathByName('LoginProblem',null,true)
             })
         }
         .width('100%')
         .padding({ left: 16, right: 16 })
         .alignItems(HorizontalAlign.Start)
 
+        Row() {
+
+          Column() {
+            Column() {
+              Button() {
+                Image($r('app.media.img_7'))
+                  .width(40)
+                  .height(40)
+              }
+              .backgroundColor(Color.White)
+              .borderWidth(2)
+              .padding(5)
+
+              Text('QQ登录')
+                .fontColor(Color.Black)
+                .margin({ top:6})
+            }
+            .alignItems(HorizontalAlign.Center)
+            .margin({ right:60 })
+          }
+          .onClick(() => {
+            // QQ跳转逻辑
+          })
+
+
+          Column() {
+            Button() {
+              Image($r('app.media.img_8'))
+                .width(50)
+                .height(50)
+                .padding(5)
+            }
+            .borderWidth(2)
+            .backgroundColor('#07C160')
+
+            .onClick(() => {
+              //微信跳转页面
+            })
+
+            Text('微信登录')
+              .margin({top:6,left:10})
+              .fontColor(Color.Black)
+          }
+
+        }
+        .margin({top:30})
+
+
+
         Blank()
 
         // 登录按钮
-        Button('登录')
-          .width('90%')
+        Button('登录/注册')
+          .width('80%')
           .height(50)
           .fontSize(18)
           .fontColor(Color.White)
           .backgroundColor('#007AFF')
-          .borderRadius(8)
-          .margin({ bottom: 40 })
+          .borderRadius(30)
+          //.margin({ bottom: 40 })
           .onClick(() => {
-            // 直接跳转，不进行数据验证
-            this.pathStack.pushPath({ name: 'Layout' });
+            // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
+            this.pathStack.replacePathByName('Layout', null, false);
           })
+
+        //提示
+        Text('未注册将会自动注册账号')
+          .fontSize(14)
+          .fontColor('#007AFF')
+          .margin({ top: 10,bottom:30 })
+          .alignSelf(ItemAlign.Center)
+
       }
       .width('100%')
       .height('100%')
