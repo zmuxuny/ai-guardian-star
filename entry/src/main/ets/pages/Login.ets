@@ -12,40 +12,12 @@ struct Login {
   build() {
     NavDestination() {
       Column() {
-        // 导航栏区域
-        Row() {
-          Text('✖')
-            .fontSize(24)
-            .fontColor(Color.Black)
-            .fontWeight(FontWeight.Normal)
-            .onClick(() => {
-              // 使用replacePathByName确保不能返回
-              this.pathStack.replacePathByName('Layout', null, false);
-            })
-
-          Blank()
-
-          Text('验证码登录')
-            .fontSize(16)
-            .fontColor('#007AFF')
-            .onClick(() => {
-              // 切换到验证码登录
-              this.pathStack.pushPathByName('LoginCode',null,true)
-
-            })
-        }
-        .width('100%')
-        .height(44)
-        .padding({ left: 16, right: 16 })
-        .justifyContent(FlexAlign.SpaceBetween)
-        .alignItems(VerticalAlign.Center)
-
         // 页面标题
         Text('账号密码登录')
-          .fontSize(24)
+          .fontSize(20)
           .fontColor(Color.Black)
           .fontWeight(FontWeight.Bold)
-          .margin({ top: 30, bottom: 40,left: 20 })
+          .margin({ top: 20, bottom: 40,left: 20 })
           .alignSelf(ItemAlign.Start)
 
         // 输入区域
@@ -68,69 +40,100 @@ struct Login {
             .type(InputType.Password)
             .margin({ top: 20 })
 
-          // 帮助链接
-          Text('登录遇到问题?')
-            .fontSize(14)
-            .fontColor('#007AFF')
-            .margin({ top: 16 })
-            .alignSelf(ItemAlign.Start)
-            .onClick(() => {
-              // 处理登录问题
-              this.pathStack.pushPathByName('LoginProblem',null,true)
-            })
+          Row() {
+            // 帮助链接
+            Text('登录遇到问题?')
+              .fontSize(16)
+              .fontColor('#007AFF')
+              .margin({ top: 16 })
+              .alignSelf(ItemAlign.Start)
+              .onClick(() => {
+                // 处理登录问题
+                this.pathStack.pushPathByName('LoginProblem',null, true)
+              })
+
+            Blank()
+            // 验证码登录
+            Text('验证码登录')
+              .fontSize(16)
+              .fontColor('#007AFF')
+              .margin({ top: 16 })
+              .onClick(() => {
+                // 切换到验证码登录
+                this.pathStack.pushPathByName('LoginCode',null,true)
+              })
+              .alignSelf(ItemAlign.End)
+          }
+          .width('100%')
         }
         .width('100%')
         .padding({ left: 16, right: 16 })
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-
           Column() {
             Column() {
               Button() {
-                Image($r('app.media.img_7'))
-                  .width(40)
-                  .height(40)
+                Image($r('app.media.icon_QQ'))
+                  .width(48)
+                  .height(48)
               }
               .backgroundColor(Color.White)
-              .borderWidth(2)
-              .padding(5)
 
               Text('QQ登录')
                 .fontColor(Color.Black)
-                .margin({ top:6})
+                .margin({top:6})
+                .fontSize(15)
+                .textAlign(TextAlign.Center)
             }
             .alignItems(HorizontalAlign.Center)
-            .margin({ right:60 })
           }
           .onClick(() => {
             // QQ跳转逻辑
           })
 
-
           Column() {
             Button() {
-              Image($r('app.media.img_8'))
-                .width(50)
-                .height(50)
-                .padding(5)
+              Image($r('app.media.weixin'))
+                .width(43)
+                .height(43)
             }
-            .borderWidth(2)
-            .backgroundColor('#07C160')
-
+            .backgroundColor(Color.White)
             .onClick(() => {
               //微信跳转页面
             })
 
             Text('微信登录')
-              .margin({top:6,left:10})
+              .margin({top:8})
               .fontColor(Color.Black)
+              .fontSize(15)
+              .textAlign(TextAlign.Center)
           }
 
+          Column() {
+            Button() {
+              Image($r('app.media.guestLogin'))
+                .width(48)
+                .height(48)
+            }
+            .backgroundColor(Color.White)
+
+            Text('游客登录')
+              .fontColor(Color.Black)
+              .margin({top:6})
+              .fontSize(15)
+              .textAlign(TextAlign.Center)
+          }
+          .alignItems(HorizontalAlign.Center)
+
+        .onClick(() => {
+          // 游客跳转逻辑
+          this.pathStack.replacePathByName('Layout',null, false);
+        })
         }
-        .margin({top:30})
-
-
+        .width('100%')
+        .margin({top:50})
+        .justifyContent(FlexAlign.SpaceEvenly)
 
         Blank()
 
@@ -145,7 +148,7 @@ struct Login {
           //.margin({ bottom: 40 })
           .onClick(() => {
             // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
-            this.pathStack.replacePathByName('Layout', null, false);
+            this.pathStack.replacePathByName('Layout',null, false);
           })
 
         //提示

@@ -52,14 +52,14 @@ struct Layout {
             }
           }
           .tabBar(this.tabBuilder(item,index))
-          .backgroundColor('#fff')
+          .backgroundColor(Color.White)
           .expandSafeArea([SafeAreaType.SYSTEM],[SafeAreaEdge.TOP,SafeAreaEdge.BOTTOM])
         })
       }
       .onChange((index:number)=>{
         this.currentIndex=index
       })
-      .backgroundColor('#f2f2f7')
+      .backgroundColor(Color.White)
       .expandSafeArea([SafeAreaType.SYSTEM],[SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
       .onReady((context: NavDestinationContext) => {

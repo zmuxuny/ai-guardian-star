@@ -84,10 +84,11 @@ export struct record{
       // 页面标题和搜索栏
       Column() {
         Text('健康记录')
-          .fontSize(24)
+          .fontSize(20)
+          .width('100%')
           .fontWeight(FontWeight.Bold)
           .fontColor(Color.Black)
-          .margin({ top: 30, bottom: 20,left: 16 })
+          .margin({ top: 20, bottom: 20,left: 20 })
           .alignSelf(ItemAlign.Start)
         
         // 搜索栏
@@ -198,7 +199,7 @@ export struct record{
         strokeWidth: 0,
         color: Color.Transparent 
       })
-      .scrollBar(BarState.Auto)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')

@@ -1,4 +1,3 @@
-import { router } from "@kit.ArkUI";
 
 @Builder
 export function LoginProblemBuilder() {
@@ -66,43 +65,22 @@ struct LoginProblem {
                     .width('100%')
                     .backgroundColor('#F5F5F5')
                     .borderRadius(20)
-                    // .onClick(() => {
-                    //   this.currentAnswer = item.answer
-                    //   this.showAnswerPanel = true
-                    // })
 
-                      Text(item.answer)
-                        .fontSize(14)
-                        .fontColor('#666666')
-                        .padding(16)
-                        .backgroundColor('#F5F5F5')
-                        .borderRadius(8)
-                        .margin({ top: 8 })
+                  Text(item.answer)
+                    .width('100%')
+                    .fontSize(14)
+                    .fontColor('#666666')
+                    .padding(16)
+                    .backgroundColor('#F5F5F5')
+                    .borderRadius(8)
+                    .margin({ top: 8 })
                         // .transition({ type: TransitionType.All, duration: 200 })
-                        .transition(TransitionEffect.OPACITY.animation({
+                    .transition(TransitionEffect.OPACITY.animation({
                           duration: 200, // 动画持续时间
                           curve: Curve.Ease  // 动画曲线类型
-                        })
-                        )
-
-                      // if (this.faqList[index].isExpanded) {
-                      //   Text(item.answer)
-                      //     .fontSize(14)
-                      //     .fontColor('#666666')
-                      //     .padding(16)
-                      //     .backgroundColor('#F5F5F5')
-                      //     .borderRadius(8)
-                      //     .margin({ top: 8 })
-                      //     // .transition({ type: TransitionType.All, duration: 200 })
-                      //     .transition(TransitionEffect.OPACITY.animation({
-                      //       duration: 200, // 动画持续时间
-                      //       curve: Curve.Ease  // 动画曲线类型
-                      //     }))
-
-
-
+                    })
+                    )
                 }
-
               }
             })
           }
@@ -119,12 +97,11 @@ struct LoginProblem {
             text: this.aiInputText,
             placeholder: '输入您的问题...'
           })
-            .width('75%')
+            .layoutWeight(1)
             .height(50)
             .fontSize(14)
             .backgroundColor(Color.White)
             .border({ width: 1, color: '#E5E5E5', radius: 25 })
-
 
           Button('发送')
             .width(80)
@@ -138,6 +115,7 @@ struct LoginProblem {
             })
         }
         .width('100%')
+        .alignItems(VerticalAlign.Center)
         .padding(16)
         .backgroundColor(Color.White)
       }

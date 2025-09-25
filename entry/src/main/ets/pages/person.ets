@@ -16,9 +16,10 @@ export struct person{
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.Black)
             .width('100%')
-            .height(44)
-            .margin({ left: 20,top:20,bottom:15 })
-            .padding({left:10})
+            //.height(44)
+            .margin({ left: 20,top:20,bottom:20 })
+            //.padding({left:10})
+            .alignSelf(ItemAlign.Start)
         
         // 个人信息内容
         Column() {
@@ -214,6 +215,7 @@ export struct person{
         }
         .width('100%')
         .backgroundColor('#F2F2F7')
+        Blank()
         // 底部按钮区域
         Column() {
           Button('切换账号')

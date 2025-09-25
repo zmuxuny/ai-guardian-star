@@ -79,6 +79,14 @@
       "data": {
         "description" : "this is LoginCode"
       }
+    },
+    {
+      "name": "LoginProblem",
+      "pageSourceFile": "src/main/ets/pages/LoginProblem.ets",
+      "buildFunction": "LoginProblemBuilder",
+      "data": {
+        "description" : "this is LoginProblem"
+      }
     }
   ]
 }
