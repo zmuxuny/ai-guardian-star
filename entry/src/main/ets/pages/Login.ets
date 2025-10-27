@@ -4,6 +4,7 @@ export function LoginBuilder() {
   Login();
 }
 
+@Preview
 @Component
 struct Login {
   //控制跳转的对象
