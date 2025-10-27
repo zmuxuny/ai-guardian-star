@@ -2,8 +2,9 @@
   "module": {
     "requestPermissions":[
       {
-        "name" : "ohos.permission.INTERNET"
-      }
+        "name" : "ohos.permission.INTERNET",
+
+      },
     ],
     "routerMap": "$profile:route_map",
     "name": "entry",

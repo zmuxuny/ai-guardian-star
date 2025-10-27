@@ -11,6 +11,11 @@
     {
       "name": "EntryAbility_label",
       "value": "智护通"
+    },
+    {
+      "name": "reason_net",
+      "value": "请检查网络"
+
     }
   ]
 }
