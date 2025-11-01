@@ -12,8 +12,8 @@ export struct record{
   healthRecords: HealthRecord[] = [
     {
       time: '08:00',
-      type: '生命体征',
-      details: ['血压: 120/80', '心率: 78', '血糖: 5.6']
+      type: '用药',
+      details: ['维生素D']
     },
     {
       time: '12:00',
@@ -21,21 +21,21 @@ export struct record{
       details: ['午餐: 米饭, 青菜, 豆腐']
     },
     {
-      time: '18:00',
+      time: '13:00',
       type: '用药',
       details: ['阿司匹林'],
       isLast: true
     },
     {
-      time: '18:00',
+      time: '15:00',
       type: '用药',
-      details: ['阿司匹林'],
+      details: ['维生素C'],
       isLast: true
     },
     {
-      time: '18:00',
+      time: '16:00',
       type: '用药',
-      details: ['阿司匹林'],
+      details: ['维生素C'],
       isLast: true
     },
     {
@@ -199,7 +199,7 @@ export struct record{
         strokeWidth: 0,
         color: Color.Transparent 
       })
-      .scrollBar(BarState.Off)
+      .scrollBar(BarState.On)
     }
     .width('100%')
     .height('100%')

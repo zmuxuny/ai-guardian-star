@@ -100,8 +100,8 @@ struct LoginCode {
           //.margin({ bottom: 40 })
           .onClick(() => {
             // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
-            this.pathStack.clear();
-            this.pathStack.replacePathByName('Layout', null, false);
+            //this.pathStack.clear();
+            //this.pathStack.replacePathByName('Layout', null, false);
           })
 
 

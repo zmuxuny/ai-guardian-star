@@ -71,7 +71,6 @@ struct Login {
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-          Column() {
             Column() {
               Button() {
                 Image($r('app.media.icon_QQ'))
@@ -79,18 +78,17 @@ struct Login {
                   .height(48)
               }
               .backgroundColor(Color.White)
+              .onClick(() => {
+                // QQ跳转逻辑
+              })
 
               Text('QQ登录')
                 .fontColor(Color.Black)
-                .margin({top:6})
+                .margin({ top: 6 })
                 .fontSize(15)
                 .textAlign(TextAlign.Center)
             }
             .alignItems(HorizontalAlign.Center)
-          }
-          .onClick(() => {
-            // QQ跳转逻辑
-          })
 
           Column() {
             Button() {
@@ -109,27 +107,28 @@ struct Login {
               .fontSize(15)
               .textAlign(TextAlign.Center)
           }
+          .alignItems(HorizontalAlign.Center)
 
           Column() {
             Button() {
               Image($r('app.media.guestLogin'))
-                .width(48)
-                .height(48)
+                .width(46)
+                .height(46)
             }
             .backgroundColor(Color.White)
+            .onClick(() => {
+              // 游客跳转逻辑
+              this.pathStack.replacePathByName('Layout',null, false);
+            })
 
             Text('游客登录')
               .fontColor(Color.Black)
-              .margin({top:6})
+              .margin({top:5})
               .fontSize(15)
               .textAlign(TextAlign.Center)
           }
           .alignItems(HorizontalAlign.Center)
 
-        .onClick(() => {
-          // 游客跳转逻辑
-          this.pathStack.replacePathByName('Layout',null, false);
-        })
         }
         .width('100%')
         .margin({top:50})
@@ -148,7 +147,7 @@ struct Login {
           //.margin({ bottom: 40 })
           .onClick(() => {
             // 直接跳转，不进行数据验证，使用replacePathByName确保不能返回
-            this.pathStack.replacePathByName('Layout',null, false);
+            //this.pathStack.replacePathByName('Layout',null, false);
           })
 
         //提示
