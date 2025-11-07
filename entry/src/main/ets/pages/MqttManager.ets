@@ -16,13 +16,23 @@ interface AlertData {
   timestamp: number;  // Python 中为秒级时间戳，需要乘以 1000 转为毫秒
   datetime: string;
 }
-
+// 兼容不同后端字段命名的扩展告警类型
+interface AlertLike {
+  device_id?: string;
+  event?: string;
+  alert_type?: string;
+  type?: string;
+  confidence?: number;
+  timestamp?: number;
+  datetime?: string;
+}
+//昇腾开发板ip:192.168.137.100
 // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
 // 这里的 IP 必须是 Broker 所在的开发板的 IP
-const BROKER_HOST = '192.168.43.147';
+const BROKER_HOST = '192.168.137.100';
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;  // 修改：使用 tcp:// 前缀，匹配 HarmonyOS MQTT 库要求
-const ALERT_TOPIC = 'ai_guardian/alerts/fall';
+const ALERT_TOPIC = 'ai_guardian/alerts/#';
 
 @Observed
 export class MqttManager {
@@ -203,15 +213,12 @@ export class MqttManager {
 
     if (typeof payload !== 'string') {
       try {
-        // 使用 for 循环手动解码 ArrayBuffer
-        const uint8Array = new Uint8Array(payload);
+        const uint8Array: Uint8Array = new Uint8Array(payload as ArrayBuffer);
         let charCodes: number[] = [];
         for (let i = 0; i < uint8Array.length; i++) {
           charCodes.push(uint8Array[i]);
         }
-        // 使用 String.fromCharCode 构造字符串 (适用于纯 ASCII 或简单 UTF-8)
         messageContent = String.fromCharCode(...charCodes);
-
       } catch (e) {
         messageContent = `收到原始数据，但解码失败: ${topic}`;
       }
@@ -220,17 +227,32 @@ export class MqttManager {
     }
 
     try {
-      const data: AlertData = JSON.parse(messageContent) as AlertData;
-      // 修改：匹配 Python 代码发送的 "event" 字段（而不是 "alert_type"）
-      if (data.event === 'fall_detected' && data.timestamp) {
-        // timestamp 在 Python 中为秒级，需要乘以 1000 转为毫秒
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${new Date(data.timestamp * 1000).toLocaleTimeString('zh-CN')}`;
+      const data = JSON.parse(messageContent) as AlertLike;
+      const eventField = (data.event ?? data.alert_type ?? data.type ?? '') as string;
+      const rawEvent: string = String(eventField).toLowerCase();
+      const isFall: boolean = rawEvent.includes('fall') || rawEvent.includes('跌倒');
+      const ts: number | undefined = data.timestamp;
+
+      if (isFall) {
+        const millis: number = ts !== undefined ? (ts > 1e12 ? ts : ts * 1000) : Date.now();
+        const fallTime: string = new Date(millis).toLocaleTimeString('zh-CN');
+        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
+        console.error(`[mqtt]:🚨 检测到摔倒事件! 主题=${topic}, 时间=${fallTime}, 原始数据=${messageContent}`);
       } else {
         this.latestMessage = `[${topic}] 消息: ${messageContent}`;
       }
     } catch (e) {
-      this.latestMessage = `[${topic}] 原始消息: ${messageContent}`;
+      // 纯文本关键字兜底
+      const lower = messageContent.toLowerCase();
+      if (lower.includes('fall') || messageContent.includes('跌倒')) {
+        const fallTime: string = new Date().toLocaleTimeString('zh-CN');
+        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
+        console.error(`[mqtt]:🚨 检测到摔倒事件(纯文本匹配)! 主题=${topic}, 时间=${fallTime}, 原始数据=${messageContent}`);
+      } else {
+        this.latestMessage = `[${topic}] 原始消息: ${messageContent}`;
+      }
     }
+    console.log(`[mqtt]:接收消息 topic=${topic}, 内容=${messageContent}`);
   }
 
   // 重新连接方法

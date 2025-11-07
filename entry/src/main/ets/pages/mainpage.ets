@@ -2,27 +2,25 @@ import { MqttManager } from './MqttManager';
 // 【关键修正 1】导入 webview 模块
 import webview from '@ohos.web.webview';
 
+@Entry
 @Component
 export struct mainPage {
   @State selectedView: string = '正面视角';
   private volumeLevel: number = 50;
-
+//altas 200I DK ip:192.168.137.100   web_ip:192.168.137.100:5000/     MQTT_ip:192.168.137.100:1883/
   // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 !!!】
-  @State videoUrl: string = 'http://192.168.43.147:5000/video_feed';
+  @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
 
-  // 【关键修正 2】彻底延迟 mqttManager 的初始化
-  @State mqttManager: MqttManager | null = null;
+  // 使用可观察对象，确保 UI 随 MQTT 状态联动
+  @State mqttManager: MqttManager = MqttManager.getInstance();
 
   // 【关键修正 2】将 WebController 更改为 WebviewController
   private webController: webview.WebviewController = new webview.WebviewController();
 
-  onPageShow() {
-    // 【关键修正 3】在 onPageShow 中只进行初始化操作
-    if (!this.mqttManager) {
-      this.mqttManager = MqttManager.getInstance();
-      this.mqttManager.connectAndSubscribe();
-      console.error('[mqtt] mainpage MQTT 已初始化');
-    }
+  aboutToAppear() {
+    // 页面出现时进行连接与订阅
+    this.mqttManager.connectAndSubscribe();
+    console.info('[mqtt] mainpage MQTT 初始化并尝试连接');
   }
 
   build() {
@@ -96,16 +94,10 @@ export struct mainPage {
             Image($r('app.media.img_3'))
               .width(20)
               .height(20)
-            // 【关键修正 4】根据 mqttManager 的状态显示不同的 UI
-            if (this.mqttManager) {
-              Text(this.mqttManager.isConnected ? '✅ MQTT已连接' : '❌ MQTT断开连接')
-                .fontColor(this.mqttManager.isConnected ? Color.Green : Color.Red)
-                .margin({ left: 8 })
-            } else {
-              Text('MQTT 尚未初始化')
-                .fontColor(Color.Gray)
-                .margin({ left: 8 })
-            }
+            // 根据 mqttManager 的状态显示不同的 UI
+            Text(this.mqttManager.isConnected ? '✅ MQTT已连接' : '❌ MQTT断开连接')
+              .fontColor(this.mqttManager.isConnected ? Color.Green : Color.Red)
+              .margin({ left: 8 })
             Text('   |   ')
             Image($r('app.media.img_4'))
               .width(20)
@@ -124,26 +116,14 @@ export struct mainPage {
           })
 
           // MQTT 消息显示区
-          // 【关键修正 4】根据 mqttManager 的状态显示不同的 UI
-          if (this.mqttManager) {
-            Text(this.mqttManager.latestMessage)
-              .fontSize(18)
-              .textAlign(TextAlign.Center)
-              .width('90%')
-              .backgroundColor(this.mqttManager.latestMessage.includes('跌倒') ? 0xFFFFE0E0 : 0xFFE6F7FF)
-              .padding(12)
-              .borderRadius(8)
-              .margin(16)
-          } else {
-            Text('MQTT 尚未初始化')
-              .fontSize(18)
-              .textAlign(TextAlign.Center)
-              .width('90%')
-              .backgroundColor(0xFFFFFFFF)
-              .padding(12)
-              .borderRadius(8)
-              .margin(16)
-          }
+          Text(this.mqttManager.latestMessage)
+            .fontSize(18)
+            .textAlign(TextAlign.Center)
+            .width('90%')
+            .backgroundColor(this.mqttManager.latestMessage.includes('跌倒') ? 0xFFFFE0E0 : 0xFFE6F7FF)
+            .padding(12)
+            .borderRadius(8)
+            .margin(16)
 
           // 语音交互按钮
           Column() {
