@@ -13,6 +13,12 @@ export struct mainPage {
 
   // 使用可观察对象，确保 UI 随 MQTT 状态联动
   @State mqttManager: MqttManager = MqttManager.getInstance();
+  
+  // 本地状态变量，用于确保 UI 及时刷新
+  @State isConnected: boolean = false;
+  @State latestMessage: string = '正在初始化...';
+  @State isFallDetected: boolean = false; // 本地摔倒状态
+  private updateTimer: number = -1;
 
   // 【关键修正 2】将 WebController 更改为 WebviewController
   private webController: webview.WebviewController = new webview.WebviewController();
@@ -21,6 +27,57 @@ export struct mainPage {
     // 页面出现时进行连接与订阅
     this.mqttManager.connectAndSubscribe();
     console.info('[mqtt] mainpage MQTT 初始化并尝试连接');
+    
+    // 立即同步一次状态
+    this.syncState();
+    
+    // 启动定时器，定期同步 MQTT 状态到本地状态
+    // 使用较短的间隔确保摔倒状态能及时刷新
+    this.startStateSync();
+  }
+  
+  aboutToDisappear() {
+    // 清理定时器
+    if (this.updateTimer !== -1) {
+      clearInterval(this.updateTimer);
+      this.updateTimer = -1;
+    }
+  }
+  
+  // 同步状态方法
+  private syncState() {
+    let stateChanged: boolean = false;
+    
+    if (this.isConnected !== this.mqttManager.isConnected) {
+      console.log(`[mainpage]:连接状态变化 ${this.isConnected} -> ${this.mqttManager.isConnected}`);
+      this.isConnected = this.mqttManager.isConnected;
+      stateChanged = true;
+    }
+    
+    if (this.latestMessage !== this.mqttManager.latestMessage) {
+      console.log(`[mainpage]:消息变化 "${this.latestMessage}" -> "${this.mqttManager.latestMessage}"`);
+      this.latestMessage = this.mqttManager.latestMessage;
+      stateChanged = true;
+    }
+    
+    if (this.isFallDetected !== this.mqttManager.isFallDetected) {
+      console.log(`[mainpage]:🔴 摔倒状态变化 ${this.isFallDetected} -> ${this.mqttManager.isFallDetected}`);
+      this.isFallDetected = this.mqttManager.isFallDetected;
+      stateChanged = true;
+    }
+    
+    if (stateChanged) {
+      console.log(`[mainpage]:状态已更新 isConnected=${this.isConnected}, isFallDetected=${this.isFallDetected}, message=${this.latestMessage.substring(0, 30)}...`);
+    }
+  }
+  
+  // 启动状态同步定时器
+  private startStateSync() {
+    // 每 100ms 检查一次状态变化，确保摔倒状态能及时刷新到 UI
+    // 使用较短的间隔确保状态变化能快速反映
+    this.updateTimer = setInterval(() => {
+      this.syncState();
+    }, 100) as number;
   }
 
   build() {
@@ -94,9 +151,9 @@ export struct mainPage {
             Image($r('app.media.img_3'))
               .width(20)
               .height(20)
-            // 根据 mqttManager 的状态显示不同的 UI
-            Text(this.mqttManager.isConnected ? '✅ MQTT已连接' : '❌ MQTT断开连接')
-              .fontColor(this.mqttManager.isConnected ? Color.Green : Color.Red)
+            // 使用本地状态变量，确保 UI 及时刷新
+            Text(this.isConnected ? '✅ MQTT已连接' : '❌ MQTT断开连接')
+              .fontColor(this.isConnected ? Color.Green : Color.Red)
               .margin({ left: 8 })
             Text('   |   ')
             Image($r('app.media.img_4'))
@@ -116,11 +173,12 @@ export struct mainPage {
           })
 
           // MQTT 消息显示区
-          Text(this.mqttManager.latestMessage)
+          Text(this.latestMessage)
             .fontSize(18)
             .textAlign(TextAlign.Center)
             .width('90%')
-            .backgroundColor(this.mqttManager.latestMessage.includes('跌倒') ? 0xFFFFE0E0 : 0xFFE6F7FF)
+            .backgroundColor(this.isFallDetected ? 0xFFFFE0E0 : 0xFFE6F7FF)
+            .fontColor(this.isFallDetected ? Color.Red : Color.Black)
             .padding(12)
             .borderRadius(8)
             .margin(16)
