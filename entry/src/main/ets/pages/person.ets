@@ -89,7 +89,7 @@ export struct person{
               
               Blank()
               
-              Text('zhangsan1900')
+              Text('zhangsan5200')
                 .fontSize(16)
                 .fontColor(Color.Black)
             }

@@ -16,13 +16,23 @@ interface AlertData {
   timestamp: number;  // Python 中为秒级时间戳，需要乘以 1000 转为毫秒
   datetime: string;
 }
-
+// 兼容不同后端字段命名的扩展告警类型
+interface AlertLike {
+  device_id?: string;
+  event?: string;
+  alert_type?: string;
+  type?: string;
+  confidence?: number;
+  timestamp?: number;
+  datetime?: string;
+}
+//昇腾开发板ip:192.168.137.100
 // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
 // 这里的 IP 必须是 Broker 所在的开发板的 IP
-const BROKER_HOST = '192.168.43.147';
+const BROKER_HOST = '192.168.137.100';
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;  // 修改：使用 tcp:// 前缀，匹配 HarmonyOS MQTT 库要求
-const ALERT_TOPIC = 'ai_guardian/alerts/fall';
+const ALERT_TOPIC = 'ai_guardian/alerts/#';
 
 @Observed
 export class MqttManager {
@@ -30,8 +40,13 @@ export class MqttManager {
 
   private mqttClient: MqttClient | null = null;
 
-  public isConnected: boolean = false;
-  public latestMessage: string = '正在初始化...';
+  @Track public isConnected: boolean = false;
+  @Track public latestMessage: string = '正在初始化...';
+  @Track public isFallDetected: boolean = false; // 明确跟踪摔倒状态
+  @Track public fallTimestamp: number = 0; // 摔倒时间戳
+  
+  private fallRecoveryTimer: number = -1; // 摔倒自动恢复定时器
+  private readonly FALL_RECOVERY_DELAY: number = 3000; // 3秒后自动恢复
 
   private constructor() {
     this.initClient();
@@ -72,6 +87,8 @@ export class MqttManager {
       this.isConnected = false;
       console.error('[mqtt]:MQTT 连接丢失:', err, data);
       this.latestMessage = `连接丢失: ${data.message || '请检查网络或Broker状态'}`;
+      // 清除定时器
+      this.clearFallRecoveryTimer();
       // 尝试重新连接
       this.reconnect();
     });
@@ -125,6 +142,8 @@ export class MqttManager {
         await this.mqttClient.disconnect();
         this.isConnected = false;
         this.latestMessage = 'MQTT 连接已断开';
+        // 清除定时器
+        this.clearFallRecoveryTimer();
         console.log('[mqtt]:MQTT 连接已断开');
       } catch (error) {
         console.error('[mqtt]:断开连接失败:', error);
@@ -187,6 +206,10 @@ export class MqttManager {
 
       console.log(`成功订阅主题 ${topic}`);
       this.latestMessage = `✅ MQTT 已连接，等待主题 [${topic}] 消息...`;
+      // 连接成功时，清除之前的摔倒状态和定时器
+      this.clearFallRecoveryTimer();
+      this.isFallDetected = false;
+      this.fallTimestamp = 0;
 
     } catch (err) {
       this.isConnected = false;
@@ -198,20 +221,64 @@ export class MqttManager {
     }
   }
 
+  // 清除摔倒恢复定时器
+  private clearFallRecoveryTimer(): void {
+    if (this.fallRecoveryTimer !== -1) {
+      clearTimeout(this.fallRecoveryTimer);
+      this.fallRecoveryTimer = -1;
+      console.log('[mqtt]:清除摔倒恢复定时器');
+    }
+  }
+
+  // 启动摔倒自动恢复定时器
+  private startFallRecoveryTimer(): void {
+    // 先清除之前的定时器（如果存在）
+    this.clearFallRecoveryTimer();
+    
+    console.log(`[mqtt]:启动摔倒自动恢复定时器，${this.FALL_RECOVERY_DELAY}ms 后自动恢复`);
+    
+    // 设置3秒后自动恢复
+    this.fallRecoveryTimer = setTimeout(() => {
+      console.log('[mqtt]:⏰ 定时器触发，自动恢复为正常状态');
+      this.isFallDetected = false;
+      this.fallTimestamp = 0;
+      const currentTime: string = this.formatTimestamp(undefined);
+      this.latestMessage = `✅ 已恢复正常状态 @ ${currentTime}`;
+      this.fallRecoveryTimer = -1;
+      console.log('[mqtt]:✅ 摔倒状态已自动清除');
+    }, this.FALL_RECOVERY_DELAY)  as number;
+  }
+
+  // 格式化数字为两位数字符串（兼容性方法）
+  private padZero(num: number): string {
+    return num < 10 ? `0${num}` : `${num}`;
+  }
+
+  // 格式化时间戳为可读时间（使用本地时间）
+  private formatTimestamp(timestamp: number | undefined): string {
+    // 优先使用当前系统时间，确保时间准确
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = this.padZero(date.getMonth() + 1);
+    const day = this.padZero(date.getDate());
+    const hours = this.padZero(date.getHours());
+    const minutes = this.padZero(date.getMinutes());
+    const seconds = this.padZero(date.getSeconds());
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
     let messageContent: string = '';
 
     if (typeof payload !== 'string') {
       try {
-        // 使用 for 循环手动解码 ArrayBuffer
-        const uint8Array = new Uint8Array(payload);
+        const uint8Array: Uint8Array = new Uint8Array(payload as ArrayBuffer);
         let charCodes: number[] = [];
         for (let i = 0; i < uint8Array.length; i++) {
           charCodes.push(uint8Array[i]);
         }
-        // 使用 String.fromCharCode 构造字符串 (适用于纯 ASCII 或简单 UTF-8)
         messageContent = String.fromCharCode(...charCodes);
-
       } catch (e) {
         messageContent = `收到原始数据，但解码失败: ${topic}`;
       }
@@ -219,18 +286,96 @@ export class MqttManager {
       messageContent = payload;
     }
 
+    console.log(`[mqtt]:收到原始消息 topic=${topic}, 内容=${messageContent}`);
+
     try {
-      const data: AlertData = JSON.parse(messageContent) as AlertData;
-      // 修改：匹配 Python 代码发送的 "event" 字段（而不是 "alert_type"）
-      if (data.event === 'fall_detected' && data.timestamp) {
-        // timestamp 在 Python 中为秒级，需要乘以 1000 转为毫秒
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${new Date(data.timestamp * 1000).toLocaleTimeString('zh-CN')}`;
+      const data = JSON.parse(messageContent) as AlertLike;
+      console.log(`[mqtt]:解析JSON成功, event=${data.event}, alert_type=${data.alert_type}, type=${data.type}`);
+      
+      const eventField = (data.event ?? data.alert_type ?? data.type ?? '') as string;
+      const rawEvent: string = String(eventField).toLowerCase().trim();
+      console.log(`[mqtt]:事件字段值="${rawEvent}"`);
+      
+      // 更严格的摔倒检测：
+      // 1. 如果事件字段为空、null、none，视为正常状态
+      // 2. 必须明确包含 fall 或 跌倒，且不能是否定词
+      // 3. 如果包含 normal、正常等关键词，视为正常状态
+      const isEmpty = rawEvent === '' || rawEvent === 'null' || rawEvent === 'none' || rawEvent === 'undefined';
+      const hasFallKeyword = rawEvent.includes('fall') || rawEvent.includes('跌倒');
+      const hasNegativeKeyword = rawEvent.includes('no fall') || rawEvent.includes('无跌倒') || 
+                                 rawEvent.includes('normal') || rawEvent.includes('正常') ||
+                                 rawEvent.includes('stand') || rawEvent.includes('站立') ||
+                                 rawEvent.includes('walk') || rawEvent.includes('行走') ||
+                                 rawEvent.includes('sit') || rawEvent.includes('坐');
+      
+      // 只有在明确检测到摔倒关键词且不是否定词的情况下，才认为是摔倒
+      const isFall: boolean = !isEmpty && hasFallKeyword && !hasNegativeKeyword;
+      
+      console.log(`[mqtt]:摔倒检测结果 isFall=${isFall}, hasFallKeyword=${hasFallKeyword}, hasNegativeKeyword=${hasNegativeKeyword}`);
+
+      if (isFall) {
+        // 检测到摔倒
+        console.log(`[mqtt]:🔴 设置为摔倒状态`);
+        this.isFallDetected = true;
+        this.fallTimestamp = Date.now();
+        const fallTime: string = this.formatTimestamp(undefined);
+        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
+        console.error(`[mqtt]:🚨 检测到摔倒事件! 主题=${topic}, 时间=${fallTime}, 原始数据=${messageContent}`);
+        
+        // 启动3秒自动恢复定时器
+        this.startFallRecoveryTimer();
       } else {
-        this.latestMessage = `[${topic}] 消息: ${messageContent}`;
+        // 收到正常消息，立即清除摔倒状态并取消定时器
+        console.log(`[mqtt]:🟢 清除摔倒状态，设置为正常状态`);
+        this.clearFallRecoveryTimer(); // 取消自动恢复定时器
+        this.isFallDetected = false;
+        this.fallTimestamp = 0;
+        
+        // 使用当前系统时间显示
+        const currentTime: string = this.formatTimestamp(undefined);
+        
+        // 如果有 event 字段，显示事件类型
+        if (eventField) {
+          this.latestMessage = `✅ 正常状态: ${eventField} @ ${currentTime}`;
+        } else if (data.datetime) {
+          this.latestMessage = `✅ 正常状态: ${data.datetime}`;
+        } else {
+          this.latestMessage = `✅ 正常状态 @ ${currentTime}`;
+        }
+        console.log(`[mqtt]:✅ 收到正常消息 主题=${topic}, 事件=${eventField}, 摔倒状态已清除`);
       }
     } catch (e) {
-      this.latestMessage = `[${topic}] 原始消息: ${messageContent}`;
+      // JSON解析失败，使用纯文本匹配
+      console.log(`[mqtt]:JSON解析失败，使用纯文本匹配, 错误=${(e as Error).message}`);
+      const lower = messageContent.toLowerCase();
+      const hasFallKeyword = lower.includes('fall') || messageContent.includes('跌倒');
+      const hasNegativeKeyword = lower.includes('no fall') || lower.includes('无跌倒') || 
+                                 lower.includes('normal') || lower.includes('正常');
+      const isFall = hasFallKeyword && !hasNegativeKeyword;
+      
+      if (isFall) {
+        // 检测到摔倒（纯文本匹配）
+        console.log(`[mqtt]:🔴 纯文本匹配：设置为摔倒状态`);
+        this.isFallDetected = true;
+        this.fallTimestamp = Date.now();
+        const fallTime: string = this.formatTimestamp(undefined);
+        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
+        console.error(`[mqtt]:🚨 检测到摔倒事件(纯文本匹配)! 主题=${topic}, 时间=${fallTime}`);
+        
+        // 启动3秒自动恢复定时器
+        this.startFallRecoveryTimer();
+      } else {
+        // 正常消息（纯文本）
+        console.log(`[mqtt]:🟢 纯文本匹配：清除摔倒状态`);
+        this.clearFallRecoveryTimer(); // 取消自动恢复定时器
+        this.isFallDetected = false;
+        this.fallTimestamp = 0;
+        const currentTime: string = this.formatTimestamp(undefined);
+        this.latestMessage = `✅ 正常状态: ${messageContent.substring(0, 50)} @ ${currentTime}`;
+        console.log(`[mqtt]:✅ 收到正常消息(纯文本) 主题=${topic}, 摔倒状态已清除`);
+      }
     }
+    console.log(`[mqtt]:最终状态 isFallDetected=${this.isFallDetected}, latestMessage=${this.latestMessage}`);
   }
 
   // 重新连接方法

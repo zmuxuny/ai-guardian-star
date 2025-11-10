@@ -1,12 +1,26 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "storeFile": "E:/key/caringSystem.p12",
+          "storePassword": "00000018D049DC2656C21D5406758CE09032544DBC7FB32E0BAC440C1305B3D4A5D172B8DCC036D1",
+          "keyAlias": "caringSystem",
+          "keyPassword": "000000183A31D0963BA81BAC6CCDFB9B5A9486C09B5954BC0DBB6A3CA55B9E84726E4064A49EE9EF",
+          "signAlg": "SHA256withECDSA",
+          "profile": "D:/16228/Dmowload/caringSystemRelease.p7b",
+          "certpath": "D:/16228/Dmowload/Documents/caringSystem.cer"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
         "signingConfig": "default",
-        "targetSdkVersion": "5.1.1(19)",
-        "compatibleSdkVersion": "5.0.5(17)",
+        "targetSdkVersion": "6.0.0(20)",
+        "compatibleSdkVersion": "6.0.0(20)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {

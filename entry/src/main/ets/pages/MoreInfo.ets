@@ -62,7 +62,7 @@ export struct MoreInfo {
 
           Blank()
 
-          Text('北京 北京')
+          Text('四川 成都')
             .fontSize(16)
             .fontColor(Color.Black)
 
@@ -86,7 +86,7 @@ export struct MoreInfo {
 
           Blank()
 
-          Text('这个人很懒，什么都没留下')
+          Text('以梦为马 不负韶华')
             .fontSize(16)
             .fontColor(Color.Black)
             .maxLines(1)
