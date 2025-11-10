@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\16228\\.ohos\\config\\default_caringSystem_uD85-Hi6utTQSsjbNPzXylFAoU3-3reT6yVHc7G3v-Q=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001AD426B4D6C404A6D2C04E6D96C420D02D29806ED6C819CE53CFAC3DD2F1C4EE1D982348449DC3",
-          "profile": "C:\\Users\\16228\\.ohos\\config\\default_caringSystem_uD85-Hi6utTQSsjbNPzXylFAoU3-3reT6yVHc7G3v-Q=.p7b",
+          "storeFile": "E:/key/caringSystem.p12",
+          "storePassword": "00000018D049DC2656C21D5406758CE09032544DBC7FB32E0BAC440C1305B3D4A5D172B8DCC036D1",
+          "keyAlias": "caringSystem",
+          "keyPassword": "000000183A31D0963BA81BAC6CCDFB9B5A9486C09B5954BC0DBB6A3CA55B9E84726E4064A49EE9EF",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\16228\\.ohos\\config\\default_caringSystem_uD85-Hi6utTQSsjbNPzXylFAoU3-3reT6yVHc7G3v-Q=.p12",
-          "storePassword": "0000001A46861EF6234C4A9F51889B1A9F7F6233245ED169CB37DBBFBFB5B9C44E8FA3D725A4A5859D84"
+          "profile": "D:/16228/Dmowload/caringSystemRelease.p7b",
+          "certpath": "D:/16228/Dmowload/Documents/caringSystem.cer"
         }
       }
     ],

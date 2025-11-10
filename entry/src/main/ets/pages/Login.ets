@@ -196,8 +196,5 @@ struct Login {
 
     }.onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;  })
-
-
   }
-
 }
