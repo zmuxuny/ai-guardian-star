@@ -148,7 +148,7 @@ export struct record{
       
       // 状态标签
       Row() {
-        Text('当天状态')
+        Text('摔倒次数：1')
           .fontSize(12)
           .fontColor(Color.Black)
           .backgroundColor('#E5E5E5')
@@ -156,7 +156,7 @@ export struct record{
           .borderRadius(12)
           .margin({ right: 8 })
         
-        Text('服药正常')
+        Text('久坐次数：3')
           .fontSize(12)
           .fontColor(Color.Black)
           .backgroundColor('#E5E5E5')

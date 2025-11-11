@@ -207,7 +207,7 @@ export struct mainPage {
             .backgroundColor(0xFF1890FF)
             .borderRadius(60)
             .onClick(() => {
-              console.info('按钮被点击，执行语音交互逻辑');
+              console.info('输入语音');
             })
           }
           .width('100%')
