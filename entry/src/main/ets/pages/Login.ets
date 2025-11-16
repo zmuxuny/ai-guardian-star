@@ -65,15 +65,15 @@ struct Login {
 
             Blank()
             // 验证码登录
-            Text('验证码登录')
-              .fontSize(16)
-              .fontColor('#007AFF')
-              .margin({ top: 30 })
-              .onClick(() => {
+            //Text('验证码登录')
+              //.fontSize(16)
+              //.fontColor('#007AFF')
+              //.margin({ top: 30 })
+              //.onClick(() => {
                 // 切换到验证码登录
-                this.pathStack.pushPathByName('LoginCode', null, true)
-              })
-              .alignSelf(ItemAlign.End)
+                //this.pathStack.pushPathByName('LoginCode', null, true)
+              //})
+              //.alignSelf(ItemAlign.End)
           }
           .width('100%')
         }
@@ -84,7 +84,7 @@ struct Login {
         //Blank()
 
         // 登录按钮
-        Button('登录/注册')
+        Button('登录')
           .onClick(() => {
             const FIXED_ACCOUNT = '192.168.137.100';
             const FIXED_PASSWORD = 'Mind@123';
