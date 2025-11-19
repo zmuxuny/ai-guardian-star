@@ -15,7 +15,7 @@ struct LoginProblem {
   @State aiInputText: string = ''
   @State isExpanded:boolean=false
   @State faqList: Array<FaqList> = [
-    {
+    /*{
       question: '忘记密码怎么办？',
       answer: '您可以通过手机验证码找回密码，点击登录页面的"忘记密码"链接进行操作。'
 
@@ -35,20 +35,28 @@ struct LoginProblem {
     {
       question: '企业账号无法发送员工验证短信？',
       answer: '根据最新网络安全法规，企业需自行备案短信通道并通过华为云对接第三方短信服务平台。'
-    }
+    }*/
+   {
+      question: '不知道账户名？',
+      answer: '默认账户名为你开发板的域名,如：192.168.137.100'
+   },
+    {
+      question: '不知道密码？',
+      answer: '默认密码是开发者初始密码 Mind@123'
+
+    },
   ]
 
   build() {
     NavDestination() {
       Column() {
-
         // 主内容区域
         Column() {
           Text('常见问题')
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.Black)
-            .margin({ bottom: 20, left: 16, top: 20 })
+            .margin({ bottom: 40, left: 16, top: 20 })
             .alignSelf(ItemAlign.Start)
 
           // 问题列表
@@ -58,21 +66,24 @@ struct LoginProblem {
                 Column() {
                   Text(item.question)
                     .align(Alignment.Center)
-                    .fontSize(16)
+                    .fontSize(18)
                     .fontColor('#333333')
-                    .padding(16)
-                    .width('100%')
-                    .backgroundColor('#F5F5F5')
-                    .borderRadius(20)
+                    .margin({bottom:20})
+                    .padding({left:15})
+                    .alignSelf(ItemAlign.Start)
+                    //.padding(16)
+                    //.width('100%')
+                    //.backgroundColor('#F5F5F5')
+                    //.borderRadius(20)
 
                   Text(item.answer)
                     .width('100%')
-                    .fontSize(14)
+                    .fontSize(15)
                     .fontColor('#666666')
                     .padding(16)
                     .backgroundColor('#F5F5F5')
                     .borderRadius(8)
-                    .margin({ top: 8 })
+                    .margin({bottom:20})
                         // .transition({ type: TransitionType.All, duration: 200 })
                     .transition(TransitionEffect.OPACITY.animation({
                           duration: 200, // 动画持续时间
@@ -91,7 +102,7 @@ struct LoginProblem {
         .height('80%')
 
         // AI输入区域
-        Row() {
+        /*Row() {
           TextInput({
             text: this.aiInputText,
             placeholder: '输入您的问题...'
@@ -116,7 +127,7 @@ struct LoginProblem {
         .width('100%')
         .alignItems(VerticalAlign.Center)
         .padding(16)
-        .backgroundColor(Color.White)
+        .backgroundColor(Color.White)*/
       }
       .width('100%')
       .height('100%')

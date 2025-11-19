@@ -1,4 +1,6 @@
-import { prompt } from "@kit.ArkUI";
+//import { prompt } from "@kit.ArkUI";
+// import { media } from "@kit.MediaKit";
+// import App from "@system.app";
 
 // 跳转页面入口函数
 @Builder
@@ -18,17 +20,29 @@ struct Login {
     NavDestination() {
       Column() {
         // 页面标题
-        Text('账号密码登录')
-          .fontSize(20)
-          .fontColor(Color.Black)
-          .fontWeight(FontWeight.Bold)
-          .margin({ top: 20, bottom: 40, left: 20 })
-          .alignSelf(ItemAlign.Start)
+        // Text('账号密码登录')
+        //   .fontSize(20)
+        //   .fontColor(Color.Black)
+        //   .fontWeight(FontWeight.Bold)
+        //   .margin({ top: 20, bottom: 40, left: 20 })
+        //   .alignSelf(ItemAlign.Start)
+
+        Column(){
+          Image($r('app.media.logo'))
+            .width(100)
+            .height(100)
+            .margin({bottom:6})
+
+          Text('鸿蒙智护星')
+            .fontColor('#000')
+            .fontSize(20)
+            .fontWeight(10)
+        }
 
         // 输入区域
         Column() {
           // 用户名输入框
-          TextInput({ placeholder: '请输入账号', text: this.username })
+          TextInput({ placeholder: '请输入域名', text: this.username })
             .onChange((value: string) => {
               this.username = value;
             })
@@ -63,17 +77,16 @@ struct Login {
                 this.pathStack.pushPathByName('LoginProblem', null, true)
               })
 
-            Blank()
-            // 验证码登录
-            //Text('验证码登录')
-              //.fontSize(16)
-              //.fontColor('#007AFF')
-              //.margin({ top: 30 })
-              //.onClick(() => {
-                // 切换到验证码登录
-                //this.pathStack.pushPathByName('LoginCode', null, true)
-              //})
-              //.alignSelf(ItemAlign.End)
+            /*Blank()
+            //验证码登录
+            Text('验证码登录')
+              .fontSize(16)
+              .fontColor('#007AFF')
+              .margin({ top: 30 })
+              .onClick(() => {
+                this.pathStack.pushPathByName('LoginCode', null, true)
+              })
+              .alignSelf(ItemAlign.End)*/
           }
           .width('100%')
         }
@@ -91,7 +104,7 @@ struct Login {
 
             if (this.username.trim() === '') {
               // 使用自定义弹窗替代默认toast
-              this.showCenterAlert('未输入账号');
+              this.showCenterAlert('未输入域名');
               return;
             }
 
@@ -105,7 +118,7 @@ struct Login {
               this.pathStack.replacePathByName('Layout', null, false);
             } else {
               // 使用自定义弹窗替代默认toast
-              this.showCenterAlert('账号或密码输入错误');
+              this.showCenterAlert('域名或密码输入错误');
             }
           })
           .width('80%')

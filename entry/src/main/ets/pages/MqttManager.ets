@@ -26,6 +26,12 @@ interface AlertLike {
   timestamp?: number;
   datetime?: string;
 }
+// 摔倒记录数据接口
+export interface FallRecord {
+  time: string;        // 时间字符串，格式：HH:mm:ss
+  date: string;        // 日期字符串，格式：YYYY.MM.DD
+  timestamp: number;   // 时间戳，用于排序
+}
 //昇腾开发板ip:192.168.137.100
 // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
 // 这里的 IP 必须是 Broker 所在的开发板的 IP
@@ -44,9 +50,11 @@ export class MqttManager {
   @Track public latestMessage: string = '正在初始化...';
   @Track public isFallDetected: boolean = false; // 明确跟踪摔倒状态
   @Track public fallTimestamp: number = 0; // 摔倒时间戳
+  @Track public fallRecords: FallRecord[] = []; // 摔倒记录列表
   
   private fallRecoveryTimer: number = -1; // 摔倒自动恢复定时器
   private readonly FALL_RECOVERY_DELAY: number = 3000; // 3秒后自动恢复
+  private lastRecordedFallTimestamp: number = 0; // 上次记录的摔倒时间戳，避免重复记录
 
   private constructor() {
     this.initClient();
@@ -98,6 +106,7 @@ export class MqttManager {
         console.error('[mqtt]:接收消息错误:', err);
         return;
       }
+      console.log(`[mqtt]:💬 messageArrived 回调触发! topic=${data.topic}`);
       this.handleMessage(data.topic, data.payload);
     });
   }
@@ -204,7 +213,8 @@ export class MqttManager {
         throw new Error(`订阅失败，返回码: ${subscribeResult.code}, 消息: ${subscribeResult.message}`);
       }
 
-      console.log(`成功订阅主题 ${topic}`);
+      console.log(`[mqtt]:✅ 成功订阅主题 ${topic}`);
+      console.log(`[mqtt]:📡 等待接收消息...`);
       this.latestMessage = `✅ MQTT 已连接，等待主题 [${topic}] 消息...`;
       // 连接成功时，清除之前的摔倒状态和定时器
       this.clearFallRecoveryTimer();
@@ -269,6 +279,7 @@ export class MqttManager {
   }
 
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
+    console.log(`[mqtt]:📨 handleMessage 开始处理 topic=${topic}`);
     let messageContent: string = '';
 
     if (typeof payload !== 'string') {
@@ -315,12 +326,29 @@ export class MqttManager {
 
       if (isFall) {
         // 检测到摔倒
-        console.log(`[mqtt]:🔴 设置为摔倒状态`);
+        const currentTimestamp = Date.now();
+        const timeSinceLastRecord = currentTimestamp - this.lastRecordedFallTimestamp;
+        
+        console.log(`[mqtt]:🔴 检测到摔倒事件! 当前时间戳=${currentTimestamp}, 距上次记录=${timeSinceLastRecord}ms`);
+        console.log(`[mqtt]:当前 isFallDetected=${this.isFallDetected}, 记录数=${this.fallRecords.length}`);
+        
+        // 添加摔倒记录（避免短时间内重复记录同一次摔倒）
+        // 如果距离上次记录超过2秒，则认为是新的摔倒事件
+        if (timeSinceLastRecord > 2000 || this.lastRecordedFallTimestamp === 0) {
+          console.log(`[mqtt]:📝 开始添加摔倒记录...`);
+          this.addFallRecord(currentTimestamp);
+          this.lastRecordedFallTimestamp = currentTimestamp;
+          console.log(`[mqtt]:✅ 新摔倒事件已记录! 总记录数=${this.fallRecords.length}`);
+        } else {
+          console.log(`[mqtt]:⚠️ 忽略重复摔倒事件（距上次 ${timeSinceLastRecord}ms < 2000ms）`);
+        }
+        
         this.isFallDetected = true;
-        this.fallTimestamp = Date.now();
+        this.fallTimestamp = currentTimestamp;
+        
         const fallTime: string = this.formatTimestamp(undefined);
         this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
-        console.error(`[mqtt]:🚨 检测到摔倒事件! 主题=${topic}, 时间=${fallTime}, 原始数据=${messageContent}`);
+        console.error(`[mqtt]:🚨 摔倒状态已设置! 主题=${topic}, 时间=${fallTime}`);
         
         // 启动3秒自动恢复定时器
         this.startFallRecoveryTimer();
@@ -355,12 +383,27 @@ export class MqttManager {
       
       if (isFall) {
         // 检测到摔倒（纯文本匹配）
-        console.log(`[mqtt]:🔴 纯文本匹配：设置为摔倒状态`);
+        const currentTimestamp = Date.now();
+        const timeSinceLastRecord = currentTimestamp - this.lastRecordedFallTimestamp;
+        
+        console.log(`[mqtt]:🔴 纯文本匹配检测到摔倒! 时间戳=${currentTimestamp}, 距上次=${timeSinceLastRecord}ms`);
+        
+        // 添加摔倒记录
+        if (timeSinceLastRecord > 2000 || this.lastRecordedFallTimestamp === 0) {
+          console.log(`[mqtt]:📝 开始添加摔倒记录(纯文本)...`);
+          this.addFallRecord(currentTimestamp);
+          this.lastRecordedFallTimestamp = currentTimestamp;
+          console.log(`[mqtt]:✅ 新摔倒事件已记录(纯文本)! 总记录数=${this.fallRecords.length}`);
+        } else {
+          console.log(`[mqtt]:⚠️ 忽略重复摔倒事件 ${timeSinceLastRecord}ms`);
+        }
+        
         this.isFallDetected = true;
-        this.fallTimestamp = Date.now();
+        this.fallTimestamp = currentTimestamp;
+        
         const fallTime: string = this.formatTimestamp(undefined);
         this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
-        console.error(`[mqtt]:🚨 检测到摔倒事件(纯文本匹配)! 主题=${topic}, 时间=${fallTime}`);
+        console.error(`[mqtt]:🚨 摔倒状态已设置(纯文本)! 主题=${topic}, 时间=${fallTime}`);
         
         // 启动3秒自动恢复定时器
         this.startFallRecoveryTimer();
@@ -385,5 +428,33 @@ export class MqttManager {
     setTimeout(() => {
       this.connectAndSubscribe();
     }, 5000); // 5秒后重试
+  }
+
+  // 添加摔倒记录
+  private addFallRecord(timestamp: number): void {
+    console.log(`[mqtt]:📝 addFallRecord 被调用, timestamp=${timestamp}`);
+    console.log(`[mqtt]:添加前 fallRecords.length=${this.fallRecords.length}`);
+    
+    const now = new Date(timestamp);
+    const timeStr = `${this.padZero(now.getHours())}:${this.padZero(now.getMinutes())}:${this.padZero(now.getSeconds())}`;
+    const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth() + 1)}.${this.padZero(now.getDate())}`;
+    
+    const newRecord: FallRecord = {
+      time: timeStr,
+      date: dateStr,
+      timestamp: timestamp
+    };
+    
+    console.log(`[mqtt]:创建新记录: ${dateStr} ${timeStr}`);
+    
+    // 将新记录添加到数组开头（最新的在上面）
+    // 使用数组解构创建新数组，触发响应式更新
+    const oldLength = this.fallRecords.length;
+    this.fallRecords = [newRecord, ...this.fallRecords];
+    const newLength = this.fallRecords.length;
+    
+    console.log(`[mqtt]:✅ 摔倒记录已添加! ${dateStr} ${timeStr}`);
+    console.log(`[mqtt]:数组长度变化: ${oldLength} -> ${newLength}`);
+    console.log(`[mqtt]:当前所有记录(${this.fallRecords.length}条):`, JSON.stringify(this.fallRecords.map(r => `${r.date} ${r.time}`)));
   }
 }

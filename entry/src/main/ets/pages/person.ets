@@ -1,3 +1,5 @@
+import { ThemeManager } from '../common/ThemeManager';
+
 // 跳转页面入口函数
 @Builder
 export function personBuilder() {
@@ -7,7 +9,7 @@ export function personBuilder() {
 @Component
 export struct person{
   pathStack?: NavPathStack = new NavPathStack();
-  @State isDarkMode: boolean = false; // 深色模式状态
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
   private scroller: Scroller = new Scroller(); // 滚动控制器
   
   // ========== 原有代码开始（已注释） ==========
@@ -273,20 +275,20 @@ export struct person{
               .width(80)
               .height(80)
               .borderRadius(40)
-              .fillColor('#4A4A4A')
+              .fillColor(this.themeManager.colors.secondaryTextColor)
               .margin({ top: 40, bottom: 16 })
             
             // 用户文本
             Text('管理员')
               .fontSize(24)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#1C1C1E')
+              .fontColor(this.themeManager.colors.primaryTextColor)
               .margin({ bottom: 8 })
             
             // 账号信息
             Text('192.168.137.100')
               .fontSize(14)
-              .fontColor('#8E8E93')
+              .fontColor(this.themeManager.colors.secondaryTextColor)
               .margin({ bottom: 40 })
           }
           .width('100%')
@@ -298,17 +300,15 @@ export struct person{
             Row() {
               Text('深色模式')
                 .fontSize(16)
-                .fontColor('#1C1C1E')
+                .fontColor(this.themeManager.colors.primaryTextColor)
               
               Blank()
               
-              Toggle({ type: ToggleType.Switch, isOn: this.isDarkMode })
+              Toggle({ type: ToggleType.Switch, isOn: this.themeManager.isDarkMode })
                 .selectedColor('#34C759')
                 .switchPointColor(Color.White)
                 .onChange((isOn: boolean) => {
-                  this.isDarkMode = isOn;
-                  // 这里可以添加深色模式切换的逻辑
-                  console.log('深色模式:', isOn);
+                  this.themeManager.setTheme(isOn);
                 })
             }
             .width('100%')
@@ -319,7 +319,7 @@ export struct person{
           }
           .width('80%')
           .borderRadius(12)
-          .backgroundColor('#fff5f5f5')
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .margin({ top: 20 })
           .alignSelf(ItemAlign.Center)
           
@@ -327,13 +327,13 @@ export struct person{
           Row() {
             Text('清理缓存')
               .fontSize(16)
-              .fontColor('#1C1C1E')
+              .fontColor(this.themeManager.colors.primaryTextColor)
             
             Blank()
             
-            Text('﹥')
+            Text('＞')
               .fontSize(16)
-              .fontColor('#1C1C1E')
+              .fontColor(this.themeManager.colors.primaryTextColor)
           }
           .width('80%')
           .height(50)
@@ -341,7 +341,7 @@ export struct person{
           .justifyContent(FlexAlign.SpaceBetween)
           .alignItems(VerticalAlign.Center)
           .borderRadius(12)
-          .backgroundColor('#fff5f5f5')
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .margin({ top: 20 })
           .alignSelf(ItemAlign.Center)
           .onClick(() => {
@@ -361,12 +361,12 @@ export struct person{
       // 版本信息 - 固定在底部，不参与滚动
       Text('版本号 1.0.0')
         .fontSize(16)
-        .fontColor('#8E8E93')
+        .fontColor(this.themeManager.colors.secondaryTextColor)
         .margin({ bottom: 30 })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Color.White)
+    .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
