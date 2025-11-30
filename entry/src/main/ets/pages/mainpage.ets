@@ -1,4 +1,5 @@
 import { MqttManager } from './MqttManager';
+import { ThemeManager } from '../common/ThemeManager';
 // 【关键修正 1】导入 webview 模块
 import webview from '@ohos.web.webview';
 
@@ -13,6 +14,7 @@ export struct mainPage {
 
   // 使用可观察对象，确保 UI 随 MQTT 状态联动
   @State mqttManager: MqttManager = MqttManager.getInstance();
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
   
   // 本地状态变量，用于确保 UI 及时刷新
   @State isConnected: boolean = false;
@@ -81,7 +83,6 @@ export struct mainPage {
   }
 
   build() {
-
     Column() {
       // 标题栏
       Text('智能居家监护')
@@ -90,42 +91,26 @@ export struct mainPage {
         .width('100%')
         .margin({ left: 20, top: 20, bottom: 20 })
         .fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor)
         .alignSelf(ItemAlign.Start)
-
-      //搜索框
-      Row() {
-        Stack({alignContent:Alignment.End}) {
-          TextInput({ placeholder: '日期＋时间 (例:11.12 5:00)' })
-            .placeholderColor('#817D83')
-            .fontSize(16)
-            .fontColor(Color.Black)
-            .padding({ left: 16, right: 8 })
-            .layoutWeight(1)
-
-          Image($r('app.media.search'))
-            .width(20)
-            .fillColor(Color.Black)
-            .height(20)
-            .margin(10)
-        }
-      }
-      .padding(10)
-      .backgroundColor(Color.White)
 
       // 视频流区域 (使用 Web 组件显示 MJPEG 流)
       Column() {
-        // 将 controller 传入 Web 组件
-        Web({ src: this.videoUrl, controller: this.webController })
-          .width('90%')
-          .aspectRatio(16/9)
-          .margin(10)
-          .border({ radius: 8, color: Color.Black, width: 1 })
+        Stack() {
+          // 将 controller 传入 Web 组件
+          Web({ src: this.videoUrl, controller: this.webController })
+            .width('90%')
+            .aspectRatio(16 / 9)
+            .margin(10)
+            .border({ radius: 8, color: this.themeManager.colors.borderColor, width: 1 })
+        }
+        .width('100%')
 
         Row() {
           Text(this.selectedView)
             .fontSize(16)
-            .fontColor(Color.Black)
-            .margin({left: 10})
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .margin({ left: 10 })
 
           Blank()
 
@@ -141,7 +126,6 @@ export struct mainPage {
       }
       .justifyContent(FlexAlign.Center)
       .width('100%')
-
 
       // 监控画面以下为可滚动区域
       Scroll() {
@@ -160,6 +144,7 @@ export struct mainPage {
               .width(20)
               .height(20)
             Text('网络正常')
+              .fontColor(this.themeManager.colors.primaryTextColor)
               .margin({ left: 8 })
           }
           .justifyContent(FlexAlign.Center)
@@ -168,7 +153,7 @@ export struct mainPage {
           .margin(10)
           .border({
             width: 1,
-            color: Color.Grey,
+            color: this.themeManager.colors.borderColor,
             style: BorderStyle.Solid
           })
 
@@ -177,8 +162,12 @@ export struct mainPage {
             .fontSize(18)
             .textAlign(TextAlign.Center)
             .width('90%')
-            .backgroundColor(this.isFallDetected ? 0xFFFFE0E0 : 0xFFE6F7FF)
-            .fontColor(this.isFallDetected ? Color.Red : Color.Black)
+            .backgroundColor(this.isFallDetected ? 
+              (this.themeManager.isDarkMode ? '#4D1F1F' : '#FFE0E0') : 
+              (this.themeManager.isDarkMode ? '#1F2D4D' : '#E6F7FF'))
+            .fontColor(this.isFallDetected ? 
+              this.themeManager.colors.dangerButtonColor : 
+              this.themeManager.colors.primaryTextColor)
             .padding(12)
             .borderRadius(8)
             .margin(16)
@@ -197,7 +186,7 @@ export struct mainPage {
                 Text('按住 说话')
                   .textAlign(TextAlign.Center)
                   .fontSize(16)
-                  .fontColor(Color.Black)
+                  .fontColor(Color.White)
               }
               .width('100%')
               .height('100%')
@@ -207,7 +196,7 @@ export struct mainPage {
             .backgroundColor(0xFF1890FF)
             .borderRadius(60)
             .onClick(() => {
-              console.info('按钮被点击，执行语音交互逻辑');
+              console.info('输入语音');
             })
           }
           .width('100%')
@@ -233,7 +222,7 @@ export struct mainPage {
           .width('90%')
           .height(50)
           .padding(12)
-          .backgroundColor('#CCCCCC')
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius(20)
         }
         .width('100%')
@@ -245,5 +234,7 @@ export struct mainPage {
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

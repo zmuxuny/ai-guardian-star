@@ -1,3 +1,7 @@
+import { ThemeManager } from '../common/ThemeManager';
+import { MqttManager } from './MqttManager';
+import promptAction from '@ohos.promptAction';
+
 // 跳转页面入口函数
 @Builder
 export function personBuilder() {
@@ -6,8 +10,56 @@ export function personBuilder() {
 
 @Component
 export struct person{
-  pathStack: NavPathStack = new NavPathStack();
+  pathStack?: NavPathStack = new NavPathStack();
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
+  private scroller: Scroller = new Scroller(); // 滚动控制器
+  private mqttManager: MqttManager = MqttManager.getInstance();
   
+  // 处理清理缓存
+  private handleClearCache() {
+    const stats = this.mqttManager.getCacheStats();
+    console.log('清理前统计:', stats);
+    
+    // 执行清理
+    this.mqttManager.clearAllCache();
+    
+    // 显示成功提示
+    try {
+      promptAction.showToast({
+        message: `已清理 ${stats.recordCount} 条记录`,
+        duration: 2000
+      });
+    } catch (error) {
+      console.error('显示提示失败:', error);
+    }
+  }
+  
+  // 显示缓存统计信息
+  private showCacheStatsDialog() {
+    const stats = this.mqttManager.getCacheStats();
+    
+    AlertDialog.show({
+      title: '清理缓存',
+      message: `当前缓存信息：\n\n摔倒记录数：${stats.recordCount} 条\n最早记录：${stats.oldestRecord}\n最新记录：${stats.newestRecord}\n\n确定要清空所有记录吗？`,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+          console.log('取消清理');
+        }
+      },
+      secondaryButton: {
+        value: '确定',
+        fontColor: Color.Red,
+        action: () => {
+          this.handleClearCache();
+        }
+      },
+      alignment: DialogAlignment.Center
+    });
+  }
+  
+  // ========== 原有代码开始（已注释） ==========
+  /*
   build() {
       Column() {
         // 导航栏
@@ -218,18 +270,18 @@ export struct person{
         Blank()
         // 底部按钮区域
         Column() {
-          Button('切换账号')
-            .width('80%')
-            .height(50)
-            .fontSize(18)
-            .fontColor(Color.White)
-            .backgroundColor('#007AFF')
-            .borderRadius(30)
-            .margin({ bottom: 16 })
-            .onClick(() => {
+          //Button('切换账号')
+            //.width('80%')
+            //.height(50)
+            //.fontSize(18)
+            //.fontColor(Color.White)
+            //.backgroundColor('#007AFF')
+            //.borderRadius(30)
+            //.margin({ bottom: 16 })
+            //.onClick(() => {
               // 这里可以添加切换账号的逻辑
-              console.log('切换账号')
-            })
+              //console.log('切换账号')
+            //})
           
           Button('退出登录')
             .width('80%')
@@ -253,5 +305,113 @@ export struct person{
       .height('100%')
       .backgroundColor('#F2F2F7')
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+  }
+  */
+  // ========== 原有代码结束 ==========
+  
+  build() {
+    Column() {
+      // 可滚动区域
+      Scroll(this.scroller) {
+        Column() {
+          // 用户头像和基本信息区域
+          Column() {
+            // 用户头像（圆形）
+            Image($r('app.media.person'))
+              .width(80)
+              .height(80)
+              .borderRadius(40)
+              .fillColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ top: 40, bottom: 16 })
+            
+            // 用户文本
+            Text('管理员')
+              .fontSize(24)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+              .margin({ bottom: 8 })
+            
+            // 账号信息
+            Text('192.168.137.100')
+              .fontSize(14)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ bottom: 40 })
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Center)
+          
+          // 设置选项区域
+          Column() {
+            // 深色模式选项
+            Row() {
+              Text('深色模式')
+                .fontSize(16)
+                .fontColor(this.themeManager.colors.primaryTextColor)
+              
+              Blank()
+              
+              Toggle({ type: ToggleType.Switch, isOn: this.themeManager.isDarkMode })
+                .selectedColor('#34C759')
+                .switchPointColor(Color.White)
+                .onChange((isOn: boolean) => {
+                  this.themeManager.setTheme(isOn);
+                })
+            }
+            .width('100%')
+            .height(50)
+            .padding({ left: 16, right: 16 })
+            .justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+          }
+          .width('80%')
+          .borderRadius(12)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .margin({ top: 20 })
+          .alignSelf(ItemAlign.Center)
+          
+          // 清理缓存选项
+          Row() {
+            Text('清理缓存')
+              .fontSize(16)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+            
+            Blank()
+            
+            Text('＞')
+              .fontSize(16)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+          }
+          .width('80%')
+          .height(50)
+          .padding({ left: 16, right: 16 })
+          .justifyContent(FlexAlign.SpaceBetween)
+          .alignItems(VerticalAlign.Center)
+          .borderRadius(12)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .margin({ top: 20 })
+          .alignSelf(ItemAlign.Center)
+          .onClick(() => {
+            this.showCacheStatsDialog();
+          })
+          
+          Blank()
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+      
+      // 版本信息 - 固定在底部，不参与滚动
+      Text('版本号 1.0.0')
+        .fontSize(16)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .margin({ bottom: 30 })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
