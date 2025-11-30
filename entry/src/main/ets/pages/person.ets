@@ -1,4 +1,6 @@
 import { ThemeManager } from '../common/ThemeManager';
+import { MqttManager } from './MqttManager';
+import promptAction from '@ohos.promptAction';
 
 // 跳转页面入口函数
 @Builder
@@ -11,6 +13,50 @@ export struct person{
   pathStack?: NavPathStack = new NavPathStack();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   private scroller: Scroller = new Scroller(); // 滚动控制器
+  private mqttManager: MqttManager = MqttManager.getInstance();
+  
+  // 处理清理缓存
+  private handleClearCache() {
+    const stats = this.mqttManager.getCacheStats();
+    console.log('清理前统计:', stats);
+    
+    // 执行清理
+    this.mqttManager.clearAllCache();
+    
+    // 显示成功提示
+    try {
+      promptAction.showToast({
+        message: `已清理 ${stats.recordCount} 条记录`,
+        duration: 2000
+      });
+    } catch (error) {
+      console.error('显示提示失败:', error);
+    }
+  }
+  
+  // 显示缓存统计信息
+  private showCacheStatsDialog() {
+    const stats = this.mqttManager.getCacheStats();
+    
+    AlertDialog.show({
+      title: '清理缓存',
+      message: `当前缓存信息：\n\n摔倒记录数：${stats.recordCount} 条\n最早记录：${stats.oldestRecord}\n最新记录：${stats.newestRecord}\n\n确定要清空所有记录吗？`,
+      primaryButton: {
+        value: '取消',
+        action: () => {
+          console.log('取消清理');
+        }
+      },
+      secondaryButton: {
+        value: '确定',
+        fontColor: Color.Red,
+        action: () => {
+          this.handleClearCache();
+        }
+      },
+      alignment: DialogAlignment.Center
+    });
+  }
   
   // ========== 原有代码开始（已注释） ==========
   /*
@@ -345,8 +391,7 @@ export struct person{
           .margin({ top: 20 })
           .alignSelf(ItemAlign.Center)
           .onClick(() => {
-            // 这里可以添加清理缓存的逻辑
-            console.log('清理缓存');
+            this.showCacheStatsDialog();
           })
           
           Blank()

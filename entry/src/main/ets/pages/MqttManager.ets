@@ -32,6 +32,14 @@ export interface FallRecord {
   date: string;        // 日期字符串，格式：YYYY.MM.DD
   timestamp: number;   // 时间戳，用于排序
 }
+
+// 缓存统计信息接口
+export interface CacheStats {
+  recordCount: number;
+  oldestRecord: string;
+  newestRecord: string;
+}
+
 //昇腾开发板ip:192.168.137.100
 // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
 // 这里的 IP 必须是 Broker 所在的开发板的 IP
@@ -456,5 +464,57 @@ export class MqttManager {
     console.log(`[mqtt]:✅ 摔倒记录已添加! ${dateStr} ${timeStr}`);
     console.log(`[mqtt]:数组长度变化: ${oldLength} -> ${newLength}`);
     console.log(`[mqtt]:当前所有记录(${this.fallRecords.length}条):`, JSON.stringify(this.fallRecords.map(r => `${r.date} ${r.time}`)));
+  }
+
+  // ========== 清理缓存功能 ==========
+  /**
+   * 清空所有摔倒记录
+   */
+  public clearFallRecords(): void {
+    console.log(`[mqtt]:清理摔倒记录，当前记录数: ${this.fallRecords.length}`);
+    this.fallRecords = [];
+    this.lastRecordedFallTimestamp = 0;
+    console.log('[mqtt]:✅ 摔倒记录已清空');
+  }
+
+  /**
+   * 重置MQTT状态（不断开连接）
+   */
+  public resetMqttState(): void {
+    console.log('[mqtt]:重置MQTT状态');
+    this.isFallDetected = false;
+    this.fallTimestamp = 0;
+    this.latestMessage = '状态已重置';
+    this.clearFallRecoveryTimer();
+    console.log('[mqtt]:✅ MQTT状态已重置');
+  }
+
+  /**
+   * 获取缓存统计信息
+   */
+  public getCacheStats(): CacheStats {
+    const recordCount = this.fallRecords.length;
+    const oldestRecord = recordCount > 0 ? 
+      `${this.fallRecords[recordCount - 1].date} ${this.fallRecords[recordCount - 1].time}` : '无';
+    const newestRecord = recordCount > 0 ? 
+      `${this.fallRecords[0].date} ${this.fallRecords[0].time}` : '无';
+    
+    const stats: CacheStats = {
+      recordCount: recordCount,
+      oldestRecord: oldestRecord,
+      newestRecord: newestRecord
+    };
+    
+    return stats;
+  }
+
+  /**
+   * 清理所有缓存数据
+   */
+  public clearAllCache(): void {
+    console.log('[mqtt]:🧹 开始清理所有缓存...');
+    this.clearFallRecords();
+    this.resetMqttState();
+    console.log('[mqtt]:✅ 所有缓存已清理完成');
   }
 }

@@ -33,7 +33,7 @@ struct Login {
             .height(100)
             .margin({bottom:6})
 
-          Text('鸿蒙智护星')
+          Text('鸿蒙守护星')
             .fontColor('#000')
             .fontSize(20)
             .fontWeight(10)
