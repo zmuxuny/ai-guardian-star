@@ -47,6 +47,13 @@ export class LightThemeColors extends ThemeColors {
   // 使用默认值
 }
 
+// 主题模式枚举
+export enum ThemeMode {
+  FOLLOW_SYSTEM = 0,  // 跟随系统
+  LIGHT = 1,          // 浅色
+  DARK = 2            // 深色
+}
+
 // 主题管理器（单例模式）
 @Observed
 export class ThemeManager {
@@ -55,6 +62,7 @@ export class ThemeManager {
   
   @Track public isDarkMode: boolean = false;
   @Track public colors: ThemeColors = new LightThemeColors();
+  @Track public themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM; // 当前主题模式
   
   private constructor() {
     // 私有构造函数
@@ -70,26 +78,62 @@ export class ThemeManager {
   // 初始化主题管理器
   public async init(context: Context) {
     this.context = context;
-    // 从本地存储读取主题设置
-    await this.loadThemePreference();
+    // 加载保存的主题模式
+    await this.loadThemeMode();
+    // 应用主题
+    await this.applyThemeMode();
   }
   
-  // 切换主题
-  public toggleTheme() {
-    this.isDarkMode = !this.isDarkMode;
-    this.applyTheme();
-    this.saveThemePreference();
-    console.log(`[Theme]:主题已切换为 ${this.isDarkMode ? '深色' : '浅色'} 模式`);
+  // 设置主题模式
+  public async setThemeMode(mode: ThemeMode) {
+    this.themeMode = mode;
+    await this.saveThemeMode();
+    await this.applyThemeMode();
+    console.log(`[Theme]:主题模式已设置为: ${mode === ThemeMode.FOLLOW_SYSTEM ? '跟随系统' : mode === ThemeMode.LIGHT ? '浅色' : '深色'}`);
   }
   
-  // 设置主题
-  public setTheme(isDark: boolean) {
-    if (this.isDarkMode !== isDark) {
-      this.isDarkMode = isDark;
-      this.applyTheme();
-      this.saveThemePreference();
-      console.log(`[Theme]:主题已设置为 ${this.isDarkMode ? '深色' : '浅色'} 模式`);
+  // 应用主题模式
+  public async applyThemeMode() {
+    let shouldBeDark = false;
+    
+    if (this.themeMode === ThemeMode.FOLLOW_SYSTEM) {
+      // 跟随系统
+      shouldBeDark = await this.getSystemTheme();
+    } else if (this.themeMode === ThemeMode.DARK) {
+      // 强制深色
+      shouldBeDark = true;
+    } else {
+      // 强制浅色
+      shouldBeDark = false;
     }
+    
+    if (this.isDarkMode !== shouldBeDark) {
+      this.isDarkMode = shouldBeDark;
+      this.applyTheme();
+    }
+  }
+  
+  // 获取系统主题
+  private async getSystemTheme(): Promise<boolean> {
+    if (!this.context) return false;
+    
+    try {
+      const appContext = this.context.getApplicationContext();
+      const resourceManager = appContext.resourceManager;
+      const config = await resourceManager.getConfiguration();
+      
+      if (config && config.colorMode !== undefined) {
+        // 修复：ColorMode.COLOR_MODE_DARK = 0, COLOR_MODE_LIGHT = 1
+        // 这里需要反过来判断
+        const isSystemDark = config.colorMode === 0;
+        console.log(`[Theme]:系统主题: colorMode=${config.colorMode}, isDark=${isSystemDark}`);
+        return isSystemDark;
+      }
+    } catch (error) {
+      console.error('[Theme]:获取系统主题失败:', error);
+    }
+    
+    return false;
   }
   
   // 应用主题
@@ -125,35 +169,32 @@ export class ThemeManager {
     }
   }
   
-  // 保存主题偏好到本地存储
-  private async saveThemePreference() {
+  // 保存主题模式
+  private async saveThemeMode() {
     try {
       if (!this.context) return;
       
       const dataPreferences = await preferences.getPreferences(this.context, 'theme_preferences');
-      await dataPreferences.put('isDarkMode', this.isDarkMode);
+      await dataPreferences.put('themeMode', this.themeMode);
       await dataPreferences.flush();
-      console.log(`[Theme]:主题偏好已保存: ${this.isDarkMode}`);
+      console.log(`[Theme]:主题模式已保存: ${this.themeMode}`);
     } catch (error) {
-      console.error(`[Theme]:保存主题偏好失败:`, error);
+      console.error(`[Theme]:保存主题模式失败:`, error);
     }
   }
   
-  // 从本地存储加载主题偏好
-  private async loadThemePreference() {
+  // 加载主题模式
+  private async loadThemeMode() {
     try {
       if (!this.context) return;
       
       const dataPreferences = await preferences.getPreferences(this.context, 'theme_preferences');
-      const savedTheme = await dataPreferences.get('isDarkMode', false);
-      this.isDarkMode = savedTheme as boolean;
-      this.applyTheme();
-      console.log(`[Theme]:主题偏好已加载: ${this.isDarkMode ? '深色' : '浅色'} 模式`);
+      const savedMode = await dataPreferences.get('themeMode', ThemeMode.FOLLOW_SYSTEM);
+      this.themeMode = savedMode as ThemeMode;
+      console.log(`[Theme]:主题模式已加载: ${this.themeMode}`);
     } catch (error) {
-      console.error(`[Theme]:加载主题偏好失败:`, error);
-      // 使用默认浅色主题
-      this.isDarkMode = false;
-      this.applyTheme();
+      console.error(`[Theme]:加载主题模式失败:`, error);
+      this.themeMode = ThemeMode.FOLLOW_SYSTEM;
     }
   }
 }
