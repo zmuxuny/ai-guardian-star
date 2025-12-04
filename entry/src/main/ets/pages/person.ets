@@ -1,4 +1,4 @@
-import { ThemeManager } from '../common/ThemeManager';
+import { ThemeManager, ThemeMode } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import promptAction from '@ohos.promptAction';
 
@@ -15,10 +15,19 @@ export struct person{
   private scroller: Scroller = new Scroller(); // 滚动控制器
   private mqttManager: MqttManager = MqttManager.getInstance();
   
+  // 主题模式选项
+  private themeModeOptions: SelectOption[] = [
+    { value: '跟随系统' },
+    { value: '浅色' },
+    { value: '深色' }
+  ];
+  
   // 处理清理缓存
   private handleClearCache() {
     const stats = this.mqttManager.getCacheStats();
     console.log('清理前统计:', stats);
+    
+    const totalCount = stats.fallCount + stats.sedentaryCount;
     
     // 执行清理
     this.mqttManager.clearAllCache();
@@ -26,7 +35,7 @@ export struct person{
     // 显示成功提示
     try {
       promptAction.showToast({
-        message: `已清理 ${stats.recordCount} 条记录`,
+        message: `已清理 ${totalCount} 条记录 (摔倒${stats.fallCount} + 久坐${stats.sedentaryCount})`,
         duration: 2000
       });
     } catch (error) {
@@ -40,7 +49,7 @@ export struct person{
     
     AlertDialog.show({
       title: '清理缓存',
-      message: `当前缓存信息：\n\n摔倒记录数：${stats.recordCount} 条\n最早记录：${stats.oldestRecord}\n最新记录：${stats.newestRecord}\n\n确定要清空所有记录吗？`,
+      message: `当前缓存信息：\n\n【摔倒记录】\n记录数：${stats.fallCount} 条\n最早记录：${stats.oldestFallRecord}\n最新记录：${stats.newestFallRecord}\n\n【久坐记录】\n记录数：${stats.sedentaryCount} 条\n最早记录：${stats.oldestSedentaryRecord}\n最新记录：${stats.newestSedentaryRecord}\n\n确定要清空所有记录吗？`,
       primaryButton: {
         value: '取消',
         action: () => {
@@ -56,6 +65,20 @@ export struct person{
       },
       alignment: DialogAlignment.Center
     });
+  }
+  
+  // 获取当前主题模式文本
+  private getThemeModeText(): string {
+    switch (this.themeManager.themeMode) {
+      case ThemeMode.FOLLOW_SYSTEM:
+        return '跟随系统';
+      case ThemeMode.LIGHT:
+        return '浅色';
+      case ThemeMode.DARK:
+        return '深色';
+      default:
+        return '跟随系统';
+    }
   }
   
   // ========== 原有代码开始（已注释） ==========
@@ -294,7 +317,7 @@ export struct person{
             .onClick(() => {
               // 这里可以添加退出登录的逻辑
               console.log('退出登录')
-              this.pathStack.replacePathByName('Login', null, false);
+              this.pathStack.replacePathByName('Login', {}, false);
             })
         }
         .width('100%')
@@ -340,32 +363,37 @@ export struct person{
           .width('100%')
           .alignItems(HorizontalAlign.Center)
           
-          // 设置选项区域
-          Column() {
-            // 深色模式选项
-            Row() {
-              Text('深色模式')
-                .fontSize(16)
-                .fontColor(this.themeManager.colors.primaryTextColor)
-              
-              Blank()
-              
-              Toggle({ type: ToggleType.Switch, isOn: this.themeManager.isDarkMode })
-                .selectedColor('#34C759')
-                .switchPointColor(Color.White)
-                .onChange((isOn: boolean) => {
-                  this.themeManager.setTheme(isOn);
-                })
-            }
-            .width('100%')
-            .height(50)
-            .padding({ left: 16, right: 16 })
-            .justifyContent(FlexAlign.SpaceBetween)
-            .alignItems(VerticalAlign.Center)
+          // 外观设置选项
+          Row() {
+            Text('外观')
+              .fontSize(16)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+            
+            Blank()
+            
+            Select(this.themeModeOptions)
+              .selected(this.themeManager.themeMode)
+              .value(this.getThemeModeText())
+              .font({ size: 16 })
+              .fontColor(this.themeManager.colors.primaryTextColor)
+              .selectedOptionFont({ size: 16 })
+              .optionFont({ size: 16 })
+              .backgroundColor(Color.Transparent)
+              .width(120)
+              .menuBackgroundColor(this.themeManager.colors.cardBackgroundColor)
+              .divider({ strokeWidth: 0 })
+              .onSelect((index: number) => {
+                console.log(`选择主题模式: ${index}`);
+                this.themeManager.setThemeMode(index as ThemeMode);
+              })
           }
           .width('80%')
-          .borderRadius(12)
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .height(50)
+          .padding({ left: 16, right: 16 })
+          .justifyContent(FlexAlign.SpaceBetween)
+          .alignItems(VerticalAlign.Center)
+          .borderRadius(15)
+          .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
           .margin({ top: 20 })
           .alignSelf(ItemAlign.Center)
           
@@ -386,8 +414,8 @@ export struct person{
           .padding({ left: 16, right: 16 })
           .justifyContent(FlexAlign.SpaceBetween)
           .alignItems(VerticalAlign.Center)
-          .borderRadius(12)
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .borderRadius(15)
+          .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
           .margin({ top: 20 })
           .alignSelf(ItemAlign.Center)
           .onClick(() => {

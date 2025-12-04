@@ -5,32 +5,44 @@
       "value": "#000000"
     },
     {
-      "name": "login_background",
-      "value": "#1F1F1F"
+      "name": "background_color",
+      "value": "#000000"
     },
     {
-      "name": "login_text_primary",
+      "name": "secondary_background_color",
+      "value": "#1C1C1E"
+    },
+    {
+      "name": "card_background_color",
+      "value": "#2C2C2E"
+    },
+    {
+      "name": "primary_text_color",
       "value": "#FFFFFF"
     },
     {
-      "name": "login_text_secondary",
-      "value": "#CCCCCC"
+      "name": "secondary_text_color",
+      "value": "#EBEBF5"
     },
     {
-      "name": "login_text_hint",
-      "value": "#999999"
+      "name": "tertiary_text_color",
+      "value": "#8E8E93"
     },
     {
-      "name": "login_divider",
-      "value": "#333333"
+      "name": "separator_color",
+      "value": "#38383A"
     },
     {
-      "name": "login_button_bg",
-      "value": "#4A90E2"
+      "name": "primary_button_color",
+      "value": "#0A84FF"
     },
     {
-      "name": "login_button_text",
-      "value": "#FFFFFF"
+      "name": "danger_button_color",
+      "value": "#FF453A"
+    },
+    {
+      "name": "border_color",
+      "value": "#38383A"
     }
   ]
 }

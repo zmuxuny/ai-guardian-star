@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { ThemeManager } from '../common/ThemeManager';
@@ -7,12 +7,26 @@ const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    try {
+      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+    } catch (error) {
+      hilog.error(DOMAIN, 'testTag', 'setColorMode failed: %{public}s', JSON.stringify(error));
+    }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     
     // 初始化主题管理器
     ThemeManager.getInstance().init(this.context);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'ThemeManager initialized');
+  }
+  
+  // 监听配置变化（包括系统主题变化）
+  onConfigurationUpdate(newConfig: Configuration): void {
+    hilog.info(DOMAIN, 'testTag', 'Configuration updated, colorMode: %{public}d', newConfig.colorMode);
+    
+    const themeManager = ThemeManager.getInstance();
+    // 如果是跟随系统模式，则重新应用主题
+    themeManager.applyThemeMode();
+    hilog.info(DOMAIN, 'testTag', 'Theme mode reapplied');
   }
 
   onDestroy(): void {

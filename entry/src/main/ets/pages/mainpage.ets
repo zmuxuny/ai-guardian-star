@@ -16,10 +16,11 @@ export struct mainPage {
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   
-  // 本地状态变量，用于确保 UI 及时刷新
+  // 本地状态变量,用于确保 UI 及时刷新
   @State isConnected: boolean = false;
   @State latestMessage: string = '正在初始化...';
   @State isFallDetected: boolean = false; // 本地摔倒状态
+  @State isSedentaryDetected: boolean = false; // 本地久坐状态
   private updateTimer: number = -1;
 
   // 【关键修正 2】将 WebController 更改为 WebviewController
@@ -68,8 +69,14 @@ export struct mainPage {
       stateChanged = true;
     }
     
+    if (this.isSedentaryDetected !== this.mqttManager.isSedentaryDetected) {
+      console.log(`[mainpage]:🟡 久坐状态变化 ${this.isSedentaryDetected} -> ${this.mqttManager.isSedentaryDetected}`);
+      this.isSedentaryDetected = this.mqttManager.isSedentaryDetected;
+      stateChanged = true;
+    }
+    
     if (stateChanged) {
-      console.log(`[mainpage]:状态已更新 isConnected=${this.isConnected}, isFallDetected=${this.isFallDetected}, message=${this.latestMessage.substring(0, 30)}...`);
+      console.log(`[mainpage]:状态已更新 isConnected=${this.isConnected}, isFallDetected=${this.isFallDetected}, isSedentaryDetected=${this.isSedentaryDetected}, message=${this.latestMessage.substring(0, 30)}...`);
     }
   }
   
@@ -83,16 +90,18 @@ export struct mainPage {
   }
 
   build() {
-    Column() {
-      // 标题栏
-      Text('智能居家监护')
-        .fontSize(20)
-        .fontWeight(500)
-        .width('100%')
-        .margin({ left: 20, top: 20, bottom: 20 })
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.themeManager.colors.primaryTextColor)
-        .alignSelf(ItemAlign.Start)
+    Stack() {
+      // 主内容
+      Column() {
+        // 标题栏
+        Text('智能居家监护')
+          .fontSize(20)
+          .fontWeight(500)
+          .width('100%')
+          .margin({ left: 20, top: 20, bottom: 20 })
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .alignSelf(ItemAlign.Start)
 
       // 视频流区域 (使用 Web 组件显示 MJPEG 流)
       Column() {
@@ -106,7 +115,7 @@ export struct mainPage {
         }
         .width('100%')
 
-        Row() {
+        /*Row() {
           Text(this.selectedView)
             .fontSize(16)
             .fontColor(this.themeManager.colors.primaryTextColor)
@@ -122,7 +131,20 @@ export struct mainPage {
             .margin({ right: 10 })
         }
         .width('90%')
-        .margin({ bottom: 10 })
+        .margin({ bottom: 10 })*/
+        /*Button(){
+          Text('一键报警')
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .fontSize(20)
+            .fontWeight(15)
+        }
+        .backgroundColor(Color.Red)
+        .width('90%')
+        .height(50)
+        .borderRadius(20)
+        .onClick(()=>{
+          console.log('确认报警？')
+        })*/
       }
       .justifyContent(FlexAlign.Center)
       .width('100%')
@@ -164,12 +186,16 @@ export struct mainPage {
             .width('90%')
             .backgroundColor(this.isFallDetected ? 
               (this.themeManager.isDarkMode ? '#4D1F1F' : '#FFE0E0') : 
-              (this.themeManager.isDarkMode ? '#1F2D4D' : '#E6F7FF'))
+              (this.isSedentaryDetected ?
+                (this.themeManager.isDarkMode ? '#4D4D1F' : '#FFF8DC') :
+                (this.themeManager.isDarkMode ? '#1F2D4D' : '#E6F7FF')))
             .fontColor(this.isFallDetected ? 
               this.themeManager.colors.dangerButtonColor : 
-              this.themeManager.colors.primaryTextColor)
+              (this.isSedentaryDetected ?
+                (this.themeManager.isDarkMode ? '#FFD700' : '#FF8C00') :
+                this.themeManager.colors.primaryTextColor))
             .padding(12)
-            .borderRadius(8)
+            .borderRadius(10)
             .margin(16)
 
           // 语音交互按钮
@@ -222,19 +248,36 @@ export struct mainPage {
           .width('90%')
           .height(50)
           .padding(12)
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
           .borderRadius(20)
         }
         .width('100%')
       }
+        .width('100%')
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+      }
       .width('100%')
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .height('100%')
+      .backgroundColor(this.themeManager.colors.backgroundColor)
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      
+      // 氛围光边框效果（摔倒-红色，久坐-黄色）
+      if (this.isFallDetected || this.isSedentaryDetected) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .border({
+            width: 8,
+            color: this.isFallDetected ? '#FF0000' : '#FFD700',
+            style: BorderStyle.Solid
+          })
+          .borderRadius(0)
+          .backgroundColor(Color.Transparent)
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

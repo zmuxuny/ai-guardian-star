@@ -33,8 +33,8 @@ struct Login {
             .height(100)
             .margin({bottom:6})
 
-          Text('鸿蒙守护星')
-            .fontColor('#000')
+          Text('智护星')
+            .fontColor($r('app.color.primary_text_color'))
             .fontSize(20)
             .fontWeight(10)
         }
@@ -50,7 +50,9 @@ struct Login {
             .height(55)
             .fontSize(16)
             .backgroundColor(Color.Transparent)
-            .border({ width: { bottom: 1 }, color: '#E5E5E5' })
+            .placeholderColor($r('app.color.tertiary_text_color'))
+            .fontColor($r('app.color.primary_text_color'))
+            .border({ width: { bottom: 1 }, color: $r('app.color.separator_color') })
 
           // 密码输入框
           TextInput({ placeholder: '请输入密码', text: this.password })
@@ -61,7 +63,9 @@ struct Login {
             .height(55)
             .fontSize(16)
             .backgroundColor(Color.Transparent)
-            .border({ width: { bottom: 1 }, color: '#E5E5E5' })
+            .placeholderColor($r('app.color.tertiary_text_color'))
+            .fontColor($r('app.color.primary_text_color'))
+            .border({ width: { bottom: 1 }, color: $r('app.color.separator_color') })
             .type(InputType.Password)
             .margin({ top: 45 })
 
@@ -69,7 +73,7 @@ struct Login {
             // 帮助链接
             Text('登录遇到问题?')
               .fontSize(16)
-              .fontColor('#007AFF')
+              .fontColor($r('app.color.primary_button_color'))
               .margin({ top: 30 })
               .alignSelf(ItemAlign.Start)
               .onClick(() => {
@@ -115,7 +119,7 @@ struct Login {
             }
 
             if (this.username === FIXED_ACCOUNT && this.password === FIXED_PASSWORD) {
-              this.pathStack.replacePathByName('Layout', null, false);
+              this.pathStack.replacePathByName('Layout', {}, false);
             } else {
               // 使用自定义弹窗替代默认toast
               this.showCenterAlert('域名或密码输入错误');
@@ -125,7 +129,7 @@ struct Login {
           .height(50)
           .fontSize(18)
           .fontColor(Color.White)
-          .backgroundColor('#007AFF')
+          .backgroundColor($r('app.color.primary_button_color'))
           .borderRadius(30)
           .margin({top:70})
 
@@ -139,7 +143,7 @@ struct Login {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(Color.White)
+      .backgroundColor($r('app.color.background_color'))
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
     }.onReady((context: NavDestinationContext) => {
