@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>昇腾摔倒检测与对讲系统</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            max-width: 1200px;
+            width: 100%;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            max-width: 640px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #444;
+            width: 100%;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        /* 视频流样式 */
+        #videoStream {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: #000;
+            min-height: 360px;
+            object-fit: contain;
+        }
+        /* 按钮与状态样式 */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            font-weight: bold;
+            color: white;
+        }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-start { background: linear-gradient(to right, #00b09b, #96c93d); }
+        .btn-stop { background: linear-gradient(to right, #ff5f6d, #ffc371); }
+
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+            background: #f0f0f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        .waveform {
+            width: 100%;
+            height: 50px;
+            background: #eee;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🛡️ 跌倒检测监控系统</h1>
+
+    <div class="container">
+        <!-- 视频监控卡片 -->
+        <div class="card">
+            <div class="card-header">📷 实时视频监控</div>
+            <!-- 视频源地址将在 JS 中动态设置 -->
+            <img id="videoStream" alt="等待视频流..." />
+        </div>
+
+        <!-- 语音对讲卡片 -->
+        <div class="card">
+            <div class="card-header">🎤 语音对讲控制</div>
+            <div style="text-align: center; margin: 20px 0;">
+                <div style="font-size: 40px; margin-bottom: 10px;">🎧 ↔️ 📢</div>
+                <p>点击下方按钮开始双向通话</p>
+            </div>
+            
+            <div class="controls">
+                <button class="btn-start" onclick="startIntercom()" id="btnStart">📞 发起通话</button>
+                <button class="btn-stop" onclick="stopIntercom()" id="btnStop" disabled>❌ 结束通话</button>
+            </div>
+            
+            <div id="status">状态: 未连接</div>
+            <div class="waveform">音频可视化预留区域</div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let audioContext;
+        let processor;
+        let source;
+        
+        // 自动获取当前页面 URL 的主机名 (例如 192.168.137.100)
+        const currentHost = window.location.hostname;
+        
+        // 1. 设置视频流地址 (端口 5000)
+        const videoUrl = `http://${currentHost}:5000/video_feed`;
+        document.getElementById('videoStream').src = videoUrl;
+
+        // 2. 设置 WebSocket 地址 (端口 8000)
+        const wsUrl = `ws://${currentHost}:8000/ws/web_client`;
+
+        // 3. 音频采样率 (必须与板子 ascend_voice_stream.py 一致)
+        const sampleRate = 48000; 
+
+        async function startIntercom() {
+            updateStatus("正在请求麦克风权限...", "#ffa500");
+            
+            try {
+                // 初始化 AudioContext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: sampleRate });
+                
+                // 获取浏览器麦克风
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                updateStatus("麦克风已就绪，正在连接服务器...", "#1e90ff");
+
+                // 连接 WebSocket
+                ws = new WebSocket(wsUrl);
+                ws.binaryType = 'arraybuffer';
+
+                ws.onopen = () => {
+                    updateStatus("✅ 已连接，正在通话中", "#00b09b");
+                    toggleButtons(true);
+                    
+                    // 开始处理音频流
+                    source = audioContext.createMediaStreamSource(stream);
+                    // bufferSize: 2048 (约40ms), input: 1, output: 1
+                    processor = audioContext.createScriptProcessor(2048, 1, 1);
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    processor.onaudioprocess = (e) => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            // 转换 Float32 -> Int16
+                            const pcmData = floatTo16BitPCM(inputData);
+                            ws.send(pcmData);
+                        }
+                    };
+                };
+
+                ws.onmessage = (event) => {
+                    // 收到板子发来的音频 -> 播放
+                    playPcmChunk(event.data);
+                };
+
+                ws.onerror = (error) => {
+                    console.error("WebSocket Error:", error);
+                    updateStatus("❌ 连接错误，请检查 F12 控制台", "#ff5f6d");
+                };
+
+                ws.onclose = () => {
+                    if(document.getElementById('btnStop').disabled === false) {
+                        stopIntercom(); // 意外断开时清理资源
+                    }
+                    updateStatus("连接已断开", "#666");
+                };
+
+            } catch (err) {
+                console.error(err);
+                updateStatus("❌ 启动失败: " + err.message, "#ff5f6d");
+            }
+        }
+
+        function stopIntercom() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            if (source) source.disconnect();
+            if (processor) processor.disconnect();
+            if (audioContext) audioContext.close();
+            
+            toggleButtons(false);
+            updateStatus("通话已结束", "#666");
+        }
+
+        // 播放 PCM 数据块
+        function playPcmChunk(arrayBuffer) {
+            if (!audioContext) return;
+
+            const int16Data = new Int16Array(arrayBuffer);
+            const float32Data = new Float32Array(int16Data.length);
+            
+            // Int16 -> Float32
+            for (let i = 0; i < int16Data.length; i++) {
+                float32Data[i] = int16Data[i] / 32768.0;
+            }
+
+            const audioBuffer = audioContext.createBuffer(1, float32Data.length, sampleRate);
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            const sourceNode = audioContext.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+            sourceNode.connect(audioContext.destination);
+            sourceNode.start();
+        }
+
+        // 录音转换: Float32 -> Int16
+        function floatTo16BitPCM(input) {
+            let output = new Int16Array(input.length);
+            for (let i = 0; i < input.length; i++) {
+                let s = Math.max(-1, Math.min(1, input[i]));
+                output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return output.buffer;
+        }
+
+        function updateStatus(text, color) {
+            const el = document.getElementById('status');
+            el.innerText = text;
+            el.style.color = color || "#666";
+        }
+
+        function toggleButtons(isCalling) {
+            document.getElementById('btnStart').disabled = isCalling;
+            document.getElementById('btnStop').disabled = !isCalling;
+        }
+    </script>
+</body>
+</html>
