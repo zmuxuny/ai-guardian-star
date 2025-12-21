@@ -15,6 +15,10 @@
     {
       "name": "reason_net",
       "value": "请检查网络"
+    },
+    {
+      "name": "voice_reason",
+      "value": "音频未初始化"
     }
   ]
 }

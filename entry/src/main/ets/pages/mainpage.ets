@@ -2,6 +2,11 @@ import { MqttManager } from './MqttManager';
 import { ThemeManager } from '../common/ThemeManager';
 // 【关键修正 1】导入 webview 模块
 import webview from '@ohos.web.webview';
+import display from '@ohos.display';
+import { AudioTransferManager } from '../common/AudioTransferManager';
+import { abilityAccessCtrl, Permissions } from '@kit.AbilityKit';
+import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 
 @Entry
 @Component
@@ -22,14 +27,27 @@ export struct mainPage {
   @State isFallDetected: boolean = false; // 本地摔倒状态
   @State isSedentaryDetected: boolean = false; // 本地久坐状态
   private updateTimer: number = -1;
+  
+  // 屏幕方向状态
+  @State isPortrait: boolean = true; // true=竖屏，false=横屏
 
   // 【关键修正 2】将 WebController 更改为 WebviewController
   private webController: webview.WebviewController = new webview.WebviewController();
+
+  // 用一个状态变量控制按钮样式
+  @State isTalking: boolean = false;
+  // 获取管理类实例
+  private audioManager = AudioTransferManager.getInstance();
+  // 用来请求权限的上下文
+  private context = getContext(this) as common.UIAbilityContext;
 
   aboutToAppear() {
     // 页面出现时进行连接与订阅
     this.mqttManager.connectAndSubscribe();
     console.info('[mqtt] mainpage MQTT 初始化并尝试连接');
+    
+    // 检测初始屏幕方向
+    this.updateOrientation();
     
     // 立即同步一次状态
     this.syncState();
@@ -37,6 +55,21 @@ export struct mainPage {
     // 启动定时器，定期同步 MQTT 状态到本地状态
     // 使用较短的间隔确保摔倒状态能及时刷新
     this.startStateSync();
+  }
+  
+  // 更新屏幕方向
+  private updateOrientation() {
+    try {
+      // 通过窗口宽高比判断横竖屏
+      const defaultDisplay = display.getDefaultDisplaySync();
+      const windowWidth = px2vp(defaultDisplay.width);
+      const windowHeight = px2vp(defaultDisplay.height);
+      this.isPortrait = windowHeight > windowWidth;
+      console.log(`[mainpage]:屏幕方向 isPortrait=${this.isPortrait}, width=${windowWidth}, height=${windowHeight}`);
+    } catch (e) {
+      console.error(`[mainpage]:获取屏幕方向失败: ${e}`);
+      this.isPortrait = true; // 默认竖屏
+    }
   }
   
   aboutToDisappear() {
@@ -89,195 +122,176 @@ export struct mainPage {
     }, 100) as number;
   }
 
-  build() {
-    Stack() {
-      // 主内容
-      Column() {
-        // 标题栏
-        Text('智能居家监护')
-          .fontSize(20)
-          .fontWeight(500)
+  // 视频流组件
+  @Builder
+  VideoArea() {
+    Column() {
+      Stack() {
+        Web({ src: this.videoUrl, controller: this.webController })
           .width('100%')
-          .margin({ left: 20, top: 20, bottom: 20 })
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.colors.primaryTextColor)
-          .alignSelf(ItemAlign.Start)
-
-      // 视频流区域 (使用 Web 组件显示 MJPEG 流)
-      Column() {
-        Stack() {
-          // 将 controller 传入 Web 组件
-          Web({ src: this.videoUrl, controller: this.webController })
-            .width('90%')
-            .aspectRatio(16 / 9)
-            .margin(10)
-            .border({ radius: 8, color: this.themeManager.colors.borderColor, width: 1 })
-        }
-        .width('100%')
-
-        /*Row() {
-          Text(this.selectedView)
-            .fontSize(16)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .margin({ left: 10 })
-
-          Blank()
-
-          Button('!')
-            .width(40)
-            .height(40)
-            .borderRadius(20)
-            .backgroundColor(0xFFD81B60)
-            .margin({ right: 10 })
-        }
-        .width('90%')
-        .margin({ bottom: 10 })*/
-        /*Button(){
-          Text('一键报警')
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .fontSize(20)
-            .fontWeight(15)
-        }
-        .backgroundColor(Color.Red)
-        .width('90%')
-        .height(50)
-        .borderRadius(20)
-        .onClick(()=>{
-          console.log('确认报警？')
-        })*/
+          .aspectRatio(16 / 9)
+          .border({ radius: 8, color: this.themeManager.colors.borderColor, width: 1 })
       }
-      .justifyContent(FlexAlign.Center)
       .width('100%')
-
-      // 监控画面以下为可滚动区域
-      Scroll() {
-        Column() {
-          // 设备连接状态 (显示 MQTT 状态)
-          Row() {
-            Image($r('app.media.img_3'))
-              .width(20)
-              .height(20)
-            // 使用本地状态变量，确保 UI 及时刷新
-            Text(this.isConnected ? '✅ MQTT已连接' : '❌ MQTT断开连接')
-              .fontColor(this.isConnected ? Color.Green : Color.Red)
-              .margin({ left: 8 })
-            Text('   |   ')
-            Image($r('app.media.img_4'))
-              .width(20)
-              .height(20)
-            Text('网络正常')
-              .fontColor(this.themeManager.colors.primaryTextColor)
-              .margin({ left: 8 })
-          }
-          .justifyContent(FlexAlign.Center)
-          .padding(5)
-          .width('90%')
-          .margin(10)
-          .border({
-            width: 1,
-            color: this.themeManager.colors.borderColor,
-            style: BorderStyle.Solid
+      .padding(10)
+    }
+    .justifyContent(FlexAlign.Center)
+  }
+  
+  // 信息面板组件
+  @Builder
+  InfoPanel() {
+    Column() {
+      // 设备连接状态
+      Row() {
+        Image($r(this.isConnected ?'app.media.link':'app.media.notlink'))
+          .width(20)
+          .height(20)
+          .margin({ right: 8 })
+          .fillColor(this.themeManager.isDarkMode ? Color.White : Color.Black)
+        Text(this.isConnected ? '已连接' : '未连接')
+          .fontSize(16)
+          .fontColor(this.themeManager.colors.primaryTextColor)
+        Blank()
+        Circle({ width: 10, height: 10 })
+          .fill(this.isConnected ? Color.Green : Color.Red)
+      }
+      .width('100%')
+      .padding(12)
+      .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
+      .borderRadius(10)
+      .margin({ bottom: 16 })
+      
+      // MQTT 消息显示区
+      Text(this.latestMessage)
+        .fontSize(18)
+        .textAlign(TextAlign.Center)
+        .width('100%')
+        .backgroundColor(this.isFallDetected ? 
+          (this.themeManager.isDarkMode ? '#4D1F1F' : '#FFE0E0') : 
+          (this.isSedentaryDetected ?
+            (this.themeManager.isDarkMode ? '#4D4D1F' : '#FFF8DC') :
+            (this.themeManager.isDarkMode ? '#1F2D4D' : '#E6F7FF')))
+        .fontColor(this.isFallDetected ? 
+          this.themeManager.colors.dangerButtonColor : 
+          (this.isSedentaryDetected ?
+            (this.themeManager.isDarkMode ? '#FFD700' : '#FF8C00') :
+            this.themeManager.colors.primaryTextColor))
+        .padding(12)
+        .borderRadius(10)
+        .margin({ bottom: 16 })
+      
+      // 音量控制
+      Row() {
+        Image($r('app.media.yinliang2'))
+          .width(24)
+          .height(24)
+          .margin({ right: 8 })
+          .fillColor(this.themeManager.isDarkMode ? Color.White : Color.Black)
+        Slider({
+          value: this.volumeLevel,
+          min: 0,
+          max: 100
+        })
+          .onChange((value: number) => {
+            this.volumeLevel = value;
           })
+          .layoutWeight(1)
+          .width(150)
+          .margin({ left: 8 })
+          .showTips(false)
+      }
+      .width('100%')
+      .height(50)
+      .padding(12)
+      .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
+      .borderRadius(20)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+  }
 
-          // MQTT 消息显示区
-          Text(this.latestMessage)
-            .fontSize(18)
-            .textAlign(TextAlign.Center)
-            .width('90%')
-            .backgroundColor(this.isFallDetected ? 
-              (this.themeManager.isDarkMode ? '#4D1F1F' : '#FFE0E0') : 
-              (this.isSedentaryDetected ?
-                (this.themeManager.isDarkMode ? '#4D4D1F' : '#FFF8DC') :
-                (this.themeManager.isDarkMode ? '#1F2D4D' : '#E6F7FF')))
-            .fontColor(this.isFallDetected ? 
-              this.themeManager.colors.dangerButtonColor : 
-              (this.isSedentaryDetected ?
-                (this.themeManager.isDarkMode ? '#FFD700' : '#FF8C00') :
-                this.themeManager.colors.primaryTextColor))
-            .padding(12)
-            .borderRadius(10)
-            .margin(16)
+  build() {
+    Column() {
+      // 标题栏
+      Text('智能居家监护')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .width('100%')
+        .margin({ left: 20, top: 20, bottom: 20 })
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .alignSelf(ItemAlign.Start)
 
-          // 语音交互按钮
+      // 根据横竖屏切换布局
+      if (this.isPortrait) {
+        // 竖屏：上下布局
+        Scroll() {
           Column() {
-            Button({
-              type: ButtonType.Circle,
-            }) {
-              Column() {
-                Text('        ')
-                Image($r('app.media.img_5'))
-                  .width(24)
-                  .height(24)
-                  .margin({ bottom: 8 })
-                Text('按住 说话')
-                  .textAlign(TextAlign.Center)
-                  .fontSize(16)
-                  .fontColor(Color.White)
-              }
-              .width('100%')
-              .height('100%')
-            }
-            .width(90)
-            .height(90)
-            .backgroundColor(0xFF1890FF)
-            .borderRadius(60)
-            .onClick(() => {
-              console.info('输入语音');
-            })
+            this.VideoArea()
+            this.InfoPanel()
           }
           .width('100%')
-          .margin({ bottom: 10 })
-
-          Row() {
-            Image($r('app.media.img_6'))
-              .width(30)
-              .height(30)
-            Slider({
-              value: this.volumeLevel,
-              min: 0,
-              max: 100
-            })
-              .onChange((value: number) => {
-                this.volumeLevel = value;
-              })
-              .layoutWeight(1)
-              .width(150)
-              .margin({ left: 8 })
-              .showTips(false)
-          }
-          .width('90%')
-          .height(50)
-          .padding(12)
-          .backgroundColor(this.themeManager.isDarkMode ? '#3A3A3C' : '#F8F8F8')
-          .borderRadius(20)
         }
-        .width('100%')
-      }
         .width('100%')
         .layoutWeight(1)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
+      } else {
+        // 横屏：左右布局
+        Row() {
+          // 左侧视频区域
+          Column() {
+            this.VideoArea()
+          }
+          .layoutWeight(1)
+          
+          // 右侧信息面板
+          Scroll() {
+            this.InfoPanel()
+          }
+          .width('40%')
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring)
+        }
+        .width('100%')
+        .layoutWeight(1)
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(this.themeManager.colors.backgroundColor)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-      
-      // 氛围光边框效果（摔倒-红色，久坐-黄色）
-      if (this.isFallDetected || this.isSedentaryDetected) {
-        Column()
-          .width('100%')
-          .height('100%')
-          .border({
-            width: 8,
-            color: this.isFallDetected ? '#FF0000' : '#FFD700',
-            style: BorderStyle.Solid
-          })
-          .borderRadius(0)
-          .backgroundColor(Color.Transparent)
-      }
+      Button(this.isTalking ? '挂断' : '开始通话') // 动态改变文字
+        .width(150)
+        .height(50)
+        .margin({bottom:30})
+        .backgroundColor(this.isTalking ? Color.Red : Color.Blue) // 动态改变颜色
+        .onClick(async () => {
+          if (this.isTalking) {
+            // 挂断逻辑不变
+            await this.audioManager.stopCall();
+            this.isTalking = false;
+          } else {
+            // --- 新增：申请权限逻辑 ---
+            const atManager = abilityAccessCtrl.createAtManager();
+            try {
+              // 向用户弹窗请求麦克风权限
+              const result = await atManager.requestPermissionsFromUser(this.context, ['ohos.permission.MICROPHONE']);
+
+              // 检查用户是否点击了“允许”
+              if (result.authResults[0] === 0) {
+                // 用户允许了，开始通话
+                console.info('权限已获取，启动通话');
+                await this.audioManager.startCall();
+                this.isTalking = true;
+              } else {
+                console.warn('用户拒绝了麦克风权限');
+                // 这里可以弹个窗提示用户去设置里开启
+              }
+            } catch (err) {
+              console.error('申请权限失败:', JSON.stringify(err));
+            }
+          }
+        })
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
