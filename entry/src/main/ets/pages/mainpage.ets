@@ -15,8 +15,8 @@ export struct mainPage {
   private volumeLevel: number = 50;
 //altas 200I DK ip:192.168.137.100   web_ip:192.168.137.100:5000/     MQTT_ip:192.168.137.100:1883/
   // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 !!!】
-  @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
-  // @State videoUrl: string = 'http://192.168.5.118:5000/video_feed';
+  //@State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
+  @State videoUrl: string = 'http://192.168.5.118:5000/video_feed';
 
   // 使用可观察对象，确保 UI 随 MQTT 状态联动
   @State mqttManager: MqttManager = MqttManager.getInstance();
@@ -275,8 +275,8 @@ export struct mainPage {
         .width('100%')
         .height('100%')
       }
-        // .width(150)
-        // .height(50)
+        .width(150)
+        .height(50)
         .width(90)
         .height(90)
         .borderRadius(60)
