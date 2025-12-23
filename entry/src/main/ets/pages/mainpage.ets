@@ -16,6 +16,7 @@ export struct mainPage {
 //altas 200I DK ip:192.168.137.100   web_ip:192.168.137.100:5000/     MQTT_ip:192.168.137.100:1883/
   // 【!!! 重要配置: 替换为您开发板的实际 IP 地址 !!!】
   @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
+  // @State videoUrl: string = 'http://192.168.5.118:5000/video_feed';
 
   // 使用可观察对象，确保 UI 随 MQTT 状态联动
   @State mqttManager: MqttManager = MqttManager.getInstance();
@@ -256,10 +257,30 @@ export struct mainPage {
         .width('100%')
         .layoutWeight(1)
       }
-      Button(this.isTalking ? '挂断' : '开始通话') // 动态改变文字
-        .width(150)
-        .height(50)
-        .margin({bottom:30})
+      Button({type: ButtonType.Circle}) // 动态改变文字
+      //this.isTalking ? '挂断' : '开始通话'
+      {
+        Column() {
+          Text('        ')
+          Image(this.isTalking ? $r('app.media.offcall'):$r('app.media.oncall'))
+            .width(24)
+            .height(24)
+            .fillColor(this.isTalking ? Color.Black:Color.White)
+            .margin({ bottom: 8 })
+          Text(this.isTalking ? '挂断':'通话')
+            .textAlign(TextAlign.Center)
+            .fontSize(16)
+            .fontColor(Color.White)
+        }
+        .width('100%')
+        .height('100%')
+      }
+        // .width(150)
+        // .height(50)
+        .width(90)
+        .height(90)
+        .borderRadius(60)
+        .margin({bottom:50})
         .backgroundColor(this.isTalking ? Color.Red : Color.Blue) // 动态改变颜色
         .onClick(async () => {
           if (this.isTalking) {
