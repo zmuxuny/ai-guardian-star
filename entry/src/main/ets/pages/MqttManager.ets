@@ -50,10 +50,6 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-//昇腾开发板ip:192.168.137.100
-// 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
-// 这里的 IP 必须是 Broker 所在的开发板的 IP
-//const BROKER_HOST = '192.168.137.100';
 const BROKER_HOST = '192.168.5.118';
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;  // 修改：使用 tcp:// 前缀，匹配 HarmonyOS MQTT 库要求
