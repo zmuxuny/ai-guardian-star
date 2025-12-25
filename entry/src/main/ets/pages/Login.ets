@@ -22,13 +22,13 @@ struct Login {
       Column() {
         // Logo 和 标题区域
         Column(){
-          Image($r('app.media.logo')) // 确保你有这个图片资源，如果没有请暂时注释掉或换成 $r('app.media.app_icon')
+          Image($r('app.media.logo'))
             .width(100)
             .height(100)
             .margin({bottom:6})
 
           Text('智护星')
-            .fontColor($r('app.color.primary_text_color')) // 确保 colors.json 中有这个颜色定义，否则改成 Color.Black
+            .fontColor($r('app.color.primary_text_color'))
             .fontSize(20)
             .fontWeight(10)
         }

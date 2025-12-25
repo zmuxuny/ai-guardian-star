@@ -8,7 +8,6 @@ export class AudioTransferManager {
   // === 配置区域 ===
   // 这里填开发板的 IP，端口号跟网页一样用 5000
   private readonly WS_URL = 'ws://192.168.137.100:5000/ws/intercom';
-  // private readonly WS_URL = 'ws://192.168.5.118:5000/ws/intercom';
 
   // 采样率必须与 Python 端一致 (网页端是 48000)
   private readonly SAMPLE_RATE = audio.AudioSamplingRate.SAMPLE_RATE_48000;
