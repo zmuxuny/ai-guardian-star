@@ -116,52 +116,52 @@ struct Login {
           .alignSelf(ItemAlign.Center)
 
         // --- 4. 华为账号一键登录区域 ---
-        Column() {
-          // 分割线 UI
-          Row() {
-            Divider().strokeWidth(1).color('#E0E0E0').width('30%')
-            Text(' 其他登录方式 ').fontSize(12).fontColor('#999999')
-            Divider().strokeWidth(1).color('#E0E0E0').width('30%')
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.Center)
-          .margin({ bottom: 20, top: 50 })
-
-          // 官方登录按钮组件
-          LoginWithHuaweiIDButton({
-            params: {
-              // 样式配置：红色按钮，圆角
-              style: loginComponentManager.Style.BUTTON_RED,
-              borderRadius: 24
-            },
-            // 控制器处理回调
-            controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
-            // 注意：这里删除了显式类型定义，让编译器自动推断，解决报错
-              .onClickLoginWithHuaweiIDButton((error, response) => {
-                // --- 失败处理 ---
-                if (error) {
-                  this.handleLoginError(error);
-                  return;
-                }
-                // --- 成功处理 ---
-                if (response) {
-                  // 强制类型转换
-                  const loginResponse = response as authentication.LoginWithHuaweiIDResponse;
-                  const credential = loginResponse.data;
-
-                  if (credential) {
-                    const openID = credential.openID;   // 用户唯一标识
-                    console.info(`[Login] 登录成功! OpenID: ${openID}`);
-                    // 跳转逻辑
-                    this.pathStack.replacePathByName('Layout', {}, false);
-                  }
-                }
-              })
-          })
-            .width('80%')
-            .height(48)
-        }
-        .width('100%')
+        // Column() {
+        //   // 分割线 UI
+        //   Row() {
+        //     Divider().strokeWidth(1).color('#E0E0E0').width('30%')
+        //     Text(' 其他登录方式 ').fontSize(12).fontColor('#999999')
+        //     Divider().strokeWidth(1).color('#E0E0E0').width('30%')
+        //   }
+        //   .width('100%')
+        //   .justifyContent(FlexAlign.Center)
+        //   .margin({ bottom: 20, top: 50 })
+        //
+        //   // 官方登录按钮组件
+        //   LoginWithHuaweiIDButton({
+        //     params: {
+        //       // 样式配置：红色按钮，圆角
+        //       style: loginComponentManager.Style.BUTTON_RED,
+        //       borderRadius: 24
+        //     },
+        //     // 控制器处理回调
+        //     controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
+        //     // 注意：这里删除了显式类型定义，让编译器自动推断，解决报错
+        //       .onClickLoginWithHuaweiIDButton((error, response) => {
+        //         // --- 失败处理 ---
+        //         if (error) {
+        //           this.handleLoginError(error);
+        //           return;
+        //         }
+        //         // --- 成功处理 ---
+        //         if (response) {
+        //           // 强制类型转换
+        //           const loginResponse = response as authentication.LoginWithHuaweiIDResponse;
+        //           const credential = loginResponse.data;
+        //
+        //           if (credential) {
+        //             const openID = credential.openID;   // 用户唯一标识
+        //             console.info(`[Login] 登录成功! OpenID: ${openID}`);
+        //             // 跳转逻辑
+        //             this.pathStack.replacePathByName('Layout', {}, false);
+        //           }
+        //         }
+        //       })
+        //   })
+        //     .width('80%')
+        //     .height(48)
+        // }
+        // .width('100%')
 
       } // Column end
       .width('100%')
@@ -175,31 +175,31 @@ struct Login {
     })
   }
 
-  // 统一错误处理方法
-  private handleLoginError(error: BusinessError) {
-    console.error(`[Login] 华为账号登录失败 Code: ${error.code}, Message: ${error.message}`);
-
-    let msg = '登录失败';
-    // 针对常见错误码做提示优化
-    if (error.code === 1001500001) {
-      msg = '配置错误：请检查Client ID和指纹是否匹配';
-    } else if (error.code === 1001502001) {
-      msg = '用户取消了登录';
-    } else if (error.code === 1001502009) {
-      msg = '签名指纹未在AGC后台配置';
-    }
-
-    // 弹窗提示
-    AlertDialog.show({
-      title: '华为登录提示',
-      message: `${msg}\n(错误码: ${error.code})`,
-      alignment: DialogAlignment.Center,
-      confirm: {
-        value: '知道了',
-        action: () => {}
-      }
-    });
-  }
+  // // 统一错误处理方法
+  // private handleLoginError(error: BusinessError) {
+  //   console.error(`[Login] 华为账号登录失败 Code: ${error.code}, Message: ${error.message}`);
+  //
+  //   let msg = '登录失败';
+  //   // 针对常见错误码做提示优化
+  //   if (error.code === 1001500001) {
+  //     msg = '配置错误：请检查Client ID和指纹是否匹配';
+  //   } else if (error.code === 1001502001) {
+  //     msg = '用户取消了登录';
+  //   } else if (error.code === 1001502009) {
+  //     msg = '签名指纹未在AGC后台配置';
+  //   }
+  //
+  //   // 弹窗提示
+  //   AlertDialog.show({
+  //     title: '华为登录提示',
+  //     message: `${msg}\n(错误码: ${error.code})`,
+  //     alignment: DialogAlignment.Center,
+  //     confirm: {
+  //       value: '知道了',
+  //       action: () => {}
+  //     }
+  //   });
+  // }
 
   // 自定义居中弹窗方法
   private showCenterAlert(message: string): void {

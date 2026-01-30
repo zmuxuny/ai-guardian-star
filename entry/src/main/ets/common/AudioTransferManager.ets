@@ -46,6 +46,7 @@ export class AudioTransferManager {
           // 2. 处理心跳
           if (typeof value === 'string') {
             if (value === "2") {
+              // 🔥🔥🔥 这里修复了报错：加上 ? 号 🔥🔥🔥
               this.ws?.send("3");
               return;
             }
