@@ -1,4 +1,4 @@
-# AI守护星：基于昇腾 Atlas 与鸿蒙OS的智能老人看护系统
+# AI守护星：基于昇腾与鸿蒙OS的智能老人看护系统
 
 ![Ascend Logo](https://img.shields.io/badge/Powered%20by-Ascend-red)
 ![HarmonyOS Logo](https://img.shields.io/badge/OS-HarmonyOS-blue)
@@ -6,7 +6,6 @@
 ![Framework](https://img.shields.io/badge/Framework-PyTorch%20/%20CANN-orange)
 ![License](https://img.shields.io/badge/License-MIT-purple)
 
-**参赛赛事：** [鲲鹏/昇腾应用创新大赛]()、[鸿蒙应用创新大赛]()
 **仓库名称：** `ai-guardian-star
 `
 
@@ -63,64 +62,14 @@ graph LR
   - 边缘端：MindStudio 5.0+、CANN 6.0+、Ubuntu 20.04 (ARM)
   - 应用端：DevEco Studio 4.0+、HarmonyOS SDK 7.0+
 
-## 📁 目录结构 (Directory Structure)
-
-```
-.
-├── atlas-edge/              # 昇腾边缘端代码
-│   ├── main.py              # 主程序（摄像头采集+推理+告警发布）
-│   ├── models/              # 昇腾.om格式模型文件（YOLOv5n-pose等）
-│   ├── utils/               # 工具模块（姿态分析/MQTT客户端/配置解析）
-│   └── requirements.txt     # 边缘端依赖库
-├── harmony-app/             # 鸿蒙应用代码
-│   ├── entry/               # 应用主模块（UI+逻辑）
-│   ├── common/              # 公共组件（MQTT管理/告警工具）
-│   └── app.json5            # 应用配置
-├── docs/                    # 项目文档（架构图/部署指南/协议说明）
-├── examples/                # 测试数据（样例视频/告警消息JSON）
-└── README.md                # 项目说明
-```
-
-## 🚀 快速开始 (Getting Started)
-
-### 1. 边缘端部署（昇腾Atlas）
-
-```bash
-# 克隆仓库
-git clone https://github.com/your-org/aiguard-ascend-harmony.git
-cd aiguard-ascend-harmony/atlas-edge
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 模型准备（参考docs/model_conversion.md转换.om模型）
-cp your_model.om models/
-
-# 启动服务（默认连接公共MQTT服务器）
-python main.py --camera 0 --mqtt-host test.mosquitto.org --device-id LivingRoom_01
-```
-
-### 2. 鸿蒙应用部署
-
-```bash
-# 1. 在DevEco Studio中导入harmony-app目录
-# 2. 配置项目签名（参考鸿蒙官方文档）
-# 3. 连接鸿蒙设备/模拟器，点击运行按钮
-```
-
-### 3. 系统验证
-
-1. 确保Atlas开发板与鸿蒙设备连接同一网络
-2. 在鸿蒙应用中配置MQTT服务器地址（与边缘端一致）
-3. 模拟异常场景（如假装摔倒），观察应用是否收到告警
 
 ## 👨‍💻 团队成员 (Team Members)
 
 | 姓名 (Name) | 年级 (Grade) | 角色 (Role) |
 | :---------- | :----------: | :---------- |
 | 曹泽阳      |   2022级   | 项目组长（系统架构设计） |
-| 董庄泽      |   2023级   | 边缘AI算法开发 |
-| 何佳宝      |   2023级   | 昇腾模型部署与优化 |
+| 董庄泽      |   2024级   | 边缘AI算法开发 |
+| 何佳宝      |   2024级   | 昇腾模型部署与优化 |
 | 简沅晞      |   2024级   | 鸿蒙应用UI开发 |
 | 闻静涵      |   2024级   | 鸿蒙通信功能开发 |
 
