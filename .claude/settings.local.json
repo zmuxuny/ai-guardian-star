@@ -32,7 +32,10 @@
       "Bash(netstat -ano)",
       "Bash(findstr \"LISTENING\")",
       "Bash(findstr \"789 108 909 991 808 312 888 555 777\")",
-      "Skill(telegram:access)"
+      "Skill(telegram:access)",
+      "Bash(git checkout *)",
+      "Bash(git rebase *)",
+      "Bash(GIT_EDITOR=true git rebase --continue)"
     ]
   }
 }
