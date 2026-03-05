@@ -1,0 +1,18 @@
+# Ensure consistent line endings
+* text=auto eol=lf
+
+# Docs as documentation
+README.md linguist-documentation=true
+/docs/** linguist-documentation=true
+
+# Do not include large/binary files in archive
+*.zip export-ignore
+*.tar.gz export-ignore
+
+# Treat generated files as binary
+*.app -text
+*.hap -text
+*.om -text
+
+# Mark files as linguist-vendored if necessary
+/oh_modules/** linguist-vendored=true
