@@ -50,9 +50,7 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-//昇腾开发板ip:192.168.137.100
-// 【!!! 重要配置: 替换为您开发板的实际 IP 地址 (192.168.43.147) !!!】
-// 这里的 IP 必须是 Broker 所在的开发板的 IP
+
 const BROKER_HOST = '192.168.137.100';
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;  // 修改：使用 tcp:// 前缀，匹配 HarmonyOS MQTT 库要求
@@ -314,7 +312,11 @@ export class MqttManager {
 
   // 清除摔倒状态
   private clearFallState(): void {
-    console.log('[mqtt]:清除摔倒状态');
+    if (this.isFallDetected) {
+      console.log('[mqtt]:🔵 清除摔倒状态 (之前为true)');
+    } else {
+      console.log('[mqtt]:🔵 清除摔倒状态 (之前已是false)');
+    }
     this.isFallDetected = false;
     this.fallTimestamp = 0;
     this.clearFallRecoveryTimer();
@@ -322,7 +324,11 @@ export class MqttManager {
 
   // 清除久坐状态
   private clearSedentaryState(): void {
-    console.log('[mqtt]:清除久坐状态');
+    if (this.isSedentaryDetected) {
+      console.log('[mqtt]:🟦 清除久坐状态 (之前为true)');
+    } else {
+      console.log('[mqtt]:🟦 清除久坐状态 (之前已是false)');
+    }
     this.isSedentaryDetected = false;
     this.sedentaryTimestamp = 0;
     this.clearSedentaryRecoveryTimer();
@@ -348,7 +354,8 @@ export class MqttManager {
   }
 
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
-    console.log(`[mqtt]:📨 handleMessage 开始处理 topic=${topic}`);
+    console.log(`[mqtt]:📨📨📨 handleMessage 开始处理 topic=${topic}`);
+    console.log(`[mqtt]:📨 payload类型=${typeof payload}`);
     let messageContent: string = '';
 
     if (typeof payload !== 'string') {
@@ -366,15 +373,20 @@ export class MqttManager {
       messageContent = payload;
     }
 
-    console.log(`[mqtt]:收到原始消息 topic=${topic}, 内容=${messageContent}`);
+    console.log(`[mqtt]:📩 收到原始消息 topic=${topic}, 内容长度=${messageContent.length}`);
+    console.log(`[mqtt]:📩 消息内容: ${messageContent}`);
 
     try {
       const data = JSON.parse(messageContent) as AlertLike;
-      console.log(`[mqtt]:解析JSON成功, event=${data.event}, alert_type=${data.alert_type}, type=${data.type}`);
+      console.log(`[mqtt]:✅ 解析JSON成功`);
+      console.log(`[mqtt]:  - event=${data.event}`);
+      console.log(`[mqtt]:  - alert_type=${data.alert_type}`);
+      console.log(`[mqtt]:  - type=${data.type}`);
       
       const eventField = (data.event ?? data.alert_type ?? data.type ?? '') as string;
       const rawEvent: string = String(eventField).toLowerCase().trim();
-      console.log(`[mqtt]:事件字段值="${rawEvent}"`);
+      console.log(`[mqtt]:🔍 事件字段原始值="${eventField}"`);
+      console.log(`[mqtt]:🔍 事件字段小写值="${rawEvent}"`);
       
       // 事件检测逻辑
       const isEmpty = rawEvent === '' || rawEvent === 'null' || rawEvent === 'none' || rawEvent === 'undefined';
@@ -384,6 +396,8 @@ export class MqttManager {
                                rawEvent.includes('normal') || rawEvent.includes('正常') ||
                                rawEvent.includes('stand') || rawEvent.includes('站立') ||
                                rawEvent.includes('walk') || rawEvent.includes('行走');
+      
+      console.log(`[mqtt]:关键词检测 isEmpty=${isEmpty}, hasFall=${hasFallKeyword}, hasSedentary=${hasSedentaryKeyword}, hasNormal=${hasNormalKeyword}`);
       
       // 摔倒检测
       const isFall: boolean = !isEmpty && hasFallKeyword && !hasNormalKeyword && !hasSedentaryKeyword;
@@ -417,21 +431,28 @@ export class MqttManager {
         const currentTimestamp = Date.now();
         const timeSinceLastRecord = currentTimestamp - this.lastRecordedSedentaryTimestamp;
         
-        console.log(`[mqtt]:🟡 检测到久坐事件! 当前时间戳=${currentTimestamp}`);
+        console.log(`[mqtt]:🟡🟡🟡 检测到久坐事件! 当前时间戳=${currentTimestamp}, 距上次记录=${timeSinceLastRecord}ms`);
         
         if (timeSinceLastRecord > 2000 || this.lastRecordedSedentaryTimestamp === 0) {
+          console.log(`[mqtt]:📝 准备添加久坐记录...`);
           this.addSedentaryRecord(currentTimestamp);
           this.lastRecordedSedentaryTimestamp = currentTimestamp;
           console.log(`[mqtt]:✅ 新久坐事件已记录! 总记录数=${this.sedentaryRecords.length}`);
+        } else {
+          console.log(`[mqtt]:⚠️ 忽略重复久坐事件 (距上次 ${timeSinceLastRecord}ms)`);
         }
         
+        console.log(`[mqtt]:设置 isSedentaryDetected=true, sedentaryTimestamp=${currentTimestamp}`);
         this.isSedentaryDetected = true;
         this.sedentaryTimestamp = currentTimestamp;
         this.clearFallState(); // 清除摔倒状态
         
         const sedentaryTime: string = this.formatTimestamp(undefined);
         this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${sedentaryTime}`;
+        console.log(`[mqtt]:⚠️ 久坐消息已设置: ${this.latestMessage}`);
+        console.log(`[mqtt]:启动久坐自动恢复定时器...`);
         this.startSedentaryRecoveryTimer();
+        console.log(`[mqtt]:🟡 久坐处理完成，最终状态 isSedentaryDetected=${this.isSedentaryDetected}`);
       } else {
         // 正常状态
         console.log(`[mqtt]:🟢 设置为正常状态`);
@@ -450,9 +471,13 @@ export class MqttManager {
       console.log(`[mqtt]:JSON解析失败，使用纯文本匹配, 错误=${(e as Error).message}`);
       const lower = messageContent.toLowerCase();
       const hasFallKeyword = lower.includes('fall') || messageContent.includes('跌倒');
+      const hasSedentaryKeyword = lower.includes('sedentary') || messageContent.includes('久坐') || lower.includes('sitting_long');
       const hasNegativeKeyword = lower.includes('no fall') || lower.includes('无跌倒') || 
-                                 lower.includes('normal') || lower.includes('正常');
-      const isFall = hasFallKeyword && !hasNegativeKeyword;
+                                 lower.includes('normal') || lower.includes('正常') ||
+                                 lower.includes('stand') || lower.includes('站立') ||
+                                 lower.includes('walk') || lower.includes('行走');
+      const isFall = hasFallKeyword && !hasNegativeKeyword && !hasSedentaryKeyword;
+      const isSedentary = hasSedentaryKeyword && !hasNegativeKeyword;
       
       if (isFall) {
         // 检测到摔倒（纯文本匹配）
@@ -473,6 +498,7 @@ export class MqttManager {
         
         this.isFallDetected = true;
         this.fallTimestamp = currentTimestamp;
+        this.clearSedentaryState(); // 清除久坐状态
         
         const fallTime: string = this.formatTimestamp(undefined);
         this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${fallTime}`;
@@ -480,18 +506,44 @@ export class MqttManager {
         
         // 启动3秒自动恢复定时器
         this.startFallRecoveryTimer();
+      } else if (isSedentary) {
+        // 检测到久坐（纯文本匹配）
+        const currentTimestamp = Date.now();
+        const timeSinceLastRecord = currentTimestamp - this.lastRecordedSedentaryTimestamp;
+        
+        console.log(`[mqtt]:🟡 纯文本匹配检测到久坐! 时间戳=${currentTimestamp}, 距上次=${timeSinceLastRecord}ms`);
+        
+        // 添加久坐记录
+        if (timeSinceLastRecord > 2000 || this.lastRecordedSedentaryTimestamp === 0) {
+          console.log(`[mqtt]:📝 开始添加久坐记录(纯文本)...`);
+          this.addSedentaryRecord(currentTimestamp);
+          this.lastRecordedSedentaryTimestamp = currentTimestamp;
+          console.log(`[mqtt]:✅ 新久坐事件已记录(纯文本)! 总记录数=${this.sedentaryRecords.length}`);
+        } else {
+          console.log(`[mqtt]:⚠️ 忽略重复久坐事件 ${timeSinceLastRecord}ms`);
+        }
+        
+        this.isSedentaryDetected = true;
+        this.sedentaryTimestamp = currentTimestamp;
+        this.clearFallState(); // 清除摔倒状态
+        
+        const sedentaryTime: string = this.formatTimestamp(undefined);
+        this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${sedentaryTime}`;
+        console.log(`[mqtt]:⚠️ 久坐状态已设置(纯文本)! 主题=${topic}, 时间=${sedentaryTime}`);
+        
+        // 启动3秒自动恢复定时器
+        this.startSedentaryRecoveryTimer();
       } else {
         // 正常消息（纯文本）
-        console.log(`[mqtt]:🟢 纯文本匹配：清除摔倒状态`);
-        this.clearFallRecoveryTimer(); // 取消自动恢复定时器
-        this.isFallDetected = false;
-        this.fallTimestamp = 0;
+        console.log(`[mqtt]:🟢 纯文本匹配：清除所有状态`);
+        this.clearFallState();
+        this.clearSedentaryState();
         const currentTime: string = this.formatTimestamp(undefined);
         this.latestMessage = `✅ 正常状态: ${messageContent.substring(0, 50)} @ ${currentTime}`;
-        console.log(`[mqtt]:✅ 收到正常消息(纯文本) 主题=${topic}, 摔倒状态已清除`);
+        console.log(`[mqtt]:✅ 收到正常消息(纯文本) 主题=${topic}, 所有状态已清除`);
       }
     }
-    console.log(`[mqtt]:最终状态 isFallDetected=${this.isFallDetected}, latestMessage=${this.latestMessage}`);
+    console.log(`[mqtt]:📊 最终状态 isFallDetected=${this.isFallDetected}, isSedentaryDetected=${this.isSedentaryDetected}, latestMessage=${this.latestMessage}`);
   }
 
   // 重新连接方法

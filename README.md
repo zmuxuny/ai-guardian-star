@@ -4,7 +4,7 @@
 ![HarmonyOS Logo](https://img.shields.io/badge/OS-HarmonyOS-blue)
 ![Platform](https://img.shields.io/badge/Edge%20Device-Atlas%20200I%20DK%20A2-green)
 ![Framework](https://img.shields.io/badge/Framework-PyTorch%20/%20CANN-orange)
-![License](https://img.shields.io/badge/License-MIT-purple)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue)
 
 **参赛赛事：** [鲲鹏/昇腾应用创新大赛]()、[鸿蒙应用创新大赛]()
 **仓库名称：** `ai-guardian-star
@@ -116,17 +116,17 @@ python main.py --camera 0 --mqtt-host test.mosquitto.org --device-id LivingRoom_
 
 ## 👨‍💻 团队成员 (Team Members)
 
-| 姓名 (Name) | 年级 (Grade) | 角色 (Role) |
-| :---------- | :----------: | :---------- |
-| 曹泽阳      |   2022级   | 项目组长（系统架构设计） |
-| 董庄泽      |   2023级   | 边缘AI算法开发 |
-| 何佳宝      |   2023级   | 昇腾模型部署与优化 |
-| 简沅晞      |   2024级   | 鸿蒙应用UI开发 |
-| 闻静涵      |   2024级   | 鸿蒙通信功能开发 |
+| 姓名 (Name) | 年级 (Grade) | 角色 (Role)              |
+| :---------- | :----------: | :----------------------- |
+| 曹泽阳      |    2022级    | 项目组长（系统架构设计） |
+| 董庄泽      |    2023级    | 边缘AI算法开发           |
+| 何佳宝      |    2023级    | 昇腾模型部署与优化       |
+| 简沅晞      |    2024级    | 鸿蒙应用UI开发           |
+| 闻静涵      |    2024级    | 鸿蒙通信功能开发         |
 
 ## ©️ 许可证 (License)
 
-本项目采用 [MIT License](LICENSE) 开源许可证。
+本项目采用 [Apache-2.0 License](LICENSE) 开源许可证。
 
 ## 📝 备注 (Notes)
 
