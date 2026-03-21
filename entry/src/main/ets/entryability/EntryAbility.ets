@@ -34,7 +34,6 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
     windowStage.loadContent('pages/Index', (err) => {
@@ -43,6 +42,16 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+    });
+
+    // 获取状态栏实际高度存入 AppStorage，供各页面 Header 动态适配
+    windowStage.getMainWindow().then((win) => {
+      const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const topHeight = px2vp(avoidArea.topRect.height);
+      AppStorage.setOrCreate('topSafeHeight', topHeight > 0 ? topHeight : 48);
+      hilog.info(DOMAIN, 'testTag', 'topSafeHeight: %{public}d', topHeight);
+    }).catch(() => {
+      AppStorage.setOrCreate('topSafeHeight', 48);
     });
   }
 
