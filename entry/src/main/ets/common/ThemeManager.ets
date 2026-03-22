@@ -4,20 +4,20 @@ import { window } from '@kit.ArkUI';
 // 主题颜色定义
 export class ThemeColors {
   // 背景色
-  backgroundColor: string = '#FFFFFF';
+  backgroundColor: string = '#F0F4FF';
   secondaryBackgroundColor: string = '#F2F2F7';
   cardBackgroundColor: string = '#FFFFFF';
   
   // 文字色
   primaryTextColor: string = '#1C1C1E';
-  secondaryTextColor: string = '#8E8E93';
+  secondaryTextColor: string = '#94A3B8';
   tertiaryTextColor: string = '#C7C7CC';
   
   // 分割线色
   separatorColor: string = '#E5E5EA';
   
   // 按钮色
-  primaryButtonColor: string = '#007AFF';
+  primaryButtonColor: string = '#2563EB';
   dangerButtonColor: string = '#FF3B30';
   
   // 卡片边框色
@@ -26,20 +26,20 @@ export class ThemeColors {
 
 // 深色主题
 export class DarkThemeColors extends ThemeColors {
-  backgroundColor: string = '#000000';
-  secondaryBackgroundColor: string = '#1C1C1E';
-  cardBackgroundColor: string = '#2C2C2E';
+  backgroundColor: string = '#0F172A';
+  secondaryBackgroundColor: string = '#1E293B';
+  cardBackgroundColor: string = '#1E293B';
   
-  primaryTextColor: string = '#FFFFFF';
-  secondaryTextColor: string = '#EBEBF5';
-  tertiaryTextColor: string = '#8E8E93';
+  primaryTextColor: string = '#F8FAFC';
+  secondaryTextColor: string = '#94A3B8';
+  tertiaryTextColor: string = '#64748B';
   
-  separatorColor: string = '#38383A';
+  separatorColor: string = '#334155';
   
-  primaryButtonColor: string = '#0A84FF';
-  dangerButtonColor: string = '#FF453A';
+  primaryButtonColor: string = '#3B82F6';
+  dangerButtonColor: string = '#EF4444';
   
-  borderColor: string = '#38383A';
+  borderColor: string = '#334155';
 }
 
 // 浅色主题

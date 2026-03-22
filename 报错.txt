@@ -1,0 +1,19 @@
+Icons.ets - 已修复 ✅
+修复日期：2026 年 3 月 17 日
+
+【问题 1】Indexed access is not supported for fields (arkts-no-props-by-index)
+原因：ArkTS 严格模式不支持通过索引访问对象字段（如 ICON_PATHS[this.name]）
+解决：使用 switch 语句替代索引访问
+
+【问题 2】Only UI component syntax can be written here (第 73 行)
+原因：Path() 组件不能直接作为 build() 的顶层组件，需要容器包裹
+解决：使用 Stack() 容器包裹 Path() 组件
+
+【修改内容】
+1. getPath() 方法：改用 switch 语句返回路径数据
+2. getAdaptiveSize() 方法：改用 switch 语句获取基准尺寸
+3. build() 方法：使用 Stack() 包裹 Path() 组件
+4. 删除了不再使用的 ICON_BASE_SIZES 和 IconPathData 接口
+
+---
+（以下为旧报错记录，已修复）

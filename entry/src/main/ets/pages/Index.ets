@@ -1,6 +1,4 @@
-
 import { AppStorageV2 } from '@kit.ArkUI';
-
 
 @Entry
 @Component

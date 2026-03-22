@@ -1,7 +1,8 @@
 import { prompt } from "@kit.ArkUI";
 import { media } from "@kit.MediaKit";
-import { authentication, LoginWithHuaweiIDButton, loginComponentManager } from '@kit.AccountKit'; // 引入华为账号服务
-import { BusinessError } from '@kit.BasicServicesKit'; // 引入基础错误类型
+import { authentication, LoginWithHuaweiIDButton, loginComponentManager } from '@kit.AccountKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { ThemeManager } from '../common/ThemeManager';
 
 // 跳转页面入口函数
 @Builder
@@ -12,10 +13,10 @@ export function LoginBuilder() {
 @Preview
 @Component
 struct Login {
-  //控制跳转的对象
   pathStack: NavPathStack = new NavPathStack();
   @State username: string = '';
   @State password: string = '';
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
 
   build() {
     NavDestination() {
@@ -28,7 +29,7 @@ struct Login {
             .margin({bottom:6})
 
           Text('智护星')
-            .fontColor($r('app.color.primary_text_color'))
+            .fontColor(this.themeManager.colors.primaryTextColor)
             .fontSize(20)
             .fontWeight(10)
         }
@@ -44,9 +45,9 @@ struct Login {
             .height(55)
             .fontSize(16)
             .backgroundColor(Color.Transparent)
-            .placeholderColor($r('app.color.tertiary_text_color')) // 确保有颜色定义，否则改 Color.Gray
-            .fontColor($r('app.color.primary_text_color'))
-            .border({ width: { bottom: 1 }, color: $r('app.color.separator_color') }) // 确保有颜色定义
+            .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
 
           // 密码输入框
           TextInput({ placeholder: '请输入密码', text: this.password })
@@ -57,9 +58,9 @@ struct Login {
             .height(55)
             .fontSize(16)
             .backgroundColor(Color.Transparent)
-            .placeholderColor($r('app.color.tertiary_text_color'))
-            .fontColor($r('app.color.primary_text_color'))
-            .border({ width: { bottom: 1 }, color: $r('app.color.separator_color') })
+            .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
             .type(InputType.Password)
             .margin({ top: 45 })
 
@@ -67,7 +68,7 @@ struct Login {
             // 帮助链接
             Text('登录遇到问题?')
               .fontSize(16)
-              .fontColor($r('app.color.primary_button_color')) // 确保有颜色定义，否则改 '#007AFF'
+              .fontColor(this.themeManager.colors.primaryButtonColor)
               .margin({ top: 30 })
               .alignSelf(ItemAlign.Start)
               .onClick(() => {
@@ -119,7 +120,7 @@ struct Login {
           .height(50)
           .fontSize(18)
           .fontColor(Color.White)
-          .backgroundColor($r('app.color.primary_button_color'))
+          .backgroundColor(this.themeManager.colors.primaryButtonColor)
           .borderRadius(30)
           .margin({ top: 70 })
 
@@ -130,11 +131,11 @@ struct Login {
           .margin({ top: 10, bottom: 20 })
           .alignSelf(ItemAlign.Center)
 
-        // -------- 新增：华为账号一键登录区域 --------
+        // -------- 官方华为账号登录区域 --------
         Row() {
-          Divider().strokeWidth(1).color('#E0E0E0').width('30%')
-          Text(' 其他登录方式 ').fontSize(12).fontColor('#999999')
-          Divider().strokeWidth(1).color('#E0E0E0').width('30%')
+          Divider().strokeWidth(1).color(this.themeManager.colors.separatorColor).width('30%')
+          Text(' 其他登录方式 ').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+          Divider().strokeWidth(1).color(this.themeManager.colors.separatorColor).width('30%')
         }
         .width('100%')
         .justifyContent(FlexAlign.Center)
@@ -143,48 +144,48 @@ struct Login {
         // 官方华为账号登录按钮
         LoginWithHuaweiIDButton({
           params: {
-            // 设置按钮样式，红色按钮通常比较显眼，也可以选 BLACK 或 WHITE
             style: loginComponentManager.Style.BUTTON_RED,
-            borderRadius: 30, // 圆角跟上面的按钮保持一致
-            // 注意：这里删除了 loginType，避免报错，使用默认配置
+            borderRadius: 30,
           },
           controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
-          // 注意：这里去掉了显式类型定义，让编译器自动推断，解决报错问题
-            .onClickLoginWithHuaweiIDButton((error, response) => {
+            .onClickLoginWithHuaweiIDButton((error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
               if (error) {
-                console.error(`华为账号登录失败: code: ${error.code}, message: ${error.message}`);
-                this.showCenterAlert('华为账号登录失败');
+                // 打印详细错误码，方便对照华为文档排查
+                console.error(`[Login]: 华为登录失败! 错误码: ${error.code}, 消息: ${error.message}`);
+                
+                let errorMsg = '登录失败';
+                if (error.code === 100004) errorMsg = '环境不支持(请检查HMS Core)';
+                if (error.code === 6003) errorMsg = '证书指纹校验失败';
+                
+                this.showCenterAlert(errorMsg);
                 return;
               }
 
               if (response) {
-                // 强制类型转换为 AuthenticationResponse 以获取数据
-                const loginResponse = response as authentication.LoginWithHuaweiIDResponse;
-                const credential = loginResponse.data;
+                try {
+                  // 安全获取凭证信息
+                  const credential = response as authentication.LoginWithHuaweiIDResponse;
+                  const data = credential.data;
 
-                if (credential) {
-                  const openID = credential.openID;
-                  const unionID = credential.unionID;
-                  const authCode = credential.authorizationCode;
-
-                  console.info('华为账号登录成功！');
-                  console.info('OpenID: ' + openID);
-                  // 可以在这里将 authCode 发送给你的后端服务器进行验证
-
-                  // === 核心：登录成功后的跳转逻辑 ===
-                  this.pathStack.replacePathByName('Layout', {}, false);
+                  if (data) {
+                    console.info('[Login]: 华为账号登录成功, OpenID: ' + data.openID);
+                    // 登录成功跳转主框架
+                    this.pathStack.replacePathByName('Layout', {}, false);
+                  }
+                } catch (e) {
+                  console.error('[Login]: 解析登录数据异常: ' + JSON.stringify(e));
                 }
               }
             })
         })
-          .width('80%') // 宽度与上方按钮保持一致
-          .height(50)   // 高度与上方按钮保持一致
+          .width('80%')
+          .height(50)
           .margin({ bottom: 20 })
 
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.background_color')) // 确保有颜色定义，否则改 Color.White
+      .backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
     }.onReady((context: NavDestinationContext) => {
