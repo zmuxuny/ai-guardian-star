@@ -14,6 +14,8 @@ export struct record {
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
   aboutToAppear(): void { this.refreshData(); }
+
+  /** 只显示本次会话内存中的记录（历史记录入口在"我的"页） */
   private refreshData(): void {
     if (this.mqttManager) {
       this.fallRecords = [...this.mqttManager.fallRecords];

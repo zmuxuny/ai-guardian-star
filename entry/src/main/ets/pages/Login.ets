@@ -1,10 +1,99 @@
-import { prompt } from "@kit.ArkUI";
-import { media } from "@kit.MediaKit";
 import { authentication, LoginWithHuaweiIDButton, loginComponentManager } from '@kit.AccountKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { ThemeManager } from '../common/ThemeManager';
+import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
+import { preferences } from '@kit.ArkData';
+import { common } from '@kit.AbilityKit';
+import { promptAction } from '@kit.ArkUI';
 
-// 跳转页面入口函数
+export const STORAGE_KEY_LOGGED_IN_USER = 'loggedInUsername';
+const PREF_NAME = 'guardian_auth';
+const PREF_KEY_USERNAME = 'lastUsername';
+
+interface LoginResult {
+  name: string;
+  isNew: boolean;
+}
+
+// ── 注册验证弹框 ──────────────────────────────────────────
+@CustomDialog
+struct VerifyDialog {
+  // ⚠️ controller 不能在声明时 new，由调用方传入
+  controller!: CustomDialogController;
+  account: string = '';
+  onConfirm: () => void = () => {};
+
+  @State code: string = '';
+  @State countdown: number = 0;
+  @State hasSent: boolean = false;
+  private timer: number = -1;
+
+  private startCountdown(): void {
+    this.countdown = 60;
+    this.hasSent = true;
+    this.timer = setInterval(() => {
+      this.countdown--;
+      if (this.countdown <= 0) { clearInterval(this.timer); this.countdown = 0; }
+    }, 1000) as number;
+  }
+
+  aboutToDisappear(): void {
+    if (this.timer !== -1) clearInterval(this.timer);
+  }
+
+  build() {
+    Column() {
+      // 标题
+      Text('身份验证').fontSize(18).fontWeight(FontWeight.Bold)
+        .fontColor('#1e293b').margin({ bottom: 20 })
+
+      // 验证码输入行
+      Row({ space: 10 }) {
+        TextInput({ placeholder: '请输入验证码', text: this.code })
+          .onChange((v: string) => { this.code = v; })
+          .layoutWeight(1).fontSize(14).type(InputType.Number)
+          .backgroundColor('#f8fafc')
+          .border({ width: 1.5, color: '#e2e8f0' })
+          .borderRadius(10)
+
+        // 发送/倒计时按钮
+        Button(this.countdown > 0 ? `${this.countdown}s` : (this.hasSent ? '重新发送' : '发送'))
+          .fontSize(12).fontColor(this.countdown > 0 ? '#94a3b8' : '#3b82f6')
+          .backgroundColor(this.countdown > 0 ? '#f1f5f9' : '#eff6ff')
+          .border({ width: 1, color: this.countdown > 0 ? '#e2e8f0' : '#bfdbfe' })
+          .borderRadius(8).height(40).width(90).type(ButtonType.Normal)
+          .enabled(this.countdown === 0)
+          .onClick(() => { this.startCountdown(); })
+      }.width('100%').margin({ bottom: 20 })
+
+      // 提示语
+      Text('测试阶段：输入任意验证码或直接点击确认即可进入')
+        .fontSize(11).fontColor('#94a3b8').textAlign(TextAlign.Center)
+        .margin({ bottom: 24 })
+
+      // 操作按钮
+      Row({ space: 12 }) {
+        Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .backgroundColor('#f1f5f9').fontColor('#64748b').fontSize(14)
+          .borderRadius(12)
+          .onClick(() => { this.controller.close(); })
+
+        Button('确认').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .linearGradient({
+            direction: GradientDirection.Right,
+            colors: [['#1e40af', 0.0], ['#3b82f6', 1.0]]
+          })
+          .fontColor(Color.White).fontSize(14).borderRadius(12)
+          .onClick(() => { this.controller.close(); this.onConfirm(); })
+      }.width('100%')
+    }
+    .width('100%')
+    .padding({ left: 24, right: 24, top: 28, bottom: 24 })
+    .backgroundColor(Color.White)
+    .borderRadius(20)
+  }
+}
+
 @Builder
 export function LoginBuilder() {
   Login();
@@ -16,198 +105,385 @@ struct Login {
   pathStack: NavPathStack = new NavPathStack();
   @State username: string = '';
   @State password: string = '';
+  @State isLoading: boolean = false;
+  @State showPassword: boolean = false;
+  @State loginBtnScale: number = 1.0;
+  @State inputMode: number = 0;          // 0=手机号  1=邮箱
+  @State usernameError: string = '';     // 格式校验错误提示
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  private pendingRegisterName: string = '';
+
+  /** 校验当前输入格式，返回错误信息（空字符串=通过） */
+  private validateUsername(): string {
+    const v = this.username.trim();
+    if (v === '') return '';
+    if (this.inputMode === 0) {
+      // 手机号：11位数字，1开头
+      return /^1[3-9]\d{9}$/.test(v) ? '' : '请输入正确的手机号';
+    } else {
+      // 邮箱：基本格式校验
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : '请输入正确的邮箱地址';
+    }
+  }
 
   build() {
     NavDestination() {
-      Column() {
-        // Logo 和 标题区域
-        Column(){
-          Image($r('app.media.logo'))
-            .width(100)
-            .height(100)
-            .margin({bottom:6})
+      // ── Stack 层叠：渐变背景 + 表单卡片叠加，形成圆弧衔接 ──
+      Stack({ alignContent: Alignment.Top }) {
 
-          Text('智护星')
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .fontSize(20)
-            .fontWeight(10)
-        }
+        // 层1：渐变背景铺满全屏（含状态栏和底部安全区）
+        Column()
+          .width('100%').height('100%')
+          .linearGradient({
+            direction: GradientDirection.Bottom,
+            colors: [
+              ['#0f2878', 0.0],
+              ['#1e40af', 0.05],
+              ['#2563eb', 0.2],
+              ['#60a5fa', 0.35],
+              ['#bfdbfe', 1.0]
+            ]
+          })
 
-        // 输入区域
+        // 层2：整体内容列（Logo区 + 表单卡片）
         Column() {
-          // 用户名输入框
-          TextInput({ placeholder: '请输入账号/手机号/邮箱', text: this.username })
-            .onChange((value: string) => {
-              this.username = value;
-            })
-            .width('100%')
-            .height(55)
-            .fontSize(16)
-            .backgroundColor(Color.Transparent)
-            .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
+          // ── Logo + 标语区 ─────────────────────────────────
+          Column() {
+            Column() {
+              Image($r('app.media.logo'))
+                .width(64).height(64)
+                .objectFit(ImageFit.Contain)
+            }
+            .width(88).height(88)
+            .borderRadius(44).clip(true)
+            .backgroundColor('rgba(255,255,255,0.15)')
+            .border({ width: 2, color: 'rgba(255,255,255,0.35)' })
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+            .margin({ bottom: 14 })
 
-          // 密码输入框
-          TextInput({ placeholder: '请输入密码', text: this.password })
-            .onChange((value: string) => {
-              this.password = value;
-            })
-            .width('100%')
-            .height(55)
-            .fontSize(16)
-            .backgroundColor(Color.Transparent)
-            .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
-            .type(InputType.Password)
-            .margin({ top: 45 })
+            Text('智护星')
+              .fontSize(24).fontWeight(FontWeight.Bold)
+              .fontColor('#ffffff').margin({ bottom: 6 })
 
+            Text('关怀我们的过去，保障我们的未来')
+              .fontSize(12).fontColor('rgba(255,255,255,0.78)')
+              .textAlign(TextAlign.Center)
+          }
+          .width('100%').height('38%')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+
+          // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
+          Column() {
+          Text('登录账号')
+            .fontSize(18).fontWeight(FontWeight.Bold)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .alignSelf(ItemAlign.Start).margin({ bottom: 4 })
+
+          Text('未注册将自动创建新账号')
+            .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+            .alignSelf(ItemAlign.Start).margin({ bottom: 24 })
+
+          // ── 手机号 / 邮箱 切换选项 ───────────────────────────
           Row() {
-            // 帮助链接
-            Text('登录遇到问题?')
-              .fontSize(16)
-              .fontColor(this.themeManager.colors.primaryButtonColor)
-              .margin({ top: 30 })
-              .alignSelf(ItemAlign.Start)
-              .onClick(() => {
-                // 处理登录问题
-                this.pathStack.pushPathByName('LoginProblem', null, true)
-              })
+            // 手机号 Tab
+            Column() {
+              Text('手机号')
+                .fontSize(14).fontWeight(this.inputMode === 0 ? FontWeight.Bold : FontWeight.Normal)
+                .fontColor(this.inputMode === 0
+                  ? this.themeManager.colors.primaryTextColor
+                  : this.themeManager.colors.secondaryTextColor)
+              // 选中指示线
+              Column()
+                .width(this.inputMode === 0 ? '60%' : 0).height(2)
+                .backgroundColor('#3b82f6').borderRadius(1)
+                .animation({ duration: 200, curve: Curve.EaseOut })
+                .margin({ top: 4 })
+            }
+            .layoutWeight(1).alignItems(HorizontalAlign.Center).padding({ bottom: 4 })
+            .onClick((): void => {
+              this.inputMode = 0;
+              this.username = '';
+              this.usernameError = '';
+            })
 
-            Blank()
-            //验证码登录
-            Text('验证码登录')
-              .fontSize(16)
-              .fontColor('#007AFF')
-              .margin({ top: 30 })
-              .onClick(() => {
-                this.pathStack.pushPathByName('LoginCode', null, true)
+            // 邮箱 Tab
+            Column() {
+              Text('邮箱')
+                .fontSize(14).fontWeight(this.inputMode === 1 ? FontWeight.Bold : FontWeight.Normal)
+                .fontColor(this.inputMode === 1
+                  ? this.themeManager.colors.primaryTextColor
+                  : this.themeManager.colors.secondaryTextColor)
+              Column()
+                .width(this.inputMode === 1 ? '60%' : 0).height(2)
+                .backgroundColor('#3b82f6').borderRadius(1)
+                .animation({ duration: 200, curve: Curve.EaseOut })
+                .margin({ top: 4 })
+            }
+            .layoutWeight(1).alignItems(HorizontalAlign.Center).padding({ bottom: 4 })
+            .onClick((): void => {
+              this.inputMode = 1;
+              this.username = '';
+              this.usernameError = '';
+            })
+          }
+          .width('100%').margin({ bottom: 12 })
+          .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
+
+          // 输入框 + 右侧状态图标
+          Row() {
+            TextInput({
+              placeholder: this.inputMode === 0 ? '请输入手机号' : '请输入邮箱地址',
+              text: this.username
+            })
+              .onChange((v: string) => {
+                this.username = v;
+                this.usernameError = this.validateUsername();
               })
-              .alignSelf(ItemAlign.End)
+              .layoutWeight(1).fontSize(14)
+              .type(this.inputMode === 0 ? InputType.PhoneNumber : InputType.Email)
+              .backgroundColor(Color.Transparent)
+              .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+              .border({ width: 0 }).padding({ left: 12, right: 4 })
+
+            // 右侧校验状态图标
+            if (this.username.trim().length > 0) {
+              Text(this.usernameError === '' ? '✓' : '✕')
+                .fontSize(16).fontWeight(FontWeight.Bold)
+                .fontColor(this.usernameError === '' ? '#10b981' : '#ef4444')
+                .margin({ right: 12 })
+                .animation({ duration: 150, curve: Curve.EaseOut })
+            }
           }
           .width('100%')
-        }
-        .width('100%')
-        .padding({ top:50, left: 16, right: 16 })
-        .alignItems(HorizontalAlign.Start)
-
-        // 账号密码登录按钮
-        Button('登录/注册')
-          .onClick(() => {
-            const FIXED_ACCOUNT = '192.168.137.100';
-            const FIXED_PASSWORD = 'Mind@123';
-
-            if (this.username.trim() === '') {
-              this.showCenterAlert('未输入账号');
-              return;
-            }
-
-            if (this.password.trim() === '') {
-              this.showCenterAlert('未输入密码');
-              return;
-            }
-
-            if (this.username === FIXED_ACCOUNT && this.password === FIXED_PASSWORD) {
-              // 登录成功跳转
-              this.pathStack.replacePathByName('Layout', {}, false);
-            } else {
-              this.showCenterAlert('帐号或密码输入错误');
-            }
+          .alignItems(VerticalAlign.Center)
+          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .border({
+            width: 1.5,
+            color: this.username.trim().length === 0
+              ? (this.themeManager.isDarkMode ? '#334155' : '#e2e8f0')
+              : (this.usernameError === '' ? '#10b981' : '#ef4444')
           })
-          .width('80%')
-          .height(50)
-          .fontSize(18)
-          .fontColor(Color.White)
-          .backgroundColor(this.themeManager.colors.primaryButtonColor)
-          .borderRadius(30)
-          .margin({ top: 70 })
+          .borderRadius(12).margin({ bottom: this.usernameError !== '' ? 4 : 14 })
 
-        // 提示文本
-        Text('未注册将会自动注册账号')
-          .fontSize(14)
-          .fontColor('#007AFF')
-          .margin({ top: 10, bottom: 20 })
-          .alignSelf(ItemAlign.Center)
+          // 格式错误提示文字
+          if (this.usernameError !== '') {
+            Text(this.usernameError)
+              .fontSize(11).fontColor('#ef4444')
+              .alignSelf(ItemAlign.Start)
+              .margin({ bottom: 10 })
+              .animation({ duration: 150, curve: Curve.EaseOut })
+          }
 
-        // -------- 官方华为账号登录区域 --------
-        Row() {
-          Divider().strokeWidth(1).color(this.themeManager.colors.separatorColor).width('30%')
-          Text(' 其他登录方式 ').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-          Divider().strokeWidth(1).color(this.themeManager.colors.separatorColor).width('30%')
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
-        .margin({ bottom: 20 })
+          // 密码输入框（无左图标，只右侧眼睛切换）
+          Text('密码')
+            .fontSize(12).fontWeight(FontWeight.Medium)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+            .alignSelf(ItemAlign.Start).margin({ bottom: 6 })
 
-        // 官方华为账号登录按钮
-        LoginWithHuaweiIDButton({
-          params: {
-            style: loginComponentManager.Style.BUTTON_RED,
-            borderRadius: 30,
-          },
-          controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
-            .onClickLoginWithHuaweiIDButton((error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
-              if (error) {
-                // 打印详细错误码，方便对照华为文档排查
-                console.error(`[Login]: 华为登录失败! 错误码: ${error.code}, 消息: ${error.message}`);
-                
-                let errorMsg = '登录失败';
-                if (error.code === 100004) errorMsg = '环境不支持(请检查HMS Core)';
-                if (error.code === 6003) errorMsg = '证书指纹校验失败';
-                
-                this.showCenterAlert(errorMsg);
-                return;
-              }
+          Row() {
+            TextInput({ placeholder: '请输入密码（至少4位）', text: this.password })
+              .onChange((v: string) => { this.password = v; })
+              .layoutWeight(1).fontSize(14)
+              .type(this.showPassword ? InputType.Normal : InputType.Password)
+              .backgroundColor(Color.Transparent)
+              .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+              .border({ width: 0 }).padding({ left: 12, right: 0 })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .borderRadius(12).margin({ bottom: 8 })
 
-              if (response) {
-                try {
-                  // 安全获取凭证信息
-                  const credential = response as authentication.LoginWithHuaweiIDResponse;
-                  const data = credential.data;
-
-                  if (data) {
-                    console.info('[Login]: 华为账号登录成功, OpenID: ' + data.openID);
-                    // 登录成功跳转主框架
-                    this.pathStack.replacePathByName('Layout', {}, false);
-                  }
-                } catch (e) {
-                  console.error('[Login]: 解析登录数据异常: ' + JSON.stringify(e));
-                }
-              }
+          // 忘记密码
+          Text('忘记密码？')
+            .fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+            .alignSelf(ItemAlign.End).margin({ bottom: 24 })
+            .onClick(() => {
+              AlertDialog.show({
+                title: '忘记密码',
+                message: '请联系管理员重置密码，或使用华为账号登录后重新绑定。',
+                primaryButton: { value: '知道了', action: () => {} },
+                alignment: DialogAlignment.Center,
+              });
             })
-        })
-          .width('80%')
-          .height(50)
-          .margin({ bottom: 20 })
+
+          // 登录/注册按钮（带缩放动画）
+          Button(this.isLoading ? '处理中...' : '登录 / 注册')
+            .onClick(() => {
+              this.loginBtnScale = 0.95;
+              setTimeout(() => { this.loginBtnScale = 1.0; }, 150);
+              this.handleLogin();
+            })
+            .width('100%').height(50).fontSize(16).fontWeight(FontWeight.Medium)
+            .fontColor(Color.White)
+            .linearGradient({
+              direction: GradientDirection.Right,
+              colors: this.isLoading
+                ? [['#94a3b8', 0.0], ['#94a3b8', 1.0]]
+                : [['#1e40af', 0.0], ['#3b82f6', 1.0]]
+            })
+            .borderRadius(14).margin({ bottom: 20 })
+            .enabled(!this.isLoading)
+            .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
+            .animation({ duration: 120, curve: Curve.EaseInOut })
+
+          // 分割线
+          Row() {
+            Divider().layoutWeight(1)
+              .color(this.themeManager.colors.separatorColor).strokeWidth(1)
+            Text(' 其他登录方式 ')
+              .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
+            Divider().layoutWeight(1)
+              .color(this.themeManager.colors.separatorColor).strokeWidth(1)
+          }.width('100%').margin({ bottom: 16 })
+
+          // 华为官方登录按钮
+          LoginWithHuaweiIDButton({
+            params: {
+              style: loginComponentManager.Style.BUTTON_RED,
+              borderRadius: 14,
+            },
+            controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
+              .onClickLoginWithHuaweiIDButton((error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
+                if (error) {
+                  let msg = '登录失败';
+                  if (error.code === 100004) msg = '环境不支持，请检查HMS Core';
+                  if (error.code === 6003) msg = '证书指纹校验失败';
+                  this.showAlert(msg); return;
+                }
+                if (response) {
+                  try {
+                    const data = (response as authentication.LoginWithHuaweiIDResponse).data;
+                    if (data) this.saveLoginAndJump('HW_' + data.openID.substring(0, 8));
+                  } catch (e) {
+                    console.error('[Login]: 华为登录解析异常 ' + JSON.stringify(e));
+                  }
+                }
+              })
+          }).width('100%').height(50)
+
+        }
+        .layoutWeight(3)
+        .width('100%')
+        .padding({ left: 24, right: 24, top: 28, bottom: 32 })
+        .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        // 顶部圆角形成圆弧衔接，底部无圆角铺满屏幕
+        .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
+        // 用 layoutWeight 撑满剩余空间
+        .layoutWeight(1)
+
+        }
+        // 外层 Column：占满全屏
+        .width('100%').height('100%')
 
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor(this.themeManager.colors.backgroundColor)
+      // Stack 铺满全屏，背景深蓝防止安全区透白
+      .width('100%').height('100%')
+      .backgroundColor('#0f2878')
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
-    }.onReady((context: NavDestinationContext) => {
+    }
+    .hideTitleBar(true)
+    .backgroundColor('#0f2878')  // NavDestination 背景也设深蓝，彻底消除白边
+    .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     })
   }
 
-  // 自定义居中弹窗方法
-  private showCenterAlert(message: string): void {
-    AlertDialog.show({
-      title: '提示',
-      message: message,
-      alignment: DialogAlignment.Center,
-      offset: { dx: 0, dy: 0 },
-      primaryButton: {
-        value: '确定',
-        action: () => {
-          console.log('确认按钮被点击');
+  // ── 核心登录逻辑 ──────────────────────────────────────────
+  private handleLogin(): void {
+    const uname = this.username.trim();
+    const pwd = this.password.trim();
+    if (uname === '') { this.showAlert('请输入账号'); return; }
+
+    // 格式校验
+    const fmtErr = this.validateUsername();
+    if (fmtErr !== '') { this.usernameError = fmtErr; this.showAlert(fmtErr); return; }
+
+    if (pwd === '') { this.showAlert('请输入密码'); return; }
+    if (pwd.length < 4) { this.showAlert('密码至少4位'); return; }
+
+    this.isLoading = true;
+    const db = DatabaseHelper.getInstance();
+
+    db.queryUserByUsername(uname).then((existing: UserInfo | null) => {
+      if (existing === null) {
+        // 新账号：先写库，再弹验证框
+        return db.insertUser({
+          username: uname, passwordHash: pwd, createTime: Date.now()
+        }).then(() => {
+          const r: LoginResult = { name: uname, isNew: true };
+          return r;
+        });
+      } else {
+        if (existing.passwordHash !== pwd) {
+          this.isLoading = false;
+          this.showAlert('密码不正确');
+          return Promise.reject('wrong_password');
         }
-      },
-      gridCount: 6,
-      autoCancel: true,
+        const r: LoginResult = { name: uname, isNew: false };
+        return Promise.resolve(r);
+      }
+    }).then((result: LoginResult) => {
+      this.isLoading = false;
+      if (result.isNew) {
+        // 新用户：弹出验证码弹框
+        this.showVerifyDialog(result.name);
+      } else {
+        // 老用户：底部 Toast 后自动跳转
+        promptAction.showToast({ message: `欢迎回来，${result.name}`, duration: 1500 });
+        setTimeout(() => { this.saveLoginAndJump(result.name); }, 800);
+      }
+    }).catch((e: string | Error) => {
+      this.isLoading = false;
+      if (e !== 'wrong_password') this.showAlert('登录失败，请重试');
+    });
+  }
+
+  /** 弹出注册验证弹框 */
+  private showVerifyDialog(username: string): void {
+    this.pendingRegisterName = username;
+    const dialog = new CustomDialogController({
+      builder: VerifyDialog({
+        account: username,
+        onConfirm: () => {
+          promptAction.showToast({ message: `注册成功，欢迎加入守护星！`, duration: 1500 });
+          setTimeout(() => { this.saveLoginAndJump(username); }, 800);
+        }
+      }),
+      alignment: DialogAlignment.Center,
+      cornerRadius: 20,
+      backgroundColor: Color.Transparent,
+      backgroundBlurStyle: BlurStyle.NONE,
+    });
+    dialog.open();
+  }
+
+  private saveLoginAndJump(username: string): void {
+    AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, username);
+    try {
+      const ctx = getContext(this) as common.UIAbilityContext;
+      const options: preferences.Options = { name: PREF_NAME };
+      const pref = preferences.getPreferencesSync(ctx, options);
+      pref.putSync(PREF_KEY_USERNAME, username);
+      pref.flush();
+    } catch (e) {
+      console.warn('[Login]: Preferences 写入失败 ' + JSON.stringify(e));
+    }
+    this.pathStack.replacePathByName('Layout', {}, false);
+  }
+
+  private showAlert(message: string): void {
+    AlertDialog.show({
+      title: '提示', message: message,
+      alignment: DialogAlignment.Center,
+      primaryButton: { value: '确定', action: () => {} },
+      gridCount: 6, autoCancel: true,
     });
   }
 }

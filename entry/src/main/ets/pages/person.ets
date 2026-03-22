@@ -1,6 +1,10 @@
 import { ThemeManager, ThemeMode } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import { promptAction } from '@kit.ArkUI';
+import { DatabaseHelper, HealthEvent, FREE_RETENTION_DAYS, STORAGE_KEY_RETENTION, UserInfo } from '../database/DatabaseHelper';
+import { preferences } from '@kit.ArkData';
+import { common } from '@kit.AbilityKit';
+import { STORAGE_KEY_LOGGED_IN_USER } from './Login';
 
 @Builder
 export function personBuilder(): void {
@@ -14,8 +18,31 @@ export struct person {
   @State userName: string = "超级管理员";
   @State userId: string = "ID: 69175890";
   @State useDays: number = 128;
+  @State totalAlertCount: number = 0;
+  @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
+  // 各菜单行按压状态
+  @State pressedRow: string = '';
+  // 退出登录按钮缩放
+  @State logoutScale: number = 1.0;
   pathStack: NavPathStack | undefined = undefined;
+
+  aboutToAppear(): void {
+    const currentUser = AppStorage.get<string>('loggedInUsername') ?? '';
+    const db = DatabaseHelper.getInstance();
+    // 从数据库加载当前用户信息（昵称、注册天数）
+    db.queryUserByUsername(currentUser).then((user: UserInfo | null) => {
+      if (user) {
+        this.userName = user.username;
+        const msPerDay = 24 * 60 * 60 * 1000;
+        this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
+      }
+    }).catch(() => {});
+    // 从数据库加载当前用户的累计预警次数
+    db.queryHealthEvents('fall', currentUser)
+      .then((events: HealthEvent[]) => { this.totalAlertCount = events.length; })
+      .catch(() => { this.totalAlertCount = this.mqttManager.fallRecords.length; });
+  }
 
   private safePush(pageName: string): void {
     if (this.pathStack) this.pathStack.pushPathByName(pageName, null);
@@ -24,13 +51,18 @@ export struct person {
   @Builder
   GradientHeader(): void {
     Column() {
-      Stack() {
-        Circle().width('60%').aspectRatio(1)
-          .fill('rgba(255,255,255,0.2)').border({ width: 2, color: 'rgba(255,255,255,0.6)' })
+      Column() {
         Image($r('app.media.ic_user'))
           .width('50%').aspectRatio(1).objectFit(ImageFit.Contain)
       }
-      .width('22%').aspectRatio(1).onClick((): void => this.safePush("AvatarEdit"))
+      .width('22%').aspectRatio(1)
+      .borderRadius(999)
+      .clip(true)
+      .backgroundColor('rgba(255,255,255,0.2)')
+      .border({ width: 2, color: 'rgba(255,255,255,0.6)' })
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .onClick((): void => this.safePush("AvatarEdit"))
 
       Text(this.userName).fontSize(22).fontWeight(FontWeight.Bold)
         .fontColor('#ffffff').margin({ top: '4%' })
@@ -55,7 +87,7 @@ export struct person {
         .height(36)
         .backgroundColor(this.themeManager.colors.separatorColor)
       Column() {
-        Text(`${this.mqttManager.fallRecords.length}`).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#1e40af')
+        Text(`${this.totalAlertCount}`).fontSize(28).fontWeight(FontWeight.Bold).fontColor('#1e40af')
         Text('次·已预警').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).margin({ top: 6 })
       }.layoutWeight(1)
     }
@@ -84,8 +116,21 @@ export struct person {
     }
     .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
     .constraintSize({ minHeight: 64 })
-    .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-    .onClick((): void => { if (onClickAction) onClickAction(); })
+    // 按压时背景加深，松开恢复 — 与 iOS/微信设置页一致的点击反馈
+    .backgroundColor(this.pressedRow === title
+      ? (this.themeManager.isDarkMode ? '#2d3f55' : '#f0f4ff')
+      : this.themeManager.colors.cardBackgroundColor)
+    .animation({ duration: 100, curve: Curve.EaseOut })
+    .gesture(
+      TapGesture()
+        .onAction((): void => { if (onClickAction) onClickAction(); })
+    )
+    .onTouch((event: TouchEvent): void => {
+      if (event.type === TouchType.Down) { this.pressedRow = title; }
+      else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        setTimeout(() => { this.pressedRow = ''; }, 150);
+      }
+    })
   }
 
   build() {
@@ -107,6 +152,10 @@ export struct person {
             this.MenuRow($r('app.media.ic_phone_orange'), '#fff7ed', '#3d2000',
               "紧急联系人", "危急时刻一键呼叫通知",
               (): void => { promptAction.showToast({ message: "功能开发中" }) })
+            Divider().margin({ left: '15%', right: '4%' }).color(this.themeManager.colors.separatorColor)
+            this.MenuRow($r('app.media.ic_list_blue'), '#eff6ff', '#1e3a5f',
+              "历史记录", `查看并导出近 ${this.retentionDays} 天健康事件`,
+              (): void => this.safePush("HealthHistory"))
           }
           .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius('4%').clip(true)
@@ -163,6 +212,67 @@ export struct person {
               this.mqttManager.clearAllCache();
               promptAction.showToast({ message: "清理完成" });
             })
+            Divider().margin({ left: '15%', right: '4%' }).color(this.themeManager.colors.separatorColor)
+            // ── 数据保留天数设置行 ────────────────────────────────
+            Row() {
+              Image(this.themeManager.isDarkMode ? $r('app.media.ic_shield_light') : $r('app.media.ic_shield_blue'))
+                .width(36).height(36).objectFit(ImageFit.Contain)
+                .padding(8)
+                .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+                .borderRadius(10).margin({ right: '4%' })
+              Column() {
+                Text("数据保留时长").fontSize(15).fontWeight(FontWeight.Medium)
+                  .fontColor(this.themeManager.colors.primaryTextColor)
+                Text("视频与健康记录的保存天数").fontSize(12)
+                  .fontColor(this.themeManager.colors.secondaryTextColor).margin({ top: '2%' })
+              }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+              // 当前天数标签
+              Row() {
+                Text(`${this.retentionDays}天`)
+                  .fontSize(13).fontColor('#2563eb').fontWeight(FontWeight.Medium)
+              }
+              .padding({ left: '3%', right: '3%', top: '1.5%', bottom: '1.5%' })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(100)
+              .onClick((): void => {
+                // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
+                // 改用 showDialog 实现天数选择
+                promptAction.showDialog({
+                  title: '数据保留时长',
+                  message: '选择视频与健康记录的保存天数\n（更长时间需要开通会员）',
+                  buttons: [
+                    { text: '7天（免费）', color: '#2563eb' },
+                    { text: '14天 👑', color: '#64748b' },
+                    { text: '30天 👑', color: '#64748b' },
+                    { text: '90天 👑', color: '#64748b' }
+                  ]
+                }).then(result => {
+                  const options = [7, 14, 30, 90];
+                  const selected = options[result.index];
+                  if (selected > FREE_RETENTION_DAYS) {
+                    promptAction.showDialog({
+                      title: '👑 开通守护星会员',
+                      message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
+                      buttons: [
+                        { text: '稍后再说', color: '#64748b' },
+                        { text: '立即开通', color: '#2563eb' }
+                      ]
+                    }).then(dialog => {
+                      if (dialog.index === 1) {
+                        promptAction.showToast({ message: '会员功能即将上线，敬请期待！' });
+                      }
+                    });
+                  } else {
+                    DatabaseHelper.getInstance().setRetentionDays(selected);
+                    this.retentionDays = selected;
+                    promptAction.showToast({ message: `已设置保留 ${selected} 天` });
+                  }
+                });
+              })
+            }
+            .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
+            .constraintSize({ minHeight: 64 })
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           }
           .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius('4%').clip(true)
@@ -173,17 +283,33 @@ export struct person {
           .width('80%').height('6%').constraintSize({ minHeight: 48 })
           .margin({ top: '10%', bottom: '6%' })
           .backgroundColor('#fee2e2').fontColor('#ef4444').fontWeight(FontWeight.Medium)
+          .scale({ x: this.logoutScale, y: this.logoutScale })
+          .animation({ duration: 120, curve: Curve.EaseInOut })
           .onClick((): void => {
+            this.logoutScale = 0.95;
+            setTimeout(() => { this.logoutScale = 1.0; }, 150);
             promptAction.showDialog({
               title: '退出确认', message: '您确定要退出当前账号吗？',
               buttons: [{ text: '取消', color: '#64748b' }, { text: '退出', color: '#ef4444' }]
             }).then(data => {
               if (data.index === 1 && this.pathStack) {
-                this.pathStack.clear(); this.pathStack.pushPathByName("Login", null);
+                // 清除持久化登录态
+                try {
+                  const ctx = getContext(this) as common.UIAbilityContext;
+                  const opts: preferences.Options = { name: 'guardian_auth' };
+                  const pref = preferences.getPreferencesSync(ctx, opts);
+                  pref.deleteSync('lastUsername');
+                  pref.flush();
+                } catch (e) {
+                  console.warn('[person]: 清除登录态失败 ' + JSON.stringify(e));
+                }
+                AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, '');
+                this.pathStack.clear();
+                this.pathStack.pushPathByName("Login", null);
               }
             })
           })
-        Text("Version 2.0.24 (API 20)").fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).margin({ bottom: '10%' })
+        Text("守护星版本 2.0.0").fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).margin({ bottom: '10%' })
       }
       .width('100%').alignItems(HorizontalAlign.Center)
     }
