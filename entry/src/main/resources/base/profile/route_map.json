@@ -87,6 +87,14 @@
       "data": {
         "description" : "this is LoginProblem"
       }
+    },
+    {
+      "name": "HealthHistory",
+      "pageSourceFile": "src/main/ets/pages/HealthHistory.ets",
+      "buildFunction": "HealthHistoryBuilder",
+      "data": {
+        "description" : "this is HealthHistory"
+      }
     }
   ]
 }

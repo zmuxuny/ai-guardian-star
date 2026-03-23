@@ -101,10 +101,16 @@ export struct mainPage {
       } else {
         Column() {
           Image($r('app.media.ic_camera_off')).width('13%').aspectRatio(1).objectFit(ImageFit.Contain)
-          Text('摄像头未连接').fontSize(14).fontColor('#94a3b8').margin({ top: '3%' })
+            .opacity(0.5)
+          Text('摄像头未连接').fontSize(14).fontColor('#64748b').margin({ top: '3%' })
         }
         .width('100%').aspectRatio(16 / 9).justifyContent(FlexAlign.Center)
-        .backgroundColor('#0f172a').borderRadius('4%')
+        .backgroundColor(this.themeManager.isDarkMode ? '#1a2744' : '#1e293b')
+        .border({
+          width: 1,
+          color: this.themeManager.isDarkMode ? '#2d4a7a' : '#334155'
+        })
+        .borderRadius('4%')
       }
       if (!this.isConnected) {
         Row() {
@@ -116,7 +122,13 @@ export struct mainPage {
         .margin({ right: '3%', bottom: '3%' })
       }
     }
-    .width('92%').shadow({ radius: 12, color: '#1A1e40af', offsetY: 6 })
+    .width('92%')
+    .shadow({ radius: 16, color: this.themeManager.isDarkMode ? '#000000AA' : '#1A1e40af', offsetY: 6 })
+    .border({
+      width: 1,
+      color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
+    })
+    .borderRadius('4%')
     .margin({ top: '-4%' })
   }
 
