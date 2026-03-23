@@ -72,6 +72,7 @@ export struct person {
     .linearGradient({ direction: GradientDirection.Bottom,
       colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
     .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }
 
   @Builder
@@ -116,11 +117,11 @@ export struct person {
     }
     .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
     .constraintSize({ minHeight: 64 })
-    // 按压时背景加深，松开恢复 — 与 iOS/微信设置页一致的点击反馈
+    // 按压时背景加深 — 参考系统设置页，浅色模式变#e8edf5（明显灰蓝），深色模式变#2a3a50
     .backgroundColor(this.pressedRow === title
-      ? (this.themeManager.isDarkMode ? '#2d3f55' : '#f0f4ff')
+      ? (this.themeManager.isDarkMode ? '#2a3a50' : '#e8edf5')
       : this.themeManager.colors.cardBackgroundColor)
-    .animation({ duration: 100, curve: Curve.EaseOut })
+    .animation({ duration: 80, curve: Curve.EaseOut })
     .gesture(
       TapGesture()
         .onAction((): void => { if (onClickAction) onClickAction(); })
@@ -189,7 +190,16 @@ export struct person {
             }
             .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
             .constraintSize({ minHeight: 64 })
-            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .backgroundColor(this.pressedRow === '外观模式'
+              ? (this.themeManager.isDarkMode ? '#2a3a50' : '#e8edf5')
+              : this.themeManager.colors.cardBackgroundColor)
+            .animation({ duration: 80, curve: Curve.EaseOut })
+            .onTouch((e: TouchEvent): void => {
+              if (e.type === TouchType.Down) { this.pressedRow = '外观模式'; }
+              else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                setTimeout(() => { this.pressedRow = ''; }, 150);
+              }
+            })
             Divider().margin({ left: '15%', right: '4%' }).color(this.themeManager.colors.separatorColor)
             Row() {
               Image(this.themeManager.isDarkMode ? $r('app.media.ic_refresh_light') : $r('app.media.ic_refresh_gray'))
@@ -207,7 +217,16 @@ export struct person {
             }
             .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
             .constraintSize({ minHeight: 64 })
-            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .backgroundColor(this.pressedRow === '清理缓存'
+              ? (this.themeManager.isDarkMode ? '#2a3a50' : '#e8edf5')
+              : this.themeManager.colors.cardBackgroundColor)
+            .animation({ duration: 80, curve: Curve.EaseOut })
+            .onTouch((e: TouchEvent): void => {
+              if (e.type === TouchType.Down) { this.pressedRow = '清理缓存'; }
+              else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                setTimeout(() => { this.pressedRow = ''; }, 150);
+              }
+            })
             .onClick((): void => {
               this.mqttManager.clearAllCache();
               promptAction.showToast({ message: "清理完成" });
@@ -272,7 +291,16 @@ export struct person {
             }
             .width('100%').padding({ left: '4%', right: '4%', top: '3.5%', bottom: '3.5%' })
             .constraintSize({ minHeight: 64 })
-            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .backgroundColor(this.pressedRow === '数据保留时长'
+              ? (this.themeManager.isDarkMode ? '#2a3a50' : '#e8edf5')
+              : this.themeManager.colors.cardBackgroundColor)
+            .animation({ duration: 80, curve: Curve.EaseOut })
+            .onTouch((e: TouchEvent): void => {
+              if (e.type === TouchType.Down) { this.pressedRow = '数据保留时长'; }
+              else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                setTimeout(() => { this.pressedRow = ''; }, 150);
+              }
+            })
           }
           .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius('4%').clip(true)
@@ -315,5 +343,6 @@ export struct person {
     }
     .width('100%').height('100%').backgroundColor(this.themeManager.colors.backgroundColor)
     .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

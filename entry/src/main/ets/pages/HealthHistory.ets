@@ -189,6 +189,7 @@ struct HealthHistory {
       .width('100%').height('100%')
       .backgroundColor(this.themeManager.colors.backgroundColor)
       .alignItems(HorizontalAlign.Center)
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
     .hideTitleBar(true)
     .onReady((ctx: NavDestinationContext) => {

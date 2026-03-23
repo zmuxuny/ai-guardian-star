@@ -144,6 +144,7 @@ struct Login {
               ['#bfdbfe', 1.0]
             ]
           })
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
 
         // 层2：整体内容列（Logo区 + 表单卡片）
         Column() {
@@ -372,11 +373,10 @@ struct Login {
         .width('100%')
         .padding({ left: 24, right: 24, top: 28, bottom: 32 })
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-        // 顶部圆角形成圆弧衔接，底部无圆角铺满屏幕
         .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
-        // 用 layoutWeight 撑满剩余空间
-        .layoutWeight(1)
-
+        .layoutWeight(1)   // 撑满剩余空间到屏幕底部
+        .constraintSize({ minHeight: '62%' }) // 保底高度，防止内容少时底部露白
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
         }
         // 外层 Column：占满全屏
         .width('100%').height('100%')
@@ -385,7 +385,7 @@ struct Login {
       // Stack 铺满全屏，背景深蓝防止安全区透白
       .width('100%').height('100%')
       .backgroundColor('#0f2878')
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      //.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
     }
     .hideTitleBar(true)

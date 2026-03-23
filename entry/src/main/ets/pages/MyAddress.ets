@@ -16,10 +16,11 @@ export struct MyAddress {
       Text('我的地址')
         .fontSize(18).fontWeight(FontWeight.Bold)
         .fontColor(this.themeManager.colors.primaryTextColor)
-        .layoutWeight(1).textAlign(TextAlign.Center)
+        .layoutWeight(1)
+        .textAlign(TextAlign.Center)
       Text('添加')
         .fontSize(16).fontColor('#2563eb')
-        .padding({ right: 16 })
+        //.padding({ right: 16 })
         .onClick(() => { console.log('添加新地址') })
     }
     .width('100%').height(56).alignItems(VerticalAlign.Center)

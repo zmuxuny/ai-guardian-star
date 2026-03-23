@@ -83,12 +83,13 @@ export struct mainPage {
         .borderRadius(100)
       }
       // top: 状态栏高度 + 内容间距；bottom 固定让两页 Header 等高
-      .width('100%').padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 20 })
+      .width('100%').padding({ left: '6%', right: '6%',  top: this.topSafeHeight + 16, bottom: 20 })
     }
     .width('100%')
     .linearGradient({ direction: GradientDirection.Bottom,
       colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
     .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }
 
 
@@ -241,5 +242,6 @@ export struct mainPage {
     }
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)
+    //.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
