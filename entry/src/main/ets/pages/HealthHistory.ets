@@ -6,9 +6,10 @@
 import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
 import { ThemeManager } from '../common/ThemeManager';
 import { FallRecord, SedentaryRecord } from './MqttManager';
+import { promptAction } from '@kit.ArkUI';
 
 @Builder
-export function HealthHistoryBuilder() {
+export function HealthHistoryBuilder(): void {
   HealthHistory();
 }
 
@@ -26,32 +27,45 @@ struct HealthHistory {
     this.loadHistory();
   }
 
+  /** 从数据库加载历史记录 */
   private loadHistory(): void {
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
     const currentUser = AppStorage.get<string>('loggedInUsername') ?? '';
 
-    db.queryHealthEvents('fall', currentUser).then((events: HealthEvent[]) => {
-      this.fallRecords = events.map((e: HealthEvent): FallRecord => ({
-        time: e.timeStr,
-        date: e.dateStr,
-        timestamp: e.eventTime,
-      }));
-    }).catch(() => {
-      this.fallRecords = [];
-    });
+    console.log(`[HealthHistory]: 开始加载数据 user=${currentUser}`);
 
-    db.queryHealthEvents('sedentary', currentUser).then((events: HealthEvent[]) => {
-      this.sedentaryRecords = events.map((e: HealthEvent): SedentaryRecord => ({
-        time: e.timeStr,
-        date: e.dateStr,
-        timestamp: e.eventTime,
-      }));
-      this.isLoading = false;
-    }).catch(() => {
-      this.sedentaryRecords = [];
-      this.isLoading = false;
-    });
+    // 加载摔倒记录
+    db.queryHealthEvents('fall', currentUser)
+      .then((events: HealthEvent[]) => {
+        this.fallRecords = events.map((e: HealthEvent): FallRecord => ({
+          time: e.timeStr,
+          date: e.dateStr,
+          timestamp: e.eventTime
+        }));
+        console.log(`[HealthHistory]: 摔倒记录加载完成 count=${events.length}`);
+      })
+      .catch((err: Error) => {
+        this.fallRecords = [];
+        console.error(`[HealthHistory]: 加载摔倒记录失败 ${err.message}`);
+      });
+
+    // 加载久坐记录
+    db.queryHealthEvents('sedentary', currentUser)
+      .then((events: HealthEvent[]) => {
+        this.sedentaryRecords = events.map((e: HealthEvent): SedentaryRecord => ({
+          time: e.timeStr,
+          date: e.dateStr,
+          timestamp: e.eventTime
+        }));
+        console.log(`[HealthHistory]: 久坐记录加载完成 count=${events.length}`);
+        this.isLoading = false;
+      })
+      .catch((err: Error) => {
+        this.sedentaryRecords = [];
+        this.isLoading = false;
+        console.error(`[HealthHistory]: 加载久坐记录失败 ${err.message}`);
+      });
   }
 
   @Builder
@@ -161,7 +175,13 @@ struct HealthHistory {
         this.TabBar()
 
         if (this.isLoading) {
-          LoadingProgress().width(48).height(48).margin({ top: '25%' })
+          Column() {
+            LoadingProgress()
+              .width(48)
+              .height(48)
+          }
+            .width('100%')
+            .margin({ top: '25%' })
         } else {
           List({ space: 0 }) {
             if (this.currentTab === 0) {
@@ -182,18 +202,22 @@ struct HealthHistory {
               }
             }
           }
-          .layoutWeight(1).width('92%').padding({ top: '3%' })
-          .edgeEffect(EdgeEffect.Spring).scrollBar(BarState.Off)
+            .layoutWeight(1)
+            .width('92%')
+            .padding({ top: '3%' })
+            .edgeEffect(EdgeEffect.Spring)
+            .scrollBar(BarState.Off)
         }
       }
-      .width('100%').height('100%')
-      .backgroundColor(this.themeManager.colors.backgroundColor)
-      .alignItems(HorizontalAlign.Center)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.themeManager.colors.backgroundColor)
+        .alignItems(HorizontalAlign.Center)
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
-    .hideTitleBar(true)
-    .onReady((ctx: NavDestinationContext) => {
-      this.pathStack = ctx.pathStack;
-    })
+      .hideTitleBar(true)
+      .onReady((ctx: NavDestinationContext) => {
+        this.pathStack = ctx.pathStack;
+      })
   }
 }

@@ -174,6 +174,14 @@ export class DatabaseHelper {
     await this.migrateDatabase();
   }
 
+  /** 【公开方法】获取 RdbStore 实例（用于诊断工具等高级操作） */
+  public getRdbStore(): relationalStore.RdbStore {
+    if (!this.store) {
+      throw new Error('DatabaseHelper 未初始化，请先调用 init(context)');
+    }
+    return this.store;
+  }
+
 
   // ── 数据库版本迁移（事务原子保护）────────────────────────────
   private async migrateDatabase(): Promise<void> {
@@ -342,6 +350,11 @@ export class DatabaseHelper {
       if (deleted > 0) hilog.info(DOMAIN, TAG, `滚动清理健康事件 ${deleted} 条（保留${this.getRetentionDays()}天）`);
     } catch (_) {}
 
+    // 确保 username 不为空字符串，使用默认值
+    const effectiveUsername = event.username && event.username.trim() !== '' 
+      ? event.username 
+      : 'default_user';
+
     const values: relationalStore.ValuesBucket = {
       event_type: event.eventType,
       event_time: event.eventTime,
@@ -350,11 +363,11 @@ export class DatabaseHelper {
       severity:   event.severity,
       is_handled: event.isHandled,
       remark:     event.remark ?? null,
-      username:   event.username,
+      username:   effectiveUsername,
     };
     try {
       const rowId = await this.getStore().insert('t_health_event', values);
-      hilog.info(DOMAIN, TAG, `insertHealthEvent 成功 type=${event.eventType} rowId=${rowId}`);
+      hilog.info(DOMAIN, TAG, `insertHealthEvent 成功 type=${event.eventType} rowId=${rowId} user=${effectiveUsername}`);
       return rowId;
     } catch (e) {
       const err = e as BusinessError;
@@ -368,7 +381,17 @@ export class DatabaseHelper {
     const cutoff = Date.now() - this.getRetentionDays() * 24 * 60 * 60 * 1000;
     const predicates = new relationalStore.RdbPredicates('t_health_event');
     predicates.greaterThanOrEqualTo('event_time', cutoff);
-    if (username) predicates.equalTo('username', username); // 用户隔离
+    
+    // 用户隔离：如果传入 username 且非空，查该用户的数据；否则查所有数据（兼容旧数据）
+    if (username && username.trim() !== '') {
+      predicates.equalTo('username', username);
+      hilog.info(DOMAIN, TAG, `查询用户数据：${username}`);
+    } else {
+      // 不传或传空字符串时，不设置 username 过滤，查所有数据
+      // 这样可以兼容未登录状态写入的记录（username=''）
+      hilog.info(DOMAIN, TAG, `查询所有用户数据（username 为空）`);
+    }
+    
     if (eventType) predicates.equalTo('event_type', eventType);
     predicates.orderByDesc('event_time');
     let resultSet: relationalStore.ResultSet | undefined;
@@ -389,7 +412,7 @@ export class DatabaseHelper {
           username:  resultSet.getString(resultSet.getColumnIndex('username')),
         });
       }
-      hilog.info(DOMAIN, TAG, `queryHealthEvents 返回 ${list.length} 条，type=${eventType ?? 'all'}`);
+      hilog.info(DOMAIN, TAG, `queryHealthEvents 返回 ${list.length} 条，type=${eventType ?? 'all'}, user=${username ?? 'any'}`);
       return list;
     } catch (e) {
       const err = e as BusinessError;
@@ -425,6 +448,39 @@ export class DatabaseHelper {
       const err = e as BusinessError;
       hilog.error(DOMAIN, TAG, `clearAllHealthEvents 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ': ' + err.message);
+    }
+  }
+
+  /** 【诊断方法】查询所有健康事件（不带任何过滤，用于调试） */
+  public async queryAllHealthEventsForDebug(): Promise<HealthEvent[]> {
+    const predicates = new relationalStore.RdbPredicates('t_health_event');
+    predicates.orderByDesc('event_time');
+    let resultSet: relationalStore.ResultSet | undefined;
+    try {
+      resultSet = await this.getStore().query(predicates,
+        ['id','event_type','event_time','date_str','time_str','severity','is_handled','remark','username']);
+      const list: HealthEvent[] = [];
+      while (resultSet.goToNextRow()) {
+        list.push({
+          id:        resultSet.getLong(resultSet.getColumnIndex('id')),
+          eventType: resultSet.getString(resultSet.getColumnIndex('event_type')),
+          eventTime: resultSet.getLong(resultSet.getColumnIndex('event_time')),
+          dateStr:   resultSet.getString(resultSet.getColumnIndex('date_str')),
+          timeStr:   resultSet.getString(resultSet.getColumnIndex('time_str')),
+          severity:  resultSet.getLong(resultSet.getColumnIndex('severity')),
+          isHandled: resultSet.getLong(resultSet.getColumnIndex('is_handled')),
+          remark:    resultSet.getString(resultSet.getColumnIndex('remark')),
+          username:  resultSet.getString(resultSet.getColumnIndex('username')),
+        });
+      }
+      hilog.info(DOMAIN, TAG, `queryAllHealthEventsForDebug 返回 ${list.length} 条`);
+      return list;
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.error(DOMAIN, TAG, `queryAllHealthEventsForDebug 失败 ${err.code} ${err.message}`);
+      throw new Error(err.code + ': ' + err.message);
+    } finally {
+      resultSet?.close();
     }
   }
 

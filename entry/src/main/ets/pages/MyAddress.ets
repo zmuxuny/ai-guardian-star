@@ -11,20 +11,27 @@ export struct MyAddress {
   pathStack: NavPathStack = new NavPathStack();
 
   @Builder
-  TitleBar(): void {
-    Row() {
-      Text('我的地址')
-        .fontSize(18).fontWeight(FontWeight.Bold)
-        .fontColor(this.themeManager.colors.primaryTextColor)
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center)
-      Text('添加')
-        .fontSize(16).fontColor('#2563eb')
-        //.padding({ right: 16 })
-        .onClick(() => { console.log('添加新地址') })
-    }
-    .width('100%').height(56).alignItems(VerticalAlign.Center)
-  }
+  // TitleBar(): void {
+  //   Stack({ alignContent: Alignment.Center }) {
+  //     Row() {
+  //     Text('我的地址')
+  //       .fontSize(18).fontWeight(FontWeight.Bold)
+  //       .fontColor(this.themeManager.colors.primaryTextColor)
+  //       //.textAlign(TextAlign.Center)
+  //       .margin({left:10})
+  //     //Blank()
+  //
+  //
+  //       Text('添加')
+  //         .fontSize(16).fontColor('#2563eb')
+  //         //.padding({ left: 16, right: 16, top: 10, bottom: 10 })
+  //         .margin({right:0})
+  //         .onClick(() => { console.log('添加新地址') })
+  //     }
+  //     .width('100%')
+  //   }
+  //   .width('100%').height(56)
+  // }
 
   build() {
     NavDestination() {
@@ -106,7 +113,7 @@ export struct MyAddress {
       .backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
-    .title(this.TitleBar)
+    //.title(this.TitleBar)
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;

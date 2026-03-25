@@ -3,9 +3,6 @@ import { person } from "./person";
 import { record } from "./record";
 import { ThemeManager, ThemeColors } from "../common/ThemeManager";
 
-/**
- * 底部导航布局组件 - 功能增强版
- */
 @Builder
 export function LayoutBuilder(): void {
   Layout();

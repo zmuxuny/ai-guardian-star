@@ -13,7 +13,22 @@ export struct record {
   // 顶部安全高度
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
-  aboutToAppear(): void { this.refreshData(); }
+  private updateTimer: number = -1;
+
+  aboutToAppear(): void {
+    this.refreshData();
+    // 启动定时器，每 500ms 同步一次数据，确保统计数字实时更新
+    this.updateTimer = setInterval(() => {
+      this.refreshData();
+    }, 500);
+  }
+
+  aboutToDisappear(): void {
+    if (this.updateTimer !== -1) {
+      clearInterval(this.updateTimer);
+      this.updateTimer = -1;
+    }
+  }
 
   /** 只显示本次会话内存中的记录（历史记录入口在"我的"页） */
   private refreshData(): void {
@@ -26,7 +41,7 @@ export struct record {
   @Builder
   GradientHeader(): void {
     Row() {
-      Text('事件追踪').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+      Text('事件记录').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
       Blank()
       Image($r('app.media.ic_refresh_white'))
         .width(36).height(36).objectFit(ImageFit.Contain).padding(9)
@@ -49,34 +64,28 @@ export struct record {
 
   @Builder
   StatDashboard(): void {
-    Row() {
+    Row({ space: 15 }) {
       Column() {
-        Text('累计摔倒').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-        Text(`${this.mqttManager.fallRecords.length}`)
+        Text('累计摔倒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.fallRecords.length}`)
           .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .borderRadius({ topLeft: '4%', bottomLeft: '4%' })
-
-      // 竖向分隔线，居中显示
-      Column()
-        .width(1).height(44)
-        .backgroundColor(this.themeManager.colors.separatorColor)
+      .borderRadius('10%')
+      .shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
 
       Column() {
-        Text('累计久坐').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-        Text(`${this.mqttManager.sedentaryRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
+        Text('累计久坐').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.sedentaryRecords.length}`)
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#f59e0b')
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .borderRadius({ topRight: '4%', bottomRight: '4%' })
+      .borderRadius('10%')
+      .shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
     }
     .width('92%').margin({ top: '-4%' })
-    .shadow({ radius: 12, color: '#1A3b82f6', offsetY: 6 })
-    .borderRadius('4%').clip(true)
-    .alignItems(VerticalAlign.Center)
   }
 
   @Builder

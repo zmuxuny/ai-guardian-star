@@ -18,9 +18,9 @@ interface LoginResult {
 // ── 注册验证弹框 ──────────────────────────────────────────
 @CustomDialog
 struct VerifyDialog {
-  // ⚠️ controller 不能在声明时 new，由调用方传入
   controller!: CustomDialogController;
-  account: string = '';
+  themeManager: ThemeManager = ThemeManager.getInstance();
+  onCancel: () => void = () => {};
   onConfirm: () => void = () => {};
 
   @State code: string = '';
@@ -43,40 +43,48 @@ struct VerifyDialog {
 
   build() {
     Column() {
-      // 标题
-      Text('身份验证').fontSize(18).fontWeight(FontWeight.Bold)
-        .fontColor('#1e293b').margin({ bottom: 20 })
+      Text('身份验证')
+        .fontSize(18).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .margin({ bottom: 20 })
 
-      // 验证码输入行
       Row({ space: 10 }) {
         TextInput({ placeholder: '请输入验证码', text: this.code })
           .onChange((v: string) => { this.code = v; })
           .layoutWeight(1).fontSize(14).type(InputType.Number)
-          .backgroundColor('#f8fafc')
-          .border({ width: 1.5, color: '#e2e8f0' })
-          .borderRadius(10)
+          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .borderRadius(12)
 
-        // 发送/倒计时按钮
         Button(this.countdown > 0 ? `${this.countdown}s` : (this.hasSent ? '重新发送' : '发送'))
-          .fontSize(12).fontColor(this.countdown > 0 ? '#94a3b8' : '#3b82f6')
-          .backgroundColor(this.countdown > 0 ? '#f1f5f9' : '#eff6ff')
-          .border({ width: 1, color: this.countdown > 0 ? '#e2e8f0' : '#bfdbfe' })
-          .borderRadius(8).height(40).width(90).type(ButtonType.Normal)
+          .fontSize(12)
+          .fontColor(this.countdown > 0 ? '#94a3b8' : '#3b82f6')
+          .backgroundColor(this.countdown > 0
+            ? (this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+            : (this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff'))
+          .border({ width: 1, color: this.countdown > 0
+            ? (this.themeManager.isDarkMode ? '#334155' : '#e2e8f0')
+            : '#bfdbfe' })
+          .borderRadius(12).height(40).width(90).type(ButtonType.Normal)
           .enabled(this.countdown === 0)
           .onClick(() => { this.startCountdown(); })
-      }.width('100%').margin({ bottom: 20 })
+      }.width('100%').margin({ bottom: 16 })
 
-      // 提示语
-      Text('测试阶段：输入任意验证码或直接点击确认即可进入')
-        .fontSize(11).fontColor('#94a3b8').textAlign(TextAlign.Center)
-        .margin({ bottom: 24 })
+      Text('测试阶段：直接点击确认即可进入')
+        .fontSize(11).fontColor(this.themeManager.colors.tertiaryTextColor)
+        .textAlign(TextAlign.Center).margin({ bottom: 24 })
 
-      // 操作按钮
       Row({ space: 12 }) {
         Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
-          .backgroundColor('#f1f5f9').fontColor('#64748b').fontSize(14)
-          .borderRadius(12)
-          .onClick(() => { this.controller.close(); })
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+          .fontColor(this.themeManager.colors.secondaryTextColor)
+          .fontSize(14).borderRadius(12)
+          .onClick(() => {
+            this.controller.close();
+            this.onCancel();
+          })
 
         Button('确认').layoutWeight(1).height(44).type(ButtonType.Normal)
           .linearGradient({
@@ -84,12 +92,15 @@ struct VerifyDialog {
             colors: [['#1e40af', 0.0], ['#3b82f6', 1.0]]
           })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
-          .onClick(() => { this.controller.close(); this.onConfirm(); })
+          .onClick(() => {
+            this.controller.close();
+            this.onConfirm();
+          })
       }.width('100%')
     }
     .width('100%')
     .padding({ left: 24, right: 24, top: 28, bottom: 24 })
-    .backgroundColor(Color.White)
+    .backgroundColor(this.themeManager.colors.cardBackgroundColor)
     .borderRadius(20)
   }
 }
@@ -108,10 +119,22 @@ struct Login {
   @State isLoading: boolean = false;
   @State showPassword: boolean = false;
   @State loginBtnScale: number = 1.0;
-  @State inputMode: number = 0;          // 0=手机号  1=邮箱
-  @State usernameError: string = '';     // 格式校验错误提示
+  @State inputMode: number = 0;
+  @State usernameError: string = '';
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   private pendingRegisterName: string = '';
+
+  // ✅ CustomDialogController 必须作为成员变量声明，不能在方法里 new
+  private verifyDialogController: CustomDialogController = new CustomDialogController({
+    builder: VerifyDialog({
+      themeManager: ThemeManager.getInstance(),
+      onCancel: () => {},    // 占位，实际在 showVerifyDialog 里通过重新赋值更新
+      onConfirm: () => {},
+    }),
+    alignment: DialogAlignment.Center,
+    cornerRadius: 20,
+    maskColor: 'rgba(0,0,0,0.5)',
+  });
 
   /** 校验当前输入格式，返回错误信息（空字符串=通过） */
   private validateUsername(): string {
@@ -162,6 +185,14 @@ struct Login {
             .justifyContent(FlexAlign.Center)
             .alignItems(HorizontalAlign.Center)
             .margin({ bottom: 14 })
+            .gesture(
+              LongPressGesture()
+                .onAction(() => {
+                  // 长按 Logo 进入数据库诊断工具
+                  promptAction.showToast({ message: '正在打开诊断工具...', duration: 1000 });
+                  this.pathStack.pushPathByName('DatabaseDiagnostic', null);
+                })
+            )
 
             Text('智护星')
               .fontSize(24).fontWeight(FontWeight.Bold)
@@ -328,7 +359,7 @@ struct Login {
                 ? [['#94a3b8', 0.0], ['#94a3b8', 1.0]]
                 : [['#1e40af', 0.0], ['#3b82f6', 1.0]]
             })
-            .borderRadius(14).margin({ bottom: 20 })
+            .borderRadius(100).margin({ bottom: 20 })
             .enabled(!this.isLoading)
             .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
             .animation({ duration: 120, curve: Curve.EaseInOut })
@@ -347,7 +378,7 @@ struct Login {
           LoginWithHuaweiIDButton({
             params: {
               style: loginComponentManager.Style.BUTTON_RED,
-              borderRadius: 14,
+              borderRadius: 100,
             },
             controller: new loginComponentManager.LoginWithHuaweiIDButtonController()
               .onClickLoginWithHuaweiIDButton((error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
@@ -415,7 +446,10 @@ struct Login {
       if (existing === null) {
         // 新账号：先写库，再弹验证框
         return db.insertUser({
-          username: uname, passwordHash: pwd, createTime: Date.now()
+          username: uname,
+          phone: this.inputMode === 0 ? uname : '',  // 如果是手机号登录，保存手机号
+          passwordHash: pwd,
+          createTime: Date.now()
         }).then(() => {
           const r: LoginResult = { name: uname, isNew: true };
           return r;
@@ -448,20 +482,24 @@ struct Login {
   /** 弹出注册验证弹框 */
   private showVerifyDialog(username: string): void {
     this.pendingRegisterName = username;
-    const dialog = new CustomDialogController({
+    // 每次弹出时重建 controller，绑定最新的 username 和回调
+    this.verifyDialogController = new CustomDialogController({
       builder: VerifyDialog({
-        account: username,
+        themeManager: this.themeManager,
+        onCancel: () => {
+          // 取消：仅关闭弹框，留在登录页
+        },
         onConfirm: () => {
-          promptAction.showToast({ message: `注册成功，欢迎加入守护星！`, duration: 1500 });
-          setTimeout(() => { this.saveLoginAndJump(username); }, 800);
-        }
+          // 确认：Toast 提示后直接进入主界面
+          promptAction.showToast({ message: `🎉 注册成功，欢迎加入守护星！`, duration: 1500 });
+          setTimeout(() => { this.saveLoginAndJump(username); }, 600);
+        },
       }),
       alignment: DialogAlignment.Center,
       cornerRadius: 20,
-      backgroundColor: Color.Transparent,
-      backgroundBlurStyle: BlurStyle.NONE,
+      maskColor: 'rgba(0,0,0,0.5)',
     });
-    dialog.open();
+    this.verifyDialogController.open();
   }
 
   private saveLoginAndJump(username: string): void {

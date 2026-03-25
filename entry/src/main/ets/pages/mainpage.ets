@@ -9,7 +9,7 @@ import { common } from '@kit.AbilityKit';
 @Entry
 @Component
 export struct mainPage {
-  @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
+  @State videoUrl: string = 'http://192.168.5.192:5000/video_feed';
   @State volumeLevel: number = 50;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -54,8 +54,8 @@ export struct mainPage {
     Column() {
       Row() {
         Column() {
-          Text('Guardian').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-          Text('AI 实时监护').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
+          Text('智护星').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          Text('实时画面').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
         }.alignItems(HorizontalAlign.Start)
         Blank()
         // LIVE 角标：外圈光晕 + 内圈实心绿点
@@ -145,14 +145,20 @@ export struct mainPage {
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Image(this.isConnected ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.isConnected ? '#ecfdf5' : '#fee2e2').borderRadius(10)
+          .backgroundColor(this.isConnected ? (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5') : (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2'))
+          .borderRadius(10)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '3%' }).borderRadius('4%')
       .backgroundColor(this.isConnected
-        ? this.themeManager.colors.cardBackgroundColor
+        ? (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
         : (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5'))
-      .border({ width: this.isConnected ? 0 : 1, color: this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca' })
+      .border({
+        width: 1,
+        color: this.isConnected
+          ? (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
+          : (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+      })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
       // 监测状态卡
@@ -169,7 +175,7 @@ export struct mainPage {
         Circle({ width: '2%', height: '2%' }).fill('#f59e0b').aspectRatio(1)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '4%' }).borderRadius('4%')
+      .margin({ top: '5%' }).borderRadius('4%')
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
@@ -188,7 +194,7 @@ export struct mainPage {
           .blockColor('#ffffff')
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '4%' }).borderRadius('4%')
+      .margin({ top: '5%' }).borderRadius('4%')
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
     }
@@ -198,7 +204,7 @@ export struct mainPage {
 
   build() {
     Column() {
-      Scroll() {
+      Column() {
         Column() {
           this.GradientHeader()
           Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
@@ -206,7 +212,7 @@ export struct mainPage {
           Blank().height('14%')
         }.width('100%')
       }
-      .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+      .layoutWeight(1)
 
       Button() {
         Row() {

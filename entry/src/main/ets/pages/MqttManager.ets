@@ -48,7 +48,7 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-const BROKER_HOST = '192.168.137.100';
+const BROKER_HOST = '192.168.5.192';
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;
 const ALERT_TOPIC = 'ai_guardian/alerts/#';
@@ -59,7 +59,7 @@ export class MqttManager {
   private mqttClient: MqttClient | null = null;
 
   @Track public isConnected: boolean = false;
-  @Track public latestMessage: string = '正在初始化...';
+  @Track public latestMessage: string = '正在启动...';
   @Track public isFallDetected: boolean = false;
   @Track public fallTimestamp: number = 0;
   @Track public fallRecords: FallRecord[] = [];
@@ -89,10 +89,10 @@ export class MqttManager {
     try {
       this.mqttClient = MqttAsync.createMqtt(clientOptions);
       this.setupListeners(this.mqttClient);
-      console.log('[mqtt]:MQTT 客户端初始化成功asdf。');
+      console.log('[mqtt]:MQTT 客户端初始化成功。');
     } catch (e) {
       console.error('[mqtt]:MQTT 客户端初始化失败:', e);
-      this.latestMessage = `MQTT 初始化失败: ${(e as Error).message}`;
+      this.latestMessage = `连接异常`;
     }
   }
 
@@ -100,7 +100,7 @@ export class MqttManager {
     client.connectLost((err: Error, data: MqttResponse) => {
       this.isConnected = false;
       console.error('[mqtt]:MQTT 连接丢失:', err, data);
-      this.latestMessage = `连接丢失: ${data.message || '请检查网络或Broker状态'}`;
+      this.latestMessage = `连接已断开`;
       this.clearFallRecoveryTimer();
       this.reconnect();
     });
@@ -129,7 +129,7 @@ export class MqttManager {
       try {
         await this.mqttClient.disconnect();
         this.isConnected = false;
-        this.latestMessage = 'MQTT 连接已断开';
+        this.latestMessage = '未连接';
         this.clearFallRecoveryTimer();
       } catch (error) { console.error('[mqtt]:断开连接失败:', error); }
     }
@@ -139,7 +139,7 @@ export class MqttManager {
     if (!this.mqttClient) {
       this.initClient();
       if (!this.mqttClient) {
-        this.latestMessage = 'MQTT 客户端初始化失败，请检查配置。'; return;
+        this.latestMessage = '连接异常'; return;
       }
     }
     const connectOptions: MqttConnectOptions = {
@@ -147,17 +147,17 @@ export class MqttManager {
       userName: "", password: "", MQTTVersion: 4,
     };
     try {
-      this.latestMessage = '正在连接 MQTT Broker...';
+      this.latestMessage = '正在连接...';
       const connectResult = await this.mqttClient.connect(connectOptions);
       if (connectResult.code !== 0) throw new Error(`连接失败，返回码: ${connectResult.code}`);
       this.isConnected = true;
       const subscribeResult = await this.mqttClient.subscribe({ topic: topic, qos: 1 });
       if (subscribeResult.code !== 0) throw new Error(`订阅失败，返回码: ${subscribeResult.code}`);
-      this.latestMessage = `✅ MQTT 已连接，等待主题 [${topic}] 消息...`;
+      this.latestMessage = `已连接`;
       this.clearFallRecoveryTimer(); this.isFallDetected = false; this.fallTimestamp = 0;
     } catch (err) {
       this.isConnected = false;
-      this.latestMessage = `连接/订阅失败: ${(err as Error).message}`;
+      this.latestMessage = `未连接`;
       this.reconnect();
     }
   }
@@ -169,7 +169,7 @@ export class MqttManager {
     this.clearFallRecoveryTimer();
     this.fallRecoveryTimer = setTimeout(() => {
       this.isFallDetected = false; this.fallTimestamp = 0;
-      this.latestMessage = `✅ 已恢复正常状态 @ ${this.formatTimestamp(undefined)}`;
+      this.latestMessage = `正常监测中`;
       this.fallRecoveryTimer = -1;
     }, this.FALL_RECOVERY_DELAY) as number;
   }
@@ -180,7 +180,7 @@ export class MqttManager {
     this.clearSedentaryRecoveryTimer();
     this.sedentaryRecoveryTimer = setTimeout(() => {
       this.isSedentaryDetected = false; this.sedentaryTimestamp = 0;
-      this.latestMessage = `✅ 久坐已恢复正常 @ ${this.formatTimestamp(undefined)}`;
+      this.latestMessage = `正常监测中`;
       this.sedentaryRecoveryTimer = -1;
     }, this.FALL_RECOVERY_DELAY) as number;
   }
@@ -229,7 +229,7 @@ export class MqttManager {
         }
         this.isFallDetected = true; this.fallTimestamp = currentTimestamp;
         this.clearSedentaryState();
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到跌倒`;
         this.startFallRecoveryTimer();
       } else if (isSedentary) {
         const currentTimestamp = Date.now();
@@ -239,11 +239,11 @@ export class MqttManager {
         }
         this.isSedentaryDetected = true; this.sedentaryTimestamp = currentTimestamp;
         this.clearFallState();
-        this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
       } else {
         this.clearFallState(); this.clearSedentaryState();
-        this.latestMessage = `✅ 正常状态${eventField ? ': ' + eventField : ''} @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `正常监测中`;
       }
     } catch (e) {
       const lower = messageContent.toLowerCase();
@@ -257,7 +257,7 @@ export class MqttManager {
           this.addFallRecord(ts); this.lastRecordedFallTimestamp = ts;
         }
         this.isFallDetected = true; this.fallTimestamp = ts; this.clearSedentaryState();
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到跌倒`;
         this.startFallRecoveryTimer();
       } else if (isSedentary) {
         const ts = Date.now();
@@ -265,21 +265,26 @@ export class MqttManager {
           this.addSedentaryRecord(ts); this.lastRecordedSedentaryTimestamp = ts;
         }
         this.isSedentaryDetected = true; this.sedentaryTimestamp = ts; this.clearFallState();
-        this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
       } else {
         this.clearFallState(); this.clearSedentaryState();
-        this.latestMessage = `✅ 正常状态: ${messageContent.substring(0, 50)} @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `正常监测中`;
       }
     }
   }
 
   private async reconnect() {
-    this.latestMessage = '尝试重新连接 MQTT...';
+    this.latestMessage = '正在重新连接...';
     setTimeout(() => { this.connectAndSubscribe(); }, 5000);
   }
 
   // ── 关键改动：addFallRecord / addSedentaryRecord 新增持久化写库 ──
+
+  /** 获取当前登录用户名（统一入口，保证一致性） */
+  private getCurrentUsername(): string {
+    return AppStorage.get<string>('loggedInUsername') ?? 'default_user';
+  }
 
   private addFallRecord(timestamp: number): void {
     const now = new Date(timestamp);
@@ -287,21 +292,22 @@ export class MqttManager {
     const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`;
     const newRecord: FallRecord = { time: timeStr, date: dateStr, timestamp };
     this.fallRecords = [newRecord, ...this.fallRecords];
-    console.log(`[mqtt]:✅ 摔倒记录已添加 ${dateStr} ${timeStr}，总计 ${this.fallRecords.length} 条`);
+    const username = this.getCurrentUsername();
+    console.log(`[mqtt]:✅ 摔倒记录已添加 ${dateStr} ${timeStr} (user=${username})，总计 ${this.fallRecords.length} 条`);
 
     // ── 持久化到 ArkDB ────────────────────────────────────────
     const event: HealthEvent = {
       eventType: 'fall',
       eventTime: timestamp,
-      dateStr:   `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`,
+      dateStr:   dateStr,
       timeStr:   timeStr,
       severity:  3,
       isHandled: 0,
-      username:  AppStorage.get<string>('loggedInUsername') ?? '',
+      username:  username,
     };
     DatabaseHelper.getInstance().insertHealthEvent(event)
-      .then((rowId) => console.log(`[mqtt]:ArkDB 写入摔倒事件 rowId=${rowId}`))
-      .catch((e: Error) => console.error(`[mqtt]:ArkDB 写入摔倒事件失败 ${e.message}`));
+      .then((rowId) => console.log(`[mqtt]:📦 ArkDB 写入摔倒事件成功 rowId=${rowId} (user=${username})`))
+      .catch((e: Error) => console.error(`[mqtt]:❌ ArkDB 写入摔倒事件失败 ${e.message}`));
   }
 
   private addSedentaryRecord(timestamp: number): void {
@@ -310,21 +316,22 @@ export class MqttManager {
     const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`;
     const newRecord: SedentaryRecord = { time: timeStr, date: dateStr, timestamp };
     this.sedentaryRecords = [newRecord, ...this.sedentaryRecords];
-    console.log(`[mqtt]:✅ 久坐记录已添加 ${dateStr} ${timeStr}，总计 ${this.sedentaryRecords.length} 条`);
+    const username = this.getCurrentUsername();
+    console.log(`[mqtt]:✅ 久坐记录已添加 ${dateStr} ${timeStr} (user=${username})，总计 ${this.sedentaryRecords.length} 条`);
 
     // ── 持久化到 ArkDB ────────────────────────────────────────
     const event: HealthEvent = {
       eventType: 'sedentary',
       eventTime: timestamp,
-      dateStr:   `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`,
+      dateStr:   dateStr,
       timeStr:   timeStr,
       severity:  1,
       isHandled: 0,
-      username:  AppStorage.get<string>('loggedInUsername') ?? '',
+      username:  username,
     };
     DatabaseHelper.getInstance().insertHealthEvent(event)
-      .then((rowId) => console.log(`[mqtt]:ArkDB 写入久坐事件 rowId=${rowId}`))
-      .catch((e: Error) => console.error(`[mqtt]:ArkDB 写入久坐事件失败 ${e.message}`));
+      .then((rowId) => console.log(`[mqtt]:📦 ArkDB 写入久坐事件成功 rowId=${rowId} (user=${username})`))
+      .catch((e: Error) => console.error(`[mqtt]:❌ ArkDB 写入久坐事件失败 ${e.message}`));
   }
 
   // ── 缓存管理（清内存 + 同步清库）──────────────────────────────
@@ -339,7 +346,7 @@ export class MqttManager {
   public resetMqttState(): void {
     this.isFallDetected = false; this.fallTimestamp = 0;
     this.isSedentaryDetected = false; this.sedentaryTimestamp = 0;
-    this.latestMessage = '状态已重置';
+    this.latestMessage = '正常监测中';
     this.clearFallRecoveryTimer(); this.clearSedentaryRecoveryTimer();
   }
 

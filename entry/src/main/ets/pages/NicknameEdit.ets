@@ -14,22 +14,25 @@ export struct NicknameEdit {
   // 自定义标题栏：中间标题 + 右侧保存按钮，左侧系统返回键保留
   @Builder
   TitleBar(): void {
-    Row() {
+    Stack({ alignContent: Alignment.Center }) {
       Text('昵称')
         .fontSize(18).fontWeight(FontWeight.Bold)
         .fontColor(this.themeManager.colors.primaryTextColor)
-        .layoutWeight(1)
         .textAlign(TextAlign.Center)
-      Blank();
-      Text('保存')
-        .fontSize(16).fontColor('#2563eb')
-        .padding({ right: 16 })
-        .onClick(() => {
-          console.log('保存昵称:', this.nickname);
-          this.pathStack.pop();
-        })
+
+      Row() {
+        Blank()
+        Text('保存')
+          .fontSize(16).fontColor('#2563eb')
+          .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+          .onClick(() => {
+            console.log('保存昵称:', this.nickname);
+            this.pathStack.pop();
+          })
+      }
+      .width('100%')
     }
-    .width('100%').height(56).alignItems(VerticalAlign.Center)
+    .width('100%').height(56)
   }
 
   build() {

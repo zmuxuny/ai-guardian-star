@@ -1,3 +1,7 @@
+/**
+ * person.ets — 个人中心页面
+ * 显示用户信息、统计数据和系统设置
+ */
 import { ThemeManager, ThemeMode } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import { promptAction } from '@kit.ArkUI';
@@ -15,8 +19,9 @@ export function personBuilder(): void {
 export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
-  @State userName: string = "超级管理员";
-  @State userId: string = "ID: 69175890";
+  @State userName: string = '超级管理员';
+  @State userPhone: string = '';  // 用户手机号
+  @State userId: string = 'ID: 69175890';
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
   @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
@@ -25,27 +30,72 @@ export struct person {
   @State pressedRow: string = '';
   // 退出登录按钮缩放
   @State logoutScale: number = 1.0;
-  pathStack: NavPathStack | undefined = undefined;
+  // 导航路径栈
+  pathStack: NavPathStack = new NavPathStack();
 
   aboutToAppear(): void {
+    this.loadUserInfo();
+  }
+
+  /** 手机号加密处理：只显示前 3 位和后 4 位，中间用 * 替代 */
+  private encryptPhone(phone: string): string {
+    if (!phone || phone.length < 7) {
+      return phone;
+    }
+    // 保留前 3 位和后 4 位，中间用 * 替代
+    const prefix = phone.substring(0, 3);
+    const suffix = phone.substring(phone.length - 4);
+    const maskLength = phone.length - 7;
+    const mask = '*'.repeat(maskLength);
+    return prefix + mask + suffix;
+  }
+
+  /** 加载用户信息 */
+  private loadUserInfo(): void {
     const currentUser = AppStorage.get<string>('loggedInUsername') ?? '';
     const db = DatabaseHelper.getInstance();
+
+    console.log(`[person]: 开始加载用户信息，currentUser=${currentUser}`);
+
     // 从数据库加载当前用户信息（昵称、注册天数）
-    db.queryUserByUsername(currentUser).then((user: UserInfo | null) => {
-      if (user) {
-        this.userName = user.username;
-        const msPerDay = 24 * 60 * 60 * 1000;
-        this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
-      }
-    }).catch(() => {});
+    db.queryUserByUsername(currentUser)
+      .then((user: UserInfo | null) => {
+        if (user) {
+          this.userName = user.username;
+          // 加密手机号
+          if (user.phone && user.phone.trim() !== '') {
+            this.userPhone = this.encryptPhone(user.phone);
+            console.log(`[person]: 手机号已加密：${this.userPhone}`);
+          } else {
+            // 如果没有手机号，使用用户名作为标识
+            this.userPhone = this.userName;
+            console.log(`[person]: 无手机号，使用用户名：${this.userPhone}`);
+          }
+          const msPerDay = 24 * 60 * 60 * 1000;
+          this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
+          console.log(`[person]: 用户信息加载成功 user=${user.username}, phone=${this.userPhone}, useDays=${this.useDays}`);
+        } else {
+          console.warn(`[person]: 未找到用户信息 user=${currentUser}`);
+        }
+      })
+      .catch((err: Error) => {
+        console.error(`[person]: 查询用户失败 ${err.message}`);
+      });
+
     // 从数据库加载当前用户的累计预警次数
     db.queryHealthEvents('fall', currentUser)
-      .then((events: HealthEvent[]) => { this.totalAlertCount = events.length; })
-      .catch(() => { this.totalAlertCount = this.mqttManager.fallRecords.length; });
+      .then((events: HealthEvent[]) => {
+        this.totalAlertCount = events.length;
+        console.log(`[person]: 摔倒事件加载成功 count=${events.length}, user=${currentUser}`);
+      })
+      .catch((err: Error) => {
+        this.totalAlertCount = this.mqttManager.fallRecords.length;
+        console.error(`[person]: 查询健康事件失败 ${err.message}`);
+      });
   }
 
   private safePush(pageName: string): void {
-    if (this.pathStack) this.pathStack.pushPathByName(pageName, null);
+    this.pathStack.pushPathByName(pageName, null);
   }
 
   @Builder
@@ -64,9 +114,15 @@ export struct person {
       .alignItems(HorizontalAlign.Center)
       .onClick((): void => this.safePush("AvatarEdit"))
 
-      Text(this.userName).fontSize(22).fontWeight(FontWeight.Bold)
-        .fontColor('#ffffff').margin({ top: '4%' })
-      Text(this.userId).fontSize(13).fontColor('#CCFFFFFF').margin({ top: '2%' })
+      Text(this.userName)
+        .fontSize(22)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#ffffff')
+        .margin({ top: '4%' })
+      Text(this.userPhone ? `📱 ${this.userPhone}` : this.userId)
+        .fontSize(13)
+        .fontColor('#CCFFFFFF')
+        .margin({ top: '2%' })
     }
     .width('100%').padding({ top: this.topSafeHeight + 24, bottom: 20 })
     .linearGradient({ direction: GradientDirection.Bottom,
