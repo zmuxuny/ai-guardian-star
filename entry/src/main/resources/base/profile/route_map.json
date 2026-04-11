@@ -5,7 +5,7 @@
       "pageSourceFile": "src/main/ets/pages/Login.ets",
       "buildFunction": "LoginBuilder",
       "data": {
-        "description" : "this is Login"
+        "description": "this is Login"
       }
     },
     {
@@ -13,7 +13,7 @@
       "pageSourceFile": "src/main/ets/pages/Layout.ets",
       "buildFunction": "LayoutBuilder",
       "data": {
-        "description" : "this is Layout"
+        "description": "this is Layout"
       }
     },
     {
@@ -21,7 +21,7 @@
       "pageSourceFile": "src/main/ets/pages/person.ets",
       "buildFunction": "personBuilder",
       "data": {
-        "description" : "this is person"
+        "description": "this is person"
       }
     },
     {
@@ -29,7 +29,7 @@
       "pageSourceFile": "src/main/ets/pages/AvatarEdit.ets",
       "buildFunction": "AvatarEditBuilder",
       "data": {
-        "description" : "this is AvatarEdit"
+        "description": "this is AvatarEdit"
       }
     },
     {
@@ -37,7 +37,7 @@
       "pageSourceFile": "src/main/ets/pages/NicknameEdit.ets",
       "buildFunction": "NicknameEditBuilder",
       "data": {
-        "description" : "this is NicknameEdit"
+        "description": "this is NicknameEdit"
       }
     },
     {
@@ -45,7 +45,7 @@
       "pageSourceFile": "src/main/ets/pages/QRCodeCard.ets",
       "buildFunction": "QRCodeCardBuilder",
       "data": {
-        "description" : "this is QRCodeCard"
+        "description": "this is QRCodeCard"
       }
     },
     {
@@ -53,7 +53,7 @@
       "pageSourceFile": "src/main/ets/pages/MoreInfo.ets",
       "buildFunction": "MoreInfoBuilder",
       "data": {
-        "description" : "this is MoreInfo"
+        "description": "this is MoreInfo"
       }
     },
     {
@@ -61,7 +61,7 @@
       "pageSourceFile": "src/main/ets/pages/MyAddress.ets",
       "buildFunction": "MyAddressBuilder",
       "data": {
-        "description" : "this is MyAddress"
+        "description": "this is MyAddress"
       }
     },
     {
@@ -69,7 +69,7 @@
       "pageSourceFile": "src/main/ets/pages/InvoiceInfo.ets",
       "buildFunction": "InvoiceInfoBuilder",
       "data": {
-        "description" : "this is InvoiceInfo"
+        "description": "this is InvoiceInfo"
       }
     },
     {
@@ -77,7 +77,7 @@
       "pageSourceFile": "src/main/ets/pages/LoginCode.ets",
       "buildFunction": "LoginCodeBuilder",
       "data": {
-        "description" : "this is LoginCode"
+        "description": "this is LoginCode"
       }
     },
     {
@@ -85,7 +85,7 @@
       "pageSourceFile": "src/main/ets/pages/LoginProblem.ets",
       "buildFunction": "LoginProblemBuilder",
       "data": {
-        "description" : "this is LoginProblem"
+        "description": "this is LoginProblem"
       }
     },
     {
@@ -93,7 +93,15 @@
       "pageSourceFile": "src/main/ets/pages/HealthHistory.ets",
       "buildFunction": "HealthHistoryBuilder",
       "data": {
-        "description" : "this is HealthHistory"
+        "description": "this is HealthHistory"
+      }
+    },
+    {
+      "name": "DatabaseDiagnostic",
+      "pageSourceFile": "src/main/ets/pages/DatabaseDiagnostic.ets",
+      "buildFunction": "DatabaseDiagnosticBuilder",
+      "data": {
+        "description": "this is DatabaseDiagnostic"
       }
     }
   ]
