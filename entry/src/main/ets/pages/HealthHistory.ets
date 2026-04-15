@@ -27,6 +27,11 @@ struct HealthHistory {
     this.loadHistory();
   }
 
+  onPageShow(): void {
+    // 每次页面显示时重新拉取，防止进入时数据未及时同步
+    this.loadHistory();
+  }
+
   /** 从数据库加载历史记录 */
   private loadHistory(): void {
     this.isLoading = true;
@@ -152,7 +157,7 @@ struct HealthHistory {
     Row() {
       Column()
         .width(4)
-        .height("70%")
+        .height(36)
         .borderRadius(2)
         .backgroundColor(isDanger ? "#ef4444" : "#3b82f6")
         .margin({ right: "4%" })

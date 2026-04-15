@@ -49,7 +49,10 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-const BROKER_HOST = "192.168.5.192";
+//远程连接
+//const BROKER_HOST = "192.168.5.192";
+//本地连接
+const BROKER_HOST = "192.168.137.100";
 const BROKER_PORT = 1883;
 const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;
 const ALERT_TOPIC = "ai_guardian/alerts/#";

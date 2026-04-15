@@ -13,13 +13,14 @@ import {
   UserInfo,
 } from "../database/DatabaseHelper";
 import { preferences } from "@kit.ArkData";
-import { common } from "@kit.AbilityKit";
+import { common, abilityAccessCtrl } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
 import { STORAGE_KEY_LOGGED_IN_USER } from "./Login";
 import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
+import { fileUri } from "@kit.CoreFileKit";
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -31,7 +32,9 @@ export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State userName: string = "超级管理员";
-  @State userPhone: string = ""; // 用户手机号
+  @State userNickname: string = "";  // 用户昵称，优先显示
+  @State userPhone: string = "";     // 用户手机号（加密后，副标题用）
+  @State userAvatarPath: string = ""; // 头像沙箱路径，空则用默认图标
   @State userId: string = "ID: 69175890";
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
@@ -45,9 +48,39 @@ export struct person {
   pathStack: NavPathStack = new NavPathStack();
 
   private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
+    // ── Step 0: 运行时动态申请相机权限 ────────────────────────────────────
+    // module.json5 里的静态声明只是"告知系统该应用需要此权限"，
+    // HarmonyOS NEXT 上还必须在运行时主动弹窗请求，才能真正拿到授权。
+    const atManager = abilityAccessCtrl.createAtManager();
+    const grantResult = await atManager.requestPermissionsFromUser(
+      context, ['ohos.permission.CAMERA']
+    );
+    // authResults[0] === 0 表示已授权；非 0（如 -1）表示用户拒绝
+    if (grantResult.authResults[0] !== 0) {
+      promptAction.showToast({ message: '需要相机权限才能录入人脸，请在系统设置中开启' });
+      console.warn('[person]: 相机权限被拒绝，authResult=' + grantResult.authResults[0]);
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
+    // 在应用沙箱 cacheDir 预先创建临时文件，并通过 saveUri 告知系统相机直接写入此处
+    // 这样 resultUri 返回的就是可直接读取的沙箱 file:// 路径，无需额外拷贝
+    const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
+    let httpRequest = http.createHttp();
+
     try {
+      // Step 1: 在沙箱预创建目标文件，供 saveUri 使用
+      // CREATE | WRITE_ONLY 确保文件存在且为空
+      let tempFile = fs.openSync(sandboxPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
+      fs.closeSync(tempFile);
+
+      // Step 2: 将沙箱路径转为 file:// URI 格式传给 saveUri
+      const sandboxUri = fileUri.getUriFromPath(sandboxPath);
+
+      // Step 3: 调起前置相机拍照，saveUri 指定相机把照片直接写入沙箱文件
       let pickerProfile: cameraPicker.PickerProfile = {
         cameraPosition: camera.CameraPosition.CAMERA_POSITION_FRONT,
+        saveUri: sandboxUri,
       };
       let pickerResult = await cameraPicker.pick(
         context,
@@ -55,52 +88,61 @@ export struct person {
         pickerProfile,
       );
 
-      if (pickerResult.resultCode === 0 && pickerResult.resultUri !== "") {
-        let imageUri = pickerResult.resultUri;
-
-        // 读取图片文件到缓冲区
-        let file = fs.openSync(imageUri, fs.OpenMode.READ_ONLY);
-        let fileStat = fs.statSync(file.fd);
-        let buffer = new ArrayBuffer(fileStat.size);
-        fs.readSync(file.fd, buffer);
-        fs.closeSync(file);
-
-        promptAction.showToast({ message: "正在上传到开发板..." });
-
-        // 上传到开发板
-        const BOARD_UPLOAD_URL = "http://192.168.5.192:8080/upload";
-        let httpRequest = http.createHttp();
-        let response = await httpRequest.request(BOARD_UPLOAD_URL, {
-          method: http.RequestMethod.POST,
-          header: { "Content-Type": "application/octet-stream" },
-          extraData: buffer,
-          connectTimeout: 5000,
-          readTimeout: 5000,
-        });
-
-        if (response.responseCode === 200 || response.responseCode === 201) {
-          promptAction.showToast({ message: "人脸信息上传成功" });
-        } else {
-          promptAction.showToast({ message: "上传失败，状态码:" + response.responseCode });
-        }
-
+      // resultCode 非 0 或 URI 为空 = 用户取消，静默退出
+      if (pickerResult.resultCode !== 0 || pickerResult.resultUri === '') {
+        console.log('[person]: 用户取消拍照');
         httpRequest.destroy();
+        return;
+      }
 
-        // 阅后即焚：删除本地临时图片
-        try {
-          fs.unlinkSync(imageUri);
-        } catch (e) {
-          console.error("[person]: 删除本地图片失败", e);
-        }
+      // Step 4: 直接读取沙箱文件（saveUri 已保证照片落地于此）
+      let file = fs.openSync(sandboxPath, fs.OpenMode.READ_ONLY);
+      let fileStat = fs.statSync(file.fd);
+      if (fileStat.size === 0) {
+        fs.closeSync(file);
+        throw new Error('照片文件为空，拍照可能未成功写入');
+      }
+      let buffer = new ArrayBuffer(fileStat.size);
+      fs.readSync(file.fd, buffer);
+      fs.closeSync(file);
+
+      promptAction.showToast({ message: '正在上传人脸信息...' });
+
+      // Step 5: POST 原始图片数据到开发板
+      const BOARD_UPLOAD_URL = 'http://192.168.5.192:8080/upload';
+      let response = await httpRequest.request(BOARD_UPLOAD_URL, {
+        method: http.RequestMethod.POST,
+        header: { 'Content-Type': 'image/jpeg' },
+        extraData: buffer,
+        connectTimeout: 8000,
+        readTimeout: 8000,
+      });
+
+      if (response.responseCode === 200 || response.responseCode === 201) {
+        promptAction.showToast({ message: '人脸信息上传成功，开发板已接收' });
+      } else {
+        promptAction.showToast({ message: '上传失败，状态码: ' + response.responseCode });
       }
     } catch (error) {
-      console.error("[person]: 拍照或上传过程中出错", JSON.stringify(error));
-      promptAction.showToast({ message: "操作失败，请重试" });
+      console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
+      promptAction.showToast({ message: '操作失败，请重试' });
+    } finally {
+      httpRequest.destroy();
+      // 阅后即焚：无论流程成败，沙箱临时文件必须销毁
+      try {
+        fs.unlinkSync(sandboxPath);
+        console.log('[person]: 人脸临时文件已销毁');
+      } catch (e) {
+        // 文件不存在时忽略（Step1 之前就失败的场景）
+      }
     }
   }
 
   aboutToAppear(): void {
     this.loadUserInfo();
+    // 监听 Profile 页保存后的 AppStorage 广播，实时刷新昵称和头像
+    AppStorage.setOrCreate<string>('loggedInNickname', AppStorage.get<string>('loggedInNickname') ?? '');
+    AppStorage.setOrCreate<string>('loggedInAvatarPath', AppStorage.get<string>('loggedInAvatarPath') ?? '');
   }
 
   /** 手机号加密处理：只显示前 3 位和后 4 位，中间用 * 替代 */
@@ -128,19 +170,23 @@ export struct person {
       .then((user: UserInfo | null) => {
         if (user) {
           this.userName = user.username;
-          // 加密手机号
+          // 昵称：优先用数据库里的 nickname，没有则回退到 AppStorage，再回退到 username
+          const storedNick = AppStorage.get<string>("loggedInNickname");
+          this.userNickname = (user.nickname && user.nickname.trim() !== "")
+            ? user.nickname
+            : (storedNick && storedNick !== user.username ? storedNick : user.username);
+          // 头像路径
+          this.userAvatarPath = user.avatarPath ?? "";
+          // 加密手机号作为副标题
           if (user.phone && user.phone.trim() !== "") {
             this.userPhone = this.encryptPhone(user.phone);
-            console.log(`[person]: 手机号已加密：${this.userPhone}`);
           } else {
-            // 如果没有手机号，使用用户名作为标识
-            this.userPhone = this.userName;
-            console.log(`[person]: 无手机号，使用用户名：${this.userPhone}`);
+            this.userPhone = "";
           }
           const msPerDay = 24 * 60 * 60 * 1000;
           this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
           console.log(
-            `[person]: 用户信息加载成功 user=${user.username}, phone=${this.userPhone}, useDays=${this.useDays}`,
+            `[person]: 用户信息加载成功 user=${user.username}, nick=${this.userNickname}, useDays=${this.useDays}`,
           );
         } else {
           console.warn(`[person]: 未找到用户信息 user=${currentUser}`);
@@ -169,30 +215,42 @@ export struct person {
   @Builder
   GradientHeader(): void {
     Column() {
-      Column() {
-        Image($r("app.media.ic_user"))
-          .width("50%")
+      // 头像：有自定义头像用图片，没有用默认图标
+      if (this.userAvatarPath !== '') {
+        Image(this.userAvatarPath)
+          .width("22%")
           .aspectRatio(1)
-          .objectFit(ImageFit.Contain)
+          .borderRadius(999)
+          .objectFit(ImageFit.Cover)
+          .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
+          .clip(true)
+      } else {
+        Column() {
+          Image($r("app.media.ic_user"))
+            .width("50%")
+            .aspectRatio(1)
+            .objectFit(ImageFit.Contain)
+        }
+        .width("22%")
+        .aspectRatio(1)
+        .borderRadius(999)
+        .clip(true)
+        .backgroundColor("rgba(255,255,255,0.2)")
+        .border({ width: 2, color: "rgba(255,255,255,0.6)" })
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
       }
-      .width("22%")
-      .aspectRatio(1)
-      .borderRadius(999)
-      .clip(true)
-      .backgroundColor("rgba(255,255,255,0.2)")
-      .border({ width: 2, color: "rgba(255,255,255,0.6)" })
-      .justifyContent(FlexAlign.Center)
-      .alignItems(HorizontalAlign.Center)
-      .onClick((): void => this.safePush("AvatarEdit"))
-      Text(this.userName)
+      Text(this.userNickname || this.userName)
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor("#ffffff")
         .margin({ top: "4%" })
-      Text(this.userPhone ? `📱 ${this.userPhone}` : this.userId)
-        .fontSize(13)
-        .fontColor("#CCFFFFFF")
-        .margin({ top: "2%" })
+      if (this.userPhone) {
+        Text(`📱 ${this.userPhone}`)
+          .fontSize(13)
+          .fontColor("#CCFFFFFF")
+          .margin({ top: "2%" })
+      }
     }
     .width("100%")
     .padding({ top: this.topSafeHeight + 24, bottom: 20 })
@@ -326,13 +384,16 @@ export struct person {
               "#1e3a5f",
               "个人资料",
               "修改头像、昵称及手机号",
-              (): void => this.safePush("NicknameEdit"),
+              (): void => {
+                // 进入 Profile 页前先刷新一次，确保返回后数据最新
+                this.pathStack.pushPathByName("Profile", null);
+              },
             )
             Divider()
               .margin({ left: "15%", right: "4%" })
               .color(this.themeManager.colors.separatorColor)
             this.MenuRow(
-              $r("app.media.ic_user_blue"), // 暂时代用蓝色的 user icon
+              $r("app.media.ic_camera"),
               "#e0f2fe",
               "#0c4a6e",
               "人脸信息",
@@ -630,7 +691,7 @@ export struct person {
             promptAction
               .showDialog({
                 title: "退出确认",
-                message: "您确定要退出当前账号吗？",
+                message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
                 buttons: [
                   { text: "取消", color: "#64748b" },
                   { text: "退出", color: "#ef4444" },
@@ -668,6 +729,17 @@ export struct person {
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM]);
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .onAppear(() => {
+      // 从子页面（Profile）返回时重新加载，确保头像和昵称已同步
+      const latestNick = AppStorage.get<string>('loggedInNickname') ?? '';
+      const latestAvatar = AppStorage.get<string>('loggedInAvatarPath') ?? '';
+      if (latestNick !== '' && latestNick !== this.userNickname) {
+        this.userNickname = latestNick;
+      }
+      if (latestAvatar !== this.userAvatarPath) {
+        this.userAvatarPath = latestAvatar;
+      }
+    });
   }
 }

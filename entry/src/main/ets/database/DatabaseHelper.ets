@@ -22,7 +22,7 @@ const TAG = "DatabaseHelper";
 
 // ─── 数据库配置 ───────────────────────────────────────────────
 const DB_NAME = "GuardianStar.db";
-const DB_VERSION = 2; // Bump version to 2 logic, removing old PRAGMA user_version pattern
+const DB_VERSION = 3; // v3: add nickname column to t_user
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
   name: DB_NAME,
@@ -37,6 +37,7 @@ const STORE_CONFIG: relationalStore.StoreConfig = {
 const SQL_CREATE_USER = `CREATE TABLE IF NOT EXISTS t_user (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     username        TEXT    NOT NULL,
+    nickname        TEXT,
     phone           TEXT,
     password_hash   TEXT    NOT NULL,
     avatar_path     TEXT,
@@ -44,7 +45,10 @@ const SQL_CREATE_USER = `CREATE TABLE IF NOT EXISTS t_user (
     address         TEXT,
     bind_elder_id   TEXT,
     create_time     INTEGER NOT NULL
-  )`;
+  )`
+
+/** 迁移：为旧版 t_user 补加 nickname 列（IF NOT EXISTS 不支持，用 try-catch 容错） */
+const SQL_ADD_NICKNAME_COLUMN = `ALTER TABLE t_user ADD COLUMN nickname TEXT`;
 
 /** 个人设置表 (云端/本地同步) */
 const SQL_CREATE_SETTING = `CREATE TABLE IF NOT EXISTS t_setting (
@@ -87,6 +91,7 @@ const SQL_CREATE_VIDEO_RECORD = `CREATE TABLE IF NOT EXISTS t_video_record (
 export interface UserInfo {
   id?: number;
   username: string;
+  nickname?: string;
   phone?: string;
   passwordHash: string;
   avatarPath?: string;
@@ -217,8 +222,21 @@ export class DatabaseHelper {
     }
 
     if (currentVersion < 2) {
-      this.store.version = 2; // 升级版本号
+      this.store.version = 2;
       hilog.info(DOMAIN, TAG, `数据库版本已更新为: 2`);
+    }
+
+    // v3：为已有 t_user 补加 nickname 列（新建表已含此列，旧库需 ALTER）
+    if (currentVersion < 3) {
+      try {
+        await this.store.executeSql(SQL_ADD_NICKNAME_COLUMN);
+        hilog.info(DOMAIN, TAG, "t_user.nickname 列添加成功");
+      } catch (e) {
+        // 列已存在时 SQLite 会报错，直接忽略即可
+        hilog.warn(DOMAIN, TAG, "t_user.nickname 列可能已存在，跳过");
+      }
+      this.store.version = 3;
+      hilog.info(DOMAIN, TAG, `数据库版本已更新为: 3`);
     }
   }
 
@@ -236,6 +254,7 @@ export class DatabaseHelper {
   public async insertUser(user: UserInfo): Promise<number> {
     const values: relationalStore.ValuesBucket = {
       username: user.username,
+      nickname: user.nickname ?? null,
       phone: user.phone ?? null,
       password_hash: user.passwordHash,
       avatar_path: user.avatarPath ?? null,
@@ -278,6 +297,7 @@ export class DatabaseHelper {
       resultSet = await this.getStore().query(predicates, [
         "id",
         "username",
+        "nickname",
         "phone",
         "password_hash",
         "avatar_path",
@@ -290,6 +310,7 @@ export class DatabaseHelper {
         const user: UserInfo = {
           id: resultSet.getLong(resultSet.getColumnIndex("id")),
           username: resultSet.getString(resultSet.getColumnIndex("username")),
+          nickname: resultSet.getString(resultSet.getColumnIndex("nickname")),
           phone: resultSet.getString(resultSet.getColumnIndex("phone")),
           passwordHash: resultSet.getString(resultSet.getColumnIndex("password_hash")),
           avatarPath: resultSet.getString(resultSet.getColumnIndex("avatar_path")),
@@ -315,6 +336,7 @@ export class DatabaseHelper {
     if (user.id === undefined) throw new Error("updateUser: id 不能为空");
     const values: relationalStore.ValuesBucket = {
       username: user.username,
+      nickname: user.nickname ?? null,
       phone: user.phone ?? null,
       avatar_path: user.avatarPath ?? null,
       email: user.email ?? null,
@@ -329,6 +351,20 @@ export class DatabaseHelper {
     } catch (e) {
       const err = e as BusinessError;
       hilog.error(DOMAIN, TAG, `updateUser 失败 ${err.code} ${err.message}`);
+      throw new Error(err.code + ": " + err.message);
+    }
+  }
+
+  /** 单独更新用户昵称（按 username 定位） */
+  public async updateNickname(username: string, nickname: string): Promise<void> {
+    const predicates = new relationalStore.RdbPredicates("t_user");
+    predicates.equalTo("username", username);
+    try {
+      await this.getStore().update({ nickname: nickname }, predicates);
+      hilog.info(DOMAIN, TAG, `updateNickname 成功 username=${username}`);
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.error(DOMAIN, TAG, `updateNickname 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
     }
   }

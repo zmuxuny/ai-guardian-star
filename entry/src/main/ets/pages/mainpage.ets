@@ -9,7 +9,10 @@ import { common } from '@kit.AbilityKit';
 @Entry
 @Component
 export struct mainPage {
-  @State videoUrl: string = 'http://192.168.5.192:5000/video_feed';
+  //远程连接
+  //@State videoUrl: string = 'http://192.168.5.192:5000/video_feed';
+  //本地连接
+  @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
   @State volumeLevel: number = 50;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -161,22 +164,46 @@ export struct mainPage {
       })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
-      // 监测状态卡
+      // 监测状态卡（随检测状态变色，与设备状态卡保持一致的样式语言）
       Row() {
-        Image($r('app.media.ic_shield_blue'))
+        Image(this.isFallDetected
+          ? $r('app.media.ic_alert_red')
+          : this.isSedentaryDetected
+            ? $r('app.media.ic_shield_blue')
+            : $r('app.media.ic_shield_green'))
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe').borderRadius(10)
+          .backgroundColor(this.isFallDetected
+            ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
+            : this.isSedentaryDetected
+              ? (this.themeManager.isDarkMode ? '#3d2000' : '#fffbeb')
+              : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5'))
+          .borderRadius(10)
         Column() {
-          Text(this.isFallDetected ? '检测到跌倒' : '正常监测')
-            .fontSize(16).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
+          Text(this.isFallDetected ? '检测到跌倒！' : this.isSedentaryDetected ? '检测到久坐' : '正常监测')
+            .fontSize(16).fontWeight(FontWeight.Bold)
+            .fontColor(this.isFallDetected ? '#ef4444' : this.isSedentaryDetected ? '#f59e0b' : '#10b981')
           Text(this.latestMessage).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
             .margin({ top: '2%' }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
-        Circle({ width: '2%', height: '2%' }).fill('#f59e0b').aspectRatio(1)
+        Circle({ width: 10, height: 10 })
+          .fill(this.isFallDetected ? '#ef4444' : this.isSedentaryDetected ? '#f59e0b' : '#10b981')
+          .aspectRatio(1)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .backgroundColor(this.isFallDetected
+        ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
+        : this.isSedentaryDetected
+          ? (this.themeManager.isDarkMode ? '#2d1a00' : '#fffbeb')
+          : this.themeManager.colors.cardBackgroundColor)
+      .border({
+        width: 1,
+        color: this.isFallDetected
+          ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+          : this.isSedentaryDetected
+            ? (this.themeManager.isDarkMode ? '#7c3900' : '#fde68a')
+            : 'transparent'
+      })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
       // 音量卡

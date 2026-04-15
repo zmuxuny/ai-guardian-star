@@ -25,19 +25,11 @@
       }
     },
     {
-      "name": "AvatarEdit",
-      "pageSourceFile": "src/main/ets/pages/AvatarEdit.ets",
-      "buildFunction": "AvatarEditBuilder",
+      "name": "Profile",
+      "pageSourceFile": "src/main/ets/pages/Profile.ets",
+      "buildFunction": "ProfileBuilder",
       "data": {
-        "description": "this is AvatarEdit"
-      }
-    },
-    {
-      "name": "NicknameEdit",
-      "pageSourceFile": "src/main/ets/pages/NicknameEdit.ets",
-      "buildFunction": "NicknameEditBuilder",
-      "data": {
-        "description": "this is NicknameEdit"
+        "description": "this is Profile"
       }
     },
     {

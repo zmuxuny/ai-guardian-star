@@ -13,6 +13,7 @@ const PREF_KEY_USERNAME = "lastUsername";
 
 interface LoginResult {
   name: string;
+  nickname: string;
   isNew: boolean;
 }
 
@@ -152,6 +153,9 @@ struct Login {
   pathStack: NavPathStack = new NavPathStack();
   @State username: string = "";
   @State password: string = "";
+  @State nickname: string = "";          // 新用户注册时填写的昵称
+  @State showNicknameInput: boolean = false; // 仅新用户注册流程中显示
+  @State isCheckingUser: boolean = false;   // 正在查库检测账号是否存在
   @State isLoading: boolean = false;
   @State showPassword: boolean = false;
   @State loginBtnScale: number = 1.0;
@@ -247,7 +251,8 @@ struct Login {
           .alignItems(HorizontalAlign.Center)
 
           // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
-          Column() {
+          Scroll() {
+            Column() {
             Text("登录账号")
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
@@ -288,6 +293,8 @@ struct Login {
                 this.inputMode = 0;
                 this.username = "";
                 this.usernameError = "";
+                this.showNicknameInput = false;
+                this.nickname = "";
               })
 
               // 邮箱 Tab
@@ -315,6 +322,8 @@ struct Login {
                 this.inputMode = 1;
                 this.username = "";
                 this.usernameError = "";
+                this.showNicknameInput = false;
+                this.nickname = "";
               })
             }
             .width("100%")
@@ -330,6 +339,15 @@ struct Login {
                 .onChange((v: string) => {
                   this.username = v;
                   this.usernameError = this.validateUsername();
+
+                  // 格式校验通过后自动查库，决定是否显示昵称框
+                  if (this.usernameError === "" && v.trim().length > 0) {
+                    this.checkUserExists(v.trim());
+                  } else {
+                    // 输入不完整或格式错误时隐藏昵称框
+                    this.showNicknameInput = false;
+                    this.nickname = "";
+                  }
                 })
                 .layoutWeight(1)
                 .fontSize(14)
@@ -375,6 +393,24 @@ struct Login {
                 .alignSelf(ItemAlign.Start)
                 .margin({ bottom: 10 })
                 .animation({ duration: 150, curve: Curve.EaseOut });
+            }
+
+            // 昵称输入框（仅新用户注册阶段显示）
+            if (this.showNicknameInput) {
+              Text("昵称")
+                .fontSize(12).fontWeight(FontWeight.Medium)
+                .fontColor(this.themeManager.colors.secondaryTextColor)
+                .alignSelf(ItemAlign.Start).margin({ bottom: 6 })
+              TextInput({ placeholder: "请输入你的昵称（2-12字）", text: this.nickname })
+                .onChange((v: string) => { this.nickname = v; })
+                .width("100%").fontSize(14)
+                .type(InputType.Normal)
+                .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                .fontColor(this.themeManager.colors.primaryTextColor)
+                .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+                .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
+                .borderRadius(12).margin({ bottom: 14 })
+                .animation({ duration: 200, curve: Curve.EaseOut })
             }
 
             // 密码输入框（无左图标，只右侧眼睛切换）
@@ -499,16 +535,18 @@ struct Login {
             })
               .width("100%")
               .height(50)
+            }
+            .width("100%")
+            .padding({ left: 24, right: 24, top: 28, bottom: 32 })
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           }
-          .layoutWeight(3)
+          .layoutWeight(1)
           .width("100%")
-          .padding({ left: 24, right: 24, top: 28, bottom: 32 })
           .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
-          .layoutWeight(1)
-          // 撑满剩余空间到屏幕底部
           .constraintSize({ minHeight: "62%" })
-          // 保底高度，防止内容少时底部露白
+          .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring)
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
         }
         // 外层 Column：占满全屏
@@ -528,6 +566,29 @@ struct Login {
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     });
+  }
+
+  /** 输入完整后自动查库，决定是否显示昵称输入框 */
+  private checkUserExists(uname: string): void {
+    if (this.isCheckingUser) return;
+    this.isCheckingUser = true;
+    DatabaseHelper.getInstance().queryUserByUsername(uname)
+      .then((existing: UserInfo | null) => {
+        this.isCheckingUser = false;
+        // 只有输入框内容仍然是这次查询的值才更新（防止查询中途用户又修改了）
+        if (this.username.trim() !== uname) return;
+        if (existing === null) {
+          // 新用户：显示昵称框
+          this.showNicknameInput = true;
+        } else {
+          // 老用户：隐藏昵称框
+          this.showNicknameInput = false;
+          this.nickname = "";
+        }
+      })
+      .catch(() => {
+        this.isCheckingUser = false;
+      });
   }
 
   // ── 核心登录逻辑 ──────────────────────────────────────────
@@ -556,22 +617,31 @@ struct Login {
       return;
     }
 
+    // 新用户注册流程：先展示昵称输入框，填完再继续
+    // 若昵称框已展示但未填，提示用户
+    if (this.showNicknameInput && this.nickname.trim().length < 2) {
+      this.showAlert("昵称至少2个字");
+      return;
+    }
+
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
 
     db.queryUserByUsername(uname)
       .then((existing: UserInfo | null) => {
         if (existing === null) {
-          // 新账号：先写库，再弹验证框
+          // 新账号：昵称框已由 onChange 提前展示，此处直接读取
+          const nickToSave = this.nickname.trim() || uname;
           return db
             .insertUser({
               username: uname,
-              phone: this.inputMode === 0 ? uname : "", // 如果是手机号登录，保存手机号
+              nickname: nickToSave,
+              phone: this.inputMode === 0 ? uname : "",
               passwordHash: pwd,
               createTime: Date.now(),
             })
             .then(() => {
-              const r: LoginResult = { name: uname, isNew: true };
+              const r: LoginResult = { name: uname, nickname: nickToSave, isNew: true };
               return r;
             });
         } else {
@@ -580,21 +650,17 @@ struct Login {
             this.showAlert("密码不正确");
             return Promise.reject("wrong_password");
           }
-          const r: LoginResult = { name: uname, isNew: false };
+          const r: LoginResult = { name: uname, nickname: existing.nickname ?? uname, isNew: false };
           return Promise.resolve(r);
         }
       })
       .then((result: LoginResult) => {
         this.isLoading = false;
         if (result.isNew) {
-          // 新用户：弹出验证码弹框
-          this.showVerifyDialog(result.name);
+          this.showVerifyDialog(result.name, result.nickname);
         } else {
-          // 老用户：底部 Toast 后自动跳转
-          promptAction.showToast({ message: `欢迎回来，${result.name}`, duration: 1500 });
-          setTimeout(() => {
-            this.saveLoginAndJump(result.name);
-          }, 800);
+          promptAction.showToast({ message: `欢迎回来，${result.nickname || result.name}`, duration: 1500 });
+          setTimeout(() => { this.saveLoginAndJump(result.name, result.nickname); }, 800);
         }
       })
       .catch((e: string | Error) => {
@@ -604,20 +670,16 @@ struct Login {
   }
 
   /** 弹出注册验证弹框 */
-  private showVerifyDialog(username: string): void {
+  private showVerifyDialog(username: string, nickname: string): void {
     this.pendingRegisterName = username;
-    // 每次弹出时重建 controller，绑定最新的 username 和回调
     this.verifyDialogController = new CustomDialogController({
       builder: VerifyDialog({
         themeManager: this.themeManager,
-        onCancel: () => {
-          // 取消：仅关闭弹框，留在登录页
-        },
+        onCancel: () => {},
         onConfirm: () => {
-          // 确认：Toast 提示后直接进入主界面
           promptAction.showToast({ message: `🎉 注册成功，欢迎加入守护星！`, duration: 1500 });
           setTimeout(() => {
-            this.saveLoginAndJump(username);
+            this.saveLoginAndJump(username, nickname);
           }, 600);
         },
       }),
@@ -628,8 +690,10 @@ struct Login {
     this.verifyDialogController.open();
   }
 
-  private saveLoginAndJump(username: string): void {
+  private saveLoginAndJump(username: string, nickname: string = ""): void {
     UserManager.getInstance().setCurrentUsername(username);
+    // 将昵称存入 AppStorage 供其他页面直接读取
+    AppStorage.setOrCreate<string>("loggedInNickname", nickname || username);
     try {
       const ctx = getContext(this) as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME };

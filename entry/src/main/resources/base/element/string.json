@@ -23,6 +23,10 @@
     {
       "name": "camera_reason",
       "value": "用于拍摄人脸照片上传至开发板进行识别"
+    },
+    {
+      "name": "media_reason",
+      "value": "用于从相册选取头像图片"
     }
   ]
 }
