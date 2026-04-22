@@ -5,6 +5,7 @@
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
+import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { promptAction } from '@kit.ArkUI';
 import { common, abilityAccessCtrl } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
@@ -63,7 +64,7 @@ export struct Profile {
   /** 校验昵称 */
   private validateNickname(): string {
     const v = this.nickname.trim();
-    if (v.length < 2) return '昵称至少 2 个字';
+    if (v.length < 1) return '昵称至少 1 个字';
     if (v.length > 12) return '昵称最多 12 个字';
     return '';
   }
@@ -120,13 +121,10 @@ export struct Profile {
     }
   }
 
-  /** 保存到数据库 */
+  /** 保存到本地数据库，并异步同步云端 */
   private async saveProfile(): Promise<void> {
     const err = this.validateNickname();
-    if (err !== '') {
-      this.nicknameError = err;
-      return;
-    }
+    if (err !== '') { this.nicknameError = err; return; }
     this.nicknameError = '';
     this.isSaving = true;
 
@@ -139,14 +137,31 @@ export struct Profile {
       user.avatarPath = this.avatarPath;
       await db.updateUser(user);
 
-      // 同步更新 AppStorage，让个人页即时刷新
+      // 同步更新内存层，个人页即时刷新
       AppStorage.setOrCreate<string>('loggedInNickname', this.nickname.trim());
       AppStorage.setOrCreate<string>('loggedInAvatarPath', this.avatarPath);
+
+      // 同步更新 Preferences，重启后 Index 能恢复最新昵称
+      try {
+        const ctx = getContext(this) as common.UIAbilityContext;
+        const pref = (await import('@kit.ArkData')).preferences
+          .getPreferencesSync(ctx, { name: 'guardian_auth' });
+        pref.putSync('lastNickname', this.nickname.trim());
+        pref.flush();
+      } catch (_) {}
+
+      // 异步同步到云端，失败静默降级
+      const updateFields = new CloudUpdateFields();
+      updateFields.username = this.currentUser;
+      updateFields.nickname = this.nickname.trim();
+      updateFields.avatarPath = this.avatarPath;
+      CloudService.getInstance().updateUser(updateFields).then(r => {
+        console.info('[Profile]: 云端同步', r.success ? '成功' : '失败:' + r.message);
+      });
 
       this.isSaving = false;
       this.originalNickname = this.nickname.trim();
       this.originalAvatarPath = this.avatarPath;
-
       promptAction.showToast({ message: '保存成功 ✓', duration: 1500 });
       setTimeout(() => { this.pathStack.pop(); }, 800);
     } catch (e) {

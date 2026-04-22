@@ -3,6 +3,7 @@ import { BusinessError } from "@kit.BasicServicesKit";
 import { ThemeManager } from "../common/ThemeManager";
 import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
+import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
@@ -626,25 +627,55 @@ struct Login {
 
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
+    const cloud = CloudService.getInstance();
 
     db.queryUserByUsername(uname)
-      .then((existing: UserInfo | null) => {
+      .then(async (existing: UserInfo | null) => {
         if (existing === null) {
-          // 新账号：昵称框已由 onChange 提前展示，此处直接读取
-          const nickToSave = this.nickname.trim() || uname;
-          return db
-            .insertUser({
-              username: uname,
-              nickname: nickToSave,
-              phone: this.inputMode === 0 ? uname : "",
-              passwordHash: pwd,
-              createTime: Date.now(),
-            })
-            .then(() => {
-              const r: LoginResult = { name: uname, nickname: nickToSave, isNew: true };
-              return r;
+          // ── 本地没有此账号：先查云端，判断是新注册还是换手机登录 ──
+          const cloudResult = await cloud.login(uname, pwd);
+          if (cloudResult.success && cloudResult.user) {
+            // 云端有 → 换新手机，密码已在云端验证通过，写入本地 RDB
+            const cu = cloudResult.user;
+            await db.insertUser({
+              username: cu.username, nickname: cu.nickname,
+              phone: cu.phone, passwordHash: cu.passwordHash,
+              avatarPath: cu.avatarPath, email: cu.email,
+              address: cu.address, createTime: cu.createTime,
             });
+            const r: LoginResult = { name: cu.username, nickname: cu.nickname, isNew: false };
+            return r;
+          } else if (!cloudResult.success && cloudResult.message !== '账号不存在' && cloudResult.message !== '网络不可用') {
+            // 云端明确说密码错 / 其他错误
+            this.isLoading = false;
+            this.showAlert(cloudResult.message || '登录失败');
+            return Promise.reject('cloud_error');
+          }
+          // 云端也没有（或网络不通）→ 走本地新注册流程
+          const nickToSave = this.nickname.trim() || uname;
+          await db.insertUser({
+            username: uname, nickname: nickToSave,
+            phone: this.inputMode === 0 ? uname : '',
+            passwordHash: pwd, createTime: Date.now(),
+          });
+          // 异步同步到云端，失败不影响本地
+          const regUser: CloudUser = {
+            username: uname,
+            nickname: nickToSave,
+            phone: this.inputMode === 0 ? uname : '',
+            passwordHash: pwd,
+            avatarPath: '',
+            email: '',
+            address: '',
+            createTime: Date.now(),
+          };
+          cloud.register(regUser).then(r => {
+            console.info('[Login]: 云端注册', r.success ? '成功' : '失败:' + r.message);
+          });
+          const r: LoginResult = { name: uname, nickname: nickToSave, isNew: true };
+          return r;
         } else {
+          // ── 本地有此账号：本地验证密码 ──
           if (existing.passwordHash !== pwd) {
             this.isLoading = false;
             this.showAlert("密码不正确");
@@ -691,14 +722,18 @@ struct Login {
   }
 
   private saveLoginAndJump(username: string, nickname: string = ""): void {
+    const effectiveNickname = nickname || username;
+    // 1. 内存层：跨页面即时可用
     UserManager.getInstance().setCurrentUsername(username);
-    // 将昵称存入 AppStorage 供其他页面直接读取
-    AppStorage.setOrCreate<string>("loggedInNickname", nickname || username);
+    AppStorage.setOrCreate<string>("loggedInNickname", effectiveNickname);
+    // 2. 持久层：username + nickname 一起写入 Preferences
+    //    重启后 Index.ets 直接恢复，无需再查 RDB
     try {
       const ctx = getContext(this) as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME };
       const pref = preferences.getPreferencesSync(ctx, options);
       pref.putSync(PREF_KEY_USERNAME, username);
+      pref.putSync("lastNickname", effectiveNickname);
       pref.flush();
     } catch (e) {
       console.warn("[Login]: Preferences 写入失败 " + JSON.stringify(e));

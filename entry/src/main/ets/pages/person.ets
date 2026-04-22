@@ -109,7 +109,7 @@ export struct person {
       promptAction.showToast({ message: '正在上传人脸信息...' });
 
       // Step 5: POST 原始图片数据到开发板
-      const BOARD_UPLOAD_URL = 'http://192.168.5.192:8080/upload';
+      const BOARD_UPLOAD_URL = 'http://192.168.137.100:8080/upload';
       let response = await httpRequest.request(BOARD_UPLOAD_URL, {
         method: http.RequestMethod.POST,
         header: { 'Content-Type': 'image/jpeg' },
@@ -705,11 +705,13 @@ export struct person {
                     const opts: preferences.Options = { name: "guardian_auth" };
                     const pref = preferences.getPreferencesSync(ctx, opts);
                     pref.deleteSync("lastUsername");
+                    pref.deleteSync("lastNickname");
                     pref.flush();
                   } catch (e) {
                     console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
                   }
                   AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, "");
+                  AppStorage.setOrCreate<string>("loggedInNickname", "");
                   UserManager.getInstance().clearCurrentUsername();
                   this.pathStack.clear();
                   this.pathStack.pushPathByName("Login", null);

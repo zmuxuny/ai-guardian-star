@@ -9,10 +9,12 @@ import { common } from '@kit.AbilityKit';
 @Entry
 @Component
 export struct mainPage {
-  //远程连接
+  //远程连接（frp穿透）
+  @State videoUrl: string = 'http://117.78.9.144:6001/video_feed';
+  //局域网备用
   //@State videoUrl: string = 'http://192.168.5.192:5000/video_feed';
-  //本地连接
-  @State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
+  //@State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
+  //@State videoUrl: string = 'http://10.190.205.195:5000/video_feed';
   @State volumeLevel: number = 50;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();

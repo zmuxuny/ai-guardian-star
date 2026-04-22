@@ -28,10 +28,13 @@ struct Index {
       const options: preferences.Options = { name: PREF_NAME };
       const pref = preferences.getPreferencesSync(ctx, options);
       const savedUser = pref.getSync(PREF_KEY_USERNAME, '') as string;
+      const savedNickname = pref.getSync('lastNickname', '') as string;
 
       if (savedUser !== '') {
+        // 同时恢复 username 和 nickname 到内存，个人页不会显示空白
         AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, savedUser);
-        console.info('[Index]: 自动登录 ' + savedUser);
+        AppStorage.setOrCreate<string>('loggedInNickname', savedNickname || savedUser);
+        console.info('[Index]: 自动登录 ' + savedUser + ' / ' + (savedNickname || savedUser));
         this.pathStack.pushPathByName('Layout', null, false);
       } else {
         this.pathStack.pushPathByName('Login', null, false);
