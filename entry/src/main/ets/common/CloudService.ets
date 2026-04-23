@@ -56,17 +56,29 @@ class LoginBody {
 async function postJson(path: string, bodyStr: string): Promise<CloudResult> {
   const req = http.createHttp();
   try {
+    console.info('[CloudService]: 开始请求', path, 'body长度:', bodyStr.length);
     const resp = await req.request(ECS_BASE + path, {
       method: http.RequestMethod.POST,
       header: { 'Content-Type': 'application/json' },
       extraData: bodyStr,
-      connectTimeout: 6000,
-      readTimeout: 6000,
+      connectTimeout: 10000,  // 增加到10秒
+      readTimeout: 10000,     // 增加到10秒
     });
-    return JSON.parse(resp.result as string) as CloudResult;
+    
+    const resultStr = resp.result as string;
+    console.info('[CloudService]: 请求成功', path, '响应长度:', resultStr.length);
+    
+    try {
+      const result = JSON.parse(resultStr) as CloudResult;
+      console.info('[CloudService]: 解析成功', path, 'success:', result.success);
+      return result;
+    } catch (parseError) {
+      console.error('[CloudService]: JSON解析失败', path, '响应内容:', resultStr.substring(0, 200));
+      return { success: false, message: '服务器响应格式错误' };
+    }
   } catch (e) {
-    console.warn('[CloudService]: 请求失败(降级)', path, JSON.stringify(e));
-    return { success: false, message: '网络不可用' };
+    console.error('[CloudService]: 请求失败', path, '错误详情:', JSON.stringify(e));
+    return { success: false, message: `网络请求失败: ${e.message || '未知错误'}` };
   } finally {
     req.destroy();
   }
