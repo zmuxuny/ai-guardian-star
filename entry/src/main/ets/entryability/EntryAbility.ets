@@ -20,7 +20,9 @@ export default class EntryAbility extends UIAbility {
 
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'testTag', 'Configuration updated, colorMode: %{public}d', newConfig.colorMode);
-    ThemeManager.getInstance().applyThemeMode();
+    // 直接把系统传来的 colorMode 传给 ThemeManager，不用它自己再去异步读配置
+    const isSystemDark = newConfig.colorMode === 0; // COLOR_MODE_DARK = 0
+    ThemeManager.getInstance().onSystemThemeChanged(isSystemDark);
   }
 
   onDestroy(): void {
@@ -69,8 +71,8 @@ export default class EntryAbility extends UIAbility {
 
   onForeground(): void {
     hilog.info(DOMAIN, 'testTag', '%{s}', 'Ability onForeground');
-    // 切回前台时刷新跟随系统主题（比 onConfigurationUpdate 更可靠）
-    ThemeManager.getInstance().refreshFollowSystem();
+    // 切回前台时刷新跟随系统主题
+    ThemeManager.getInstance().onAppForeground();
   }
 
   onBackground(): void {

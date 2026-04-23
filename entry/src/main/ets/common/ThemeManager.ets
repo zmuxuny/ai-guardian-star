@@ -98,12 +98,64 @@ export class ThemeManager {
     console.log(`[Theme]:主题模式已设置为: ${mode === ThemeMode.FOLLOW_SYSTEM ? '跟随系统' : mode === ThemeMode.LIGHT ? '浅色' : '深色'}`);
   }
 
-  // 刷新跟随系统主题（用于从后台切回前台等场景）
-  public async refreshFollowSystem() {
-    if (this.themeMode === ThemeMode.FOLLOW_SYSTEM) {
-      console.log(`[Theme]:onForeground - 刷新跟随系统主题`);
-      await this.applyThemeMode();
+  // 由 EntryAbility.onConfigurationUpdate 回调调用
+  // 系统主题变化时直接传入真实值（避免异步读配置的时序问题）
+  public onSystemThemeChanged(isRealDark: boolean) {
+    if (this.themeMode !== ThemeMode.FOLLOW_SYSTEM) {
+      return; // 非跟随模式不响应系统变化
     }
+    if (this.applyingTheme) {
+      console.log(`[Theme]:跳过递归onSystemThemeChanged`);
+      return;
+    }
+    this.applyingTheme = true;
+    
+    console.log(`[Theme]:系统主题变化: isDark=${isRealDark}`);
+    this.systemDarkMode = isRealDark;
+    
+    // 同步系统 colorMode（让 NavDestination 标题文字颜色跟随）
+    this.trySetColorMode(isRealDark
+      ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+      : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
+    
+    if (this.isDarkMode !== isRealDark) {
+      this.isDarkMode = isRealDark;
+      this.applyTheme();
+    } else {
+      this.applyTheme();
+    }
+    
+    this.applyingTheme = false;
+  }
+
+  // 由 EntryAbility.onForeground 调用
+  // app 切回前台时，直接实时读取系统主题来刷新
+  public async onAppForeground() {
+    if (this.themeMode !== ThemeMode.FOLLOW_SYSTEM) {
+      return; // 非跟随模式不做任何事
+    }
+    if (this.applyingTheme) {
+      return;
+    }
+    this.applyingTheme = true;
+    
+    try {
+      const realDark = await this.getRealSystemTheme();
+      this.systemDarkMode = realDark;
+      // 注意：getRealSystemTheme() 的第三步已经设了正确的 colorMode
+      // 不需要再额外调用 trySetColorMode
+      
+      if (this.isDarkMode !== realDark) {
+        this.isDarkMode = realDark;
+        this.applyTheme();
+      } else {
+        this.applyTheme();
+      }
+    } catch (error) {
+      console.error('[Theme]:onAppForeground 失败:', error);
+    }
+    
+    this.applyingTheme = false;
   }
   
   // 应用主题模式
