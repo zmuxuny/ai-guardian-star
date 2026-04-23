@@ -68,7 +68,9 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    hilog.info(DOMAIN, 'testTag', '%{s}', 'Ability onForeground');
+    // 切回前台时刷新跟随系统主题（比 onConfigurationUpdate 更可靠）
+    ThemeManager.getInstance().refreshFollowSystem();
   }
 
   onBackground(): void {
