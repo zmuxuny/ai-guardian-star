@@ -62,6 +62,7 @@ export class MqttManager {
   private mqttClient: MqttClient | null = null;
 
   @Track public isConnected: boolean = false;
+  @Track public deviceOnline: boolean = false; // 开发板是否在线（20秒超时）
   @Track public latestMessage: string = "正在启动...";
   @Track public isFallDetected: boolean = false;
   @Track public fallTimestamp: number = 0;
@@ -76,6 +77,9 @@ export class MqttManager {
   private readonly SEDENTARY_RECOVERY_DELAY: number = 3000;
   private lastRecordedFallTimestamp: number = 0;
   private lastRecordedSedentaryTimestamp: number = 0;
+  private lastDeviceActivity: number = 0;
+  private readonly DEVICE_TIMEOUT_MS: number = 20000; // 20秒无消息视为离线
+  private deviceCheckTimer: number = -1; // 用于定期检查设备在线状态
 
   private constructor() {
     this.initClient();
@@ -108,6 +112,8 @@ export class MqttManager {
       this.isConnected = false;
       console.error("[mqtt]:MQTT 连接丢失:", err, data);
       this.latestMessage = `连接已断开`;
+      this.deviceOnline = false;
+      this.stopDeviceCheck();
       this.clearFallRecoveryTimer();
       this.reconnect();
     });
@@ -149,6 +155,8 @@ export class MqttManager {
       try {
         await this.mqttClient.disconnect();
         this.isConnected = false;
+        this.deviceOnline = false;
+        this.stopDeviceCheck();
         this.latestMessage = "未连接";
         this.clearFallRecoveryTimer();
       } catch (error) {
@@ -178,6 +186,10 @@ export class MqttManager {
       const connectResult = await this.mqttClient.connect(connectOptions);
       if (connectResult.code !== 0) throw new Error(`连接失败，返回码: ${connectResult.code}`);
       this.isConnected = true;
+      // 连接成功后启动设备在线检查（先重置状态）
+      this.deviceOnline = false;
+      this.lastDeviceActivity = 0;
+      this.startDeviceCheck();
       const subscribeResult = await this.mqttClient.subscribe({ topic: topic, qos: 1 });
       if (subscribeResult.code !== 0) throw new Error(`订阅失败，返回码: ${subscribeResult.code}`);
       this.latestMessage = `已连接`;
@@ -195,6 +207,28 @@ export class MqttManager {
     if (this.fallRecoveryTimer !== -1) {
       clearTimeout(this.fallRecoveryTimer);
       this.fallRecoveryTimer = -1;
+    }
+  }
+
+  /** 启动设备在线检测定时器（每5秒检查一次） */
+  private startDeviceCheck(): void {
+    this.stopDeviceCheck();
+    this.deviceCheckTimer = setInterval(() => {
+      if (!this.isConnected) {
+        this.deviceOnline = false;
+        return;
+      }
+      // 如果在DEVICE_TIMEOUT_MS内收到过设备消息，视为在线
+      const elapsed = Date.now() - this.lastDeviceActivity;
+      this.deviceOnline = (elapsed < this.DEVICE_TIMEOUT_MS);
+    }, 5000) as number;
+  }
+
+  /** 停止设备在线检测定时器 */
+  private stopDeviceCheck(): void {
+    if (this.deviceCheckTimer !== -1) {
+      clearInterval(this.deviceCheckTimer);
+      this.deviceCheckTimer = -1;
     }
   }
   private startFallRecoveryTimer(): void {
@@ -257,6 +291,12 @@ export class MqttManager {
       }
     } else {
       messageContent = payload;
+    }
+
+    // 任何来自设备的消息都更新设备活动时间戳
+    // 过滤非设备消息（如系统级消息）
+    if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
+      this.lastDeviceActivity = Date.now();
     }
 
     try {

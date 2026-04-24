@@ -18,8 +18,9 @@ export function ProfileBuilder() {
 
 @Component
 export struct Profile {
-  pathStack: NavPathStack = new NavPathStack();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  pathStack: NavPathStack = new NavPathStack();
+  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
 
   // ── 表单状态 ──────────────────────────────────────────────
   @State nickname: string = '';
@@ -28,6 +29,7 @@ export struct Profile {
   @State originalAvatarPath: string = '';
   @State isLoading: boolean = false;
   @State isSaving: boolean = false;
+  @State hasChanged: boolean = false;    // 是否有未保存的改动
 
   // ── 动画状态 ──────────────────────────────────────────────
   @State avatarScale: number = 1.0;
@@ -56,9 +58,16 @@ export struct Profile {
           this.avatarPath = user.avatarPath ?? '';
           this.originalNickname = this.nickname;
           this.originalAvatarPath = this.avatarPath;
+          this.updateChangedState();
         }
       })
       .catch(() => { this.isLoading = false; });
+  }
+
+  /** 同步更新 hasChanged 状态 */
+  private updateChangedState(): void {
+    this.hasChanged = this.nickname.trim() !== this.originalNickname ||
+      this.avatarPath !== this.originalAvatarPath;
   }
 
   /** 校验昵称 */
@@ -114,7 +123,7 @@ export struct Profile {
       await fs.copyFile(sourceUri, destPath);
       // 触发 UI 刷新——先清空再赋值，强制 Image 组件重新加载
       this.avatarPath = '';
-      setTimeout(() => { this.avatarPath = destPath; }, 50);
+      setTimeout(() => { this.avatarPath = destPath; this.updateChangedState(); }, 50);
     } catch (e) {
       console.error('[Profile]: 复制头像失败', JSON.stringify(e));
       promptAction.showToast({ message: '处理图片失败，请重试' });
@@ -162,55 +171,17 @@ export struct Profile {
       this.isSaving = false;
       this.originalNickname = this.nickname.trim();
       this.originalAvatarPath = this.avatarPath;
-      promptAction.showToast({ message: '保存成功 ✓', duration: 1500 });
-      setTimeout(() => { this.pathStack.pop(); }, 800);
+      this.updateChangedState();
+      promptAction.showToast({ message: '保存好啦', duration: 1500 });
+      // 延迟 1 秒后自动返回上一页
+      setTimeout(() => {
+        this.pathStack.pop();
+      }, 1000);
     } catch (e) {
       this.isSaving = false;
       console.error('[Profile]: 保存失败', JSON.stringify(e));
       promptAction.showToast({ message: '保存失败，请重试' });
     }
-  }
-
-  /** 是否有未保存的改动 */
-  private get hasChanged(): boolean {
-    return this.nickname.trim() !== this.originalNickname ||
-      this.avatarPath !== this.originalAvatarPath;
-  }
-
-
-  // ── 自定义标题栏 ─────────────────────────────────────────
-  @Builder
-  TitleBar(): void {
-    Stack({ alignContent: Alignment.Center }) {
-      Text('个人资料')
-        .fontSize(17)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.themeManager.colors.primaryTextColor)
-
-      Row() {
-        Blank()
-        if (this.isSaving) {
-          LoadingProgress()
-            .width(20).height(20).color('#3b82f6')
-            .margin({ right: 16 })
-        } else {
-          Text('保存')
-            .fontSize(16)
-            .fontColor(this.hasChanged ? '#3b82f6' : this.themeManager.colors.tertiaryTextColor)
-            .fontWeight(FontWeight.Medium)
-            .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-            .enabled(this.hasChanged && !this.isSaving)
-            .onClick(() => {
-              this.saveBtnScale = 0.9;
-              setTimeout(() => { this.saveBtnScale = 1.0; }, 120);
-              this.saveProfile();
-            })
-            .scale({ x: this.saveBtnScale, y: this.saveBtnScale })
-            .animation({ duration: 120, curve: Curve.EaseInOut })
-        }
-      }.width('100%')
-    }
-    .width('100%').height(56)
   }
 
   // ── 头像区域 ──────────────────────────────────────────────
@@ -301,6 +272,7 @@ export struct Profile {
             .onChange((v: string) => {
               this.nickname = v;
               this.nicknameError = this.validateNickname();
+              this.updateChangedState();
             })
         }
         .width('100%')
@@ -350,60 +322,91 @@ export struct Profile {
 
 
   // ── 底部保存按钮 ──────────────────────────────────────────
+  // 已移入标题栏右侧，保留 saveProfile() 供保留，SaveButton Builder 已移除
+
+  // ── 自定义标题栏（仿 HealthHistory，含保存按钮） ───────────
+  // 使用 Stack + 全屏渐变背景 + expandSafeArea(TOP) 实现沉浸式状态栏
   @Builder
-  SaveButton(): void {
-    Button(this.isSaving ? '保存中...' : '保存修改')
-      .width('92%')
-      .height(52)
-      .fontSize(16)
-      .fontWeight(FontWeight.Medium)
-      .fontColor(Color.White)
-      .linearGradient({
-        direction: GradientDirection.Right,
-        colors: this.hasChanged && !this.isSaving
-          ? [['#1e40af', 0.0], ['#3b82f6', 1.0]]
-          : [['#94a3b8', 0.0], ['#94a3b8', 1.0]]
-      })
-      .borderRadius(100)
-      .enabled(this.hasChanged && !this.isSaving)
-      .scale({ x: this.saveBtnScale, y: this.saveBtnScale })
-      .animation({ duration: 120, curve: Curve.EaseInOut })
-      .onClick(() => {
-        this.saveBtnScale = 0.96;
-        setTimeout(() => { this.saveBtnScale = 1.0; }, 130);
-        this.saveProfile();
-      })
-      .shadow({
-        radius: this.hasChanged ? 16 : 0,
-        color: '#403b82f6',
-        offsetY: 4
-      })
+  GradientHeader(): void {
+    Stack({ alignContent: Alignment.Top }) {
+      // 层1：渐变背景（高度覆盖标题栏 + 头像区域，通过 expandSafeArea 延伸到状态栏）
+      Column()
+        .width("100%")
+        .height(this.topSafeHeight + 100)
+        .linearGradient({
+          direction: GradientDirection.Bottom,
+          colors: [
+            ["#1e40af", 0.0],
+            ["#3b82f6", 0.5],
+            ["#60a5fa", 1.0],
+          ],
+        })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        .borderRadius({ bottomLeft: "6%", bottomRight: "6%" })
+
+      // 层2：标题栏内容区
+      Row() {
+        Image($r("app.media.ic_chevron_right"))
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain)
+          .padding(8)
+          .backgroundColor("#33FFFFFF")
+          .borderRadius(100)
+          .rotate({ angle: 180 })
+          .onClick((): void => {
+            if (this.hasChanged) {
+              // 逻辑统一放 onBackPressed，这里直接 pop 触发回调
+              this.pathStack.pop();
+            } else {
+              this.pathStack.pop();
+            }
+          })
+        Text("个人资料")
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor("#ffffff")
+          .margin({ left: "5%" })
+          .layoutWeight(1)
+        Text("保存")
+          .fontSize(15)
+          .fontColor("#ffffff")
+          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+          .backgroundColor("#33FFFFFF")
+          .borderRadius(20)
+          .onClick((): void => {
+            if (!this.hasChanged) {
+              promptAction.showToast({ message: '你还没有进行修改' });
+            } else {
+              this.saveProfile();
+            }
+          })
+      }
+      .width("100%")
+      .padding({ left: "4%", right: "4%", top: this.topSafeHeight})
+    }
+    .width("100%")
+    // Stack 自身不需要 borderRadius —— 内层 Column 全宽，"外圆弧"由子层容器过渡或由下层 Column 控制
   }
 
   build() {
     NavDestination() {
-      Scroll() {
+      Column() {
+        this.GradientHeader()
+
+        // 内容区域：去掉 Scroll，改为静态 Column，不可滑动
         Column() {
-          // 头像区域：渐变背景卡片
-          Column() {
-            this.AvatarSection()
-          }
-          .width('100%')
-          .linearGradient({
-            direction: GradientDirection.Bottom,
-            colors: this.themeManager.isDarkMode
-              ? [['#0f1e3d', 0.0], ['#1a2744', 1.0]]
-              : [['#eff6ff', 0.0], ['#dbeafe', 1.0]]
-          })
+          // 头像区域
+          this.AvatarSection()
 
           // 表单区域
           Column() {
-            // 小标题
+            // 小标题（顶部间距调小，使整体内容上移，避免与渐变背景底部产生大段空白）
             Text('基本信息')
               .fontSize(12)
               .fontColor(this.themeManager.colors.secondaryTextColor)
               .alignSelf(ItemAlign.Start)
-              .margin({ left: '4%', bottom: 10, top: 24 })
+              .margin({ left: '4%', bottom: 10, top: 8 })
 
             this.FormSection()
 
@@ -415,8 +418,6 @@ export struct Profile {
               .textAlign(TextAlign.Start)
               .margin({ top: 8, bottom: 32 })
 
-            this.SaveButton()
-
             // 底部留白
             Column().height(40)
           }
@@ -424,16 +425,37 @@ export struct Profile {
           .alignItems(HorizontalAlign.Center)
         }
         .width('100%')
+        .layoutWeight(1)
+        .backgroundColor(this.themeManager.colors.backgroundColor)
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       }
       .width('100%')
       .height('100%')
-      .backgroundColor(this.themeManager.colors.backgroundColor)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
-    .title(this.TitleBar)
+    .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
+    .onBackPressed(() => {
+      if (this.hasChanged) {
+        AlertDialog.show({
+          title: '提示',
+          message: '有未保存的修改，是否保存？',
+          primaryButton: {
+            value: '不保存',
+            action: () => {
+              this.pathStack.pop();
+            }
+          },
+          secondaryButton: {
+            value: '保存',
+            action: () => { this.saveProfile(); }
+          },
+          cancel: () => {},
+          alignment: DialogAlignment.Center,
+        });
+        return true; // 拦截系统返回
+      }
+      return false; // 放行系统返回
+    })
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     })

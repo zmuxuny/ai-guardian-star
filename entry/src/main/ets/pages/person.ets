@@ -32,9 +32,9 @@ export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State userName: string = "超级管理员";
-  @State userNickname: string = "";  // 用户昵称，优先显示
+  @StorageProp('loggedInNickname') userNickname: string = "超级管理员";
   @State userPhone: string = "";     // 用户手机号（加密后，副标题用）
-  @State userAvatarPath: string = ""; // 头像沙箱路径，空则用默认图标
+  @StorageProp('loggedInAvatarPath') userAvatarPath: string = "";
   @State userId: string = "ID: 69175890";
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
@@ -175,8 +175,11 @@ export struct person {
           this.userNickname = (user.nickname && user.nickname.trim() !== "")
             ? user.nickname
             : (storedNick && storedNick !== user.username ? storedNick : user.username);
+          // 同步写回 AppStorage，确保 @StorageProp 感知变化
+          AppStorage.setOrCreate<string>('loggedInNickname', this.userNickname);
           // 头像路径
           this.userAvatarPath = user.avatarPath ?? "";
+          AppStorage.setOrCreate<string>('loggedInAvatarPath', this.userAvatarPath);
           // 加密手机号作为副标题
           if (user.phone && user.phone.trim() !== "") {
             this.userPhone = this.encryptPhone(user.phone);
@@ -733,15 +736,6 @@ export struct person {
     .edgeEffect(EdgeEffect.Spring)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onAppear(() => {
-      // 从子页面（Profile）返回时重新加载，确保头像和昵称已同步
-      const latestNick = AppStorage.get<string>('loggedInNickname') ?? '';
-      const latestAvatar = AppStorage.get<string>('loggedInAvatarPath') ?? '';
-      if (latestNick !== '' && latestNick !== this.userNickname) {
-        this.userNickname = latestNick;
-      }
-      if (latestAvatar !== this.userAvatarPath) {
-        this.userAvatarPath = latestAvatar;
-      }
     });
   }
 }

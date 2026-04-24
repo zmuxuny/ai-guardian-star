@@ -79,47 +79,57 @@ struct HealthHistory {
 
   @Builder
   GradientHeader(): void {
-    Row() {
-      Image($r("app.media.ic_chevron_right"))
-        .width(36)
-        .height(36)
-        .objectFit(ImageFit.Contain)
-        .padding(8)
-        .backgroundColor("#33FFFFFF")
-        .borderRadius(100)
-        .rotate({ angle: 180 })
-        // 向右箭头旋转180°当作返回箭头
-        .onClick((): void => {
-          this.pathStack.pop();
+    Stack({ alignContent: Alignment.Top }) {
+      // 层1：渐变背景（固定高度 = 标题栏区，通过 expandSafeArea 延伸到状态栏，同 Profile 写法）
+      Column()
+        .width("100%")
+        .height(this.topSafeHeight + 100)
+        .linearGradient({
+          direction: GradientDirection.Bottom,
+          colors: [
+            ["#1e40af", 0.0],
+            ["#3b82f6", 0.5],
+            ["#60a5fa", 1.0],
+          ],
         })
-      Text("历史记录")
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor("#ffffff")
-        .margin({ left: "3%" })
-      Blank()
-      // 导出按钮
-      Text("导出")
-        .fontSize(15)
-        .fontColor("#ffffff")
-        .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-        .backgroundColor("#33FFFFFF")
-        .borderRadius(20)
-        .onClick((): void => {
-          this.exportRecords();
-        })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        .borderRadius({ bottomLeft: "6%", bottomRight: "6%" })
+
+      // 层2：标题栏内容区
+      Row() {
+        Image($r("app.media.ic_chevron_right"))
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain)
+          .padding(8)
+          .backgroundColor("#33FFFFFF")
+          .borderRadius(100)
+          .rotate({ angle: 180 })
+          // 向右箭头旋转180°当作返回箭头
+          .onClick((): void => {
+            this.pathStack.pop();
+          })
+        Text("历史记录")
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor("#ffffff")
+          .margin({ left: "5%" })
+        Blank()
+        // 导出按钮
+        Text("导出")
+          .fontSize(15)
+          .fontColor("#ffffff")
+          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+          .backgroundColor("#33FFFFFF")
+          .borderRadius(20)
+          .onClick((): void => {
+            this.exportRecords();
+          })
+      }
+      .width("100%")
+      .padding({ left: "4%", right: "4%", top: this.topSafeHeight})
     }
     .width("100%")
-    .padding({ left: "4%", right: "4%", top: this.topSafeHeight + 12, bottom: 24 })
-    .linearGradient({
-      direction: GradientDirection.Bottom,
-      colors: [
-        ["#1e40af", 0.0],
-        ["#3b82f6", 0.5],
-        ["#60a5fa", 1.0],
-      ],
-    })
-    .borderRadius({ bottomLeft: "6%", bottomRight: "6%" });
   }
 
   @Builder

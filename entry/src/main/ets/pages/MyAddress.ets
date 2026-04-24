@@ -9,33 +9,57 @@ export function MyAddressBuilder() {
 export struct MyAddress {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   pathStack: NavPathStack = new NavPathStack();
+  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
 
+  // ── 自定义标题栏（沉浸式渐变，同 Profile 写法） ─────────────
   @Builder
-  // TitleBar(): void {
-  //   Stack({ alignContent: Alignment.Center }) {
-  //     Row() {
-  //     Text('我的地址')
-  //       .fontSize(18).fontWeight(FontWeight.Bold)
-  //       .fontColor(this.themeManager.colors.primaryTextColor)
-  //       //.textAlign(TextAlign.Center)
-  //       .margin({left:10})
-  //     //Blank()
-  //
-  //
-  //       Text('添加')
-  //         .fontSize(16).fontColor('#2563eb')
-  //         //.padding({ left: 16, right: 16, top: 10, bottom: 10 })
-  //         .margin({right:0})
-  //         .onClick(() => { console.log('添加新地址') })
-  //     }
-  //     .width('100%')
-  //   }
-  //   .width('100%').height(56)
-  // }
+  GradientHeader(): void {
+    Stack({ alignContent: Alignment.Top }) {
+      // 层1：渐变背景（固定高度 = 标题栏区，通过 expandSafeArea 延伸到状态栏）
+      Column()
+        .width("100%")
+        .height(this.topSafeHeight + 100)
+        .linearGradient({
+          direction: GradientDirection.Bottom,
+          colors: [
+            ["#1e40af", 0.0],
+            ["#3b82f6", 0.5],
+            ["#60a5fa", 1.0],
+          ],
+        })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+        .borderRadius({ bottomLeft: "6%", bottomRight: "6%" })
+
+      // 层2：标题栏内容区
+      Row() {
+        Image($r("app.media.ic_chevron_right"))
+          .width(36)
+          .height(36)
+          .objectFit(ImageFit.Contain)
+          .padding(8)
+          .backgroundColor("#33FFFFFF")
+          .borderRadius(100)
+          .rotate({ angle: 180 })
+          .onClick((): void => {
+            this.pathStack.pop();
+          })
+        Text("我的地址")
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor("#ffffff")
+          .margin({ left: "5%" })
+      }
+      .width("100%")
+      .padding({ left: "4%", right: "4%", top: this.topSafeHeight})
+    }
+    .width("100%")
+  }
 
   build() {
     NavDestination() {
       Column() {
+        this.GradientHeader()
+
         // 地址列表
         Column() {
           // 默认地址
@@ -106,6 +130,7 @@ export struct MyAddress {
           .shadow({ radius: 6, color: '#0000000A', offsetY: 2 })
         }
         .width('100%').padding({ left: 16, right: 16, top: 20 })
+        .layoutWeight(1)
 
         Blank()
       }
@@ -113,7 +138,7 @@ export struct MyAddress {
       .backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
-    //.title(this.TitleBar)
+    .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;

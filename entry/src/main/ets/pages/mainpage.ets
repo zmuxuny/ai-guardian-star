@@ -18,7 +18,7 @@ export struct mainPage {
   @State volumeLevel: number = 50;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @State isConnected: boolean = false;
+  @State deviceOnline: boolean = false;
   @State latestMessage: string = '正在初始化...';
   @State isFallDetected: boolean = false;
   @State isSedentaryDetected: boolean = false;
@@ -47,10 +47,14 @@ export struct mainPage {
   }
   private syncState(): void {
     if (this.mqttManager) {
-      this.isConnected = this.mqttManager.isConnected;
+      this.deviceOnline = this.mqttManager.deviceOnline;
       this.latestMessage = this.mqttManager.latestMessage;
       this.isFallDetected = this.mqttManager.isFallDetected;
       this.isSedentaryDetected = this.mqttManager.isSedentaryDetected;
+      // 设备离线时覆盖显示状态
+      if (!this.deviceOnline) {
+        this.latestMessage = '设备离线';
+      }
     }
   }
 
@@ -101,7 +105,7 @@ export struct mainPage {
   @Builder
   VideoArea(): void {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      if (this.isConnected) {
+      if (this.deviceOnline) {
         Web({ src: this.videoUrl, controller: this.webController })
           .width('100%').aspectRatio(16 / 9).borderRadius('4%')
       } else {
@@ -118,7 +122,7 @@ export struct mainPage {
         })
         .borderRadius('4%')
       }
-      if (!this.isConnected) {
+      if (!this.deviceOnline) {
         Row() {
           Image($r('app.media.ic_alert_white')).width(14).height(14).objectFit(ImageFit.Contain)
           Text('设备离线').fontSize(11).fontColor('#ffffff').margin({ left: 4 })
@@ -145,22 +149,22 @@ export struct mainPage {
       Row() {
         Column() {
           Text('设备状态').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-          Text(this.isConnected ? '在线' : '离线').fontSize(20).fontWeight(FontWeight.Bold)
-            .fontColor(this.isConnected ? '#10b981' : '#ef4444').margin({ top: '2%' })
+          Text(this.deviceOnline ? '在线' : '离线').fontSize(20).fontWeight(FontWeight.Bold)
+            .fontColor(this.deviceOnline ? '#10b981' : '#ef4444').margin({ top: '2%' })
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Image(this.isConnected ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
+        Image(this.deviceOnline ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.isConnected ? (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5') : (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2'))
+          .backgroundColor(this.deviceOnline ? (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5') : (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2'))
           .borderRadius(10)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '3%' }).borderRadius('4%')
-      .backgroundColor(this.isConnected
+      .backgroundColor(this.deviceOnline
         ? (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
         : (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5'))
       .border({
         width: 1,
-        color: this.isConnected
+        color: this.deviceOnline
           ? (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
           : (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
       })
@@ -168,43 +172,87 @@ export struct mainPage {
 
       // 监测状态卡（随检测状态变色，与设备状态卡保持一致的样式语言）
       Row() {
-        Image(this.isFallDetected
-          ? $r('app.media.ic_alert_red')
-          : this.isSedentaryDetected
-            ? $r('app.media.ic_shield_blue')
-            : $r('app.media.ic_shield_green'))
+        Image(
+          !this.deviceOnline
+            ? $r('app.media.ic_link_off_red')
+            : this.isFallDetected
+              ? $r('app.media.ic_alert_red')
+              : this.isSedentaryDetected
+                ? $r('app.media.ic_shield_blue')
+                : $r('app.media.ic_shield_green')
+        )
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.isFallDetected
-            ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
-            : this.isSedentaryDetected
-              ? (this.themeManager.isDarkMode ? '#3d2000' : '#fffbeb')
-              : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5'))
+          .backgroundColor(
+            !this.deviceOnline
+              ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
+              : this.isFallDetected
+                ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
+                : this.isSedentaryDetected
+                  ? (this.themeManager.isDarkMode ? '#3d2000' : '#fffbeb')
+                  : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5')
+          )
           .borderRadius(10)
         Column() {
-          Text(this.isFallDetected ? '检测到跌倒！' : this.isSedentaryDetected ? '检测到久坐' : '正常监测')
+          Text(
+            !this.deviceOnline
+              ? '检测已暂停'
+              : this.isFallDetected
+                ? '检测到跌倒！'
+                : this.isSedentaryDetected
+                  ? '检测到久坐'
+                  : '正常监测'
+          )
             .fontSize(16).fontWeight(FontWeight.Bold)
-            .fontColor(this.isFallDetected ? '#ef4444' : this.isSedentaryDetected ? '#f59e0b' : '#10b981')
-          Text(this.latestMessage).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+            .fontColor(
+              !this.deviceOnline
+                ? '#94a3b8'
+                : this.isFallDetected
+                  ? '#ef4444'
+                  : this.isSedentaryDetected
+                    ? '#f59e0b'
+                    : '#10b981'
+            )
+          Text(this.latestMessage).fontSize(12)
+            .fontColor(
+              !this.deviceOnline
+                ? this.themeManager.colors.tertiaryTextColor
+                : this.themeManager.colors.secondaryTextColor
+            )
             .margin({ top: '2%' }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
         Circle({ width: 10, height: 10 })
-          .fill(this.isFallDetected ? '#ef4444' : this.isSedentaryDetected ? '#f59e0b' : '#10b981')
+          .fill(
+            !this.deviceOnline
+              ? '#94a3b8'
+              : this.isFallDetected
+                ? '#ef4444'
+                : this.isSedentaryDetected
+                  ? '#f59e0b'
+                  : '#10b981'
+          )
           .aspectRatio(1)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(this.isFallDetected
-        ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
-        : this.isSedentaryDetected
-          ? (this.themeManager.isDarkMode ? '#2d1a00' : '#fffbeb')
-          : this.themeManager.colors.cardBackgroundColor)
+      .backgroundColor(
+        !this.deviceOnline
+          ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
+          : this.isFallDetected
+            ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
+            : this.isSedentaryDetected
+              ? (this.themeManager.isDarkMode ? '#2d1a00' : '#fffbeb')
+              : (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
+      )
       .border({
         width: 1,
-        color: this.isFallDetected
-          ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
-          : this.isSedentaryDetected
-            ? (this.themeManager.isDarkMode ? '#7c3900' : '#fde68a')
-            : 'transparent'
+        color:
+          !this.deviceOnline
+            ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+            : this.isFallDetected
+              ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+              : this.isSedentaryDetected
+                ? (this.themeManager.isDarkMode ? '#7c3900' : '#fde68a')
+                : (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
       })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
