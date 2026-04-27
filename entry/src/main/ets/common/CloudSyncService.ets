@@ -80,16 +80,21 @@ export class CloudSyncService {
         if (localUser) {
           // 本地已有：更新本地数据（云端优先）
           console.info('[CloudSyncService]: 更新本地用户数据', username);
-          await this.db.updateUser({
-            username: cloudUser.username,
-            nickname: cloudUser.nickname,
-            phone: cloudUser.phone,
-            passwordHash: cloudUser.passwordHash,
-            avatarPath: cloudUser.avatarPath,
-            email: cloudUser.email,
-            address: cloudUser.address,
-            createTime: cloudUser.createTime,
-          });
+          if (localUser.id === undefined) {
+            console.error('[CloudSyncService]: 本地用户无 id，无法更新');
+          } else {
+            await this.db.updateUser({
+              id: localUser.id,
+              username: cloudUser.username,
+              nickname: cloudUser.nickname,
+              phone: cloudUser.phone,
+              passwordHash: cloudUser.passwordHash,
+              avatarPath: cloudUser.avatarPath,
+              email: cloudUser.email,
+              address: cloudUser.address,
+              createTime: cloudUser.createTime,
+            });
+          }
         } else {
           // 本地没有：插入新用户
           console.info('[CloudSyncService]: 插入新用户到本地', username);

@@ -6,6 +6,7 @@ import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
+import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
 import { common, abilityAccessCtrl } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
@@ -153,8 +154,7 @@ export struct Profile {
       // 同步更新 Preferences，重启后 Index 能恢复最新昵称
       try {
         const ctx = getContext(this) as common.UIAbilityContext;
-        const pref = (await import('@kit.ArkData')).preferences
-          .getPreferencesSync(ctx, { name: 'guardian_auth' });
+        const pref = preferences.getPreferencesSync(ctx, { name: 'guardian_auth' });
         pref.putSync('lastNickname', this.nickname.trim());
         pref.flush();
       } catch (_) {}

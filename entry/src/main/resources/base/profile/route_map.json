@@ -33,51 +33,11 @@
       }
     },
     {
-      "name": "QRCodeCard",
-      "pageSourceFile": "src/main/ets/pages/QRCodeCard.ets",
-      "buildFunction": "QRCodeCardBuilder",
-      "data": {
-        "description": "this is QRCodeCard"
-      }
-    },
-    {
-      "name": "MoreInfo",
-      "pageSourceFile": "src/main/ets/pages/MoreInfo.ets",
-      "buildFunction": "MoreInfoBuilder",
-      "data": {
-        "description": "this is MoreInfo"
-      }
-    },
-    {
       "name": "MyAddress",
       "pageSourceFile": "src/main/ets/pages/MyAddress.ets",
       "buildFunction": "MyAddressBuilder",
       "data": {
         "description": "this is MyAddress"
-      }
-    },
-    {
-      "name": "InvoiceInfo",
-      "pageSourceFile": "src/main/ets/pages/InvoiceInfo.ets",
-      "buildFunction": "InvoiceInfoBuilder",
-      "data": {
-        "description": "this is InvoiceInfo"
-      }
-    },
-    {
-      "name": "LoginCode",
-      "pageSourceFile": "src/main/ets/pages/LoginCode.ets",
-      "buildFunction": "LoginCodeBuilder",
-      "data": {
-        "description": "this is LoginCode"
-      }
-    },
-    {
-      "name": "LoginProblem",
-      "pageSourceFile": "src/main/ets/pages/LoginProblem.ets",
-      "buildFunction": "LoginProblemBuilder",
-      "data": {
-        "description": "this is LoginProblem"
       }
     },
     {
