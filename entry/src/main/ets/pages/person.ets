@@ -31,11 +31,10 @@ export function personBuilder(): void {
 export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
-  @State userName: string = "超级管理员";
-  @StorageProp('loggedInNickname') userNickname: string = "超级管理员";
+  @State userName: string = "";
+  @StorageProp('loggedInNickname') userNickname: string = "";
   @State userPhone: string = "";     // 用户手机号（加密后，副标题用）
   @StorageProp('loggedInAvatarPath') userAvatarPath: string = "";
-  @State userId: string = "ID: 69175890";
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
   @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
@@ -170,11 +169,16 @@ export struct person {
       .then((user: UserInfo | null) => {
         if (user) {
           this.userName = user.username;
-          // 昵称：优先用数据库里的 nickname，没有则回退到 AppStorage，再回退到 username
-          const storedNick = AppStorage.get<string>("loggedInNickname");
-          this.userNickname = (user.nickname && user.nickname.trim() !== "")
-            ? user.nickname
-            : (storedNick && storedNick !== user.username ? storedNick : user.username);
+          // 显示名优先级：真实昵称 → 脱敏手机号 → 邮箱 → 用户名
+          if (user.nickname && user.nickname.trim() !== "") {
+            this.userNickname = user.nickname.trim();
+          } else if (user.phone && user.phone.trim() !== "") {
+            this.userNickname = this.encryptPhone(user.phone);
+          } else if (user.email && user.email.trim() !== "") {
+            this.userNickname = user.email;
+          } else {
+            this.userNickname = user.username;
+          }
           // 同步写回 AppStorage，确保 @StorageProp 感知变化
           AppStorage.setOrCreate<string>('loggedInNickname', this.userNickname);
           // 头像路径
@@ -248,7 +252,7 @@ export struct person {
         .fontWeight(FontWeight.Bold)
         .fontColor("#ffffff")
         .margin({ top: "4%" })
-      if (this.userPhone) {
+      if (this.userPhone && this.userNickname !== this.userPhone) {
         Text(`📱 ${this.userPhone}`)
           .fontSize(13)
           .fontColor("#CCFFFFFF")
@@ -256,7 +260,7 @@ export struct person {
       }
     }
     .width("100%")
-    .padding({ top: this.topSafeHeight + 24, bottom: 20 })
+    .padding({ top: this.topSafeHeight + 8, bottom: 44 })
     .linearGradient({
       direction: GradientDirection.Bottom,
       colors: [

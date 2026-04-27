@@ -70,11 +70,15 @@ export class MqttManager {
   @Track public isSedentaryDetected: boolean = false;
   @Track public sedentaryTimestamp: number = 0;
   @Track public sedentaryRecords: SedentaryRecord[] = [];
+  @Track public isStrangerDetected: boolean = false;
+  @Track public strangerTimestamp: number = 0;
 
   private fallRecoveryTimer: number = -1;
   private sedentaryRecoveryTimer: number = -1;
+  private strangerRecoveryTimer: number = -1;
   private readonly FALL_RECOVERY_DELAY: number = 3000;
   private readonly SEDENTARY_RECOVERY_DELAY: number = 3000;
+  private readonly STRANGER_RECOVERY_DELAY: number = 5000;
   private lastRecordedFallTimestamp: number = 0;
   private lastRecordedSedentaryTimestamp: number = 0;
   private lastDeviceActivity: number = 0;
@@ -265,6 +269,25 @@ export class MqttManager {
     this.sedentaryTimestamp = 0;
     this.clearSedentaryRecoveryTimer();
   }
+  private clearStrangerRecoveryTimer(): void {
+    if (this.strangerRecoveryTimer !== -1) {
+      clearTimeout(this.strangerRecoveryTimer);
+      this.strangerRecoveryTimer = -1;
+    }
+  }
+  private startStrangerRecoveryTimer(): void {
+    this.clearStrangerRecoveryTimer();
+    this.strangerRecoveryTimer = setTimeout(() => {
+      this.isStrangerDetected = false;
+      this.strangerTimestamp = 0;
+      this.strangerRecoveryTimer = -1;
+    }, this.STRANGER_RECOVERY_DELAY) as number;
+  }
+  private clearStrangerState(): void {
+    this.isStrangerDetected = false;
+    this.strangerTimestamp = 0;
+    this.clearStrangerRecoveryTimer();
+  }
 
   private padZero(num: number): string {
     return num < 10 ? `0${num}` : `${num}`;
@@ -308,15 +331,18 @@ export class MqttManager {
       const hasSedentaryKeyword =
         rawEvent.includes("sedentary") ||
         rawEvent.includes("久坐") ||
-        rawEvent.includes("sitting_long");
+        rawEvent.includes("sitting_long") ||
+        rawEvent.includes("sit");
       const hasNormalKeyword =
         rawEvent.includes("no fall") ||
         rawEvent.includes("normal") ||
         rawEvent.includes("stand") ||
         rawEvent.includes("walk");
+      const hasStrangerKeyword = rawEvent.includes("stranger");
       const isFall: boolean =
         !isEmpty && hasFallKeyword && !hasNormalKeyword && !hasSedentaryKeyword;
       const isSedentary: boolean = !isEmpty && hasSedentaryKeyword && !hasNormalKeyword;
+      const isStranger: boolean = !isEmpty && hasStrangerKeyword;
 
       if (isFall) {
         const currentTimestamp = Date.now();
@@ -346,9 +372,15 @@ export class MqttManager {
         this.clearFallState();
         this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
+      } else if (isStranger) {
+        this.isStrangerDetected = true;
+        this.strangerTimestamp = Date.now();
+        this.latestMessage = `检测到陌生人`;
+        this.startStrangerRecoveryTimer();
       } else {
         this.clearFallState();
         this.clearSedentaryState();
+        this.clearStrangerState();
         this.latestMessage = `正常监测中`;
       }
     } catch (e) {
@@ -361,6 +393,7 @@ export class MqttManager {
       const isSedentary =
         (lower.includes("sedentary") || messageContent.includes("久坐")) &&
         !lower.includes("normal");
+      const isStranger = lower.includes("stranger");
       if (isFall) {
         const ts = Date.now();
         if (ts - this.lastRecordedFallTimestamp > 2000 || this.lastRecordedFallTimestamp === 0) {
@@ -386,9 +419,15 @@ export class MqttManager {
         this.clearFallState();
         this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
+      } else if (isStranger) {
+        this.isStrangerDetected = true;
+        this.strangerTimestamp = Date.now();
+        this.latestMessage = `检测到陌生人`;
+        this.startStrangerRecoveryTimer();
       } else {
         this.clearFallState();
         this.clearSedentaryState();
+        this.clearStrangerState();
         this.latestMessage = `正常监测中`;
       }
     }
@@ -482,9 +521,12 @@ export class MqttManager {
     this.fallTimestamp = 0;
     this.isSedentaryDetected = false;
     this.sedentaryTimestamp = 0;
+    this.isStrangerDetected = false;
+    this.strangerTimestamp = 0;
     this.latestMessage = "正常监测中";
     this.clearFallRecoveryTimer();
     this.clearSedentaryRecoveryTimer();
+    this.clearStrangerRecoveryTimer();
   }
 
   public getCacheStats(): CacheStats {

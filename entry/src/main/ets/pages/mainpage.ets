@@ -5,6 +5,7 @@ import display from '@ohos.display';
 import { AudioTransferManager } from '../common/AudioTransferManager';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { common } from '@kit.AbilityKit';
+import http from '@ohos.net.http';
 
 @Entry
 @Component
@@ -22,6 +23,7 @@ export struct mainPage {
   @State latestMessage: string = '正在初始化...';
   @State isFallDetected: boolean = false;
   @State isSedentaryDetected: boolean = false;
+  @State isStrangerDetected: boolean = false;
   @State isTalking: boolean = false;
   // LIVE 绿点动画状态
   @State dotScale: number = 1.0;
@@ -33,6 +35,8 @@ export struct mainPage {
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
   private updateTimer: number = -1;
+  private healthCheckTimer: number = -1;
+  private readonly healthCheckUrl: string = 'http://117.78.9.144:6001/api/stats';
   private webController: webview.WebviewController = new webview.WebviewController();
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
   private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -41,19 +45,38 @@ export struct mainPage {
     this.mqttManager.connectAndSubscribe();
     this.syncState();
     this.updateTimer = setInterval(() => { this.syncState(); }, 100);
+    this.runHealthCheck();
+    this.healthCheckTimer = setInterval(() => { this.runHealthCheck(); }, 5000) as number;
   }
   aboutToDisappear(): void {
     if (this.updateTimer !== -1) { clearInterval(this.updateTimer); this.updateTimer = -1; }
+    if (this.healthCheckTimer !== -1) { clearInterval(this.healthCheckTimer); this.healthCheckTimer = -1; }
+  }
+  private runHealthCheck(): void {
+    const req = http.createHttp();
+    req.request(this.healthCheckUrl, {
+      method: http.RequestMethod.GET,
+      connectTimeout: 4000,
+      readTimeout: 4000,
+    }).then((resp) => {
+      this.deviceOnline = resp.responseCode === 200;
+      req.destroy();
+    }).catch(() => {
+      this.deviceOnline = false;
+      req.destroy();
+    });
   }
   private syncState(): void {
     if (this.mqttManager) {
-      this.deviceOnline = this.mqttManager.deviceOnline;
       this.latestMessage = this.mqttManager.latestMessage;
       this.isFallDetected = this.mqttManager.isFallDetected;
       this.isSedentaryDetected = this.mqttManager.isSedentaryDetected;
-      // 设备离线时覆盖显示状态
+      this.isStrangerDetected = this.mqttManager.isStrangerDetected;
       if (!this.deviceOnline) {
         this.latestMessage = '设备离线';
+        this.isFallDetected = false;
+        this.isSedentaryDetected = false;
+        this.isStrangerDetected = false;
       }
     }
   }
@@ -107,14 +130,14 @@ export struct mainPage {
     Stack({ alignContent: Alignment.BottomEnd }) {
       if (this.deviceOnline) {
         Web({ src: this.videoUrl, controller: this.webController })
-          .width('100%').aspectRatio(16 / 9).borderRadius('4%')
+          .width('100%').aspectRatio(4 / 3).borderRadius('4%')
       } else {
         Column() {
           Image($r('app.media.ic_camera_off')).width('13%').aspectRatio(1).objectFit(ImageFit.Contain)
             .opacity(0.5)
           Text('摄像头未连接').fontSize(14).fontColor('#64748b').margin({ top: '3%' })
         }
-        .width('100%').aspectRatio(16 / 9).justifyContent(FlexAlign.Center)
+        .width('100%').aspectRatio(4 / 3).justifyContent(FlexAlign.Center)
         .backgroundColor(this.themeManager.isDarkMode ? '#1a2744' : '#1e293b')
         .border({
           width: 1,
@@ -139,7 +162,7 @@ export struct mainPage {
       color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
     })
     .borderRadius('4%')
-    .margin({ top: '-4%' })
+    .margin({ top: '4%' })
   }
 
   @Builder
@@ -256,6 +279,73 @@ export struct mainPage {
       })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
+      // 人脸识别卡
+      Row() {
+        Image(
+          !this.deviceOnline
+            ? $r('app.media.ic_link_off_red')
+            : this.isStrangerDetected
+              ? $r('app.media.ic_alert_red')
+              : $r('app.media.ic_shield_green')
+        )
+          .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
+          .backgroundColor(
+            !this.deviceOnline
+              ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
+              : this.isStrangerDetected
+                ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
+                : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5')
+          )
+          .borderRadius(10)
+        Column() {
+          Text(
+            !this.deviceOnline
+              ? '识别已暂停'
+              : this.isStrangerDetected
+                ? '检测到陌生人！'
+                : '人脸识别安全'
+          )
+            .fontSize(16).fontWeight(FontWeight.Bold)
+            .fontColor(
+              !this.deviceOnline
+                ? '#94a3b8'
+                : this.isStrangerDetected
+                  ? '#ef4444'
+                  : '#10b981'
+            )
+          Text('人脸识别').fontSize(12)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+            .margin({ top: '2%' })
+        }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
+        Circle({ width: 10, height: 10 })
+          .fill(
+            !this.deviceOnline
+              ? '#94a3b8'
+              : this.isStrangerDetected
+                ? '#ef4444'
+                : '#10b981'
+          )
+          .aspectRatio(1)
+      }
+      .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
+      .margin({ top: '5%' }).borderRadius('4%')
+      .backgroundColor(
+        !this.deviceOnline
+          ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
+          : this.isStrangerDetected
+            ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
+            : (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
+      )
+      .border({
+        width: 1,
+        color: !this.deviceOnline
+          ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+          : this.isStrangerDetected
+            ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+            : (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
+      })
+      .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
+
       // 音量卡
       Column() {
         Row() {
@@ -281,15 +371,18 @@ export struct mainPage {
 
   build() {
     Column() {
-      Column() {
+      this.GradientHeader()
+      Scroll() {
         Column() {
-          this.GradientHeader()
           Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
           Column() { this.StatusCards() }.width('100%').alignItems(HorizontalAlign.Center)
-          Blank().height('14%')
+          Blank().height(24)
         }.width('100%')
       }
       .layoutWeight(1)
+      .width('100%')
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
 
       Button() {
         Row() {
