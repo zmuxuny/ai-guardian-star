@@ -33,7 +33,6 @@ export struct person {
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State userName: string = "";
   @StorageProp('loggedInNickname') userNickname: string = "";
-  @State userPhone: string = "";     // 用户手机号（加密后，副标题用）
   @StorageProp('loggedInAvatarPath') userAvatarPath: string = "";
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
@@ -184,12 +183,6 @@ export struct person {
           // 头像路径
           this.userAvatarPath = user.avatarPath ?? "";
           AppStorage.setOrCreate<string>('loggedInAvatarPath', this.userAvatarPath);
-          // 加密手机号作为副标题
-          if (user.phone && user.phone.trim() !== "") {
-            this.userPhone = this.encryptPhone(user.phone);
-          } else {
-            this.userPhone = "";
-          }
           const msPerDay = 24 * 60 * 60 * 1000;
           this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
           console.log(
@@ -252,12 +245,6 @@ export struct person {
         .fontWeight(FontWeight.Bold)
         .fontColor("#ffffff")
         .margin({ top: "4%" })
-      if (this.userPhone && this.userNickname !== this.userPhone) {
-        Text(`📱 ${this.userPhone}`)
-          .fontSize(13)
-          .fontColor("#CCFFFFFF")
-          .margin({ top: "2%" })
-      }
     }
     .width("100%")
     .padding({ top: this.topSafeHeight + 8, bottom: 44 })

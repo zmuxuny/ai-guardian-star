@@ -683,7 +683,7 @@ struct Login {
             const cu = cloudResult.user;
             await db.insertUser({
               username: cu.username, nickname: cu.nickname,
-              phone: cu.phone, passwordHash: cu.passwordHash,
+              phone: cu.phone, passwordHash: cu.passwordHash || pwd,
               avatarPath: cu.avatarPath, email: cu.email,
               address: cu.address, createTime: cu.createTime,
             });
