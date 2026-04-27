@@ -113,4 +113,19 @@ export class CloudService {
   async updateUser(fields: CloudUpdateFields): Promise<CloudResult> {
     return postJson('/api/updateUser', JSON.stringify(fields));
   }
+
+  /** 发送验证码到手机或邮箱 */
+  async sendVerificationCode(target: string, type: string, username: string): Promise<CloudResult> {
+    return postJson('/api/sendCode', JSON.stringify({ target, type, username }));
+  }
+
+  /** 验证验证码 */
+  async verifyCode(target: string, code: string, username: string): Promise<CloudResult> {
+    return postJson('/api/verifyCode', JSON.stringify({ target, code, username }));
+  }
+
+  /** 修改密码 */
+  async changePassword(username: string, oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {
+    return postJson('/api/changePassword', JSON.stringify({ username, oldPasswordHash, newPasswordHash }));
+  }
 }
