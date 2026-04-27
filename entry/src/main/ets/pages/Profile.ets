@@ -417,7 +417,8 @@ export struct Profile {
   // ── 数据加载 ──────────────────────────────────────────────
   private loadProfile(): void {
     this.isLoading = true;
-    DatabaseHelper.getInstance().queryUserByUsername(this.currentUser)
+    const db = DatabaseHelper.getInstance();
+    db.queryUserByUsername(this.currentUser)
       .then((user: UserInfo | null) => {
         this.isLoading = false;
         if (user) {
@@ -427,6 +428,21 @@ export struct Profile {
           this.avatarPath = user.avatarPath ?? '';
           this.phone = user.phone ?? '';
           this.email = user.email ?? '';
+
+          // 账号本身就是手机号/邮箱时，若对应字段为空则自动回填
+          const isPhoneUser = /^1[3-9]\d{9}$/.test(user.username);
+          const isEmailUser = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.username);
+          if (!this.phone && isPhoneUser) {
+            this.phone = user.username;
+            user.phone = user.username;
+            db.updateUser(user).catch(() => {});
+          }
+          if (!this.email && isEmailUser) {
+            this.email = user.username;
+            user.email = user.username;
+            db.updateUser(user).catch(() => {});
+          }
+
           this.originalNickname = this.nickname;
           this.originalAvatarPath = this.avatarPath;
           this.originalPhone = this.phone;
