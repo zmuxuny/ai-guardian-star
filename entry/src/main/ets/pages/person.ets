@@ -163,22 +163,12 @@ export struct person {
 
     console.log(`[person]: 开始加载用户信息，currentUser=${currentUser}`);
 
-    // 从数据库加载当前用户信息（昵称、注册天数）
-    db.queryUserByUsername(currentUser)
+    // 从数据库加载当前用户信息
+    db.queryUserByIdentifier(currentUser)
       .then((user: UserInfo | null) => {
         if (user) {
           this.userName = user.username;
-          // 显示名优先级：真实昵称 → 脱敏手机号 → 邮箱 → 用户名
-          if (user.nickname && user.nickname.trim() !== "") {
-            this.userNickname = user.nickname.trim();
-          } else if (user.phone && user.phone.trim() !== "") {
-            this.userNickname = this.encryptPhone(user.phone);
-          } else if (user.email && user.email.trim() !== "") {
-            this.userNickname = user.email;
-          } else {
-            this.userNickname = user.username;
-          }
-          // 同步写回 AppStorage，确保 @StorageProp 感知变化
+          this.userNickname = user.username;
           AppStorage.setOrCreate<string>('loggedInNickname', this.userNickname);
           // 头像路径
           this.userAvatarPath = user.avatarPath ?? "";
@@ -186,7 +176,7 @@ export struct person {
           const msPerDay = 24 * 60 * 60 * 1000;
           this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
           console.log(
-            `[person]: 用户信息加载成功 user=${user.username}, nick=${this.userNickname}, useDays=${this.useDays}`,
+            `[person]: 用户信息加载成功 user=${user.username}, useDays=${this.useDays}`,
           );
         } else {
           console.warn(`[person]: 未找到用户信息 user=${currentUser}`);

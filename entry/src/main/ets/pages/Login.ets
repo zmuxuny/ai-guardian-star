@@ -13,8 +13,8 @@ const PREF_NAME = "guardian_auth";
 const PREF_KEY_USERNAME = "lastUsername";
 
 interface LoginResult {
-  name: string;
-  nickname: string;
+  loginId: string;     // phone or email (unique identifier)
+  displayName: string; // stored in username column
   isNew: boolean;
 }
 
@@ -155,17 +155,17 @@ struct NicknameDialog {
 
   build() {
     Column() {
-      Text("设置昵称")
+      Text("设置名字")
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
         .fontColor("#1e293b")
         .margin({ bottom: 8 })
-      Text("欢迎新用户！请设置一个昵称吧")
+      Text("欢迎新用户！请设置你的显示名称")
         .fontSize(13)
         .fontColor("#64748b")
         .margin({ bottom: 20 })
 
-      TextInput({ placeholder: "请输入昵称（2-12个字）", text: this.nickname })
+      TextInput({ placeholder: "请输入名字（2-12个字）", text: this.nickname })
         .onChange((v: string) => {
           this.nickname = v;
           this.errorMsg = "";
@@ -218,11 +218,11 @@ struct NicknameDialog {
           .onClick(() => {
             const nick = this.nickname.trim();
             if (nick.length < 2) {
-              this.errorMsg = "昵称至少2个字";
+              this.errorMsg = "名字至少2个字";
               return;
             }
             if (nick.length > 12) {
-              this.errorMsg = "昵称最多12个字";
+              this.errorMsg = "名字最多12个字";
               return;
             }
             this.controller.close();
@@ -673,7 +673,8 @@ struct Login {
     const db = DatabaseHelper.getInstance();
     const cloud = CloudService.getInstance();
 
-    db.queryUserByUsername(uname)
+    const queryUser = this.inputMode === 0 ? db.queryUserByPhone(uname) : db.queryUserByEmail(uname);
+    queryUser
       .then(async (existing: UserInfo | null) => {
         if (existing === null) {
           // ── 本地没有此账号：先查云端，判断是新注册还是换手机登录 ──
@@ -682,12 +683,14 @@ struct Login {
             // 云端有 → 换新手机，密码已在云端验证通过，写入本地 RDB
             const cu = cloudResult.user;
             await db.insertUser({
-              username: cu.username, nickname: cu.nickname,
-              phone: cu.phone, passwordHash: cu.passwordHash || pwd,
-              avatarPath: cu.avatarPath, email: cu.email,
+              username: cu.username || cu.phone || cu.email || uname,
+              phone: cu.phone || (this.inputMode === 0 ? uname : ''),
+              email: cu.email || (this.inputMode === 1 ? uname : ''),
+              passwordHash: cu.passwordHash || pwd,
+              avatarPath: cu.avatarPath,
               address: cu.address, createTime: cu.createTime,
             });
-            const r: LoginResult = { name: cu.username, nickname: cu.nickname, isNew: false };
+            const r: LoginResult = { loginId: uname, displayName: cu.username || uname, isNew: false };
             return r;
           } else if (!cloudResult.success && cloudResult.message !== '账号不存在' && cloudResult.message !== '网络不可用') {
             // 云端明确说密码错 / 其他错误
@@ -709,25 +712,25 @@ struct Login {
             const cloudFallback = await cloud.login(uname, pwd);
             if (cloudFallback.success && cloudFallback.user) {
               existing.passwordHash = pwd;
-              existing.nickname = cloudFallback.user.nickname || existing.nickname;
+              existing.username = cloudFallback.user.username || existing.username;
               await db.updateUser(existing).catch(() => {});
-              const r: LoginResult = { name: uname, nickname: existing.nickname ?? uname, isNew: false };
+              const r: LoginResult = { loginId: uname, displayName: existing.username ?? uname, isNew: false };
               return r;
             }
             this.showAlert("密码不正确");
             return Promise.reject("wrong_password");
           }
-          const r: LoginResult = { name: uname, nickname: existing.nickname ?? uname, isNew: false };
+          const r: LoginResult = { loginId: uname, displayName: existing.username ?? uname, isNew: false };
           return Promise.resolve(r);
         }
       })
       .then((result: LoginResult) => {
         this.isLoading = false;
         if (result.isNew) {
-          this.showVerifyDialog(result.name, result.nickname);
+          this.showVerifyDialog(result.loginId, result.displayName);
         } else {
-          promptAction.showToast({ message: `欢迎回来，${result.nickname || result.name}`, duration: 1500 });
-          setTimeout(() => { this.saveLoginAndJump(result.name, result.nickname); }, 800);
+          promptAction.showToast({ message: `欢迎回来，${result.displayName || result.loginId}`, duration: 1500 });
+          setTimeout(() => { this.saveLoginAndJump(result.loginId, result.displayName); }, 800);
         }
       })
       .catch((e: Object) => {
@@ -737,8 +740,8 @@ struct Login {
   }
 
   /** 弹出注册验证弹框 */
-  private showVerifyDialog(username: string, nickname: string): void {
-    this.pendingRegisterName = username;
+  private showVerifyDialog(loginId: string, displayName: string): void {
+    this.pendingRegisterName = loginId;
     this.verifyDialogController = new CustomDialogController({
       builder: VerifyDialog({
         themeManager: this.themeManager,
@@ -746,7 +749,7 @@ struct Login {
         onConfirm: () => {
           promptAction.showToast({ message: `🎉 注册成功，欢迎加入守护星！`, duration: 1500 });
           setTimeout(() => {
-            this.saveLoginAndJump(username, nickname);
+            this.saveLoginAndJump(loginId, displayName);
           }, 600);
         },
       }),
@@ -757,19 +760,15 @@ struct Login {
     this.verifyDialogController.open();
   }
 
-  private saveLoginAndJump(username: string, nickname: string = ""): void {
-    const effectiveNickname = nickname || username;
-    // 1. 内存层：跨页面即时可用
-    UserManager.getInstance().setCurrentUsername(username);
-    AppStorage.setOrCreate<string>("loggedInNickname", effectiveNickname);
-    // 2. 持久层：username + nickname 一起写入 Preferences
-    //    重启后 Index.ets 直接恢复，无需再查 RDB
+  private saveLoginAndJump(loginId: string, displayName: string = ""): void {
+    UserManager.getInstance().setCurrentUsername(loginId);
+    AppStorage.setOrCreate<string>("loggedInNickname", displayName || loginId);
     try {
       const ctx = getContext(this) as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME };
       const pref = preferences.getPreferencesSync(ctx, options);
-      pref.putSync(PREF_KEY_USERNAME, username);
-      pref.putSync("lastNickname", effectiveNickname);
+      pref.putSync(PREF_KEY_USERNAME, loginId);
+      pref.putSync("lastNickname", displayName || loginId);
       pref.flush();
     } catch (e) {
       console.warn("[Login]: Preferences 写入失败 " + JSON.stringify(e));
@@ -815,29 +814,29 @@ struct Login {
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
     const cloud = CloudService.getInstance();
-    const nickToSave = nickname.trim() || uname;
+    const displayName = nickname.trim() || uname;
+    const isPhone = this.inputMode === 0;
 
     db.insertUser({
-      username: uname, nickname: nickToSave,
-      phone: this.inputMode === 0 ? uname : '',
+      username: displayName,
+      phone: isPhone ? uname : '',
+      email: isPhone ? '' : uname,
       passwordHash: pwd, createTime: Date.now(),
     }).then(() => {
       // 异步同步到云端，失败不影响本地
       const regUser: CloudUser = {
-        username: uname,
-        nickname: nickToSave,
-        phone: this.inputMode === 0 ? uname : '',
+        username: displayName,
+        phone: isPhone ? uname : '',
+        email: isPhone ? '' : uname,
         passwordHash: pwd,
-        avatarPath: '',
-        email: '',
-        address: '',
-        createTime: Date.now(),
+        avatarPath: '', nickname: '',
+        address: '', createTime: Date.now(),
       };
       cloud.register(regUser).then(r => {
         console.info('[Login]: 云端注册', r.success ? '成功' : '失败:' + r.message);
       });
       this.isLoading = false;
-      this.showVerifyDialog(uname, nickToSave);
+      this.showVerifyDialog(uname, displayName);
     }).catch(() => {
       this.isLoading = false;
       this.showAlert('注册失败，请重试');

@@ -85,13 +85,12 @@ export class CloudSyncService {
           } else {
             await this.db.updateUser({
               id: localUser.id,
-              username: cloudUser.username,
-              nickname: cloudUser.nickname,
-              phone: cloudUser.phone,
-              passwordHash: cloudUser.passwordHash,
-              avatarPath: cloudUser.avatarPath,
-              email: cloudUser.email,
-              address: cloudUser.address,
+              username: cloudUser.username || localUser.username,
+              phone: cloudUser.phone || localUser.phone,
+              passwordHash: cloudUser.passwordHash || localUser.passwordHash,
+              avatarPath: cloudUser.avatarPath || localUser.avatarPath,
+              email: cloudUser.email || localUser.email,
+              address: cloudUser.address || localUser.address,
               createTime: cloudUser.createTime,
             });
           }
@@ -100,7 +99,6 @@ export class CloudSyncService {
           console.info('[CloudSyncService]: 插入新用户到本地', username);
           await this.db.insertUser({
             username: cloudUser.username,
-            nickname: cloudUser.nickname,
             phone: cloudUser.phone,
             passwordHash: cloudUser.passwordHash,
             avatarPath: cloudUser.avatarPath,

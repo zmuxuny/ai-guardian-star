@@ -7,8 +7,7 @@
  *   - t_health_event 健康事件（摔倒 / 久坐）
  *   - t_video_record 监控视频元数据（路径 + 元信息，7天滚动覆盖）
  *
- * 🗂️ 当前版本：DB_VERSION = 1
- * ⚠️  升级数据库版本时，在 migrateDatabase() 追加 if (v === N) 分支即可
+ * 🗂️ 当前版本：DB_VERSION = 4
  */
 
 import { relationalStore } from "@kit.ArkData";
@@ -22,7 +21,7 @@ const TAG = "DatabaseHelper";
 
 // ─── 数据库配置 ───────────────────────────────────────────────
 const DB_NAME = "GuardianStar.db";
-const DB_VERSION = 3; // v3: add nickname column to t_user
+const DB_VERSION = 4; // v4: nickname → username, auto-fill phone/email
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
   name: DB_NAME,
@@ -91,7 +90,6 @@ const SQL_CREATE_VIDEO_RECORD = `CREATE TABLE IF NOT EXISTS t_video_record (
 export interface UserInfo {
   id?: number;
   username: string;
-  nickname?: string;
   phone?: string;
   passwordHash: string;
   avatarPath?: string;
@@ -226,17 +224,38 @@ export class DatabaseHelper {
       hilog.info(DOMAIN, TAG, `数据库版本已更新为: 2`);
     }
 
-    // v3：为已有 t_user 补加 nickname 列（新建表已含此列，旧库需 ALTER）
     if (currentVersion < 3) {
       try {
         await this.store.executeSql(SQL_ADD_NICKNAME_COLUMN);
         hilog.info(DOMAIN, TAG, "t_user.nickname 列添加成功");
       } catch (e) {
-        // 列已存在时 SQLite 会报错，直接忽略即可
         hilog.warn(DOMAIN, TAG, "t_user.nickname 列可能已存在，跳过");
       }
       this.store.version = 3;
       hilog.info(DOMAIN, TAG, `数据库版本已更新为: 3`);
+    }
+
+    // v4：nickname → username，自动回填 phone/email
+    if (currentVersion < 4) {
+      try {
+        // 1. 有 nickname 的用户：把 nickname 写入 username
+        await this.store.executeSql(
+          `UPDATE t_user SET username = nickname WHERE nickname IS NOT NULL AND nickname != ''`
+        );
+        // 2. username 是手机号且 phone 列为空 → 回填 phone
+        await this.store.executeSql(
+          `UPDATE t_user SET phone = username WHERE (phone IS NULL OR phone = '') AND username GLOB '1[3-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'`
+        );
+        // 3. username 是邮箱且 email 列为空 → 回填 email
+        await this.store.executeSql(
+          `UPDATE t_user SET email = username WHERE (email IS NULL OR email = '') AND username LIKE '%@%.%'`
+        );
+        hilog.info(DOMAIN, TAG, "v4 迁移完成: nickname→username, phone/email 回填");
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, "v4 迁移部分失败(可能已迁移): " + JSON.stringify(e));
+      }
+      this.store.version = 4;
+      hilog.info(DOMAIN, TAG, `数据库版本已更新为: 4`);
     }
   }
 
@@ -254,7 +273,6 @@ export class DatabaseHelper {
   public async insertUser(user: UserInfo): Promise<number> {
     const values: relationalStore.ValuesBucket = {
       username: user.username,
-      nickname: user.nickname ?? null,
       phone: user.phone ?? null,
       password_hash: user.passwordHash,
       avatar_path: user.avatarPath ?? null,
@@ -274,20 +292,6 @@ export class DatabaseHelper {
     }
   }
 
-  /** 按手机号查询用户（用于登录验证） */
-  public async queryUserByPhone(phone: string): Promise<UserInfo | null> {
-    const predicates = new relationalStore.RdbPredicates("t_user");
-    predicates.equalTo("phone", phone);
-    return this._querySingleUser(predicates);
-  }
-
-  /** 按用户名查询用户 */
-  public async queryUserByUsername(username: string): Promise<UserInfo | null> {
-    const predicates = new relationalStore.RdbPredicates("t_user");
-    predicates.equalTo("username", username);
-    return this._querySingleUser(predicates);
-  }
-
   /** 内部：按谓词查单条用户并映射为 UserInfo */
   private async _querySingleUser(
     predicates: relationalStore.RdbPredicates,
@@ -297,7 +301,6 @@ export class DatabaseHelper {
       resultSet = await this.getStore().query(predicates, [
         "id",
         "username",
-        "nickname",
         "phone",
         "password_hash",
         "avatar_path",
@@ -310,7 +313,6 @@ export class DatabaseHelper {
         const user: UserInfo = {
           id: resultSet.getLong(resultSet.getColumnIndex("id")),
           username: resultSet.getString(resultSet.getColumnIndex("username")),
-          nickname: resultSet.getString(resultSet.getColumnIndex("nickname")),
           phone: resultSet.getString(resultSet.getColumnIndex("phone")),
           passwordHash: resultSet.getString(resultSet.getColumnIndex("password_hash")),
           avatarPath: resultSet.getString(resultSet.getColumnIndex("avatar_path")),
@@ -336,7 +338,6 @@ export class DatabaseHelper {
     if (user.id === undefined) throw new Error("updateUser: id 不能为空");
     const values: relationalStore.ValuesBucket = {
       username: user.username,
-      nickname: user.nickname ?? null,
       phone: user.phone ?? null,
       avatar_path: user.avatarPath ?? null,
       email: user.email ?? null,
@@ -355,18 +356,32 @@ export class DatabaseHelper {
     }
   }
 
-  /** 单独更新用户昵称（按 username 定位） */
-  public async updateNickname(username: string, nickname: string): Promise<void> {
+  /** 按登录标识（手机号或邮箱）查询用户，自动识别格式 */
+  public async queryUserByIdentifier(id: string): Promise<UserInfo | null> {
+    if (/^1[3-9]\d{9}$/.test(id)) return this.queryUserByPhone(id);
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) return this.queryUserByEmail(id);
+    return null;
+  }
+
+  /** 按手机号查询用户 */
+  public async queryUserByPhone(phone: string): Promise<UserInfo | null> {
+    const predicates = new relationalStore.RdbPredicates("t_user");
+    predicates.equalTo("phone", phone);
+    return this._querySingleUser(predicates);
+  }
+
+  /** 按邮箱查询用户 */
+  public async queryUserByEmail(email: string): Promise<UserInfo | null> {
+    const predicates = new relationalStore.RdbPredicates("t_user");
+    predicates.equalTo("email", email);
+    return this._querySingleUser(predicates);
+  }
+
+  /** 按用户名（展示名）查询用户 */
+  public async queryUserByUsername(username: string): Promise<UserInfo | null> {
     const predicates = new relationalStore.RdbPredicates("t_user");
     predicates.equalTo("username", username);
-    try {
-      await this.getStore().update({ nickname: nickname }, predicates);
-      hilog.info(DOMAIN, TAG, `updateNickname 成功 username=${username}`);
-    } catch (e) {
-      const err = e as BusinessError;
-      hilog.error(DOMAIN, TAG, `updateNickname 失败 ${err.code} ${err.message}`);
-      throw new Error(err.code + ": " + err.message);
-    }
+    return this._querySingleUser(predicates);
   }
 
   /** 更新密码哈希 */

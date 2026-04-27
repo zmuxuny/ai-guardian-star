@@ -375,18 +375,18 @@ export struct Profile {
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
 
   // ── 表单状态 ──────────────────────────────────────────────
-  @State nickname: string = '';
+  @State displayName: string = '';
   @State avatarPath: string = '';
   @State phone: string = '';
   @State email: string = '';
-  @State originalNickname: string = '';
+  @State originalDisplayName: string = '';
   @State originalAvatarPath: string = '';
   @State originalPhone: string = '';
   @State originalEmail: string = '';
   @State isLoading: boolean = false;
   @State isSaving: boolean = false;
   @State hasChanged: boolean = false;
-  @State nicknameError: string = '';
+  @State nameError: string = '';
 
   // ── 动画 ──────────────────────────────────────────────────
   @State avatarScale: number = 1.0;
@@ -418,32 +418,15 @@ export struct Profile {
   private loadProfile(): void {
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
-    db.queryUserByUsername(this.currentUser)
+    db.queryUserByIdentifier(this.currentUser)
       .then((user: UserInfo | null) => {
         this.isLoading = false;
         if (user) {
-          const storedNick = AppStorage.get<string>('loggedInNickname') ?? '';
-          this.nickname = (user.nickname && user.nickname.trim() !== '')
-            ? user.nickname : (storedNick !== '' ? storedNick : this.currentUser);
+          this.displayName = user.username || '';
           this.avatarPath = user.avatarPath ?? '';
           this.phone = user.phone ?? '';
           this.email = user.email ?? '';
-
-          // 账号本身就是手机号/邮箱时，若对应字段为空则自动回填
-          const isPhoneUser = /^1[3-9]\d{9}$/.test(user.username);
-          const isEmailUser = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.username);
-          if (!this.phone && isPhoneUser) {
-            this.phone = user.username;
-            user.phone = user.username;
-            db.updateUser(user).catch(() => {});
-          }
-          if (!this.email && isEmailUser) {
-            this.email = user.username;
-            user.email = user.username;
-            db.updateUser(user).catch(() => {});
-          }
-
-          this.originalNickname = this.nickname;
+          this.originalDisplayName = this.displayName;
           this.originalAvatarPath = this.avatarPath;
           this.originalPhone = this.phone;
           this.originalEmail = this.email;
@@ -454,14 +437,14 @@ export struct Profile {
   }
 
   private updateChangedState(): void {
-    this.hasChanged = this.nickname.trim() !== this.originalNickname ||
+    this.hasChanged = this.displayName.trim() !== this.originalDisplayName ||
       this.avatarPath !== this.originalAvatarPath;
   }
 
-  private validateNickname(): string {
-    const v = this.nickname.trim();
-    if (v.length < 1) return '昵称至少 1 个字';
-    if (v.length > 12) return '昵称最多 12 个字';
+  private validateName(): string {
+    const v = this.displayName.trim();
+    if (v.length < 1) return '名字不能为空';
+    if (v.length > 12) return '名字最多 12 个字';
     return '';
   }
 
@@ -531,35 +514,35 @@ export struct Profile {
 
   // ── 保存昵称/头像 ─────────────────────────────────────────
   private async saveProfile(): Promise<void> {
-    const err = this.validateNickname();
-    if (err !== '') { this.nicknameError = err; return; }
-    this.nicknameError = '';
+    const err = this.validateName();
+    if (err !== '') { this.nameError = err; return; }
+    this.nameError = '';
     this.isSaving = true;
     const db = DatabaseHelper.getInstance();
     try {
-      const user = await db.queryUserByUsername(this.currentUser);
+      const user = await db.queryUserByIdentifier(this.currentUser);
       if (!user || user.id === undefined) throw new Error('用户不存在');
-      user.nickname = this.nickname.trim();
+      user.username = this.displayName.trim();
       user.avatarPath = this.avatarPath;
       if (this.phone) user.phone = this.phone;
       if (this.email) user.email = this.email;
       await db.updateUser(user);
-      AppStorage.setOrCreate<string>('loggedInNickname', this.nickname.trim());
+      AppStorage.setOrCreate<string>('loggedInNickname', this.displayName.trim());
       AppStorage.setOrCreate<string>('loggedInAvatarPath', this.avatarPath);
       try {
         const ctx = getContext(this) as common.UIAbilityContext;
         const pref = preferences.getPreferencesSync(ctx, { name: 'guardian_auth' });
-        pref.putSync('lastNickname', this.nickname.trim());
+        pref.putSync('lastNickname', this.displayName.trim());
         pref.flush();
       } catch (_) {}
       const fields = new CloudUpdateFields();
-      fields.username = this.currentUser; fields.nickname = this.nickname.trim();
+      fields.username = this.displayName.trim();
       fields.avatarPath = this.avatarPath;
       CloudService.getInstance().updateUser(fields).then(r => {
         console.info('[Profile]: 云端同步', r.success ? '成功' : '失败:' + r.message);
       });
       this.isSaving = false;
-      this.originalNickname = this.nickname.trim();
+      this.originalDisplayName = this.displayName.trim();
       this.originalAvatarPath = this.avatarPath;
       this.updateChangedState();
       promptAction.showToast({ message: '保存好啦', duration: 1500 });
@@ -631,21 +614,21 @@ export struct Profile {
   @Builder
   FormSection(): void {
     Column() {
-      // 昵称行
+      // 名字行
       Column() {
         Row() {
-          Text('昵称').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
-          TextInput({ placeholder: '请输入昵称（2-12字）', text: this.nickname })
+          Text('名字').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+          TextInput({ placeholder: '请输入你的名字（2-12字）', text: this.displayName })
             .layoutWeight(1).fontSize(15)
             .fontColor(this.themeManager.colors.primaryTextColor)
             .placeholderColor(this.themeManager.colors.tertiaryTextColor)
             .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
             .maxLength(12)
-            .onChange((v: string) => { this.nickname = v; this.nicknameError = this.validateNickname(); this.updateChangedState(); })
+            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); this.updateChangedState(); })
         }
         .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
-        if (this.nicknameError !== '') {
-          Text(this.nicknameError).fontSize(11).fontColor('#ef4444')
+        if (this.nameError !== '') {
+          Text(this.nameError).fontSize(11).fontColor('#ef4444')
             .alignSelf(ItemAlign.Start).padding({ left: 16, bottom: 10 })
             .animation({ duration: 150, curve: Curve.EaseOut })
         }
