@@ -704,7 +704,16 @@ struct Login {
         } else {
           // ── 本地有此账号：本地验证密码 ──
           if (existing.passwordHash !== pwd) {
+            // 本地不匹配 → 尝试云端验证兜底（修复本地密码丢失的 edge case）
             this.isLoading = false;
+            const cloudFallback = await cloud.login(uname, pwd);
+            if (cloudFallback.success && cloudFallback.user) {
+              existing.passwordHash = pwd;
+              existing.nickname = cloudFallback.user.nickname || existing.nickname;
+              await db.updateUser(existing).catch(() => {});
+              const r: LoginResult = { name: uname, nickname: existing.nickname ?? uname, isNew: false };
+              return r;
+            }
             this.showAlert("密码不正确");
             return Promise.reject("wrong_password");
           }
@@ -723,7 +732,7 @@ struct Login {
       })
       .catch((e: Object) => {
         this.isLoading = false;
-        if (e !== "wrong_password" && e !== "need_nickname") this.showAlert("登录失败，请重试");
+        if (e !== "wrong_password" && e !== "need_nickname" && e !== "cloud_error") this.showAlert("登录失败，请重试");
       });
   }
 
