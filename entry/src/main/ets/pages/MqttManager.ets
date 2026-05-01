@@ -10,24 +10,7 @@ import {
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
 import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID } from '../config';
-
-// 定义 JSON 消息的接口（匹配 Python 代码发送的 MQTT 消息格式）
-interface AlertData {
-  device_id: string;
-  event: string;
-  confidence: number;
-  timestamp: number;
-  datetime: string;
-}
-interface AlertLike {
-  device_id?: string;
-  event?: string;
-  alert_type?: string;
-  type?: string;
-  confidence?: number;
-  timestamp?: number;
-  datetime?: string;
-}
+import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
 
 export interface FallRecord {
   time: string;
@@ -296,49 +279,21 @@ export class MqttManager {
   }
 
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
-    let messageContent: string = "";
-    if (typeof payload !== "string") {
-      try {
-        const uint8Array: Uint8Array = new Uint8Array(payload as ArrayBuffer);
-        let charCodes: number[] = [];
-        for (let i = 0; i < uint8Array.length; i++) charCodes.push(uint8Array[i]);
-        messageContent = String.fromCharCode(...charCodes);
-      } catch (e) {
-        messageContent = `收到原始数据，但解码失败: ${topic}`;
-      }
-    } else {
-      messageContent = payload;
-    }
-
-    // 任何来自设备的消息都更新设备活动时间戳
-    // 过滤非设备消息（如系统级消息）
     if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
       this.lastDeviceActivity = Date.now();
     }
 
-    try {
-      const data = JSON.parse(messageContent) as AlertLike;
-      const eventField = (data.event ?? data.alert_type ?? data.type ?? "") as string;
-      const rawEvent: string = String(eventField).toLowerCase().trim();
-      const isEmpty = rawEvent === "" || rawEvent === "null" || rawEvent === "none";
-      const hasFallKeyword = rawEvent.includes("fall") || rawEvent.includes("跌倒");
-      const hasSedentaryKeyword =
-        rawEvent.includes("sedentary") ||
-        rawEvent.includes("久坐") ||
-        rawEvent.includes("sitting_long") ||
-        rawEvent.includes("sit");
-      const hasNormalKeyword =
-        rawEvent.includes("no fall") ||
-        rawEvent.includes("normal") ||
-        rawEvent.includes("stand") ||
-        rawEvent.includes("walk");
-      const hasStrangerKeyword = rawEvent.includes("stranger");
-      const isFall: boolean =
-        !isEmpty && hasFallKeyword && !hasNormalKeyword && !hasSedentaryKeyword;
-      const isSedentary: boolean = !isEmpty && hasSedentaryKeyword && !hasNormalKeyword;
-      const isStranger: boolean = !isEmpty && hasStrangerKeyword;
+    const content = payloadToString(payload);
+    if (!content) {
+      console.warn('[mqtt]: 解码失败:', topic);
+      return;
+    }
 
-      if (isFall) {
+    const alert = parseAlert(content);
+    if (alert.type === EventType.UNKNOWN) return;
+
+    try {
+      if (alert.type === EventType.FALL) {
         const currentTimestamp = Date.now();
         if (
           Date.now() - this.lastRecordedFallTimestamp > 2000 ||
@@ -352,7 +307,7 @@ export class MqttManager {
         this.clearSedentaryState();
         this.latestMessage = `检测到跌倒`;
         this.startFallRecoveryTimer();
-      } else if (isSedentary) {
+      } else if (alert.type === EventType.SEDENTARY) {
         const currentTimestamp = Date.now();
         if (
           Date.now() - this.lastRecordedSedentaryTimestamp > 2000 ||
@@ -366,7 +321,7 @@ export class MqttManager {
         this.clearFallState();
         this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
-      } else if (isStranger) {
+      } else if (alert.type === EventType.STRANGER) {
         this.isStrangerDetected = true;
         this.strangerTimestamp = Date.now();
         this.latestMessage = `检测到陌生人`;
@@ -377,15 +332,16 @@ export class MqttManager {
         this.clearStrangerState();
         this.latestMessage = `正常监测中`;
       }
-    } catch (e) {
-      const lower = messageContent.toLowerCase();
+    } catch (_e) {
+      // JSON 解析失败时尝试对原始文本做关键词兜底匹配
+      const lower = content.toLowerCase();
       const isFall =
-        (lower.includes("fall") || messageContent.includes("跌倒")) &&
+        (lower.includes("fall") || content.includes("跌倒")) &&
         !lower.includes("no fall") &&
         !lower.includes("normal") &&
         !lower.includes("sedentary");
       const isSedentary =
-        (lower.includes("sedentary") || messageContent.includes("久坐")) &&
+        (lower.includes("sedentary") || content.includes("久坐")) &&
         !lower.includes("normal");
       const isStranger = lower.includes("stranger");
       if (isFall) {
