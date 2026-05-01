@@ -3,11 +3,12 @@
  * 确保整个应用中用户名获取的一致性
  */
 
+import { STORE_KEY_LOGGED_IN_USER } from '../config';
+
 export class UserManager {
   private static instance: UserManager;
-  
-  // AppStorage key for logged in user
-  private static readonly STORAGE_KEY = 'loggedInUsername';
+
+  private static readonly STORAGE_KEY = STORE_KEY_LOGGED_IN_USER;
   
   // 默认用户名，用于未登录状态
   private static readonly DEFAULT_USERNAME = 'default_user';

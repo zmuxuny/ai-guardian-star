@@ -5,6 +5,8 @@
 
 import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
+import { MqttManager } from './MqttManager';
+import { GradientHeader } from '../components/GradientHeader';
 
 const QUICK_QUESTIONS: string[] = [
   '老人最近状态怎么样？',
@@ -24,6 +26,7 @@ interface BubbleMsg {
 @Component
 export struct AiChat {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State mqttManager: MqttManager = MqttManager.getInstance();
   @State messages: BubbleMsg[] = [];
   @State inputText: string = '';
   @State isRequesting: boolean = false;
@@ -138,24 +141,45 @@ export struct AiChat {
 
   @Builder
   GradientHeader(): void {
-    Row() {
-      Text('AI 健康助手')
-        .fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-      Blank()
-      // 方案A：AI 服务只要部署就常驻，固定显示绿色在线
-      Row({ space: 6 }) {
-        Circle({ width: 8, height: 8 }).fill('#4ade80')
-        Text('AI 在线').fontSize(12).fontColor('#E0F2FE')
+    GradientHeader() {
+      Row() {
+        Text('AI 健康助手')
+          .fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+        Blank()
+        Row({ space: 6 }) {
+          Circle({ width: 8, height: 8 }).fill('#4ade80')
+          Text('AI 在线').fontSize(12).fontColor('#E0F2FE')
+        }
+        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+        .backgroundColor('#33FFFFFF').borderRadius(100)
       }
-      .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-      .backgroundColor('#33FFFFFF').borderRadius(100)
+      .width('100%')
+      .padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 34 })
     }
-    .width('100%')
-    .padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 34 })
-    .linearGradient({ direction: GradientDirection.Bottom,
-      colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
-    .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+  }
+
+  @Builder
+  HealthOverview(): void {
+    Row({ space: 15 }) {
+      Column() {
+        Text('摔倒告警').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.mqttManager.fallRecords.length}`)
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
+      }
+      .layoutWeight(1).padding({ top: 20, bottom: 20 })
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
+
+      Column() {
+        Text('久坐提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.mqttManager.sedentaryRecords.length}`)
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#f59e0b')
+      }
+      .layoutWeight(1).padding({ top: 20, bottom: 20 })
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
+    }
+    .width('92%').margin({ top: '-4%' })
   }
 
   @Builder
@@ -264,6 +288,7 @@ export struct AiChat {
   build() {
     Column() {
       this.GradientHeader()
+      this.HealthOverview()
       Scroll(this.scroller) {
         Column({ space: 0 }) {
           ForEach(this.messages, (msg: BubbleMsg) => {
@@ -278,6 +303,6 @@ export struct AiChat {
     }
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

@@ -7,10 +7,9 @@ import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
 
-export const STORAGE_KEY_LOGGED_IN_USER = "loggedInUsername";
-const PREF_NAME = "guardian_auth";
-const PREF_KEY_USERNAME = "lastUsername";
+export const STORAGE_KEY_LOGGED_IN_USER = STORE_KEY_LOGGED_IN_USER;
 
 interface LoginResult {
   loginId: string;     // phone or email (unique identifier)
@@ -762,13 +761,13 @@ struct Login {
 
   private saveLoginAndJump(loginId: string, displayName: string = ""): void {
     UserManager.getInstance().setCurrentUsername(loginId);
-    AppStorage.setOrCreate<string>("loggedInNickname", displayName || loginId);
+    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, displayName || loginId);
     try {
       const ctx = getContext(this) as common.UIAbilityContext;
-      const options: preferences.Options = { name: PREF_NAME };
+      const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
-      pref.putSync(PREF_KEY_USERNAME, loginId);
-      pref.putSync("lastNickname", displayName || loginId);
+      pref.putSync(PREF_KEY_LAST_USERNAME, loginId);
+      pref.putSync(PREF_KEY_LAST_NICKNAME, displayName || loginId);
       pref.flush();
     } catch (e) {
       console.warn("[Login]: Preferences 写入失败 " + JSON.stringify(e));

@@ -1,5 +1,6 @@
 import { MqttManager, FallRecord, SedentaryRecord } from './MqttManager';
 import { ThemeManager } from '../common/ThemeManager';
+import { GradientHeader } from '../components/GradientHeader';
 
 // ArkTS 严格模式：联合类型不能用字符串字面量，统一用 string
 interface TimelineItem {
@@ -78,13 +79,12 @@ export struct record {
 
   @Builder
   GradientHeader(): void {
-    Row() {
-      Text('事件记录').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+    GradientHeader() {
+      Row() {
+        Text('事件记录').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+      }
+      .width('100%').padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 34 })
     }
-    .width('100%').padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 34 })
-    .linearGradient({ direction: GradientDirection.Bottom,
-      colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
-    .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
   }
 
   @Builder

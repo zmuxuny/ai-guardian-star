@@ -12,8 +12,7 @@
  *   - App 侧永远先操作本地，再异步同步云端
  */
 import http from '@ohos.net.http';
-
-const ECS_BASE = 'http://117.78.9.144:8899';
+import { ECS_BASE_URL } from '../config';
 
 // ── 接口数据结构 ──────────────────────────────────────────────
 
@@ -57,7 +56,7 @@ async function postJson(path: string, bodyStr: string): Promise<CloudResult> {
   const req = http.createHttp();
   try {
     console.info('[CloudService]: 开始请求', path, 'body长度:', bodyStr.length);
-    const resp = await req.request(ECS_BASE + path, {
+    const resp = await req.request(ECS_BASE_URL + path, {
       method: http.RequestMethod.POST,
       header: { 'Content-Type': 'application/json' },
       extraData: bodyStr,

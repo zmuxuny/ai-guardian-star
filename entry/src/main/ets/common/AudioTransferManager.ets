@@ -2,13 +2,12 @@ import audio from "@ohos.multimedia.audio";
 import webSocket from "@ohos.net.webSocket";
 import { BusinessError } from "@ohos.base";
 import { taskpool } from "@kit.ArkTS";
+import { WS_INTERCOM_URL } from '../config';
 
 export class AudioTransferManager {
   private static instance: AudioTransferManager;
 
-  //private readonly WS_URL = 'ws://192.168.137.100:5000/ws/intercom';
-  //private readonly WS_URL = 'ws://10.190.205.195:5000/ws/intercom';
-  private readonly WS_URL = "ws://117.78.9.144:6000/ws/intercom";
+  private readonly WS_URL = WS_INTERCOM_URL;
 
   private ws: webSocket.WebSocket | undefined = undefined;
   private audioCapturer: audio.AudioCapturer | undefined = undefined;

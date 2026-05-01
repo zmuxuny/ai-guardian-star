@@ -9,6 +9,7 @@ import {
 } from "@ohos/mqtt";
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
+import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID } from '../config';
 
 // 定义 JSON 消息的接口（匹配 Python 代码发送的 MQTT 消息格式）
 interface AlertData {
@@ -49,13 +50,6 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-//云端ECS
-const BROKER_HOST = "117.78.9.144";
-//const BROKER_HOST = "192.168.137.100";
-const BROKER_PORT = 1883;
-const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;
-const ALERT_TOPIC = "ai_guardian/alerts/#";
-
 @Observed
 export class MqttManager {
   private static instance: MqttManager;
@@ -95,7 +89,7 @@ export class MqttManager {
   }
 
   private initClient() {
-    const clientId = `HarmonyOS_Client_sad`;
+    const clientId = MQTT_CLIENT_ID;
     const clientOptions: MqttClientOptions = {
       url: BROKER_URL,
       clientId: clientId,

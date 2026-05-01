@@ -6,6 +6,7 @@ import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
+import { GradientHeader } from '../components/GradientHeader';
 import { promptAction } from '@kit.ArkUI';
 
 @Builder
@@ -82,13 +83,7 @@ export struct MyAddress {
 
   @Builder
   GradientHeader(): void {
-    Stack({ alignContent: Alignment.Top }) {
-      Column()
-        .width("100%").height(this.topSafeHeight + 100)
-        .linearGradient({ direction: GradientDirection.Bottom,
-          colors: [["#1e40af", 0.0], ["#3b82f6", 0.5], ["#60a5fa", 1.0]] })
-        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        .borderRadius({ bottomLeft: "6%", bottomRight: "6%" })
+    GradientHeader() {
       Row() {
         Image($r("app.media.ic_chevron_right")).width(36).height(36)
           .objectFit(ImageFit.Contain).padding(8)
@@ -106,7 +101,7 @@ export struct MyAddress {
           })
       }
       .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
-    }.width("100%")
+    }
   }
 
   build() {

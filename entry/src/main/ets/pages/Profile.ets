@@ -6,7 +6,9 @@
  */
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
+import { GradientHeader } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
+import { STORE_KEY_PHONE, STORE_KEY_EMAIL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
@@ -72,7 +74,7 @@ struct PhoneEditDialog {
             if (user && user.id !== undefined) {
               user.phone = this.phone.trim();
               await db.updateUser(user);
-              AppStorage.setOrCreate<string>('loggedInPhone', user.phone);
+              AppStorage.setOrCreate<string>(STORE_KEY_PHONE, user.phone);
               const fields = new CloudUpdateFields();
               fields.username = this.currentUser; fields.phone = this.phone.trim();
               CloudService.getInstance().updateUser(fields).then(() => {});
@@ -153,7 +155,7 @@ struct EmailEditDialog {
             if (user && user.id !== undefined) {
               user.email = this.email.trim();
               await db.updateUser(user);
-              AppStorage.setOrCreate<string>('loggedInEmail', user.email);
+              AppStorage.setOrCreate<string>(STORE_KEY_EMAIL, user.email);
               const fields = new CloudUpdateFields();
               fields.username = this.currentUser; fields.email = this.email.trim();
               CloudService.getInstance().updateUser(fields).then(() => {});
@@ -435,12 +437,12 @@ export struct Profile {
       if (this.phone) user.phone = this.phone;
       if (this.email) user.email = this.email;
       await db.updateUser(user);
-      AppStorage.setOrCreate<string>('loggedInNickname', this.displayName.trim());
-      AppStorage.setOrCreate<string>('loggedInAvatarPath', this.avatarPath);
+      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.displayName.trim());
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
       try {
         const ctx = getContext(this) as common.UIAbilityContext;
-        const pref = preferences.getPreferencesSync(ctx, { name: 'guardian_auth' });
-        pref.putSync('lastNickname', this.displayName.trim());
+        const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+        pref.putSync(PREF_KEY_LAST_NICKNAME, this.displayName.trim());
         pref.flush();
       } catch (_) {}
       const fields = new CloudUpdateFields();
@@ -618,13 +620,7 @@ export struct Profile {
   // ── 标题栏 ────────────────────────────────────────────────
   @Builder
   GradientHeader(): void {
-    Stack({ alignContent: Alignment.Top }) {
-      Column()
-        .width("100%").height(this.topSafeHeight + 100)
-        .linearGradient({ direction: GradientDirection.Bottom,
-          colors: [["#1e40af", 0.0], ["#3b82f6", 0.5], ["#60a5fa", 1.0]] })
-        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-        .borderRadius({ bottomLeft: "6%", bottomRight: "6%" })
+    GradientHeader() {
       Row() {
         Image($r("app.media.ic_chevron_right")).width(36).height(36)
           .objectFit(ImageFit.Contain).padding(8)
@@ -641,7 +637,7 @@ export struct Profile {
           })
       }
       .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
-    }.width("100%")
+    }
   }
 
   build() {

@@ -13,6 +13,7 @@
 import { relationalStore } from "@kit.ArkData";
 import { BusinessError } from "@kit.BasicServicesKit";
 import { hilog } from "@kit.PerformanceAnalysisKit";
+import { STORE_KEY_RETENTION } from '../config';
 import { Context } from "@kit.AbilityKit";
 
 // ─── 日志 Tag ────────────────────────────────────────────────
@@ -142,7 +143,7 @@ export const VIP_RETENTION_OPTIONS = [14, 30, 90];
 /** 所有可选天数（展示给用户） */
 export const ALL_RETENTION_OPTIONS = [7, 14, 30, 90];
 /** AppStorage key：用户当前选择的保留天数 */
-export const STORAGE_KEY_RETENTION = "retentionDays";
+export const STORAGE_KEY_RETENTION = STORE_KEY_RETENTION;
 
 export class DatabaseHelper {
   private static instance: DatabaseHelper;

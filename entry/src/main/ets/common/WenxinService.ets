@@ -7,11 +7,7 @@
 
 import http from '@ohos.net.http';
 import { MqttManager } from '../pages/MqttManager';
-
-// ── 云端中转服务地址（填入你的 ECS 公网 IP）─────────────────────
-// 申请完 API Key 后，把 wenxin_proxy.py 部署到 ECS，再填这里
-const PROXY_BASE_URL = 'http://117.78.9.144:8899';
-// ─────────────────────────────────────────────────────────────
+import { ECS_BASE_URL } from '../config';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -66,7 +62,7 @@ export class WenxinService {
     const httpRequest = http.createHttp();
     try {
       const response = await httpRequest.request(
-        `${PROXY_BASE_URL}/ai/chat`,
+        `${ECS_BASE_URL}/ai/chat`,
         {
           method: http.RequestMethod.POST,
           header: { 'Content-Type': 'application/json' },

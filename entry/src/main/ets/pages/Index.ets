@@ -2,9 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { STORAGE_KEY_LOGGED_IN_USER } from './Login';
 import { CloudSyncService } from '../common/CloudSyncService';
-
-const PREF_NAME = 'guardian_auth';
-const PREF_KEY_USERNAME = 'lastUsername';
+import { PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME } from '../config';
 
 @Entry
 @Component
@@ -30,9 +28,9 @@ struct Index {
       this.startCloudPreSync();
       
       const ctx = getContext(this) as common.UIAbilityContext;
-      const options: preferences.Options = { name: PREF_NAME };
+      const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
-      const savedUser = pref.getSync(PREF_KEY_USERNAME, '') as string;
+      const savedUser = pref.getSync(PREF_KEY_LAST_USERNAME, '') as string;
 
       if (savedUser !== '') {
         AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, savedUser);

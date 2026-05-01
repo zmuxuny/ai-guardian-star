@@ -6,16 +6,13 @@ import { AudioTransferManager } from '../common/AudioTransferManager';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { common } from '@kit.AbilityKit';
 import http from '@ohos.net.http';
+import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
+import { GradientHeader } from '../components/GradientHeader';
 
 @Entry
 @Component
 export struct mainPage {
-  //远程连接（frp穿透）
-  @State videoUrl: string = 'http://117.78.9.144:6001/video_feed';
-  //局域网备用
-  //@State videoUrl: string = 'http://192.168.5.192:5000/video_feed';
-  //@State videoUrl: string = 'http://192.168.137.100:5000/video_feed';
-  //@State videoUrl: string = 'http://10.190.205.195:5000/video_feed';
+  @State videoUrl: string = VIDEO_FEED_URL;
   @State volumeLevel: number = 50;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -36,7 +33,7 @@ export struct mainPage {
 
   private updateTimer: number = -1;
   private healthCheckTimer: number = -1;
-  private readonly healthCheckUrl: string = 'http://117.78.9.144:6001/api/stats';
+  private readonly healthCheckUrl: string = HEALTH_CHECK_URL;
   private webController: webview.WebviewController = new webview.WebviewController();
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
   private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -81,9 +78,45 @@ export struct mainPage {
     }
   }
 
+  private monitorStatus(): 'offline' | 'danger' | 'warning' | 'normal' {
+    if (!this.deviceOnline) return 'offline';
+    if (this.isFallDetected) return 'danger';
+    if (this.isSedentaryDetected) return 'warning';
+    return 'normal';
+  }
+  private faceStatus(): 'offline' | 'danger' | 'normal' {
+    if (!this.deviceOnline) return 'offline';
+    if (this.isStrangerDetected) return 'danger';
+    return 'normal';
+  }
+  private statusFillColor(s: string): string {
+    if (s === 'offline') return '#94a3b8';
+    if (s === 'danger') return '#ef4444';
+    if (s === 'warning') return '#f59e0b';
+    return '#10b981';
+  }
+  private statusBgColor(s: string): string {
+    const d = this.themeManager.isDarkMode;
+    if (s === 'offline' || s === 'danger') return d ? '#2d1515' : '#fff5f5';
+    if (s === 'warning') return d ? '#2d1a00' : '#fffbeb';
+    return d ? '#064e3b' : '#f0fdf4';
+  }
+  private statusBorderColor(s: string): string {
+    const d = this.themeManager.isDarkMode;
+    if (s === 'offline' || s === 'danger') return d ? '#7f1d1d' : '#fecaca';
+    if (s === 'warning') return d ? '#7c3900' : '#fde68a';
+    return d ? '#065f46' : '#bbf7d0';
+  }
+  private statusIconBgColor(s: string): string {
+    const d = this.themeManager.isDarkMode;
+    if (s === 'offline' || s === 'danger') return d ? '#450a0a' : '#fee2e2';
+    if (s === 'warning') return d ? '#3d2000' : '#fffbeb';
+    return d ? '#064e3b' : '#ecfdf5';
+  }
+
   @Builder
   GradientHeader(): void {
-    Column() {
+    GradientHeader() {
       Row() {
         Column() {
           Text('智护星').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
@@ -114,14 +147,8 @@ export struct mainPage {
         .backgroundBlurStyle(BlurStyle.Thin)
         .borderRadius(100)
       }
-      // top: 状态栏高度 + 内容间距；bottom 固定让两页 Header 等高
-      .width('100%').padding({ left: '6%', right: '6%',  top: this.topSafeHeight + 16, bottom: 20 })
+      .width('100%').padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 20 })
     }
-    .width('100%')
-    .linearGradient({ direction: GradientDirection.Bottom,
-      colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
-    .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }
 
 
@@ -162,7 +189,7 @@ export struct mainPage {
       color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
     })
     .borderRadius('4%')
-    .margin({ top: '4%' })
+    .margin({ top: '-4%' })
   }
 
   @Builder
@@ -193,48 +220,26 @@ export struct mainPage {
       })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
-      // 监测状态卡（随检测状态变色，与设备状态卡保持一致的样式语言）
+      // 监测状态卡
       Row() {
         Image(
-          !this.deviceOnline
-            ? $r('app.media.ic_link_off_red')
-            : this.isFallDetected
-              ? $r('app.media.ic_alert_red')
-              : this.isSedentaryDetected
-                ? $r('app.media.ic_shield_blue')
-                : $r('app.media.ic_shield_green')
+          this.monitorStatus() === 'offline' ? $r('app.media.ic_link_off_red')
+            : this.monitorStatus() === 'danger' ? $r('app.media.ic_alert_red')
+            : this.monitorStatus() === 'warning' ? $r('app.media.ic_shield_blue')
+            : $r('app.media.ic_shield_green')
         )
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(
-            !this.deviceOnline
-              ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
-              : this.isFallDetected
-                ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
-                : this.isSedentaryDetected
-                  ? (this.themeManager.isDarkMode ? '#3d2000' : '#fffbeb')
-                  : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5')
-          )
+          .backgroundColor(this.statusIconBgColor(this.monitorStatus()))
           .borderRadius(10)
         Column() {
           Text(
-            !this.deviceOnline
-              ? '检测已暂停'
-              : this.isFallDetected
-                ? '检测到跌倒！'
-                : this.isSedentaryDetected
-                  ? '检测到久坐'
-                  : '正常监测'
+            this.monitorStatus() === 'offline' ? '检测已暂停'
+              : this.monitorStatus() === 'danger' ? '检测到跌倒！'
+              : this.monitorStatus() === 'warning' ? '检测到久坐'
+              : '正常监测'
           )
             .fontSize(16).fontWeight(FontWeight.Bold)
-            .fontColor(
-              !this.deviceOnline
-                ? '#94a3b8'
-                : this.isFallDetected
-                  ? '#ef4444'
-                  : this.isSedentaryDetected
-                    ? '#f59e0b'
-                    : '#10b981'
-            )
+            .fontColor(this.statusFillColor(this.monitorStatus()))
           Text(this.latestMessage).fontSize(12)
             .fontColor(
               !this.deviceOnline
@@ -244,106 +249,45 @@ export struct mainPage {
             .margin({ top: '2%' }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
         Circle({ width: 10, height: 10 })
-          .fill(
-            !this.deviceOnline
-              ? '#94a3b8'
-              : this.isFallDetected
-                ? '#ef4444'
-                : this.isSedentaryDetected
-                  ? '#f59e0b'
-                  : '#10b981'
-          )
+          .fill(this.statusFillColor(this.monitorStatus()))
           .aspectRatio(1)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(
-        !this.deviceOnline
-          ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
-          : this.isFallDetected
-            ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
-            : this.isSedentaryDetected
-              ? (this.themeManager.isDarkMode ? '#2d1a00' : '#fffbeb')
-              : (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
-      )
-      .border({
-        width: 1,
-        color:
-          !this.deviceOnline
-            ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
-            : this.isFallDetected
-              ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
-              : this.isSedentaryDetected
-                ? (this.themeManager.isDarkMode ? '#7c3900' : '#fde68a')
-                : (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
-      })
+      .backgroundColor(this.statusBgColor(this.monitorStatus()))
+      .border({ width: 1, color: this.statusBorderColor(this.monitorStatus()) })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
       // 人脸识别卡
       Row() {
         Image(
-          !this.deviceOnline
-            ? $r('app.media.ic_link_off_red')
-            : this.isStrangerDetected
-              ? $r('app.media.ic_alert_red')
-              : $r('app.media.ic_shield_green')
+          this.faceStatus() === 'offline' ? $r('app.media.ic_link_off_red')
+            : this.faceStatus() === 'danger' ? $r('app.media.ic_alert_red')
+            : $r('app.media.ic_shield_green')
         )
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(
-            !this.deviceOnline
-              ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
-              : this.isStrangerDetected
-                ? (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2')
-                : (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5')
-          )
+          .backgroundColor(this.statusIconBgColor(this.faceStatus()))
           .borderRadius(10)
         Column() {
           Text(
-            !this.deviceOnline
-              ? '识别已暂停'
-              : this.isStrangerDetected
-                ? '检测到陌生人！'
-                : '人脸识别安全'
+            this.faceStatus() === 'offline' ? '识别已暂停'
+              : this.faceStatus() === 'danger' ? '检测到陌生人！'
+              : '人脸识别安全'
           )
             .fontSize(16).fontWeight(FontWeight.Bold)
-            .fontColor(
-              !this.deviceOnline
-                ? '#94a3b8'
-                : this.isStrangerDetected
-                  ? '#ef4444'
-                  : '#10b981'
-            )
+            .fontColor(this.statusFillColor(this.faceStatus()))
           Text('人脸识别').fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
             .margin({ top: '2%' })
         }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
         Circle({ width: 10, height: 10 })
-          .fill(
-            !this.deviceOnline
-              ? '#94a3b8'
-              : this.isStrangerDetected
-                ? '#ef4444'
-                : '#10b981'
-          )
+          .fill(this.statusFillColor(this.faceStatus()))
           .aspectRatio(1)
       }
       .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
       .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(
-        !this.deviceOnline
-          ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
-          : this.isStrangerDetected
-            ? (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5')
-            : (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
-      )
-      .border({
-        width: 1,
-        color: !this.deviceOnline
-          ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
-          : this.isStrangerDetected
-            ? (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
-            : (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
-      })
+      .backgroundColor(this.statusBgColor(this.faceStatus()))
+      .border({ width: 1, color: this.statusBorderColor(this.faceStatus()) })
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
 
       // 音量卡
@@ -372,9 +316,9 @@ export struct mainPage {
   build() {
     Column() {
       this.GradientHeader()
+      Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
       Scroll() {
         Column() {
-          Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
           Column() { this.StatusCards() }.width('100%').alignItems(HorizontalAlign.Center)
           Blank().height(24)
         }.width('100%')
@@ -383,6 +327,7 @@ export struct mainPage {
       .width('100%')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
+      .margin({ top: '2%' })
 
       Button() {
         Row() {
@@ -418,6 +363,6 @@ export struct mainPage {
     }
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)
-    //.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }
