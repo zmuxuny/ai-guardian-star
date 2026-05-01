@@ -355,362 +355,362 @@ export struct person {
       Column() {
         this.GradientHeader()
         this.StatDashboard()
-        Column() {
-          Text("服务设置")
-            .fontSize(12)
-            .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ left: "6%", bottom: "3%", top: "6%" })
-            .alignSelf(ItemAlign.Start)
           Column() {
-            this.MenuRow(
-              $r("app.media.ic_user_blue"),
-              "#eff6ff",
-              "#1e3a5f",
-              "个人资料",
-              "修改头像、昵称及手机号",
-              (): void => {
-                // 进入 Profile 页前先刷新一次，确保返回后数据最新
-                this.pathStack.pushPathByName("Profile", null);
-              },
-            )
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            this.MenuRow(
-              $r("app.media.ic_camera"),
-              "#e0f2fe",
-              "#0c4a6e",
-              "人脸信息",
-              "录入人脸用于开发板识别 (阅后即焚)",
-              (): void => {
-                this.takePhotoAndSendToBoard(getContext(this) as common.UIAbilityContext);
-              },
-            )
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            this.MenuRow(
-              $r("app.media.ic_map_pin_green"),
-              "#f0fdf4",
-              "#14302a",
-              "常用地址",
-              "管理家庭地址及位置信息",
-              (): void => this.safePush("MyAddress"),
-            )
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            this.MenuRow(
-              $r("app.media.ic_phone_orange"),
-              "#fff7ed",
-              "#3d2000",
-              "紧急联系人",
-              "危急时刻一键呼叫通知",
-              (): void => {
-                promptAction.showToast({ message: "功能开发中" });
-              },
-            )
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            this.MenuRow(
-              $r("app.media.ic_list_blue"),
-              "#eff6ff",
-              "#1e3a5f",
-              "历史记录",
-              `查看并导出近 ${this.retentionDays} 天健康事件`,
-              (): void => this.safePush("HealthHistory"),
-            )
-          }
-          .width("92%")
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-          .borderRadius("4%")
-          .clip(true)
-          .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
-        }.width("100%")
-        Column() {
-          Text("系统偏好")
-            .fontSize(12)
-            .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ left: "6%", bottom: "3%", top: "5%" })
-            .alignSelf(ItemAlign.Start)
-          Column() {
-            Row() {
-              Image(
-                this.themeManager.isDarkMode
-                  ? $r("app.media.ic_shield_light")
-                  : $r("app.media.ic_shield_gray"),
+            Text("服务设置")
+              .fontSize(12)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ left: "6%", bottom: "3%", top: "6%" })
+              .alignSelf(ItemAlign.Start)
+            Column() {
+              this.MenuRow(
+                $r("app.media.ic_user_blue"),
+                "#eff6ff",
+                "#1e3a5f",
+                "个人资料",
+                "修改头像、名字及安全联系方式",
+                (): void => {
+                  // 进入 Profile 页前先刷新一次，确保返回后数据最新
+                  this.pathStack.pushPathByName("Profile", null);
+                },
               )
-                .width(36)
-                .height(36)
-                .objectFit(ImageFit.Contain)
-                .padding(8)
-                .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
-                .borderRadius(10)
-                .margin({ right: "4%" })
-              Text("外观模式")
-                .fontSize(15)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeManager.colors.primaryTextColor)
-              Blank()
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              this.MenuRow(
+                $r("app.media.ic_camera"),
+                "#e0f2fe",
+                "#0c4a6e",
+                "人脸信息",
+                "录入人脸用于开发板识别 (阅后即焚)",
+                (): void => {
+                  this.takePhotoAndSendToBoard(getContext(this) as common.UIAbilityContext);
+                },
+              )
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              this.MenuRow(
+                $r("app.media.ic_map_pin_green"),
+                "#f0fdf4",
+                "#14302a",
+                "常用地址",
+                "管理家庭地址及位置信息",
+                (): void => this.safePush("MyAddress"),
+              )
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              this.MenuRow(
+                $r("app.media.ic_phone_orange"),
+                "#fff7ed",
+                "#3d2000",
+                "紧急联系人",
+                "危急时刻一键呼叫通知",
+                (): void => {
+                  promptAction.showToast({ message: "功能开发中" });
+                },
+              )
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              this.MenuRow(
+                $r("app.media.ic_list_blue"),
+                "#eff6ff",
+                "#1e3a5f",
+                "历史记录",
+                `查看并导出近 ${this.retentionDays} 天健康事件`,
+                (): void => this.safePush("HealthHistory"),
+              )
+            }
+            .width("92%")
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .borderRadius("4%")
+            .clip(true)
+            .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
+          }.width("100%")
+          Column() {
+            Text("系统偏好")
+              .fontSize(12)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ left: "6%", bottom: "3%", top: "5%" })
+              .alignSelf(ItemAlign.Start)
+            Column() {
               Row() {
-                Text(
-                  this.themeManager.themeMode === ThemeMode.LIGHT
-                    ? "浅色"
-                    : this.themeManager.themeMode === ThemeMode.DARK
-                      ? "深色"
-                      : "跟随",
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_gray"),
                 )
-                  .fontSize(12)
-                  .fontColor("#2563eb")
-                  .fontWeight(FontWeight.Medium)
-              }
-              .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
-              .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-              .borderRadius(100)
-              .onClick((): void => {
-                this.themeManager.setThemeMode(
-                  ((this.themeManager.themeMode + 1) % 3) as ThemeMode,
-                );
-              })
-            }
-            .width("100%")
-            .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
-            .constraintSize({ minHeight: 64 })
-            .backgroundColor(
-              this.pressedRow === "外观模式"
-                ? this.themeManager.isDarkMode
-                  ? "#2a3a50"
-                  : "#e8edf5"
-                : this.themeManager.colors.cardBackgroundColor,
-            )
-            .animation({ duration: 80, curve: Curve.EaseOut })
-            .onTouch((e: TouchEvent): void => {
-              if (e.type === TouchType.Down) {
-                this.pressedRow = "外观模式";
-              } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-                setTimeout(() => {
-                  this.pressedRow = "";
-                }, 150);
-              }
-            })
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            Row() {
-              Image(
-                this.themeManager.isDarkMode
-                  ? $r("app.media.ic_refresh_light")
-                  : $r("app.media.ic_refresh_gray"),
-              )
-                .width(36)
-                .height(36)
-                .objectFit(ImageFit.Contain)
-                .padding(8)
-                .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
-                .borderRadius(10)
-                .margin({ right: "4%" })
-              Column() {
-                Text("清理缓存")
+                  .width(36)
+                  .height(36)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Text("外观模式")
                   .fontSize(15)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.themeManager.colors.primaryTextColor)
-                Text("释放存储空间，优化运行速度")
-                  .fontSize(12)
-                  .fontColor(this.themeManager.colors.secondaryTextColor)
-                  .margin({ top: "2%" })
-              }
-              .alignItems(HorizontalAlign.Start)
-              .layoutWeight(1)
-              Image($r("app.media.ic_chevron_right"))
-                .width(16)
-                .height(16)
-                .objectFit(ImageFit.Contain)
-            }
-            .width("100%")
-            .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
-            .constraintSize({ minHeight: 64 })
-            .backgroundColor(
-              this.pressedRow === "清理缓存"
-                ? this.themeManager.isDarkMode
-                  ? "#2a3a50"
-                  : "#e8edf5"
-                : this.themeManager.colors.cardBackgroundColor,
-            )
-            .animation({ duration: 80, curve: Curve.EaseOut })
-            .onTouch((e: TouchEvent): void => {
-              if (e.type === TouchType.Down) {
-                this.pressedRow = "清理缓存";
-              } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-                setTimeout(() => {
-                  this.pressedRow = "";
-                }, 150);
-              }
-            })
-            .onClick((): void => {
-              this.mqttManager.clearAllCache();
-              promptAction.showToast({ message: "清理完成" });
-            })
-            Divider()
-              .margin({ left: "15%", right: "4%" })
-              .color(this.themeManager.colors.separatorColor)
-            // ── 数据保留天数设置行 ────────────────────────────────
-            Row() {
-              Image(
-                this.themeManager.isDarkMode
-                  ? $r("app.media.ic_shield_light")
-                  : $r("app.media.ic_shield_blue"),
-              )
-                .width(36)
-                .height(36)
-                .objectFit(ImageFit.Contain)
-                .padding(8)
-                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-                .borderRadius(10)
-                .margin({ right: "4%" })
-              Column() {
-                Text("数据保留时长")
-                  .fontSize(15)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(this.themeManager.colors.primaryTextColor)
-                Text("视频与健康记录的保存天数")
-                  .fontSize(12)
-                  .fontColor(this.themeManager.colors.secondaryTextColor)
-                  .margin({ top: "2%" })
-              }
-              .alignItems(HorizontalAlign.Start)
-              .layoutWeight(1)
-              // 当前天数标签
-              Row() {
-                Text(`${this.retentionDays}天`)
-                  .fontSize(13)
-                  .fontColor("#2563eb")
-                  .fontWeight(FontWeight.Medium)
-              }
-              .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
-              .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-              .borderRadius(100)
-              .onClick((): void => {
-                // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
-                // 改用 showDialog 实现天数选择
-                promptAction
-                  .showDialog({
-                    title: "数据保留时长",
-                    message: "选择视频与健康记录的保存天数\n（更长时间需要开通会员）",
-                    buttons: [
-                      { text: "7天（免费）", color: "#2563eb" },
-                      { text: "14天 👑", color: "#64748b" },
-                      { text: "30天 👑", color: "#64748b" },
-                      { text: "90天 👑", color: "#64748b" },
-                    ],
-                  })
-                  .then((result) => {
-                    const options = [7, 14, 30, 90];
-                    const selected = options[result.index];
-                    if (selected > FREE_RETENTION_DAYS) {
-                      promptAction
-                        .showDialog({
-                          title: "👑 开通守护星会员",
-                          message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
-                          buttons: [
-                            { text: "稍后再说", color: "#64748b" },
-                            { text: "立即开通", color: "#2563eb" },
-                          ],
-                        })
-                        .then((dialog) => {
-                          if (dialog.index === 1) {
-                            promptAction.showToast({ message: "会员功能即将上线，敬请期待！" });
-                          }
-                        });
-                    } else {
-                      DatabaseHelper.getInstance().setRetentionDays(selected);
-                      this.retentionDays = selected;
-                      promptAction.showToast({ message: `已设置保留 ${selected} 天` });
-                    }
-                  });
-              })
-            }
-            .width("100%")
-            .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
-            .constraintSize({ minHeight: 64 })
-            .backgroundColor(
-              this.pressedRow === "数据保留时长"
-                ? this.themeManager.isDarkMode
-                  ? "#2a3a50"
-                  : "#e8edf5"
-                : this.themeManager.colors.cardBackgroundColor,
-            )
-            .animation({ duration: 80, curve: Curve.EaseOut })
-            .onTouch((e: TouchEvent): void => {
-              if (e.type === TouchType.Down) {
-                this.pressedRow = "数据保留时长";
-              } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-                setTimeout(() => {
-                  this.pressedRow = "";
-                }, 150);
-              }
-            })
-          }
-          .width("92%")
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-          .borderRadius("4%")
-          .clip(true)
-          .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
-        }.width("100%")
-        Button("退出登录", { type: ButtonType.Capsule })
-          .width("80%")
-          .height("6%")
-          .constraintSize({ minHeight: 48 })
-          .margin({ top: "10%", bottom: "6%" })
-          .backgroundColor("#fee2e2")
-          .fontColor("#ef4444")
-          .fontWeight(FontWeight.Medium)
-          .scale({ x: this.logoutScale, y: this.logoutScale })
-          .animation({ duration: 120, curve: Curve.EaseInOut })
-          .onClick((): void => {
-            this.logoutScale = 0.95;
-            setTimeout(() => {
-              this.logoutScale = 1.0;
-            }, 150);
-            promptAction
-              .showDialog({
-                title: "退出确认",
-                message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
-                buttons: [
-                  { text: "取消", color: "#64748b" },
-                  { text: "退出", color: "#ef4444" },
-                ],
-              })
-              .then((data) => {
-                if (data.index === 1 && this.pathStack) {
-                  // 清除持久化登录态
-                  try {
-                    const ctx = getContext(this) as common.UIAbilityContext;
-                    const opts: preferences.Options = { name: "guardian_auth" };
-                    const pref = preferences.getPreferencesSync(ctx, opts);
-                    pref.deleteSync("lastUsername");
-                    pref.deleteSync("lastNickname");
-                    pref.flush();
-                  } catch (e) {
-                    console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
-                  }
-                  AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, "");
-                  AppStorage.setOrCreate<string>("loggedInNickname", "");
-                  UserManager.getInstance().clearCurrentUsername();
-                  this.pathStack.clear();
-                  this.pathStack.pushPathByName("Login", null);
+                Blank()
+                Row() {
+                  Text(
+                    this.themeManager.themeMode === ThemeMode.LIGHT
+                      ? "浅色"
+                      : this.themeManager.themeMode === ThemeMode.DARK
+                        ? "深色"
+                        : "跟随",
+                  )
+                    .fontSize(12)
+                    .fontColor("#2563eb")
+                    .fontWeight(FontWeight.Medium)
                 }
-              });
-          })
-        Text("守护星版本 2.0.0")
-          .fontSize(12)
-          .fontColor(this.themeManager.colors.secondaryTextColor)
-          .margin({ bottom: "10%" })
+                .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .borderRadius(100)
+                .onClick((): void => {
+                  this.themeManager.setThemeMode(
+                    ((this.themeManager.themeMode + 1) % 3) as ThemeMode,
+                  );
+                })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "外观模式"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "外观模式";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_refresh_light")
+                    : $r("app.media.ic_refresh_gray"),
+                )
+                  .width(36)
+                  .height(36)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("清理缓存")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text("释放存储空间，优化运行速度")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Image($r("app.media.ic_chevron_right"))
+                  .width(16)
+                  .height(16)
+                  .objectFit(ImageFit.Contain)
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "清理缓存"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "清理缓存";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+              .onClick((): void => {
+                this.mqttManager.clearAllCache();
+                promptAction.showToast({ message: "清理完成" });
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              // ── 数据保留天数设置行 ────────────────────────────────
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_blue"),
+                )
+                  .width(36)
+                  .height(36)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("数据保留时长")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text("视频与健康记录的保存天数")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                // 当前天数标签
+                Row() {
+                  Text(`${this.retentionDays}天`)
+                    .fontSize(13)
+                    .fontColor("#2563eb")
+                    .fontWeight(FontWeight.Medium)
+                }
+                .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .borderRadius(100)
+                .onClick((): void => {
+                  // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
+                  // 改用 showDialog 实现天数选择
+                  promptAction
+                    .showDialog({
+                      title: "数据保留时长",
+                      message: "选择视频与健康记录的保存天数\n（更长时间需要开通会员）",
+                      buttons: [
+                        { text: "7天（免费）", color: "#2563eb" },
+                        { text: "14天 👑", color: "#64748b" },
+                        { text: "30天 👑", color: "#64748b" },
+                        { text: "90天 👑", color: "#64748b" },
+                      ],
+                    })
+                    .then((result) => {
+                      const options = [7, 14, 30, 90];
+                      const selected = options[result.index];
+                      if (selected > FREE_RETENTION_DAYS) {
+                        promptAction
+                          .showDialog({
+                            title: "👑 开通守护星会员",
+                            message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
+                            buttons: [
+                              { text: "稍后再说", color: "#64748b" },
+                              { text: "立即开通", color: "#2563eb" },
+                            ],
+                          })
+                          .then((dialog) => {
+                            if (dialog.index === 1) {
+                              promptAction.showToast({ message: "会员功能即将上线，敬请期待！" });
+                            }
+                          });
+                      } else {
+                        DatabaseHelper.getInstance().setRetentionDays(selected);
+                        this.retentionDays = selected;
+                        promptAction.showToast({ message: `已设置保留 ${selected} 天` });
+                      }
+                    });
+                })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "数据保留时长"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "数据保留时长";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+            }
+            .width("92%")
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .borderRadius("4%")
+            .clip(true)
+            .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
+          }.width("100%")
+          Button("退出登录", { type: ButtonType.Capsule })
+            .width("80%")
+            .height("6%")
+            .constraintSize({ minHeight: 48 })
+            .margin({ top: "10%", bottom: "6%" })
+            .backgroundColor("#fee2e2")
+            .fontColor("#ef4444")
+            .fontWeight(FontWeight.Medium)
+            .scale({ x: this.logoutScale, y: this.logoutScale })
+            .animation({ duration: 120, curve: Curve.EaseInOut })
+            .onClick((): void => {
+              this.logoutScale = 0.95;
+              setTimeout(() => {
+                this.logoutScale = 1.0;
+              }, 150);
+              promptAction
+                .showDialog({
+                  title: "退出确认",
+                  message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
+                  buttons: [
+                    { text: "取消", color: "#64748b" },
+                    { text: "退出", color: "#ef4444" },
+                  ],
+                })
+                .then((data) => {
+                  if (data.index === 1 && this.pathStack) {
+                    // 清除持久化登录态
+                    try {
+                      const ctx = getContext(this) as common.UIAbilityContext;
+                      const opts: preferences.Options = { name: "guardian_auth" };
+                      const pref = preferences.getPreferencesSync(ctx, opts);
+                      pref.deleteSync("lastUsername");
+                      pref.deleteSync("lastNickname");
+                      pref.flush();
+                    } catch (e) {
+                      console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
+                    }
+                    AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, "");
+                    AppStorage.setOrCreate<string>("loggedInNickname", "");
+                    UserManager.getInstance().clearCurrentUsername();
+                    this.pathStack.clear();
+                    this.pathStack.pushPathByName("Login", null);
+                  }
+                });
+            })
+          Text("守护星版本 2.0.0")
+            .fontSize(12)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+            .margin({ bottom: "10%" })
+        }
+        .width("100%")
+        .alignItems(HorizontalAlign.Center)
       }
       .width("100%")
-      .alignItems(HorizontalAlign.Center)
-    }
-    .width("100%")
     .height("100%")
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .scrollBar(BarState.Off)

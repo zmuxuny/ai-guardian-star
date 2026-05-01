@@ -99,7 +99,7 @@ export struct Layout {
         this.currentIndex = index;
       })
       .barBackgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .backgroundColor(this.themeManager.colors.backgroundColor)
+      .backgroundColor('#1e40af')
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .animationDuration(300)
     }

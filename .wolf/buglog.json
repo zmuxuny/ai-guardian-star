@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-01T12:07:29.186Z",
+      "error_message": "Significant refactor of ",
+      "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 11→8 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T12:07:29.186Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-01T15:25:33.339Z",
+      "error_message": "Incorrect value in code",
+      "file": "C:/Users/16228/.claude/channels/telegram/access.json",
+      "root_cause": "Had \"allowlist\"",
+      "fix": "Changed to \"disabled\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T15:25:33.339Z"
+    }
+  ]
+}

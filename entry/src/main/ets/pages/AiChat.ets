@@ -155,6 +155,7 @@ export struct AiChat {
     .linearGradient({ direction: GradientDirection.Bottom,
       colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]] })
     .borderRadius({ bottomLeft: '6%', bottomRight: '6%' })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }
 
   @Builder

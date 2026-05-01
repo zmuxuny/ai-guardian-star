@@ -1,7 +1,38 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "PowerShell(Test-Path *)",
+      "Bash(bun --version)",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell($content = \"TELEGRAM_BOT_TOKEN=8398989912:AAHPjyt_BhzIqqkzaaaNzVHzshkZTqnK2C0\"; [System.IO.File]::WriteAllText\\(\"$env:USERPROFILE\\\\.claude\\\\channels\\\\telegram\\\\.env\", $content, [System.Text.UTF8Encoding]::new\\($false\\)\\); Write-Output \"Fixed \\(UTF-8 without BOM\\).\")",
+      "Bash(xxd \"/c/Users/16228/.claude/channels/telegram/.env\")",
+      "Bash(timeout 5 bun server.ts)",
+      "Bash(curl *)",
+      "Bash(tasklist)",
+      "Bash(tasklist *)",
+      "Bash(timeout 8 bun server.ts)",
+      "Bash(timeout 12 bun server.ts)",
+      "Bash(bun server.ts)",
+      "Bash(echo \"started: $!\")",
+      "Bash(cat /tmp/telegram-server.log)",
+      "Bash(bun *)",
+      "PowerShell($env:HTTP_PROXY; $env:HTTPS_PROXY; $env:http_proxy; $env:https_proxy; $env:ALL_PROXY; $env:all_proxy; Write-Output \"---\"; [System.Net.WebProxy]::GetDefaultProxy\\(\\) | Select-Object -Property Address | Format-List)",
+      "Bash(openssl s_client -connect 198.18.0.118:443 -servername api.telegram.org -showcerts)",
+      "Bash(nslookup *)",
+      "PowerShell(netsh winhttp *)",
+      "Bash(reg query *)",
+      "PowerShell(Add-Content *)",
+      "Bash(node -e ' *)",
+      "Bash(timeout 8 node server.ts)",
+      "Bash(node *)",
+      "PowerShell(Get-Content *)",
+      "Bash(npm install *)",
+      "PowerShell(Get-Process *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \"789 108 909 991 808 312 888 555 777\")",
+      "Skill(telegram:access)"
     ]
   }
 }

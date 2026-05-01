@@ -1,7 +1,8 @@
 /**
  * Profile.ets — 个人资料编辑页
- * 支持修改：头像、昵称、手机号（验证码）、邮箱（验证码）、密码（二次确认）
- * 所有修改先写本地 RDB，再异步同步云端（失败静默降级）
+ * 支持修改：头像、名字、手机号、邮箱、密码（二次确认）
+ * 修改先写本地 RDB，再异步同步云端（失败静默降级）
+ * 注：验证码接口(/api/sendCode, /api/verifyCode)后端未实现，暂跳过验证直接保存
  */
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
@@ -22,22 +23,8 @@ struct PhoneEditDialog {
   currentUser: string = '';
 
   @State phone: string = '';
-  @State code: string = '';
-  @State countdown: number = 0;
-  @State sending: boolean = false;
-  @State verifying: boolean = false;
+  @State saving: boolean = false;
   @State errorMsg: string = '';
-  private timer: number = -1;
-
-  aboutToDisappear(): void { if (this.timer !== -1) { clearInterval(this.timer); } }
-
-  private startCountdown(): void {
-    this.countdown = 60;
-    this.timer = setInterval(() => {
-      this.countdown--;
-      if (this.countdown <= 0) { clearInterval(this.timer); this.countdown = 0; }
-    }, 1000) as number;
-  }
 
   build() {
     Column() {
@@ -61,34 +48,7 @@ struct PhoneEditDialog {
         .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
         .borderRadius(12).height(44).width('100%')
         .onChange((v: string) => { this.phone = v; this.errorMsg = ''; })
-        .margin({ bottom: 12 })
-
-      Row({ space: 10 }) {
-        TextInput({ placeholder: '验证码', text: this.code })
-          .type(InputType.Number).maxLength(6).fontSize(14)
-          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
-          .fontColor(this.themeManager.colors.primaryTextColor)
-          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
-          .borderRadius(12).height(44).layoutWeight(1)
-          .onChange((v: string) => { this.code = v; })
-        Button(this.countdown > 0 ? `${this.countdown}s` : this.sending ? '发送中…' : '获取验证码')
-          .fontSize(12).height(44).width(100)
-          .fontColor(this.countdown > 0 ? '#94a3b8' : '#ffffff')
-          .backgroundColor(this.countdown > 0
-            ? (this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
-            : '#3b82f6')
-          .enabled(this.countdown === 0 && !this.sending && this.phone.trim().length === 11)
-          .onClick(async () => {
-            if (!/^1[3-9]\d{9}$/.test(this.phone.trim())) {
-              this.errorMsg = '请输入正确的手机号'; return;
-            }
-            this.sending = true;
-            const r = await CloudService.getInstance().sendVerificationCode(this.phone.trim(), 'phone', this.currentUser);
-            this.sending = false;
-            if (r.success) { this.startCountdown(); promptAction.showToast({ message: '验证码已发送' }); }
-            else { this.errorMsg = r.message || '发送失败，请重试'; }
-          })
-      }.width('100%').margin({ bottom: 8 })
+        .margin({ bottom: 16 })
 
       if (this.errorMsg) {
         Text(this.errorMsg).fontSize(11).fontColor('#ef4444').alignSelf(ItemAlign.Start).margin({ bottom: 8 })
@@ -100,32 +60,28 @@ struct PhoneEditDialog {
           .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
           .onClick(() => { this.controller.close(); })
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
-          .enabled(!this.verifying)
+          .enabled(!this.saving)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.verifying ? '#94a3b8' : '#1e40af', 0.0], [this.verifying ? '#94a3b8' : '#3b82f6', 1.0]] })
+            colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
             if (!/^1[3-9]\d{9}$/.test(this.phone.trim())) { this.errorMsg = '请输入正确的手机号'; return; }
-            if (this.code.trim().length !== 6) { this.errorMsg = '请输入6位验证码'; return; }
-            this.verifying = true;
-            const r = await CloudService.getInstance().verifyCode(this.phone.trim(), this.code.trim(), this.currentUser);
-            if (r.success) {
-              const db = DatabaseHelper.getInstance();
-              const user = await db.queryUserByUsername(this.currentUser);
-              if (user && user.id !== undefined) {
-                user.phone = this.phone.trim();
-                await db.updateUser(user);
-                AppStorage.setOrCreate<string>('loggedInPhone', user.phone);
-                const fields = new CloudUpdateFields();
-                fields.username = this.currentUser; fields.phone = this.phone.trim();
-                CloudService.getInstance().updateUser(fields).then(() => {});
-              }
+            this.saving = true;
+            const db = DatabaseHelper.getInstance();
+            const user = await db.queryUserByUsername(this.currentUser);
+            if (user && user.id !== undefined) {
+              user.phone = this.phone.trim();
+              await db.updateUser(user);
+              AppStorage.setOrCreate<string>('loggedInPhone', user.phone);
+              const fields = new CloudUpdateFields();
+              fields.username = this.currentUser; fields.phone = this.phone.trim();
+              CloudService.getInstance().updateUser(fields).then(() => {});
               promptAction.showToast({ message: '手机号修改成功' });
               this.controller.close();
             } else {
-              this.errorMsg = r.message || '验证失败';
+              this.errorMsg = '用户信息异常';
             }
-            this.verifying = false;
+            this.saving = false;
           })
       }.width('100%')
     }
@@ -148,22 +104,8 @@ struct EmailEditDialog {
   currentUser: string = '';
 
   @State email: string = '';
-  @State code: string = '';
-  @State countdown: number = 0;
-  @State sending: boolean = false;
-  @State verifying: boolean = false;
+  @State saving: boolean = false;
   @State errorMsg: string = '';
-  private timer: number = -1;
-
-  aboutToDisappear(): void { if (this.timer !== -1) { clearInterval(this.timer); } }
-
-  private startCountdown(): void {
-    this.countdown = 60;
-    this.timer = setInterval(() => {
-      this.countdown--;
-      if (this.countdown <= 0) { clearInterval(this.timer); this.countdown = 0; }
-    }, 1000) as number;
-  }
 
   build() {
     Column() {
@@ -187,34 +129,7 @@ struct EmailEditDialog {
         .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
         .borderRadius(12).height(44).width('100%')
         .onChange((v: string) => { this.email = v; this.errorMsg = ''; })
-        .margin({ bottom: 12 })
-
-      Row({ space: 10 }) {
-        TextInput({ placeholder: '验证码', text: this.code })
-          .type(InputType.Number).maxLength(6).fontSize(14)
-          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
-          .fontColor(this.themeManager.colors.primaryTextColor)
-          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
-          .borderRadius(12).height(44).layoutWeight(1)
-          .onChange((v: string) => { this.code = v; })
-        Button(this.countdown > 0 ? `${this.countdown}s` : this.sending ? '发送中…' : '获取验证码')
-          .fontSize(12).height(44).width(100)
-          .fontColor(this.countdown > 0 ? '#94a3b8' : '#ffffff')
-          .backgroundColor(this.countdown > 0
-            ? (this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
-            : '#3b82f6')
-          .enabled(this.countdown === 0 && !this.sending && this.email.trim().length > 0)
-          .onClick(async () => {
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim())) {
-              this.errorMsg = '请输入正确的邮箱地址'; return;
-            }
-            this.sending = true;
-            const r = await CloudService.getInstance().sendVerificationCode(this.email.trim(), 'email', this.currentUser);
-            this.sending = false;
-            if (r.success) { this.startCountdown(); promptAction.showToast({ message: '验证码已发送至邮箱' }); }
-            else { this.errorMsg = r.message || '发送失败，请重试'; }
-          })
-      }.width('100%').margin({ bottom: 8 })
+        .margin({ bottom: 16 })
 
       if (this.errorMsg) {
         Text(this.errorMsg).fontSize(11).fontColor('#ef4444').alignSelf(ItemAlign.Start).margin({ bottom: 8 })
@@ -226,32 +141,28 @@ struct EmailEditDialog {
           .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
           .onClick(() => { this.controller.close(); })
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
-          .enabled(!this.verifying)
+          .enabled(!this.saving)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.verifying ? '#94a3b8' : '#1e40af', 0.0], [this.verifying ? '#94a3b8' : '#3b82f6', 1.0]] })
+            colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim())) { this.errorMsg = '请输入正确的邮箱'; return; }
-            if (this.code.trim().length !== 6) { this.errorMsg = '请输入6位验证码'; return; }
-            this.verifying = true;
-            const r = await CloudService.getInstance().verifyCode(this.email.trim(), this.code.trim(), this.currentUser);
-            if (r.success) {
-              const db = DatabaseHelper.getInstance();
-              const user = await db.queryUserByUsername(this.currentUser);
-              if (user && user.id !== undefined) {
-                user.email = this.email.trim();
-                await db.updateUser(user);
-                AppStorage.setOrCreate<string>('loggedInEmail', user.email);
-                const fields = new CloudUpdateFields();
-                fields.username = this.currentUser; fields.email = this.email.trim();
-                CloudService.getInstance().updateUser(fields).then(() => {});
-              }
+            this.saving = true;
+            const db = DatabaseHelper.getInstance();
+            const user = await db.queryUserByUsername(this.currentUser);
+            if (user && user.id !== undefined) {
+              user.email = this.email.trim();
+              await db.updateUser(user);
+              AppStorage.setOrCreate<string>('loggedInEmail', user.email);
+              const fields = new CloudUpdateFields();
+              fields.username = this.currentUser; fields.email = this.email.trim();
+              CloudService.getInstance().updateUser(fields).then(() => {});
               promptAction.showToast({ message: '邮箱修改成功' });
               this.controller.close();
             } else {
-              this.errorMsg = r.message || '验证失败';
+              this.errorMsg = '用户信息异常';
             }
-            this.verifying = false;
+            this.saving = false;
           })
       }.width('100%')
     }
@@ -320,15 +231,12 @@ struct PasswordEditDialog {
                 const fb = await cloud.login(this.currentUser, this.oldPwd);
                 if (!fb.success) { this.errorMsg = '当前密码不正确'; this.changing = false; return; }
               }
-              // 云端改密码
-              const r = await CloudService.getInstance().changePassword(this.currentUser, this.oldPwd, this.newPwd);
-              if (r.success) {
-                await db.updatePasswordHash(user.id!, this.newPwd);
-                promptAction.showToast({ message: '密码修改成功' });
-                this.controller.close();
-              } else {
-                this.errorMsg = r.message || '修改失败，请重试';
-              }
+              // 先更新本地，再尝试同步云端（云端失败不阻塞）
+              await db.updatePasswordHash(user.id!, this.newPwd);
+              promptAction.showToast({ message: '密码修改成功' });
+              CloudService.getInstance().changePassword(this.currentUser, this.oldPwd, this.newPwd)
+                .then((r) => { if (!r.success) console.warn('[Profile]: 云端密码同步失败:', r.message); });
+              this.controller.close();
             } catch (e) {
               this.errorMsg = '操作异常，请重试';
             }
