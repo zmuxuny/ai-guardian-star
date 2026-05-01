@@ -112,23 +112,36 @@
 ```
 ai-guardian-star/
 ├── entry/src/main/ets/
-│   ├── pages/
-│   │   ├── mainpage.ets        # 主页（视频流 + 状态 + 通话）
-│   │   ├── record.ets          # 事件记录页
-│   │   ├── AiChat.ets          # AI 健康助手
-│   │   ├── person.ets          # 个人中心
-│   │   ├── HealthHistory.ets   # 历史记录
-│   │   ├── Login.ets           # 登录/注册
-│   │   └── MqttManager.ets     # MQTT 通信管理
-│   ├── common/
-│   │   ├── WenxinService.ets   # 文心 AI 服务封装
-│   │   ├── ThemeManager.ets    # 主题管理（深色/浅色）
-│   │   ├── UserManager.ets     # 用户状态管理
-│   │   └── AudioTransferManager.ets  # 音频通话管理
-│   └── database/
-│       └── DatabaseHelper.ets  # ArkDB 数据库封装
-├── wenxin_proxy.py             # 云端 AI 代理服务（部署至 ECS）
-└── README.md
+│   ├── config.ets                  # 全局配置（服务器地址/端口/存储Key）
+│   ├── components/                  # 共享 UI 组件
+│   │   ├── GradientHeader.ets       #   蓝色渐变头部（7个页面共用）
+│   │   ├── MenuRow.ets              #   通用菜单行（图标+标题/副标题+箭头）
+│   │   └── StatDashboard.ets       #   个人中心统计面板（天数+预警数）
+│   ├── common/                      # 服务层
+│   │   ├── CloudService.ets         #   云端账号 REST API（注册/登录/验证码/改密）
+│   │   ├── CloudSyncService.ets     #   云端数据同步服务
+│   │   ├── WenxinService.ets        #   文心 AI 对话服务封装
+│   │   ├── MqttParser.ets           #   MQTT 消息解析（纯函数，可独立测试）
+│   │   ├── ThemeManager.ets         #   主题管理（深色/浅色/跟随系统）
+│   │   ├── UserManager.ets          #   用户登录态管理
+│   │   └── AudioTransferManager.ets #   音频通话（WebSocket 双向对讲）
+│   ├── database/
+│   │   └── DatabaseHelper.ets       #   ArkDB 数据库封装（用户/事件/视频/设置表）
+│   └── pages/                       # 页面
+│       ├── Index.ets                #   启动页（自动登录检测 → 跳转）
+│       ├── Layout.ets               #   底部 Tab 导航（主页/记录/AI/个人）
+│       ├── mainpage.ets             #   主页（视频流 + 设备状态 + 告警卡 + 通话）
+│       ├── record.ets               #   事件记录页（本次会话内存记录）
+│       ├── AiChat.ets               #   AI 健康助手（文心大模型对话）
+│       ├── person.ets               #   个人中心（资料/人脸/地址/联系人/历史/主题）
+│       ├── Profile.ets              #   个人资料编辑（头像/名字/手机/邮箱/密码）
+│       ├── Login.ets                #   登录/注册（手机号+邮箱自动识别）
+│       ├── HealthHistory.ets        #   历史记录（数据库加载+导出）
+│       ├── MyAddress.ets            #   常用地址编辑
+│       ├── MqttManager.ets          #   MQTT 连接+订阅+告警状态管理
+│       └── DatabaseDiagnostic.ets   #   数据库诊断工具（长按Logo进入）
+├── wenxin_proxy.py                  # 云端 AI 代理服务（部署至 ECS）
+└── PROJECT_STRUCTURE.md             # 详细项目结构文档
 ```
 
 ---
@@ -160,14 +173,10 @@ QIANFAN_API_KEY = "your_api_key_here"
 
 **2. 配置 App 端**
 
-编辑 `entry/src/main/ets/common/WenxinService.ets`：
+编辑 `entry/src/main/ets/config.ets`，修改服务器地址：
 ```typescript
-const PROXY_BASE_URL = 'http://你的ECS公网IP:8899';
-```
-
-编辑 `entry/src/main/ets/pages/MqttManager.ets`：
-```typescript
-const BROKER_HOST = "你的MQTT服务器IP";
+export const ECS_HOST = '你的ECS公网IP';       // 云端 API / MQTT / 视频流
+export const LAN_HOST = '192.168.xxx.xxx';      // 局域网开发板地址
 ```
 
 **3. 编译运行**
