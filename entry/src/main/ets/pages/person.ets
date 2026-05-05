@@ -234,9 +234,11 @@ export struct person {
   build() {
     Column() {
       this.GradientHeader()
+      StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount })
+        .zIndex(1)
+        .margin({ top: -36 })
       Scroll() {
         Column() {
-          StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount, topSafeHeight: this.topSafeHeight })
           Column() {
             Text("服务设置")
               .fontSize(12)
