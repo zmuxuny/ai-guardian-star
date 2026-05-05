@@ -7,6 +7,7 @@ import { ThemeManager } from '../common/ThemeManager';
 export struct StatDashboard {
   @Prop useDays: number = 0;
   @Prop totalAlertCount: number = 0;
+  @Prop topSafeHeight: number = 48;   // 接收父组件的安全区高度
   @State themeManager: ThemeManager = ThemeManager.getInstance();
 
   build() {
@@ -31,7 +32,7 @@ export struct StatDashboard {
     }
     .width("88%")
     .padding({ top: 20, bottom: 20 })
-    .margin({ top: -36 })
+    .margin({ top: -(36 + Math.max(0, this.topSafeHeight - 48)) })  // 动态重叠
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
     .borderRadius("4%")
     .shadow({ radius: 12, color: "#1A3b82f6", offsetY: 6 })

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-01T15:25:33.325Z
-> Files: 529 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-05T11:57:59.409Z
+> Files: 535 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -24,7 +24,8 @@
 - `oh-package-lock.json5` (~541 tok)
 - `oh-package.json5` (~72 tok)
 - `PROJECT_HANDOFF.md` — AI 守护星 · 项目交接文档 (~2856 tok)
-- `README.md` — Project documentation (~1332 tok)
+- `PROJECT_STRUCTURE.md` — 项目结构详解 (~2145 tok)
+- `README.md` — Project documentation (~1585 tok)
 - `SDK20_数据库修复说明.md` — HarmonyOS SDK 20 数据库修复说明 (~1557 tok)
 - `SECURITY.md` — 安全报告 (Security) (~58 tok)
 - `test_database_fix.md` — 数据库修复验证步骤 (~360 tok)
@@ -456,20 +457,31 @@
 
 - `module.json5` (~729 tok)
 
+## entry/src/main/ets/
+
+- `config.ets` — config.ets — 全局配置常量 (~460 tok)
+
 ## entry/src/main/ets/common/
 
-- `AudioTransferManager.ets` — Exports AudioTransferManager (~1594 tok)
+- `AudioTransferManager.ets` — Declares AudioTransferManager (~1563 tok)
 - `CloudService.ets` — CloudService.ets — 云端账号 REST API 封装 (~1013 tok)
 - `CloudSyncService.ets` — CloudSyncService.ets — 云端数据同步服务 (~1100 tok)
 - `Icons.ets` — 图标尺寸类型定义 - 用于不同场景的图标大小 (~1050 tok)
+- `MqttParser.ets` — MqttParser.ets — MQTT 消息解析（纯函数，无副作用，可独立测试） (~559 tok)
 - `ThemeManager - 副本.ets` — 主题颜色定义 (~1415 tok)
 - `ThemeManager.ets` — 主题颜色定义 (~1408 tok)
-- `UserManager.ets` — UserManager.ets — 统一用户管理工具 (~391 tok)
-- `WenxinService.ets` — WenxinService.ets — 文心 AI 助手服务层 (~900 tok)
+- `UserManager.ets` — UserManager.ets — 统一用户管理工具 (~397 tok)
+- `WenxinService.ets` — WenxinService.ets — 文心 AI 助手服务层 (~853 tok)
+
+## entry/src/main/ets/components/
+
+- `GradientHeader.ets` — GradientHeader.ets — 共享渐变头部组件 (~138 tok)
+- `MenuRow.ets` — MenuRow.ets — 通用菜单行组件（图标 + 标题/副标题 + 右箭头） (~515 tok)
+- `StatDashboard.ets` — StatDashboard.ets — 个人中心统计数据展示（已监护天数 + 预警次数） (~355 tok)
 
 ## entry/src/main/ets/database/
 
-- `DatabaseHelper.ets` — DatabaseHelper.ets — 守护星 ArkDB 数据库核心模块 (~7783 tok)
+- `DatabaseHelper.ets` — DatabaseHelper.ets — 守护星 ArkDB 数据库核心模块 (~7797 tok)
 - `DB_DEPLOY_LOG.md` — 守护星 ArkDB 数据库部署过程文档 (~1405 tok)
 
 ## entry/src/main/ets/entryability/
@@ -482,22 +494,22 @@
 
 ## entry/src/main/ets/pages/
 
-- `AiChat.ets` — AiChat.ets - AI Health Assistant Page (~2479 tok)
+- `AiChat.ets` — AiChat.ets - AI Health Assistant Page (~2752 tok)
 - `DatabaseDiagnostic.ets` — DatabaseDiagnostic.ets — 数据库诊断工具 (~2808 tok)
-- `HealthHistory.ets` — HealthHistory.ets — 健康历史记录页 (~2474 tok)
+- `HealthHistory.ets` — HealthHistory.ets — 健康历史记录页 (~2296 tok)
 - `Index.ets` — 数据库已在 EntryAbility.onWindowStageCreate 初始化完毕， (~488 tok)
-- `Layout.ets` — Exports LayoutBuilder (~998 tok)
+- `Layout.ets` — Declares LayoutBuilder (~984 tok)
 - `Layout.ets.bak` — 底部导航布局组件 - 功能增强版 (~751 tok)
 - `Layout.ets.修改说明.md` — Layout.ets 修改记录 - 改用 Image 组件 (~335 tok)
-- `Login.ets` — 校验当前输入格式，返回错误信息（空字符串=通过） (~7737 tok)
+- `Login.ets` — 校验当前输入格式，返回错误信息（空字符串=通过） (~7759 tok)
 - `Login.ets.backup` — 校验当前输入格式，返回错误信息（空字符串=通过） (~7538 tok)
 - `Login.ets.imports` (~158 tok)
-- `mainpage.ets` — Declares req (~4512 tok)
-- `MqttManager.ets` — 启动设备在线检测定时器（每5秒检查一次） (~4955 tok)
-- `MyAddress.ets` — MyAddress.ets — 地址编辑页 (~1657 tok)
-- `person.ets` — person.ets — 个人中心页面 (~7129 tok)
-- `Profile.ets` — Profile.ets — 个人资料编辑页 (~8339 tok)
-- `record.ets` — 单条磁贴：isFall 直接传进来，避免 Builder 内声明 const (~2365 tok)
+- `mainpage.ets` — Declares req (~4090 tok)
+- `MqttManager.ets` — 启动设备在线检测定时器（每5秒检查一次） (~4494 tok)
+- `MyAddress.ets` — MyAddress.ets — 地址编辑页 (~1574 tok)
+- `person.ets` — person.ets — 个人中心页面 (~6415 tok)
+- `Profile.ets` — Profile.ets — 个人资料编辑页 (~8293 tok)
+- `record.ets` — 单条磁贴：isFall 直接传进来，避免 Builder 内声明 const (~2336 tok)
 
 ## entry/src/main/resources/base/element/
 

@@ -232,10 +232,11 @@ export struct person {
   }
 
   build() {
-    Scroll() {
-      Column() {
-        this.GradientHeader()
-        StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount })
+    Column() {
+      this.GradientHeader()
+      Scroll() {
+        Column() {
+          StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount, topSafeHeight: this.topSafeHeight })
           Column() {
             Text("服务设置")
               .fontSize(12)
@@ -590,13 +591,13 @@ export struct person {
         .width("100%")
         .alignItems(HorizontalAlign.Center)
       }
-      .width("100%")
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .width("100%")
     .height("100%")
     .backgroundColor(this.themeManager.colors.backgroundColor)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .onAppear(() => {
-    });
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 }
