@@ -529,6 +529,54 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-02T19:57:58.116Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-05-05T13:33:35.887Z",
+      "error_message": "Wrong reference: false should be true",
+      "file": "entry/build-profile.json5",
+      "root_cause": "Used \"false\" instead of \"true\"",
+      "fix": "Changed false → true",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "json5"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T13:33:35.887Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-05-05T13:34:02.954Z",
+      "error_message": "Incorrect value in code",
+      "file": "AppScope/app.json5",
+      "root_cause": "Had \"com.example.caringsystem\"",
+      "fix": "Changed to \"com.jianyuanxi.guardianstar\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json5"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T13:34:02.954Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-05-05T13:36:29.853Z",
+      "error_message": "Incorrect value in code",
+      "file": "build-profile.json5",
+      "root_cause": "Had \"com.example.caringsystem\"",
+      "fix": "Changed to \"com.jianyuanxi.guardianstar\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json5"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T13:36:29.853Z"
     }
   ]
 }

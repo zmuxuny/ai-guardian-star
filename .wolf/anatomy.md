@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-05T11:57:59.409Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-05T15:52:43.441Z
 > Files: 535 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -11,7 +11,7 @@
 - `.npmrc` (~40 tok)
 - `AI_MODIFICATIONS.md` (~2437 tok)
 - `ArkTS 严格模式修复说明.md` — ArkTS 严格模式修复说明 (~1136 tok)
-- `build-profile.json5` (~475 tok)
+- `build-profile.json5` (~476 tok)
 - `CHANGELOG.md` — Change log (~18 tok)
 - `CLAUDE.md` — OpenWolf (~643 tok)
 - `CODE_OF_CONDUCT.md` — 行为守则（Code of Conduct） (~84 tok)
@@ -31,7 +31,7 @@
 - `test_database_fix.md` — 数据库修复验证步骤 (~360 tok)
 - `tsconfig.json` — TypeScript configuration (~70 tok)
 - `UI重构更新说明.md` — UI 全面重构更新说明 (~1342 tok)
-- `wenxin_proxy.py` — API router (~2633 tok)
+- `wenxin_proxy.py` — API router (~2645 tok)
 - `久坐检测调试指南.md` — 久坐检测调试指南 (~738 tok)
 - `图标尺寸调整记录.md` — 图标尺寸调整记录 (~279 tok)
 - `图标自适应更新说明.md` — 图标自适应屏幕尺寸更新说明 (~930 tok)
@@ -106,7 +106,7 @@
 
 ## AppScope/
 
-- `app.json5` (~58 tok)
+- `app.json5` (~59 tok)
 
 ## AppScope/resources/base/element/
 
@@ -129,7 +129,7 @@
 - `.gitignore` — Git ignore rules (~50 tok)
 - `build-profile.json5` (~120 tok)
 - `hvigorfile.ts` (~65 tok)
-- `obfuscation-rules.txt` — Define project specific obfuscation rules here. (~252 tok)
+- `obfuscation-rules.txt` — Define project specific obfuscation rules here. (~429 tok)
 - `oh-package-lock.json5` (~340 tok)
 - `oh-package.json5` (~55 tok)
 
@@ -464,7 +464,7 @@
 ## entry/src/main/ets/common/
 
 - `AudioTransferManager.ets` — Declares AudioTransferManager (~1563 tok)
-- `CloudService.ets` — CloudService.ets — 云端账号 REST API 封装 (~1013 tok)
+- `CloudService.ets` — CloudService.ets — 云端账号 REST API 封装 (~1111 tok)
 - `CloudSyncService.ets` — CloudSyncService.ets — 云端数据同步服务 (~1100 tok)
 - `Icons.ets` — 图标尺寸类型定义 - 用于不同场景的图标大小 (~1050 tok)
 - `MqttParser.ets` — MqttParser.ets — MQTT 消息解析（纯函数，无副作用，可独立测试） (~559 tok)
@@ -477,7 +477,7 @@
 
 - `GradientHeader.ets` — GradientHeader.ets — 共享渐变头部组件 (~138 tok)
 - `MenuRow.ets` — MenuRow.ets — 通用菜单行组件（图标 + 标题/副标题 + 右箭头） (~515 tok)
-- `StatDashboard.ets` — StatDashboard.ets — 个人中心统计数据展示（已监护天数 + 预警次数） (~355 tok)
+- `StatDashboard.ets` — StatDashboard.ets — 个人中心统计数据展示（已监护天数 + 预警次数） (~327 tok)
 
 ## entry/src/main/ets/database/
 
@@ -507,7 +507,7 @@
 - `mainpage.ets` — Declares req (~4090 tok)
 - `MqttManager.ets` — 启动设备在线检测定时器（每5秒检查一次） (~4494 tok)
 - `MyAddress.ets` — MyAddress.ets — 地址编辑页 (~1574 tok)
-- `person.ets` — person.ets — 个人中心页面 (~6415 tok)
+- `person.ets` — person.ets — 个人中心页面 (~6418 tok)
 - `Profile.ets` — Profile.ets — 个人资料编辑页 (~8293 tok)
 - `record.ets` — 单条磁贴：isFall 直接传进来，避免 Builder 内声明 const (~2336 tok)
 
