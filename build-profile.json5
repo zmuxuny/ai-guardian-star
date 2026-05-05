@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "storeFile": "E:/key/caringSystem.p12",
-          "storePassword": "000000189E97D36C790272334C64BE0489199DE7C13BB51495A93D5FC8444CA7765DBF3E1A3C94B8",
+          "certpath": "D:/16228/Dmowload/Documents/证书签名/caringSystem.cer",
           "keyAlias": "caringSystem",
-          "keyPassword": "000000187FF3D256F47933A669D57B78946F79FFEB72D796A08988CFF3A5FD3DFACCFB2DDC20AD4C",
-          "signAlg": "SHA256withECDSA",
+          "keyPassword": "0000001876BFF2386AEDDE3619AF1D6EFAF75CE5B4D38B4B268D8311903A6E4B7EC84F938104C799",
           "profile": "D:/16228/Dmowload/Documents/证书签名/caringSystemRelease.p7b",
-          "certpath": "D:/16228/Dmowload/Documents/证书签名/caringSystem.cer"
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "E:/key/caringSystem.p12",
+          "storePassword": "000000184C25F4E9F01589DB21D79CD1DACA1A961E847B9B1D2F426A505DDD74AAA7525780772331"
         }
       }
     ],
@@ -40,7 +40,7 @@
     ],
     "capabilities": [
       {
-        "bundleName": "com.example.caringsystem",
+        "bundleName": "com.jianyuanxi.guardianstar",
         "config": [
           {
             "capability": "com.huawei.service.device_security.device_verify",
