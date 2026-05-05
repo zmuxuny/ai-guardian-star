@@ -96,7 +96,7 @@ def api_login():
     try:
         conn = get_db()
         row = conn.execute(
-            "SELECT * FROM t_user WHERE username=?", (username,)
+            "SELECT * FROM t_user WHERE username=? OR phone=? OR email=?", (username, username, username)
         ).fetchone()
         conn.close()
         if not row:

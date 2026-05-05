@@ -21,3 +21,50 @@
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
+
+# ── 云端接口字段名保留（否则服务器收不到正确字段） ──
+-keep-property-name
+    username
+    passwordHash
+    nickname
+    phone
+    email
+    address
+    avatarPath
+    createTime
+    target
+    type
+    code
+    oldPasswordHash
+    newPasswordHash
+    success
+    message
+    user
+
+# ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
+-keep-property-name
+    id
+    password_hash
+    avatar_path
+    bind_elder_id
+    create_time
+    setting_key
+    setting_value
+    update_time
+    settingKey
+    settingValue
+    updateTime
+    bindElderId
+    event_type
+    event_time
+    date_str
+    time_str
+    severity
+    is_handled
+    remark
+    file_path
+    thumbnail_path
+    duration_sec
+    file_size_kb
+    record_time
+    is_exported
