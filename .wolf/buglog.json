@@ -1,0 +1,534 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-01T12:07:29.186Z",
+      "error_message": "Significant refactor of ",
+      "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 11→8 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T12:07:29.186Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-01T15:25:33.339Z",
+      "error_message": "Incorrect value in code",
+      "file": "C:/Users/16228/.claude/channels/telegram/access.json",
+      "root_cause": "Had \"allowlist\"",
+      "fix": "Changed to \"disabled\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T15:25:33.339Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-05-01T16:09:17.100Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Had '4%'",
+      "fix": "Changed to '-4%'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:09:17.100Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-05-01T16:10:41.082Z",
+      "error_message": "Wrong reference: BOTTOM should be TOP",
+      "file": "entry/src/main/ets/pages/AiChat.ets",
+      "root_cause": "Used \"BOTTOM\" instead of \"TOP\"",
+      "fix": "Changed BOTTOM → TOP",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:10:41.082Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-05-01T16:27:40.017Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/common/CloudService.ets",
+      "root_cause": "Had 'http://117.78.9.144:8899'",
+      "fix": "Changed to '../config'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:27:40.018Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-05-01T16:27:46.005Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/common/WenxinService.ets",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→3 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:27:46.005Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-05-01T16:27:57.288Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/common/AudioTransferManager.ets",
+      "root_cause": "Had 'ws://192.168.137.100:5000/ws/intercom'",
+      "fix": "Changed to '../config'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:27:57.288Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-05-01T16:28:06.242Z",
+      "error_message": "Wrong reference: http should be HEALTH_CHECK_URL",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Used \"http\" instead of \"HEALTH_CHECK_URL\"",
+      "fix": "Changed http → HEALTH_CHECK_URL",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:28:06.242Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-01T16:29:29.134Z",
+      "error_message": "Wrong reference: ECS_BASE should be ECS_BASE_URL",
+      "file": "entry/src/main/ets/common/CloudService.ets",
+      "root_cause": "Used \"ECS_BASE\" instead of \"ECS_BASE_URL\"",
+      "fix": "Changed ECS_BASE → ECS_BASE_URL",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:29:29.134Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-05-01T16:29:32.591Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/common/WenxinService.ets",
+      "root_cause": "Had `${PROXY_BASE_URL}/ai/chat`",
+      "fix": "Changed to `${ECS_BASE_URL}/ai/chat`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:29:32.591Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-01T16:29:50.170Z",
+      "error_message": "Wrong reference: HarmonyOS_Client_sad should be MQTT_CLIENT_ID",
+      "file": "entry/src/main/ets/pages/MqttManager.ets",
+      "root_cause": "Used \"HarmonyOS_Client_sad\" instead of \"MQTT_CLIENT_ID\"",
+      "fix": "Changed HarmonyOS_Client_sad → MQTT_CLIENT_ID",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:29:50.170Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-01T16:29:53.628Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Had \"@kit.CoreFileKit\"",
+      "fix": "Changed to '../config'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:29:53.628Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-05-01T16:40:14.109Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/record.ets",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 10→8 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:40:14.109Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-05-01T16:41:23.492Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/HealthHistory.ets",
+      "root_cause": "40 lines replaced/restructured",
+      "fix": "Rewrote 53→21 lines (40 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:41:23.492Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-05-01T16:42:20.066Z",
+      "error_message": "Wrong reference: import should be Component",
+      "file": "entry/src/main/ets/components/GradientHeader.ets",
+      "root_cause": "Used \"import\" instead of \"Component\"",
+      "fix": "Changed import → Component",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:42:20.066Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-05-01T16:57:11.220Z",
+      "error_message": "Missing guard clause",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "No early return/throw for edge case: !this.deviceOnline",
+      "fix": "Added guard clause: if (!this.deviceOnline)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T16:57:11.220Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-05-01T16:58:47.757Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "48 lines replaced/restructured",
+      "fix": "Rewrote 85→37 lines (48 removed) | Also: !this.deviceOnline; ? $r('app.media.ic_link_off_red')",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-01T16:59:54.033Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-05-01T17:03:36.267Z",
+      "error_message": "Wrong reference: PREF_NAME should be PREF_NAME_AUTH",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Used \"PREF_NAME\" instead of \"PREF_NAME_AUTH\"",
+      "fix": "Changed PREF_NAME → PREF_NAME_AUTH",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-01T17:03:39.398Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-05-01T17:04:15.331Z",
+      "error_message": "Wrong reference: loggedInNickname should be STORE_KEY_NICKNAME",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Used \"loggedInNickname\" instead of \"STORE_KEY_NICKNAME\"",
+      "fix": "Changed loggedInNickname → STORE_KEY_NICKNAME",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 5,
+      "last_seen": "2026-05-01T17:04:27.491Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-05-01T17:04:55.174Z",
+      "error_message": "Wrong reference: loggedInPhone should be STORE_KEY_PHONE",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Used \"loggedInPhone\" instead of \"STORE_KEY_PHONE\"",
+      "fix": "Changed loggedInPhone → STORE_KEY_PHONE",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-01T17:05:23.544Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-05-01T17:06:16.287Z",
+      "error_message": "Wrong reference: retentionDays should be STORE_KEY_RETENTION",
+      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
+      "root_cause": "Used \"retentionDays\" instead of \"STORE_KEY_RETENTION\"",
+      "fix": "Changed retentionDays → STORE_KEY_RETENTION",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:06:16.287Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-05-01T17:09:11.011Z",
+      "error_message": "Wrong reference: PREF_NAME_AUTH_AUTH should be PREF_NAME_AUTH",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Used \"PREF_NAME_AUTH_AUTH\" instead of \"PREF_NAME_AUTH\"",
+      "fix": "Changed PREF_NAME_AUTH_AUTH → PREF_NAME_AUTH",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:09:11.011Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-05-01T17:18:26.832Z",
+      "error_message": "Wrong reference: private should be State",
+      "file": "entry/src/main/ets/components/StatDashboard.ets",
+      "root_cause": "Used \"private\" instead of \"State\"",
+      "fix": "Changed private → State",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:18:26.832Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-05-01T17:19:51.831Z",
+      "error_message": "Wrong reference: private should be State",
+      "file": "entry/src/main/ets/components/MenuRow.ets",
+      "root_cause": "Used \"private\" instead of \"State\"",
+      "fix": "Changed private → State",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:19:51.831Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-05-01T17:43:27.392Z",
+      "error_message": "Missing guard clause",
+      "file": "entry/src/main/ets/pages/MqttManager.ets",
+      "root_cause": "No early return/throw for edge case: topic.startsWith('guardian/'",
+      "fix": "Added guard clause: if (topic.startsWith('guardian/')",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:43:27.392Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-05-01T17:50:47.246Z",
+      "error_message": "Wrong condition in logic",
+      "file": "entry/src/main/ets/pages/MqttManager.ets",
+      "root_cause": "Condition was: if (isSedentary)",
+      "fix": "Changed to: if (alert.type === EventType.SEDENTARY)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T17:50:47.246Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-05-01T18:12:09.800Z",
+      "error_message": "Significant refactor of ",
+      "file": "README.md",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 23→37 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-01T18:12:09.800Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-05-02T14:55:59.625-04:00",
+      "error_message": "四个tab页顶部安全区显示白色/黑色纯色，而非页面渐变背景",
+      "file": "entry/src/main/ets/pages/Layout.ets",
+      "root_cause": "Tabs组件同时设置了backgroundColor纯色背景和expandSafeArea(TOP)，纯色覆盖了各页面GradientHeader的渐变效果",
+      "fix": "移除Tabs的backgroundColor和expandSafeArea(TOP)，只保留BOTTOM安全区扩展给底部tab栏，让各页面GradientHeader自行处理顶部渐变",
+      "tags": [
+        "ui",
+        "safe-area",
+        "gradient",
+        "theme"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-02T14:55:59.625-04:00"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-05-02T19:42:52.809Z",
+      "error_message": "Wrong reference: tertiaryTextColor should be secondaryTextColor",
+      "file": "entry/src/main/ets/pages/Layout.ets",
+      "root_cause": "Used \"tertiaryTextColor\" instead of \"secondaryTextColor\"",
+      "fix": "Changed tertiaryTextColor → secondaryTextColor",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-02T19:42:52.809Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-05-02T19:55:54.723Z",
+      "error_message": "Wrong reference: TOP should be BOTTOM",
+      "file": "entry/src/main/ets/pages/Layout.ets",
+      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
+      "fix": "Changed TOP → BOTTOM",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-02T19:58:55.066Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-05-02T19:57:50.110Z",
+      "error_message": "Wrong reference: TOP should be BOTTOM",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
+      "fix": "Changed TOP → BOTTOM",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-02T19:57:50.110Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-05-02T19:57:53.919Z",
+      "error_message": "Wrong reference: TOP should be BOTTOM",
+      "file": "entry/src/main/ets/pages/record.ets",
+      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
+      "fix": "Changed TOP → BOTTOM",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-02T19:57:53.919Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-05-02T19:57:58.116Z",
+      "error_message": "Wrong reference: TOP should be BOTTOM",
+      "file": "entry/src/main/ets/pages/AiChat.ets",
+      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
+      "fix": "Changed TOP → BOTTOM",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-02T19:57:58.116Z"
+    }
+  ]
+}

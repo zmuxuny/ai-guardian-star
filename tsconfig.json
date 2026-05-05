@@ -1,0 +1,10 @@
+// This file using for Naily's ArkTS Support vscode extension.
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "skipLibCheck": true
+    }
+}

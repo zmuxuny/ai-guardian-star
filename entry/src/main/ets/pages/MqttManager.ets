@@ -5,27 +5,12 @@ import {
   MqttConnectOptions,
   MqttMessage,
   MqttResponse,
-  MqttSubscribeOptions
-} from '@ohos/mqtt';
-import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
-
-// 定义 JSON 消息的接口（匹配 Python 代码发送的 MQTT 消息格式）
-interface AlertData {
-  device_id: string;
-  event: string;
-  confidence: number;
-  timestamp: number;
-  datetime: string;
-}
-interface AlertLike {
-  device_id?: string;
-  event?: string;
-  alert_type?: string;
-  type?: string;
-  confidence?: number;
-  timestamp?: number;
-  datetime?: string;
-}
+  MqttSubscribeOptions,
+} from "@ohos/mqtt";
+import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
+import { UserManager } from "../common/UserManager";
+import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID } from '../config';
+import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
 
 export interface FallRecord {
   time: string;
@@ -48,33 +33,38 @@ export interface CacheStats {
   newestSedentaryRecord: string;
 }
 
-const BROKER_HOST = '192.168.137.100';
-const BROKER_PORT = 1883;
-const BROKER_URL = `tcp://${BROKER_HOST}:${BROKER_PORT}`;
-const ALERT_TOPIC = 'ai_guardian/alerts/#';
-
 @Observed
 export class MqttManager {
   private static instance: MqttManager;
   private mqttClient: MqttClient | null = null;
 
   @Track public isConnected: boolean = false;
-  @Track public latestMessage: string = '正在初始化...';
+  @Track public deviceOnline: boolean = false; // 开发板是否在线（20秒超时）
+  @Track public latestMessage: string = "正在启动...";
   @Track public isFallDetected: boolean = false;
   @Track public fallTimestamp: number = 0;
   @Track public fallRecords: FallRecord[] = [];
   @Track public isSedentaryDetected: boolean = false;
   @Track public sedentaryTimestamp: number = 0;
   @Track public sedentaryRecords: SedentaryRecord[] = [];
+  @Track public isStrangerDetected: boolean = false;
+  @Track public strangerTimestamp: number = 0;
 
   private fallRecoveryTimer: number = -1;
   private sedentaryRecoveryTimer: number = -1;
+  private strangerRecoveryTimer: number = -1;
   private readonly FALL_RECOVERY_DELAY: number = 3000;
   private readonly SEDENTARY_RECOVERY_DELAY: number = 3000;
+  private readonly STRANGER_RECOVERY_DELAY: number = 5000;
   private lastRecordedFallTimestamp: number = 0;
   private lastRecordedSedentaryTimestamp: number = 0;
+  private lastDeviceActivity: number = 0;
+  private readonly DEVICE_TIMEOUT_MS: number = 20000; // 20秒无消息视为离线
+  private deviceCheckTimer: number = -1; // 用于定期检查设备在线状态
 
-  private constructor() { this.initClient(); }
+  private constructor() {
+    this.initClient();
+  }
 
   public static getInstance(): MqttManager {
     if (!MqttManager.instance) MqttManager.instance = new MqttManager();
@@ -82,30 +72,37 @@ export class MqttManager {
   }
 
   private initClient() {
-    const clientId = `HarmonyOS_Client_sad`;
+    const clientId = MQTT_CLIENT_ID;
     const clientOptions: MqttClientOptions = {
-      url: BROKER_URL, clientId: clientId, persistenceType: 1,
+      url: BROKER_URL,
+      clientId: clientId,
+      persistenceType: 1,
     };
     try {
       this.mqttClient = MqttAsync.createMqtt(clientOptions);
       this.setupListeners(this.mqttClient);
-      console.log('[mqtt]:MQTT 客户端初始化成功asdf。');
+      console.log("[mqtt]:MQTT 客户端初始化成功。");
     } catch (e) {
-      console.error('[mqtt]:MQTT 客户端初始化失败:', e);
-      this.latestMessage = `MQTT 初始化失败: ${(e as Error).message}`;
+      console.error("[mqtt]:MQTT 客户端初始化失败:", e);
+      this.latestMessage = `连接异常`;
     }
   }
 
   private setupListeners(client: MqttClient) {
     client.connectLost((err: Error, data: MqttResponse) => {
       this.isConnected = false;
-      console.error('[mqtt]:MQTT 连接丢失:', err, data);
-      this.latestMessage = `连接丢失: ${data.message || '请检查网络或Broker状态'}`;
+      console.error("[mqtt]:MQTT 连接丢失:", err, data);
+      this.latestMessage = `连接已断开`;
+      this.deviceOnline = false;
+      this.stopDeviceCheck();
       this.clearFallRecoveryTimer();
       this.reconnect();
     });
     client.messageArrived((err: Error, data: MqttMessage) => {
-      if (err) { console.error('[mqtt]:接收消息错误:', err); return; }
+      if (err) {
+        console.error("[mqtt]:接收消息错误:", err);
+        return;
+      }
       console.log(`[mqtt]:💬 messageArrived 回调触发! topic=${data.topic}`);
       this.handleMessage(data.topic, data.payload);
     });
@@ -115,13 +112,23 @@ export class MqttManager {
     try {
       if (!this.mqttClient) return false;
       const connectOptions: MqttConnectOptions = {
-        connectTimeout: 10, keepAliveInterval: 30, cleanSession: true,
-        userName: "", password: "", MQTTVersion: 4,
+        connectTimeout: 10,
+        keepAliveInterval: 30,
+        cleanSession: true,
+        userName: "",
+        password: "",
+        MQTTVersion: 4,
       };
       const result = await this.mqttClient.connect(connectOptions);
-      if (result.code === 0) { await this.mqttClient.disconnect(); return true; }
+      if (result.code === 0) {
+        await this.mqttClient.disconnect();
+        return true;
+      }
       return false;
-    } catch (error) { console.error('[mqtt]:连接测试失败:', error); return false; }
+    } catch (error) {
+      console.error("[mqtt]:连接测试失败:", error);
+      return false;
+    }
   }
 
   public async disconnect(): Promise<void> {
@@ -129,9 +136,13 @@ export class MqttManager {
       try {
         await this.mqttClient.disconnect();
         this.isConnected = false;
-        this.latestMessage = 'MQTT 连接已断开';
+        this.deviceOnline = false;
+        this.stopDeviceCheck();
+        this.latestMessage = "未连接";
         this.clearFallRecoveryTimer();
-      } catch (error) { console.error('[mqtt]:断开连接失败:', error); }
+      } catch (error) {
+        console.error("[mqtt]:断开连接失败:", error);
+      }
     }
   }
 
@@ -139,226 +150,364 @@ export class MqttManager {
     if (!this.mqttClient) {
       this.initClient();
       if (!this.mqttClient) {
-        this.latestMessage = 'MQTT 客户端初始化失败，请检查配置。'; return;
+        this.latestMessage = "连接异常";
+        return;
       }
     }
     const connectOptions: MqttConnectOptions = {
-      connectTimeout: 30, keepAliveInterval: 60, cleanSession: true,
-      userName: "", password: "", MQTTVersion: 4,
+      connectTimeout: 30,
+      keepAliveInterval: 60,
+      cleanSession: true,
+      userName: "",
+      password: "",
+      MQTTVersion: 4,
     };
     try {
-      this.latestMessage = '正在连接 MQTT Broker...';
+      this.latestMessage = "正在连接...";
       const connectResult = await this.mqttClient.connect(connectOptions);
       if (connectResult.code !== 0) throw new Error(`连接失败，返回码: ${connectResult.code}`);
       this.isConnected = true;
+      // 连接成功后启动设备在线检查（先重置状态）
+      this.deviceOnline = false;
+      this.lastDeviceActivity = 0;
+      this.startDeviceCheck();
       const subscribeResult = await this.mqttClient.subscribe({ topic: topic, qos: 1 });
       if (subscribeResult.code !== 0) throw new Error(`订阅失败，返回码: ${subscribeResult.code}`);
-      this.latestMessage = `✅ MQTT 已连接，等待主题 [${topic}] 消息...`;
-      this.clearFallRecoveryTimer(); this.isFallDetected = false; this.fallTimestamp = 0;
+      this.latestMessage = `已连接`;
+      this.clearFallRecoveryTimer();
+      this.isFallDetected = false;
+      this.fallTimestamp = 0;
     } catch (err) {
       this.isConnected = false;
-      this.latestMessage = `连接/订阅失败: ${(err as Error).message}`;
+      this.latestMessage = `未连接`;
       this.reconnect();
     }
   }
 
   private clearFallRecoveryTimer(): void {
-    if (this.fallRecoveryTimer !== -1) { clearTimeout(this.fallRecoveryTimer); this.fallRecoveryTimer = -1; }
+    if (this.fallRecoveryTimer !== -1) {
+      clearTimeout(this.fallRecoveryTimer);
+      this.fallRecoveryTimer = -1;
+    }
+  }
+
+  /** 启动设备在线检测定时器（每5秒检查一次） */
+  private startDeviceCheck(): void {
+    this.stopDeviceCheck();
+    this.deviceCheckTimer = setInterval(() => {
+      if (!this.isConnected) {
+        this.deviceOnline = false;
+        return;
+      }
+      // 如果在DEVICE_TIMEOUT_MS内收到过设备消息，视为在线
+      const elapsed = Date.now() - this.lastDeviceActivity;
+      this.deviceOnline = (elapsed < this.DEVICE_TIMEOUT_MS);
+    }, 5000) as number;
+  }
+
+  /** 停止设备在线检测定时器 */
+  private stopDeviceCheck(): void {
+    if (this.deviceCheckTimer !== -1) {
+      clearInterval(this.deviceCheckTimer);
+      this.deviceCheckTimer = -1;
+    }
   }
   private startFallRecoveryTimer(): void {
     this.clearFallRecoveryTimer();
     this.fallRecoveryTimer = setTimeout(() => {
-      this.isFallDetected = false; this.fallTimestamp = 0;
-      this.latestMessage = `✅ 已恢复正常状态 @ ${this.formatTimestamp(undefined)}`;
+      this.isFallDetected = false;
+      this.fallTimestamp = 0;
+      this.latestMessage = `正常监测中`;
       this.fallRecoveryTimer = -1;
     }, this.FALL_RECOVERY_DELAY) as number;
   }
   private clearSedentaryRecoveryTimer(): void {
-    if (this.sedentaryRecoveryTimer !== -1) { clearTimeout(this.sedentaryRecoveryTimer); this.sedentaryRecoveryTimer = -1; }
+    if (this.sedentaryRecoveryTimer !== -1) {
+      clearTimeout(this.sedentaryRecoveryTimer);
+      this.sedentaryRecoveryTimer = -1;
+    }
   }
   private startSedentaryRecoveryTimer(): void {
     this.clearSedentaryRecoveryTimer();
     this.sedentaryRecoveryTimer = setTimeout(() => {
-      this.isSedentaryDetected = false; this.sedentaryTimestamp = 0;
-      this.latestMessage = `✅ 久坐已恢复正常 @ ${this.formatTimestamp(undefined)}`;
+      this.isSedentaryDetected = false;
+      this.sedentaryTimestamp = 0;
+      this.latestMessage = `正常监测中`;
       this.sedentaryRecoveryTimer = -1;
     }, this.FALL_RECOVERY_DELAY) as number;
   }
   private clearFallState(): void {
-    this.isFallDetected = false; this.fallTimestamp = 0; this.clearFallRecoveryTimer();
+    this.isFallDetected = false;
+    this.fallTimestamp = 0;
+    this.clearFallRecoveryTimer();
   }
   private clearSedentaryState(): void {
-    this.isSedentaryDetected = false; this.sedentaryTimestamp = 0; this.clearSedentaryRecoveryTimer();
+    this.isSedentaryDetected = false;
+    this.sedentaryTimestamp = 0;
+    this.clearSedentaryRecoveryTimer();
+  }
+  private clearStrangerRecoveryTimer(): void {
+    if (this.strangerRecoveryTimer !== -1) {
+      clearTimeout(this.strangerRecoveryTimer);
+      this.strangerRecoveryTimer = -1;
+    }
+  }
+  private startStrangerRecoveryTimer(): void {
+    this.clearStrangerRecoveryTimer();
+    this.strangerRecoveryTimer = setTimeout(() => {
+      this.isStrangerDetected = false;
+      this.strangerTimestamp = 0;
+      this.strangerRecoveryTimer = -1;
+    }, this.STRANGER_RECOVERY_DELAY) as number;
+  }
+  private clearStrangerState(): void {
+    this.isStrangerDetected = false;
+    this.strangerTimestamp = 0;
+    this.clearStrangerRecoveryTimer();
   }
 
-  private padZero(num: number): string { return num < 10 ? `0${num}` : `${num}`; }
+  private padZero(num: number): string {
+    return num < 10 ? `0${num}` : `${num}`;
+  }
 
   private formatTimestamp(timestamp: number | undefined): string {
     const date = new Date();
-    return `${date.getFullYear()}-${this.padZero(date.getMonth()+1)}-${this.padZero(date.getDate())} ` +
-      `${this.padZero(date.getHours())}:${this.padZero(date.getMinutes())}:${this.padZero(date.getSeconds())}`;
+    return (
+      `${date.getFullYear()}-${this.padZero(date.getMonth() + 1)}-${this.padZero(date.getDate())} ` +
+      `${this.padZero(date.getHours())}:${this.padZero(date.getMinutes())}:${this.padZero(date.getSeconds())}`
+    );
   }
 
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
-    let messageContent: string = '';
-    if (typeof payload !== 'string') {
-      try {
-        const uint8Array: Uint8Array = new Uint8Array(payload as ArrayBuffer);
-        let charCodes: number[] = [];
-        for (let i = 0; i < uint8Array.length; i++) charCodes.push(uint8Array[i]);
-        messageContent = String.fromCharCode(...charCodes);
-      } catch (e) { messageContent = `收到原始数据，但解码失败: ${topic}`; }
-    } else { messageContent = payload; }
+    if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
+      this.lastDeviceActivity = Date.now();
+    }
+
+    const content = payloadToString(payload);
+    if (!content) {
+      console.warn('[mqtt]: 解码失败:', topic);
+      return;
+    }
+
+    const alert = parseAlert(content);
+    if (alert.type === EventType.UNKNOWN) return;
 
     try {
-      const data = JSON.parse(messageContent) as AlertLike;
-      const eventField = (data.event ?? data.alert_type ?? data.type ?? '') as string;
-      const rawEvent: string = String(eventField).toLowerCase().trim();
-      const isEmpty = rawEvent === '' || rawEvent === 'null' || rawEvent === 'none';
-      const hasFallKeyword = rawEvent.includes('fall') || rawEvent.includes('跌倒');
-      const hasSedentaryKeyword = rawEvent.includes('sedentary') || rawEvent.includes('久坐') || rawEvent.includes('sitting_long');
-      const hasNormalKeyword = rawEvent.includes('no fall') || rawEvent.includes('normal') || rawEvent.includes('stand') || rawEvent.includes('walk');
-      const isFall: boolean = !isEmpty && hasFallKeyword && !hasNormalKeyword && !hasSedentaryKeyword;
-      const isSedentary: boolean = !isEmpty && hasSedentaryKeyword && !hasNormalKeyword;
-
-      if (isFall) {
+      if (alert.type === EventType.FALL) {
         const currentTimestamp = Date.now();
-        if (Date.now() - this.lastRecordedFallTimestamp > 2000 || this.lastRecordedFallTimestamp === 0) {
+        if (
+          Date.now() - this.lastRecordedFallTimestamp > 2000 ||
+          this.lastRecordedFallTimestamp === 0
+        ) {
           this.addFallRecord(currentTimestamp);
           this.lastRecordedFallTimestamp = currentTimestamp;
         }
-        this.isFallDetected = true; this.fallTimestamp = currentTimestamp;
+        this.isFallDetected = true;
+        this.fallTimestamp = currentTimestamp;
         this.clearSedentaryState();
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到跌倒`;
         this.startFallRecoveryTimer();
-      } else if (isSedentary) {
+      } else if (alert.type === EventType.SEDENTARY) {
         const currentTimestamp = Date.now();
-        if (Date.now() - this.lastRecordedSedentaryTimestamp > 2000 || this.lastRecordedSedentaryTimestamp === 0) {
+        if (
+          Date.now() - this.lastRecordedSedentaryTimestamp > 2000 ||
+          this.lastRecordedSedentaryTimestamp === 0
+        ) {
           this.addSedentaryRecord(currentTimestamp);
           this.lastRecordedSedentaryTimestamp = currentTimestamp;
         }
-        this.isSedentaryDetected = true; this.sedentaryTimestamp = currentTimestamp;
+        this.isSedentaryDetected = true;
+        this.sedentaryTimestamp = currentTimestamp;
         this.clearFallState();
-        this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${this.formatTimestamp(undefined)}`;
+        this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
+      } else if (alert.type === EventType.STRANGER) {
+        this.isStrangerDetected = true;
+        this.strangerTimestamp = Date.now();
+        this.latestMessage = `检测到陌生人`;
+        this.startStrangerRecoveryTimer();
       } else {
-        this.clearFallState(); this.clearSedentaryState();
-        this.latestMessage = `✅ 正常状态${eventField ? ': ' + eventField : ''} @ ${this.formatTimestamp(undefined)}`;
+        this.clearFallState();
+        this.clearSedentaryState();
+        this.clearStrangerState();
+        this.latestMessage = `正常监测中`;
       }
-    } catch (e) {
-      const lower = messageContent.toLowerCase();
-      const isFall = (lower.includes('fall') || messageContent.includes('跌倒')) &&
-                     !lower.includes('no fall') && !lower.includes('normal') &&
-                     !lower.includes('sedentary');
-      const isSedentary = (lower.includes('sedentary') || messageContent.includes('久坐')) && !lower.includes('normal');
+    } catch (_e) {
+      // JSON 解析失败时尝试对原始文本做关键词兜底匹配
+      const lower = content.toLowerCase();
+      const isFall =
+        (lower.includes("fall") || content.includes("跌倒")) &&
+        !lower.includes("no fall") &&
+        !lower.includes("normal") &&
+        !lower.includes("sedentary");
+      const isSedentary =
+        (lower.includes("sedentary") || content.includes("久坐")) &&
+        !lower.includes("normal");
+      const isStranger = lower.includes("stranger");
       if (isFall) {
         const ts = Date.now();
         if (ts - this.lastRecordedFallTimestamp > 2000 || this.lastRecordedFallTimestamp === 0) {
-          this.addFallRecord(ts); this.lastRecordedFallTimestamp = ts;
+          this.addFallRecord(ts);
+          this.lastRecordedFallTimestamp = ts;
         }
-        this.isFallDetected = true; this.fallTimestamp = ts; this.clearSedentaryState();
-        this.latestMessage = `🚨 严重告警: 检测到跌倒! @ ${this.formatTimestamp(undefined)}`;
+        this.isFallDetected = true;
+        this.fallTimestamp = ts;
+        this.clearSedentaryState();
+        this.latestMessage = `检测到跌倒`;
         this.startFallRecoveryTimer();
       } else if (isSedentary) {
         const ts = Date.now();
-        if (ts - this.lastRecordedSedentaryTimestamp > 2000 || this.lastRecordedSedentaryTimestamp === 0) {
-          this.addSedentaryRecord(ts); this.lastRecordedSedentaryTimestamp = ts;
+        if (
+          ts - this.lastRecordedSedentaryTimestamp > 2000 ||
+          this.lastRecordedSedentaryTimestamp === 0
+        ) {
+          this.addSedentaryRecord(ts);
+          this.lastRecordedSedentaryTimestamp = ts;
         }
-        this.isSedentaryDetected = true; this.sedentaryTimestamp = ts; this.clearFallState();
-        this.latestMessage = `⚠️ 提醒: 检测到久坐! @ ${this.formatTimestamp(undefined)}`;
+        this.isSedentaryDetected = true;
+        this.sedentaryTimestamp = ts;
+        this.clearFallState();
+        this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
+      } else if (isStranger) {
+        this.isStrangerDetected = true;
+        this.strangerTimestamp = Date.now();
+        this.latestMessage = `检测到陌生人`;
+        this.startStrangerRecoveryTimer();
       } else {
-        this.clearFallState(); this.clearSedentaryState();
-        this.latestMessage = `✅ 正常状态: ${messageContent.substring(0, 50)} @ ${this.formatTimestamp(undefined)}`;
+        this.clearFallState();
+        this.clearSedentaryState();
+        this.clearStrangerState();
+        this.latestMessage = `正常监测中`;
       }
     }
   }
 
   private async reconnect() {
-    this.latestMessage = '尝试重新连接 MQTT...';
-    setTimeout(() => { this.connectAndSubscribe(); }, 5000);
+    this.latestMessage = "正在重新连接...";
+    setTimeout(() => {
+      this.connectAndSubscribe();
+    }, 5000);
   }
 
   // ── 关键改动：addFallRecord / addSedentaryRecord 新增持久化写库 ──
 
+  /** 获取当前登录用户名（统一入口，保证一致性） */
+  private getCurrentUsername(): string {
+    return UserManager.getInstance().getCurrentUsername();
+  }
+
   private addFallRecord(timestamp: number): void {
     const now = new Date(timestamp);
     const timeStr = `${this.padZero(now.getHours())}:${this.padZero(now.getMinutes())}:${this.padZero(now.getSeconds())}`;
-    const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`;
+    const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth() + 1)}.${this.padZero(now.getDate())}`;
     const newRecord: FallRecord = { time: timeStr, date: dateStr, timestamp };
     this.fallRecords = [newRecord, ...this.fallRecords];
-    console.log(`[mqtt]:✅ 摔倒记录已添加 ${dateStr} ${timeStr}，总计 ${this.fallRecords.length} 条`);
+    const username = this.getCurrentUsername();
+    console.log(
+      `[mqtt]:✅ 摔倒记录已添加 ${dateStr} ${timeStr} (user=${username})，总计 ${this.fallRecords.length} 条`,
+    );
 
     // ── 持久化到 ArkDB ────────────────────────────────────────
     const event: HealthEvent = {
-      eventType: 'fall',
+      eventType: "fall",
       eventTime: timestamp,
-      dateStr:   `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`,
-      timeStr:   timeStr,
-      severity:  3,
+      dateStr: dateStr,
+      timeStr: timeStr,
+      severity: 3,
       isHandled: 0,
-      username:  AppStorage.get<string>('loggedInUsername') ?? '',
+      username: username,
     };
-    DatabaseHelper.getInstance().insertHealthEvent(event)
-      .then((rowId) => console.log(`[mqtt]:ArkDB 写入摔倒事件 rowId=${rowId}`))
-      .catch((e: Error) => console.error(`[mqtt]:ArkDB 写入摔倒事件失败 ${e.message}`));
+    DatabaseHelper.getInstance()
+      .insertHealthEvent(event)
+      .then((rowId) =>
+        console.log(`[mqtt]:📦 ArkDB 写入摔倒事件成功 rowId=${rowId} (user=${username})`),
+      )
+      .catch((e: Error) => console.error(`[mqtt]:❌ ArkDB 写入摔倒事件失败 ${e.message}`));
   }
 
   private addSedentaryRecord(timestamp: number): void {
     const now = new Date(timestamp);
     const timeStr = `${this.padZero(now.getHours())}:${this.padZero(now.getMinutes())}:${this.padZero(now.getSeconds())}`;
-    const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`;
+    const dateStr = `${now.getFullYear()}.${this.padZero(now.getMonth() + 1)}.${this.padZero(now.getDate())}`;
     const newRecord: SedentaryRecord = { time: timeStr, date: dateStr, timestamp };
     this.sedentaryRecords = [newRecord, ...this.sedentaryRecords];
-    console.log(`[mqtt]:✅ 久坐记录已添加 ${dateStr} ${timeStr}，总计 ${this.sedentaryRecords.length} 条`);
+    const username = this.getCurrentUsername();
+    console.log(
+      `[mqtt]:✅ 久坐记录已添加 ${dateStr} ${timeStr} (user=${username})，总计 ${this.sedentaryRecords.length} 条`,
+    );
 
     // ── 持久化到 ArkDB ────────────────────────────────────────
     const event: HealthEvent = {
-      eventType: 'sedentary',
+      eventType: "sedentary",
       eventTime: timestamp,
-      dateStr:   `${now.getFullYear()}.${this.padZero(now.getMonth()+1)}.${this.padZero(now.getDate())}`,
-      timeStr:   timeStr,
-      severity:  1,
+      dateStr: dateStr,
+      timeStr: timeStr,
+      severity: 1,
       isHandled: 0,
-      username:  AppStorage.get<string>('loggedInUsername') ?? '',
+      username: username,
     };
-    DatabaseHelper.getInstance().insertHealthEvent(event)
-      .then((rowId) => console.log(`[mqtt]:ArkDB 写入久坐事件 rowId=${rowId}`))
-      .catch((e: Error) => console.error(`[mqtt]:ArkDB 写入久坐事件失败 ${e.message}`));
+    DatabaseHelper.getInstance()
+      .insertHealthEvent(event)
+      .then((rowId) =>
+        console.log(`[mqtt]:📦 ArkDB 写入久坐事件成功 rowId=${rowId} (user=${username})`),
+      )
+      .catch((e: Error) => console.error(`[mqtt]:❌ ArkDB 写入久坐事件失败 ${e.message}`));
   }
 
   // ── 缓存管理（清内存 + 同步清库）──────────────────────────────
 
   public clearFallRecords(): void {
-    this.fallRecords = []; this.lastRecordedFallTimestamp = 0;
-    DatabaseHelper.getInstance().clearAllHealthEvents()
-      .then(() => console.log('[mqtt]:ArkDB 摔倒/久坐历史已清除'))
+    this.fallRecords = [];
+    this.lastRecordedFallTimestamp = 0;
+    DatabaseHelper.getInstance()
+      .clearAllHealthEvents()
+      .then(() => console.log("[mqtt]:ArkDB 摔倒/久坐历史已清除"))
       .catch((e: Error) => console.error(`[mqtt]:ArkDB 清除失败 ${e.message}`));
   }
 
   public resetMqttState(): void {
-    this.isFallDetected = false; this.fallTimestamp = 0;
-    this.isSedentaryDetected = false; this.sedentaryTimestamp = 0;
-    this.latestMessage = '状态已重置';
-    this.clearFallRecoveryTimer(); this.clearSedentaryRecoveryTimer();
+    this.isFallDetected = false;
+    this.fallTimestamp = 0;
+    this.isSedentaryDetected = false;
+    this.sedentaryTimestamp = 0;
+    this.isStrangerDetected = false;
+    this.strangerTimestamp = 0;
+    this.latestMessage = "正常监测中";
+    this.clearFallRecoveryTimer();
+    this.clearSedentaryRecoveryTimer();
+    this.clearStrangerRecoveryTimer();
   }
 
   public getCacheStats(): CacheStats {
     const fallCount = this.fallRecords.length;
     const sedentaryCount = this.sedentaryRecords.length;
     return {
-      fallCount, sedentaryCount,
-      oldestFallRecord: fallCount > 0 ? `${this.fallRecords[fallCount-1].date} ${this.fallRecords[fallCount-1].time}` : '无',
-      newestFallRecord: fallCount > 0 ? `${this.fallRecords[0].date} ${this.fallRecords[0].time}` : '无',
-      oldestSedentaryRecord: sedentaryCount > 0 ? `${this.sedentaryRecords[sedentaryCount-1].date} ${this.sedentaryRecords[sedentaryCount-1].time}` : '无',
-      newestSedentaryRecord: sedentaryCount > 0 ? `${this.sedentaryRecords[0].date} ${this.sedentaryRecords[0].time}` : '无',
+      fallCount,
+      sedentaryCount,
+      oldestFallRecord:
+        fallCount > 0
+          ? `${this.fallRecords[fallCount - 1].date} ${this.fallRecords[fallCount - 1].time}`
+          : "无",
+      newestFallRecord:
+        fallCount > 0 ? `${this.fallRecords[0].date} ${this.fallRecords[0].time}` : "无",
+      oldestSedentaryRecord:
+        sedentaryCount > 0
+          ? `${this.sedentaryRecords[sedentaryCount - 1].date} ${this.sedentaryRecords[sedentaryCount - 1].time}`
+          : "无",
+      newestSedentaryRecord:
+        sedentaryCount > 0
+          ? `${this.sedentaryRecords[0].date} ${this.sedentaryRecords[0].time}`
+          : "无",
     };
   }
 
   public clearAllCache(): void {
-    this.fallRecords = []; this.sedentaryRecords = [];
-    this.lastRecordedFallTimestamp = 0; this.lastRecordedSedentaryTimestamp = 0;
+    this.fallRecords = [];
+    this.sedentaryRecords = [];
+    this.lastRecordedFallTimestamp = 0;
+    this.lastRecordedSedentaryTimestamp = 0;
     this.resetMqttState();
-    console.log('[mqtt]:✅ 所有缓存已清理完成');
+    console.log("[mqtt]:✅ 所有缓存已清理完成");
   }
 }

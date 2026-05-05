@@ -1,0 +1,693 @@
+{
+  "version": 1,
+  "created_at": "2026-05-01T11:14:57.398Z",
+  "lifetime": {
+    "total_tokens_estimated": 3077,
+    "total_reads": 75,
+    "total_writes": 11,
+    "total_sessions": 5,
+    "anatomy_hits": 8,
+    "anatomy_misses": 67,
+    "repeated_reads_blocked": 62,
+    "estimated_savings_vs_bare_cli": 2190
+  },
+  "sessions": [
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T11:27:29.890Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 0,
+        "reads_count": 7,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T11:42:29.109Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 0,
+        "reads_count": 7,
+        "writes_count": 0,
+        "repeated_reads_blocked": 7,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T12:07:44.047Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 59,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/AppData/Local/Temp/claude/E--caringSystem/51a59540-9476-4a75-b02c-0b0aa40ab6c6/tasks/bcuiys9qj.output",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/settings.json",
+          "tokens_estimated": 441,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 36,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 500,
+        "output_tokens_estimated": 91,
+        "reads_count": 9,
+        "writes_count": 2,
+        "repeated_reads_blocked": 9,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T12:10:17.505Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 59,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/AppData/Local/Temp/claude/E--caringSystem/51a59540-9476-4a75-b02c-0b0aa40ab6c6/tasks/bcuiys9qj.output",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/settings.json",
+          "tokens_estimated": 441,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 36,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 500,
+        "output_tokens_estimated": 91,
+        "reads_count": 9,
+        "writes_count": 2,
+        "repeated_reads_blocked": 9,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T12:12:42.968Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 59,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/AppData/Local/Temp/claude/E--caringSystem/51a59540-9476-4a75-b02c-0b0aa40ab6c6/tasks/bcuiys9qj.output",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/settings.json",
+          "tokens_estimated": 441,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 36,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 500,
+        "output_tokens_estimated": 91,
+        "reads_count": 9,
+        "writes_count": 2,
+        "repeated_reads_blocked": 9,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T12:26:02.102Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 59,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/AppData/Local/Temp/claude/E--caringSystem/51a59540-9476-4a75-b02c-0b0aa40ab6c6/tasks/bcuiys9qj.output",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/settings.json",
+          "tokens_estimated": 441,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 36,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 500,
+        "output_tokens_estimated": 91,
+        "reads_count": 12,
+        "writes_count": 2,
+        "repeated_reads_blocked": 14,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "",
+      "started": "",
+      "ended": "2026-05-01T13:42:20.978Z",
+      "reads": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/installed_plugins.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/known_marketplaces.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 59,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.claude-plugin/plugin.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/AppData/Local/Temp/claude/E--caringSystem/51a59540-9476-4a75-b02c-0b0aa40ab6c6/tasks/bcuiys9qj.output",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/settings.json",
+          "tokens_estimated": 441,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/package.json",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/index.js",
+          "tokens_estimated": 0,
+          "was_repeated": true,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 55,
+          "action": "edit"
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 36,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 500,
+        "output_tokens_estimated": 91,
+        "reads_count": 12,
+        "writes_count": 2,
+        "repeated_reads_blocked": 14,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-05-01-0944",
+      "started": "2026-05-01T13:44:22.579Z",
+      "ended": "2026-05-01T14:13:47.478Z",
+      "reads": [
+        {
+          "file": "E:/caringSystem/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 38,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/marketplaces/claude-plugins-official.bak/external_plugins/telegram/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 38,
+        "output_tokens_estimated": 0,
+        "reads_count": 3,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-05-01-0944",
+      "started": "2026-05-01T13:44:22.579Z",
+      "ended": "2026-05-01T15:13:45.487Z",
+      "reads": [
+        {
+          "file": "E:/caringSystem/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 38,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/marketplaces/claude-plugins-official.bak/external_plugins/telegram/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 38,
+        "output_tokens_estimated": 0,
+        "reads_count": 3,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-05-01-0944",
+      "started": "2026-05-01T13:44:22.579Z",
+      "ended": "2026-05-01T15:25:40.865Z",
+      "reads": [
+        {
+          "file": "E:/caringSystem/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
+          "tokens_estimated": 38,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/plugins/marketplaces/claude-plugins-official.bak/external_plugins/telegram/.mcp.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "C:/Users/16228/.claude/channels/telegram/access.json",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "C:/Users/16228/.claude/channels/telegram/access.json",
+          "tokens_estimated": 8,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 38,
+        "output_tokens_estimated": 8,
+        "reads_count": 4,
+        "writes_count": 1,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 1
+      }
+    }
+  ],
+  "daemon_usage": [],
+  "waste_flags": [],
+  "optimization_report": {
+    "last_generated": null,
+    "patterns": []
+  }
+}

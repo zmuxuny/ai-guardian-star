@@ -1,4 +1,4 @@
-import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, Configuration, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { ThemeManager } from '../common/ThemeManager';
@@ -8,11 +8,6 @@ const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
-    } catch (error) {
-      hilog.error(DOMAIN, 'testTag', 'setColorMode failed: %{public}s', JSON.stringify(error));
-    }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     ThemeManager.getInstance().init(this.context);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'ThemeManager initialized');
@@ -20,6 +15,7 @@ export default class EntryAbility extends UIAbility {
 
   onConfigurationUpdate(newConfig: Configuration): void {
     hilog.info(DOMAIN, 'testTag', 'Configuration updated, colorMode: %{public}d', newConfig.colorMode);
+    // 系统配置变化时刷新主题（跟随系统模式时生效）
     ThemeManager.getInstance().applyThemeMode();
   }
 
@@ -56,22 +52,18 @@ export default class EntryAbility extends UIAbility {
 
     windowStage.getMainWindow().then((win) => {
       const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
-      const topHeight = px2vp(avoidArea.topRect.height);
-      AppStorage.setOrCreate('topSafeHeight', topHeight > 0 ? topHeight : 48);
-    }).catch(() => {
-      AppStorage.setOrCreate('topSafeHeight', 48);
+      // 获取系统状态栏高度并存储
+      AppStorage.setOrCreate<number>('statusBarHeight', avoidArea.topRect.height);
     });
   }
 
-  onWindowStageDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
-  }
-
   onForeground(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    hilog.info(DOMAIN, 'testTag', '%{s}', 'Ability onForeground');
+    // 切回前台时刷新主题（跟随系统模式）
+    ThemeManager.getInstance().applyThemeMode();
   }
 
   onBackground(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    hilog.info(DOMAIN, 'testTag', '%{s}', 'Ability onBackground');
   }
 }

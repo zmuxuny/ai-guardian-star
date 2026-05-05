@@ -59,7 +59,7 @@ export enum ThemeMode {
 export class ThemeManager {
   private static instance: ThemeManager;
   private context: Context | null = null;
-  
+
   @Track public isDarkMode: boolean = false;
   @Track public colors: ThemeColors = new LightThemeColors();
   @Track public themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM; // 当前主题模式
@@ -112,7 +112,7 @@ export class ThemeManager {
       this.applyTheme();
     }
   }
-  
+
   // 获取系统主题
   private async getSystemTheme(): Promise<boolean> {
     if (!this.context) return false;
@@ -121,10 +121,9 @@ export class ThemeManager {
       const appContext = this.context.getApplicationContext();
       const resourceManager = appContext.resourceManager;
       const config = await resourceManager.getConfiguration();
-      
+
       if (config && config.colorMode !== undefined) {
-        // 修复：ColorMode.COLOR_MODE_DARK = 0, COLOR_MODE_LIGHT = 1
-        // 这里需要反过来判断
+        // ColorMode.COLOR_MODE_DARK = 0, COLOR_MODE_LIGHT = 1
         const isSystemDark = config.colorMode === 0;
         console.log(`[Theme]:系统主题: colorMode=${config.colorMode}, isDark=${isSystemDark}`);
         return isSystemDark;
@@ -132,7 +131,7 @@ export class ThemeManager {
     } catch (error) {
       console.error('[Theme]:获取系统主题失败:', error);
     }
-    
+
     return false;
   }
   
@@ -155,7 +154,7 @@ export class ThemeManager {
         console.log(`[Theme]:Context 未初始化，跳过系统UI更新`);
         return;
       }
-      
+
       const mainWindow = await window.getLastWindow(this.context);
       if (mainWindow) {
         // 设置状态栏内容颜色（深色模式用白色文字，浅色模式用黑色文字）
