@@ -69,11 +69,15 @@ export struct Layout {
   build() {
     NavDestination() {
       Column() {
-        Column() {
-          if (this.currentIndex === 0) { mainPage() }
-          if (this.currentIndex === 1) { record() }
-          if (this.currentIndex === 2) { AiChat() }
-          if (this.currentIndex === 3) { person({ pathStack: this.pathStack }) }
+        Stack() {
+          Column() { mainPage() }.width('100%').height('100%')
+            .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
+          Column() { record() }.width('100%').height('100%')
+            .visibility(this.currentIndex === 1 ? Visibility.Visible : Visibility.None)
+          Column() { AiChat() }.width('100%').height('100%')
+            .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+          Column() { person({ pathStack: this.pathStack }) }.width('100%').height('100%')
+            .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
         }
         .layoutWeight(1)
 

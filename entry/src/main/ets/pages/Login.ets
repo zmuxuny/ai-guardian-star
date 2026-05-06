@@ -1,4 +1,4 @@
-import { authentication, LoginWithHuaweiIDButton, loginComponentManager } from "@kit.AccountKit";
+import { LoginWithHuaweiIDButton, loginComponentManager } from "@kit.AccountKit";
 import { BusinessError } from "@kit.BasicServicesKit";
 import { ThemeManager } from "../common/ThemeManager";
 import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
@@ -597,12 +597,7 @@ struct Login {
                       return;
                     }
                     if (response) {
-                      try {
-                        const data = (response as authentication.LoginWithHuaweiIDResponse).data;
-                        if (data) this.saveLoginAndJump("HW_" + data.openID.substring(0, 8));
-                      } catch (e) {
-                        console.error("[Login]: 华为登录解析异常 " + JSON.stringify(e));
-                      }
+                      this.handleHuaweiLogin(response);
                     }
                   },
                 ),
@@ -839,6 +834,68 @@ struct Login {
     }).catch(() => {
       this.isLoading = false;
       this.showAlert('注册失败，请重试');
+    });
+  }
+
+  /** 华为账号登录：解析凭证 → 写本地DB → 异步同步云端 */
+  private handleHuaweiLogin(credential: loginComponentManager.HuaweiIDCredential): void {
+    this.isLoading = true;
+    console.info('[Login]: 华为账号凭证原始数据: ' + JSON.stringify(credential));
+    // ArkTS 严格模式不允许直接 cast，通过 JSON 序列化将 credential 转成普通对象
+    const src: Record<string, Object> = JSON.parse(JSON.stringify(credential)) as Record<string, Object>;
+    const openID: string = (src.openID as string) || (src.openId as string) || '';
+    const unionID: string = (src.unionID as string) || (src.unionId as string) || '';
+    const displayName: string = (src.displayName as string) || (src.nickname as string) || (src.nickName as string) || ('华为用户' + openID.substring(0, 6));
+    const avatarUri: string = (src.avatarUri as string) || (src.headPictureUrl as string) || (src.avatarUrl as string) || '';
+    const loginId = 'HW_' + (openID || unionID || Date.now().toString()).substring(0, 16);
+    if (!openID && !unionID) {
+      console.warn('[Login]: 华为登录返回数据无 openID/unionID, raw=' + JSON.stringify(src));
+    }
+
+    const db = DatabaseHelper.getInstance();
+    const cloud = CloudService.getInstance();
+    // 先查本地是否有此华为账号
+    db.queryUserByPhone(loginId).then((existing: UserInfo | null) => {
+      if (existing) {
+        // 已存在 → 直接登录
+        this.isLoading = false;
+        promptAction.showToast({ message: `欢迎回来，${existing.username || loginId}`, duration: 1500 });
+        setTimeout(() => { this.saveLoginAndJump(loginId, existing.username ?? loginId); }, 800);
+        return;
+      }
+      // 新用户 → 写入本地DB + 异步云端注册
+      db.insertUser({
+        username: displayName,
+        phone: loginId,
+        email: '',
+        passwordHash: '',
+        avatarPath: avatarUri,
+        address: '',
+        createTime: Date.now(),
+      }).then(() => {
+        const cloudUser: CloudUser = {
+          username: displayName,
+          phone: loginId,
+          email: '',
+          passwordHash: '',
+          avatarPath: avatarUri,
+          nickname: '',
+          address: '',
+          createTime: Date.now(),
+        };
+        cloud.register(cloudUser).then(r => {
+          console.info('[Login]: 华为账号云端同步', r.success ? '成功' : '失败:' + r.message);
+        });
+        this.isLoading = false;
+        promptAction.showToast({ message: `华为账号登录成功`, duration: 1500 });
+        setTimeout(() => { this.saveLoginAndJump(loginId, displayName); }, 800);
+      }).catch(() => {
+        this.isLoading = false;
+        this.showAlert('登录失败，请重试');
+      });
+    }).catch(() => {
+      this.isLoading = false;
+      this.showAlert('登录失败，请重试');
     });
   }
 }
