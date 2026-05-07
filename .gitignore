@@ -1,12 +1,49 @@
+# Node / JS
 /node_modules
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+
+# HarmonyOS / ohos specific
 /oh_modules
-/local.properties
+/*.hap
+/pac.json
+/pack.info
+/oh-package-lock.json5
+/oh-package.json5
+
+# Local config
 /.idea
-**/build
+/local.properties
+
+# Build artifacts
+**/build/
+**/outputs/
+**/intermediates/
+**/generated/
+**/release/
+*.app
+*.hap
+
+# Tooling
 /.hvigor
+.hvigor/
 .cxx
+
+# clang/format
 /.clangd
 /.clang-format
 /.clang-tidy
+
+# Test artifacts
 **/.test
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+/.preview
 /.appanalyzer
+entry/src/main/ets/common/ThemeManager - 副本.ets

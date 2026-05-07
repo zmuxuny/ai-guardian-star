@@ -10,7 +10,23 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "智护星"
+    },
+    {
+      "name": "reason_net",
+      "value": "请检查网络"
+    },
+    {
+      "name": "voice_reason",
+      "value": "音频未初始化"
+    },
+    {
+      "name": "camera_reason",
+      "value": "用于拍摄人脸照片上传至开发板进行识别"
+    },
+    {
+      "name": "media_reason",
+      "value": "用于从相册选取头像图片"
     }
   ]
 }

@@ -1,0 +1,60 @@
+{
+  "routerMap": [
+    {
+      "name": "Login",
+      "pageSourceFile": "src/main/ets/pages/Login.ets",
+      "buildFunction": "LoginBuilder",
+      "data": {
+        "description": "this is Login"
+      }
+    },
+    {
+      "name": "Layout",
+      "pageSourceFile": "src/main/ets/pages/Layout.ets",
+      "buildFunction": "LayoutBuilder",
+      "data": {
+        "description": "this is Layout"
+      }
+    },
+    {
+      "name": "person",
+      "pageSourceFile": "src/main/ets/pages/person.ets",
+      "buildFunction": "personBuilder",
+      "data": {
+        "description": "this is person"
+      }
+    },
+    {
+      "name": "Profile",
+      "pageSourceFile": "src/main/ets/pages/Profile.ets",
+      "buildFunction": "ProfileBuilder",
+      "data": {
+        "description": "this is Profile"
+      }
+    },
+    {
+      "name": "MyAddress",
+      "pageSourceFile": "src/main/ets/pages/MyAddress.ets",
+      "buildFunction": "MyAddressBuilder",
+      "data": {
+        "description": "this is MyAddress"
+      }
+    },
+    {
+      "name": "HealthHistory",
+      "pageSourceFile": "src/main/ets/pages/HealthHistory.ets",
+      "buildFunction": "HealthHistoryBuilder",
+      "data": {
+        "description": "this is HealthHistory"
+      }
+    },
+    {
+      "name": "DatabaseDiagnostic",
+      "pageSourceFile": "src/main/ets/pages/DatabaseDiagnostic.ets",
+      "buildFunction": "DatabaseDiagnosticBuilder",
+      "data": {
+        "description": "this is DatabaseDiagnostic"
+      }
+    }
+  ]
+}

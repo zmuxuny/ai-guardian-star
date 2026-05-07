@@ -1,11 +1,48 @@
 {
   "module": {
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.MICROPHONE",
+        "reason": "$string:voice_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.INTERNET"
+      },
+      {
+        "name": "ohos.permission.CAMERA",
+        "reason": "$string:camera_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.READ_IMAGEVIDEO",
+        "reason": "$string:media_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
+      }
+    ],
+    "routerMap": "$profile:route_map",
     "name": "entry",
     "type": "entry",
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
     "deviceTypes": [
-      "phone"
+      "phone",
+      "tablet"
+    ],
+    "metadata": [
+      {
+        "name": "client_id",
+        "value": "6917589077779545754"
+      }
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
@@ -17,7 +54,7 @@
         "description": "$string:EntryAbility_desc",
         "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
-        "startWindowIcon": "$media:startIcon",
+        "startWindowIcon": "$media:startIconmin",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "skills": [
@@ -28,6 +65,25 @@
             "actions": [
               "ohos.want.action.home"
             ]
+          },
+          {
+            "entities": [
+              "entity.system.browsable"
+            ],
+            "actions": [
+              "ohos.want.action.viewData"
+            ],
+            "uris": [
+              {
+                "scheme": "https",
+                // host须配置为关联的域名
+                "host": "www.aistar.asia",
+                // path可选，表示域名服务器上的目录或文件路径，例如www.example.com/path1中的path1
+                // 如果应用只能处理部分特定的path，则此处应该配置应用所支持的path，避免出现应用不能处理的path链接也被引流到应用中的问题
+                "path": "path1"
+              }
+            ],
+            "domainVerify": true
           }
         ]
       }
@@ -43,7 +99,7 @@
             "name": "ohos.extension.backup",
             "resource": "$profile:backup_config"
           }
-        ],
+        ]
       }
     ]
   }

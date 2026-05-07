@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "com.example.caringsystem",
-    "vendor": "example",
+    "bundleName": "com.jianyuanxi.guardianstar",
+    "vendor": "Jianyuan Xi",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:layered_image",

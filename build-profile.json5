@@ -1,12 +1,26 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "storeFile": "E:/key/guardianstar.p12",
+          "storePassword": "0000001CABDB2F11C09377B81B57E166A279FF05DFC7A3830A4B8420278FC024A1D28F80371A48F735502A26",
+          "keyAlias": "guardianstar",
+          "keyPassword": "0000001C90DA536843F9EDC3C9F3956BA3144B729D464C0FAAF14085B5158FD4F1CE6F22FBFF8C7C9DE87A66",
+          "signAlg": "SHA256withECDSA",
+          "profile": "D:/16228/Dmowload/guardianstarRelease.p7b",
+          "certpath": "D:/16228/Dmowload/guardianstar.cer"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
         "signingConfig": "default",
-        "targetSdkVersion": "5.1.1(19)",
-        "compatibleSdkVersion": "5.1.1(19)",
+        "targetSdkVersion": "6.0.0(20)",
+        "compatibleSdkVersion": "6.0.0(20)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
@@ -18,10 +32,25 @@
     ],
     "buildModeSet": [
       {
-        "name": "debug",
+        "name": "debug"
       },
       {
         "name": "release"
+      }
+    ],
+    "capabilities": [
+      {
+        "bundleName": "com.jianyuanxi.guardianstar",
+        "config": [
+          {
+            "capability": "com.huawei.service.device_security.device_verify",
+            "name": "Device status detection"
+          },
+          {
+            "capability": "com.huawei.service.device_security.safety_detect",
+            "name": "Safety Detect"
+          }
+        ]
       }
     ]
   },
