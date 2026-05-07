@@ -5,7 +5,7 @@
       "PowerShell(Test-Path *)",
       "Bash(bun --version)",
       "Bash(echo \"exit: $?\")",
-      "PowerShell($content = \"TELEGRAM_BOT_TOKEN=8398989912:AAHPjyt_BhzIqqkzaaaNzVHzshkZTqnK2C0\"; [System.IO.File]::WriteAllText\\(\"$env:USERPROFILE\\\\.claude\\\\channels\\\\telegram\\\\.env\", $content, [System.Text.UTF8Encoding]::new\\($false\\)\\); Write-Output \"Fixed \\(UTF-8 without BOM\\).\")",
+      "PowerShell(if \\(-not $env:TELEGRAM_BOT_TOKEN\\) { throw \"TELEGRAM_BOT_TOKEN is not set\" }; $content = \"TELEGRAM_BOT_TOKEN=$env:TELEGRAM_BOT_TOKEN\"; [System.IO.File]::WriteAllText\\(\"$env:USERPROFILE\\\\.claude\\\\channels\\\\telegram\\\\.env\", $content, [System.Text.UTF8Encoding]::new\\($false\\)\\); Write-Output \"Fixed \\(UTF-8 without BOM\\).\")",
       "Bash(xxd \"/c/Users/16228/.claude/channels/telegram/.env\")",
       "Bash(timeout 5 bun server.ts)",
       "Bash(curl *)",
