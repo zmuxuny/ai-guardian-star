@@ -187,19 +187,49 @@ struct NicknameDialog {
           .alignSelf(ItemAlign.Start)
       }
 
-      Row({ space: 12 }) {
-        Button("跳过")
-          .layoutWeight(1)
-          .height(44)
-          .type(ButtonType.Normal)
-          .backgroundColor("#f1f5f9")
-          .fontColor("#64748b")
-          .fontSize(14)
-          .borderRadius(12)
-          .onClick(() => {
-            this.controller.close();
-            this.onConfirm("");
-          })
+      // TODO: 暂时注释掉"跳过"按钮，注册时昵称必填（原 Row + 跳过 + 确认 见下方注释）
+      // Row({ space: 12 }) {
+      //   Button("跳过")
+      //     .layoutWeight(1)
+      //     .height(44)
+      //     .type(ButtonType.Normal)
+      //     .backgroundColor("#f1f5f9")
+      //     .fontColor("#64748b")
+      //     .fontSize(14)
+      //     .borderRadius(12)
+      //     .onClick(() => {
+      //       this.controller.close();
+      //       this.onConfirm("");
+      //     })
+      //   Button("确认")
+      //     .layoutWeight(1)
+      //     .height(44)
+      //     .type(ButtonType.Normal)
+      //     .linearGradient({
+      //       direction: GradientDirection.Right,
+      //       colors: [
+      //         ["#1e40af", 0.0],
+      //         ["#3b82f6", 1.0],
+      //       ],
+      //     })
+      //     .fontColor(Color.White)
+      //     .fontSize(14)
+      //     .borderRadius(12)
+      //     .onClick(() => {
+      //       const nick = this.nickname.trim();
+      //       if (nick.length < 2) {
+      //         this.errorMsg = "名字至少2个字";
+      //         return;
+      //       }
+      //       if (nick.length > 12) {
+      //         this.errorMsg = "名字最多12个字";
+      //         return;
+      //       }
+      //       this.controller.close();
+      //       this.onConfirm(nick);
+      //     })
+      // }.width("100%").margin({ top: 24 })
+      Row() {
         Button("确认")
           .layoutWeight(1)
           .height(44)
@@ -830,7 +860,12 @@ struct Login {
         console.info('[Login]: 云端注册', r.success ? '成功' : '失败:' + r.message);
       });
       this.isLoading = false;
-      this.showVerifyDialog(uname, displayName);
+      // TODO: 暂时跳过验证码 — 注册后直接登录
+      // this.showVerifyDialog(uname, displayName);
+      promptAction.showToast({ message: `🎉 注册成功，欢迎加入守护星！`, duration: 1500 });
+      setTimeout(() => {
+        this.saveLoginAndJump(uname, displayName);
+      }, 600);
     }).catch(() => {
       this.isLoading = false;
       this.showAlert('注册失败，请重试');

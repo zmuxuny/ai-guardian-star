@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-05T15:52:43.441Z
-> Files: 535 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-07T06:30:53.919Z
+> Files: 536 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -123,6 +123,10 @@
 ## C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/
 
 - `.mcp.json` (~38 tok)
+
+## D:/16228/desktop/
+
+- `智护星上架前审计报告.md` — 🔍 智护星 App 上架前综合审计报告 (~1088 tok)
 
 ## entry/
 
@@ -498,13 +502,13 @@
 - `DatabaseDiagnostic.ets` — DatabaseDiagnostic.ets — 数据库诊断工具 (~2808 tok)
 - `HealthHistory.ets` — HealthHistory.ets — 健康历史记录页 (~2296 tok)
 - `Index.ets` — 数据库已在 EntryAbility.onWindowStageCreate 初始化完毕， (~488 tok)
-- `Layout.ets` — Declares LayoutBuilder (~984 tok)
+- `Layout.ets` — Declares LayoutBuilder (~1087 tok)
 - `Layout.ets.bak` — 底部导航布局组件 - 功能增强版 (~751 tok)
 - `Layout.ets.修改说明.md` — Layout.ets 修改记录 - 改用 Image 组件 (~335 tok)
-- `Login.ets` — 校验当前输入格式，返回错误信息（空字符串=通过） (~7759 tok)
+- `Login.ets` — 校验当前输入格式，返回错误信息（空字符串=通过） (~8687 tok)
 - `Login.ets.backup` — 校验当前输入格式，返回错误信息（空字符串=通过） (~7538 tok)
 - `Login.ets.imports` (~158 tok)
-- `mainpage.ets` — Declares req (~4090 tok)
+- `mainpage.ets` — Declares w (~5467 tok)
 - `MqttManager.ets` — 启动设备在线检测定时器（每5秒检查一次） (~4494 tok)
 - `MyAddress.ets` — MyAddress.ets — 地址编辑页 (~1574 tok)
 - `person.ets` — person.ets — 个人中心页面 (~6418 tok)

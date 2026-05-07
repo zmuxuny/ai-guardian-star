@@ -3,6 +3,8 @@
 > Chronological action log. Hooks and AI append to this file automatically.
 > Old sessions are consolidated by the daemon weekly.
 | 08:05 | Edited C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json | 8→11 lines | ~55 |
+| 22:35 | 🔴 主页手机比例修复：回退共享卡片(GradientHeader/VideoArea/StatusCards/音量卡/通话按钮)的padding/margin/borderRadius从rSize()像素改回百分比 | mainpage.ets | fixed | ~800 |
+| 22:35 | 🔴 华为登录按钮修复：移除错误的authentication类型强转 + 添加防御式凭证解析 + 添加本地DB写入与云端同步 | Login.ets | fixed | ~1200 |
 | 3:29p | Replaced Tabs with conditional rendering + iOS floating bottom bar in Layout.ets | Layout.ets | ⚠️待验证 | ~200 |
 | 3:54p | Reverted bottom bar to original full-width Tabs-style with indicator dots | Layout.ets | ✅ | ~150 |
 | 3:57p | Removed TOP safe area from 4 tab page root Columns, TOP now controlled solely by GradientHeader | mainpage/record/AiChat/person.ets | ✅ | ~100 |
@@ -449,6 +451,261 @@
 |------|--------|---------|---------|--------|
 
 ## Session: 2026-05-05 12:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:26 | Edited entry/src/main/ets/pages/mainpage.ets | 2→3 lines | ~24 |
+| 12:27 | Edited entry/src/main/ets/pages/mainpage.ets | added error handling | ~138 |
+| 12:27 | Edited entry/src/main/ets/pages/mainpage.ets | 2→2 lines | ~50 |
+| 12:28 | Edited entry/src/main/ets/pages/mainpage.ets | modified StatusCards() | ~97 |
+| 12:30 | Edited entry/src/main/ets/pages/mainpage.ets | added 1 condition(s) | ~2664 |
+| 12:31 | Edited entry/src/main/ets/pages/mainpage.ets | modified Button() | ~151 |
+| 12:31 | Edited entry/src/main/ets/pages/mainpage.ets | modified if() | ~342 |
+| 12:32 | Edited entry/src/main/ets/pages/mainpage.ets | modified Row() | ~412 |
+12:33:45 | mainpage.ets 平板适配 — 增加 rSize() 自适应缩放 + 600vp断点 + 双列StatusCards + maxWidth约束 | mainpage.ets | 手机固定尺寸保持不变，平板等比放大1.35x
+| 12:34 | Session end: 8 writes across 1 files (mainpage.ets) | 8 reads | ~19108 tok |
+| 12:35 | Edited entry/src/main/ets/pages/mainpage.ets | maxWidth() → constraintSize() | ~45 |
+| 12:36 | Edited entry/src/main/ets/pages/mainpage.ets | inline fix | ~23 |
+| 12:36 | Edited entry/src/main/ets/pages/mainpage.ets | 2→2 lines | ~32 |
+| 12:36 | Session end: 11 writes across 1 files (mainpage.ets) | 8 reads | ~19215 tok |
+| 12:39 | Edited entry/src/main/ets/pages/mainpage.ets | 12→12 lines | ~110 |
+| 12:39 | Session end: 12 writes across 1 files (mainpage.ets) | 8 reads | ~19333 tok |
+
+## Session: 2026-05-06 22:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 22:28 | Edited entry/src/main/ets/pages/mainpage.ets | modified Row() | ~447 |
+| 22:29 | Edited entry/src/main/ets/pages/mainpage.ets | modified if() | ~418 |
+| 22:29 | Edited entry/src/main/ets/pages/mainpage.ets | modified Row() | ~253 |
+| 22:30 | Edited entry/src/main/ets/pages/mainpage.ets | modified Column() | ~219 |
+| 22:30 | Edited entry/src/main/ets/pages/mainpage.ets | 2→2 lines | ~54 |
+| 22:30 | Edited entry/src/main/ets/pages/mainpage.ets | 2→1 lines | ~29 |
+| 22:32 | Edited entry/src/main/ets/pages/Login.ets | modified if() | ~258 |
+| 22:33 | Edited entry/src/main/ets/pages/Login.ets | added optional chaining | ~707 |
+| 22:34 | Edited entry/src/main/ets/pages/Login.ets | added error handling | ~325 |
+| 22:34 | Edited entry/src/main/ets/pages/Login.ets | inline fix | ~22 |
+| 22:36 | Session end: 10 writes across 2 files (mainpage.ets, Login.ets) | 5 reads | ~19149 tok |
+| 22:47 | Edited entry/src/main/ets/pages/Login.ets | modified handleHuaweiLogin() | ~266 |
+| 22:47 | Session end: 11 writes across 2 files (mainpage.ets, Login.ets) | 5 reads | ~19342 tok |
+| 22:53 | Edited entry/src/main/ets/pages/Login.ets | 3→3 lines | ~63 |
+| 22:54 | Session end: 12 writes across 2 files (mainpage.ets, Login.ets) | 5 reads | ~19410 tok |
+| 22:59 | Session end: 12 writes across 2 files (mainpage.ets, Login.ets) | 5 reads | ~19410 tok |
+
+## Session: 2026-05-06 23:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 23:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 23:17 | Edited entry/src/main/ets/pages/Layout.ets | modified Stack() | ~182 |
+| 23:17 | Session end: 1 writes across 1 files (Layout.ets) | 1 reads | ~1281 tok |
+
+## Session: 2026-05-06 05:13
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 05:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 05:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 05:34
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 05:36
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 06:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 06:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:31
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:32
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:34
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:34
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:34
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:34
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 11:38
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:44
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:44
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-06 12:47
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:53 | Created D:/16228/desktop/智护星上架前审计报告.md | — | ~1160 |
+
+## Session: 2026-05-06 12:54
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 22:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-07 02:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:21 | Edited entry/src/main/ets/pages/Login.ets | modified Row() | ~122 |
+| 02:24 | Edited entry/src/main/ets/pages/Login.ets | 2→7 lines | ~76 |
+| 02:26 | Session end: 2 writes across 1 files (Login.ets) | 1 reads | ~8653 tok |
+| 02:30 | Edited entry/src/main/ets/pages/Login.ets | added 2 condition(s) | ~579 |
+| 02:34 | Session end: 3 writes across 1 files (Login.ets) | 1 reads | ~9521 tok |
+
+## Session: 2026-05-07 07:30
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|

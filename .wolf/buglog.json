@@ -577,6 +577,118 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-05T13:36:29.853Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-05-05T16:26:53.802Z",
+      "error_message": "Wrong reference: LIVE should be State",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Used \"LIVE\" instead of \"State\"",
+      "fix": "Changed LIVE → State",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T16:26:53.802Z"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-05-05T16:27:06.397Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T16:27:06.397Z"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-05-05T16:30:47.172Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "12 lines replaced/restructured",
+      "fix": "Rewrote 119→198 lines (12 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-05T16:30:47.172Z"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-05-06T02:30:24.545Z",
+      "error_message": "Wrong reference: this should be 3",
+      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "root_cause": "Used \"this\" instead of \"3\"",
+      "fix": "Changed this → 3",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T02:30:24.545Z"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-05-06T02:33:31.757Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Login.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: console.info('[Login]: 华为账号凭证原始数据: ' + JSON.stringify(creden; // credential 可能是 { data: \"...\" } 也可能是直接展开的对象",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-06T02:34:14.131Z"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-05-06T02:53:54.409Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Login.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T02:53:54.409Z"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-05-06T03:17:16.934Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Layout.ets",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 7→11 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T03:17:16.934Z"
     }
   ]
 }
