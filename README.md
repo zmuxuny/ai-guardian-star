@@ -9,7 +9,7 @@
 [![Powered by Ascend](https://img.shields.io/badge/Powered%20by-Ascend%20Atlas-red?style=for-the-badge&logo=huawei)](https://www.hiascend.com/)
 [![HarmonyOS](https://img.shields.io/badge/App-HarmonyOS%20NEXT-blue?style=for-the-badge)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![Edge Device](https://img.shields.io/badge/Edge-Atlas%20200I%20DK%20A2-green?style=for-the-badge)](https://www.hiascend.com/hardware/developer-kit)
-[![AI](https://img.shields.io/badge/AI-ERNIE%204.5%20文心-orange?style=for-the-badge)](https://qianfan.cloud.baidu.com/)
+[![AI](https://img.shields.io/badge/AI-扣子%20Coze-orange?style=for-the-badge)](https://www.coze.cn/)
 [![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)](LICENSE)
 
 <br/>
@@ -24,7 +24,7 @@
 
 **AI 守护星**是一款面向居家养老场景的全栈智能看护系统。随着全球老龄化加剧，独居老人的安全监护已成为重要社会议题——传统人工看护成本高、响应慢，难以实现真正的 24 小时全覆盖。
 
-本项目以 **"非接触式感知 + 端云协同 + AI 智能解读"** 为核心理念，将昇腾边缘计算能力前置至家庭场景。基于华为昇腾 Atlas 200I DK A2 实现实时姿态分析与异常检测，通过鸿蒙 OS 原生应用实现秒级告警推送，并引入百度文心大模型提供 AI 健康咨询，构建"**本地智能分析 → 云端安全中转 → 手机即时响应 → AI 辅助决策**"的完整闭环看护体系。
+本项目以 **"非接触式感知 + 端云协同 + AI 智能解读"** 为核心理念，将昇腾边缘计算能力前置至家庭场景。基于华为昇腾 Atlas 200I DK A2 实现实时姿态分析与异常检测，通过鸿蒙 OS 原生应用实现秒级告警推送，并引入字节扣子智能体提供 AI 健康咨询，构建"**本地智能分析 → 云端安全中转 → 手机即时响应 → AI 辅助决策**"的完整闭环看护体系。
 
 ---
 
@@ -44,13 +44,13 @@
 - **即时告警**：MQTT 订阅检测结果，摔倒 / 久坐事件秒级弹窗推送
 - **事件记录**：本次会话记录实时展示，历史记录持久化至 ArkDB，支持 7 天数据保留与导出
 - **人脸录入**：App 拍照 → 云端加密中转 → 开发板提取特征 → 原图销毁，全程隐私闭环
-- **AI 健康助手**：接入百度文心 ERNIE-4.5 大模型，支持多轮对话，自动注入监护统计摘要（脱敏），提供针对性健康建议
+- **AI 健康助手**：接入字节扣子智能体，支持多轮对话，自动注入监护统计摘要（脱敏），提供针对性健康建议
 - **个人中心**：用户信息管理、紧急联系人、常用地址、数据保留设置、深色/浅色/跟随系统主题切换
 
 ### ☁️ 云端服务（华为云 ECS）
 
 - **业务数据库**：OpenGauss 存储账号、健康事件、告警记录
-- **AI 代理服务**：Flask 中转服务，隔离百度千帆 API Key，App 不直接持有密钥
+- **AI 代理服务**：Flask 中转服务，隔离扣子 API Key，App 不直接持有密钥
 - **人脸中转**：加密转发人脸图像至开发板，不落盘存储
 
 ---
@@ -62,7 +62,7 @@
 │                      华为云 ECS                              │
 │   ┌──────────────────┐    ┌────────────────────────────┐    │
 │   │  OpenGauss 数据库 │    │  信令服务 / AI 代理服务     │    │
-│   │  账号·健康·告警   │    │  视频中转 · 文心 API 代理  │    │
+│   │  账号·健康·告警   │    │  视频中转 · 扣子 API 代理  │    │
 │   └──────────────────┘    └────────────────────────────┘    │
 └────────────────┬──────────────────────┬─────────────────────┘
                  │ 账号/设置同步          │ 告警推送 / AI 对话
@@ -89,8 +89,8 @@
 系统的隐私保护贯穿全链路：
 
 - **人脸特征不上云**：人脸图像仅用于在开发板本地提取 128 维特征向量，提取完成后原图即时销毁
-- **AI 上下文脱敏**：发送给文心大模型的仅为聚合统计摘要（摔倒次数、久坐次数、距今天数），不含任何可识别个人身份的信息
-- **API Key 不入包**：百度千帆 API Key 仅存在于云端 Flask 服务，App 安装包内不包含任何密钥
+- **AI 上下文脱敏**：发送给扣子智能体的仅为聚合统计摘要（摔倒次数、久坐次数、距今天数），不含任何可识别个人身份的信息
+- **API Key 不入包**：扣子 API Key 仅存在于云端 Flask 服务，App 安装包内不包含任何密钥
 - **手机号加密显示**：App 内手机号显示采用中间段 `*` 遮蔽处理
 
 ---
@@ -102,7 +102,7 @@
 | 边缘计算 | Atlas 200I DK A2 · CANN · PyACL · OpenCV · paho-mqtt |
 | 鸿蒙应用 | HarmonyOS NEXT · ArkTS · ArkUI · ArkDB · ohos-mqtt |
 | 云端服务 | 华为云 ECS · OpenGauss · Python Flask |
-| AI 大模型 | 百度千帆 · ERNIE-4.5-turbo-128k |
+| AI 大模型 | 字节扣子 · Coze 智能体 |
 | 通信协议 | MQTT · WebSocket · HTTP/HTTPS |
 
 ---
@@ -120,7 +120,7 @@ ai-guardian-star/
 │   ├── common/                      # 服务层
 │   │   ├── CloudService.ets         #   云端账号 REST API（注册/登录/验证码/改密）
 │   │   ├── CloudSyncService.ets     #   云端数据同步服务
-│   │   ├── WenxinService.ets        #   文心 AI 对话服务封装
+│   │   ├── WenxinService.ets        #   扣子 AI 对话服务封装
 │   │   ├── MqttParser.ets           #   MQTT 消息解析（纯函数，可独立测试）
 │   │   ├── ThemeManager.ets         #   主题管理（深色/浅色/跟随系统）
 │   │   ├── UserManager.ets          #   用户登录态管理
@@ -132,7 +132,7 @@ ai-guardian-star/
 │       ├── Layout.ets               #   底部 Tab 导航（主页/记录/AI/个人）
 │       ├── mainpage.ets             #   主页（视频流 + 设备状态 + 告警卡 + 通话）
 │       ├── record.ets               #   事件记录页（本次会话内存记录）
-│       ├── AiChat.ets               #   AI 健康助手（文心大模型对话）
+│       ├── AiChat.ets               #   AI 健康助手（扣子智能体对话）
 │       ├── person.ets               #   个人中心（资料/人脸/地址/联系人/历史/主题）
 │       ├── Profile.ets              #   个人资料编辑（头像/名字/手机/邮箱/密码）
 │       ├── Login.ets                #   登录/注册（手机号+邮箱自动识别）
@@ -140,7 +140,7 @@ ai-guardian-star/
 │       ├── MyAddress.ets            #   常用地址编辑
 │       ├── MqttManager.ets          #   MQTT 连接+订阅+告警状态管理
 │       └── DatabaseDiagnostic.ets   #   数据库诊断工具（长按Logo进入）
-├── wenxin_proxy.py                  # 云端 AI 代理服务（部署至 ECS）
+├── wenxin_proxy.py                  # 云端扣子 AI 代理服务（部署至 ECS）
 └── PROJECT_STRUCTURE.md             # 详细项目结构文档
 ```
 
@@ -164,9 +164,9 @@ pip3 install flask flask-cors requests
 nohup python3 /root/wenxin_proxy.py > /var/log/wenxin.log 2>&1 &
 ```
 
-在 `wenxin_proxy.py` 中填入百度千帆 API Key：
+在 `wenxin_proxy.py` 中填入扣子 API Key：
 ```python
-QIANFAN_API_KEY = "your_api_key_here"
+COZE_API_KEY = "your_api_key_here"
 ```
 
 在华为云安全组开放入站 TCP 端口 `8899`。
