@@ -735,7 +735,7 @@ struct Login {
             this.isLoading = false;
             const cloudFallback = await cloud.login(uname, pwd);
             if (cloudFallback.success && cloudFallback.user) {
-              existing.passwordHash = pwd;
+              // 只同步昵称，不覆盖本地密码（本地可能已改为新密码，覆盖会导致新旧密码都能登录）
               existing.username = cloudFallback.user.username || existing.username;
               await db.updateUser(existing).catch(() => {});
               const r: LoginResult = { loginId: uname, displayName: existing.username ?? uname, isNew: false };

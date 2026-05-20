@@ -56,9 +56,15 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
-/** 更新资料时传给云端的字段（全部可选，用显式 class 替代 Partial） */
+/**
+ * 更新资料时传给云端的字段（全部可选，用显式 class 替代 Partial）
+ * - username：作为「lookup key」定位云端记录（传当前 loginId：手机/邮箱/HW_ID/昵称均可）
+ * - newUsername：仅在「改昵称」时使用，把云端 username 列改成新昵称
+ * - 其它字段：要写入的新值
+ */
 export class CloudUpdateFields {
   username: string = '';
+  newUsername: string = '';
   nickname: string = '';
   avatarPath: string = '';
   phone: string = '';

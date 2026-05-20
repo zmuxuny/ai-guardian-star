@@ -27,6 +27,7 @@ export struct MyAddress {
   @State hasChanged: boolean = false;
 
   private currentUser: string = '';
+  private loadedUser: UserInfo | null = null;
 
   aboutToAppear(): void {
     this.currentUser = UserManager.getInstance().getCurrentUsername();
@@ -40,6 +41,7 @@ export struct MyAddress {
       .then((user: UserInfo | null) => {
         this.isLoading = false;
         if (user) {
+          this.loadedUser = user;
           this.address = user.address ?? '';
           this.originalAddress = this.address;
         }
@@ -52,17 +54,15 @@ export struct MyAddress {
   }
 
   private async saveAddress(): Promise<void> {
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) {
+      promptAction.showToast({ message: '用户信息未加载，请返回重试' });
+      return;
+    }
     this.isSaving = true;
-    const db = DatabaseHelper.getInstance();
     try {
-      const user = await db.queryUserByIdentifier(this.currentUser);
-      if (!user || user.id === undefined) {
-        promptAction.showToast({ message: '用户信息异常' });
-        this.isSaving = false;
-        return;
-      }
       user.address = this.address.trim();
-      await db.updateUser(user);
+      await DatabaseHelper.getInstance().updateUser(user);
       // 云端同步（失败静默降级）
       const fields = new CloudUpdateFields();
       fields.username = this.currentUser;
