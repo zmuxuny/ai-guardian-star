@@ -128,19 +128,13 @@ export struct MyAddress {
         .margin({ right: 12 })
 
         Column() {
-          // 联系人 + 电话
-          Row() {
-            Text((this.loadedUser && this.loadedUser.username) ? this.loadedUser.username : '家庭住址')
-              .fontSize(16).fontWeight(FontWeight.Bold)
-              .fontColor(this.themeManager.colors.primaryTextColor)
-            if (this.loadedUser && this.loadedUser.phone) {
-              Text(this.maskPhone(this.loadedUser.phone))
-                .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
-                .margin({ left: 10 })
-            }
-          }.width('100%')
+          // 地址（移到顶部，最突出）
+          Text(this.originalAddress)
+            .fontSize(15).fontWeight(FontWeight.Medium)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .lineHeight(22).width('100%').maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
 
-          // 标签 + 地址
+          // 标签
           Row() {
             Text('默认').fontSize(10).fontColor('#ffffff')
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
@@ -148,11 +142,18 @@ export struct MyAddress {
             Text('家庭').fontSize(10).fontColor('#10b981')
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
               .border({ width: 1, color: '#10b981' }).borderRadius(4)
-          }.width('100%').margin({ top: 8 })
+          }.width('100%').margin({ top: 10 })
 
-          Text(this.originalAddress)
-            .fontSize(14).fontColor(this.themeManager.colors.primaryTextColor)
-            .lineHeight(20).margin({ top: 8 }).width('100%')
+          // 联系人 + 电话（移到下方）
+          Row() {
+            Text((this.loadedUser && this.loadedUser.username) ? this.loadedUser.username : '家庭住址')
+              .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
+            if (this.loadedUser && this.loadedUser.phone) {
+              Text(this.maskPhone(this.loadedUser.phone))
+                .fontSize(12).fontColor(this.themeManager.colors.tertiaryTextColor)
+                .margin({ left: 10 })
+            }
+          }.width('100%').margin({ top: 10 })
         }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
         // 编辑笔
