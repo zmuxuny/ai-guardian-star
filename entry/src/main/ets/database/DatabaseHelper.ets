@@ -357,11 +357,13 @@ export class DatabaseHelper {
     }
   }
 
-  /** 按登录标识（手机号或邮箱）查询用户，自动识别格式 */
+  /** 按登录标识查询用户：优先匹配手机/邮箱格式，否则按 phone 列兜底（覆盖华为 HW_ 等非标 ID），最终按 username 列兜底 */
   public async queryUserByIdentifier(id: string): Promise<UserInfo | null> {
     if (/^1[3-9]\d{9}$/.test(id)) return this.queryUserByPhone(id);
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) return this.queryUserByEmail(id);
-    return null;
+    const byPhone = await this.queryUserByPhone(id);
+    if (byPhone) return byPhone;
+    return this.queryUserByUsername(id);
   }
 
   /** 按手机号查询用户 */

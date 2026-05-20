@@ -283,19 +283,20 @@ export struct person {
               Divider()
                 .margin({ left: "15%", right: "4%" })
                 .color(this.themeManager.colors.separatorColor)
-              MenuRow({
-                imgRes: $r("app.media.ic_phone_orange"),
-                bgColorLight: "#fff7ed",
-                bgColorDark: "#3d2000",
-                title: "紧急联系人",
-                subTitle: "危急时刻一键呼叫通知",
-                onClickAction: (): void => {
-                  promptAction.showToast({ message: "功能开发中" });
-                },
-              })
-              Divider()
-                .margin({ left: "15%", right: "4%" })
-                .color(this.themeManager.colors.separatorColor)
+              // ── 紧急联系人（功能暂未实现，先隐藏，后续再做）──
+              // MenuRow({
+              //   imgRes: $r("app.media.ic_phone_orange"),
+              //   bgColorLight: "#fff7ed",
+              //   bgColorDark: "#3d2000",
+              //   title: "紧急联系人",
+              //   subTitle: "危急时刻一键呼叫通知",
+              //   onClickAction: (): void => {
+              //     promptAction.showToast({ message: "功能开发中" });
+              //   },
+              // })
+              // Divider()
+              //   .margin({ left: "15%", right: "4%" })
+              //   .color(this.themeManager.colors.separatorColor)
               MenuRow({
                 imgRes: $r("app.media.ic_list_blue"),
                 bgColorLight: "#eff6ff",
@@ -585,7 +586,7 @@ export struct person {
                   }
                 });
             })
-          Text("守护星版本 2.0.0")
+          Text("智护星 v1.0.0")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
             .margin({ bottom: "10%" })

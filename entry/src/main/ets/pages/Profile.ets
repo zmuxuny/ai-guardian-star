@@ -8,12 +8,13 @@ import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { GradientHeader } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
-import { STORE_KEY_PHONE, STORE_KEY_EMAIL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import { STORE_KEY_PHONE, STORE_KEY_EMAIL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
 import { common, abilityAccessCtrl } from '@kit.AbilityKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import { image } from '@kit.ImageKit';
 import fs from '@ohos.file.fs';
 
 // ── 修改手机号弹窗 ───────────────────────────────────────────
@@ -22,7 +23,9 @@ struct PhoneEditDialog {
   controller: CustomDialogController;
   themeManager: ThemeManager = ThemeManager.getInstance();
   currentPhone: string = '';
-  currentUser: string = '';
+  cloudLookupKey: string = '';   // 当前登录态 loginId，作为云端 lookup key（不可与新值混淆）
+  loadedUser: UserInfo | null = null;
+  onSuccess: (newPhone: string) => void = (_v: string) => {};
 
   @State phone: string = '';
   @State saving: boolean = false;
@@ -67,21 +70,34 @@ struct PhoneEditDialog {
             colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
-            if (!/^1[3-9]\d{9}$/.test(this.phone.trim())) { this.errorMsg = '请输入正确的手机号'; return; }
+            const newPhone = this.phone.trim();
+            if (!/^1[3-9]\d{9}$/.test(newPhone)) { this.errorMsg = '请输入正确的手机号'; return; }
+            if (newPhone === this.currentPhone) { this.errorMsg = '新手机号与当前一致'; return; }
+            const user = this.loadedUser;
+            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
             this.saving = true;
-            const db = DatabaseHelper.getInstance();
-            const user = await db.queryUserByUsername(this.currentUser);
-            if (user && user.id !== undefined) {
-              user.phone = this.phone.trim();
-              await db.updateUser(user);
-              AppStorage.setOrCreate<string>(STORE_KEY_PHONE, user.phone);
+            try {
+              // 1) 先同步云端（用旧 lookup key 定位）。云端失败就不动本地，避免双端漂移。
               const fields = new CloudUpdateFields();
-              fields.username = this.currentUser; fields.phone = this.phone.trim();
-              CloudService.getInstance().updateUser(fields).then(() => {});
+              fields.username = this.cloudLookupKey;
+              fields.phone = newPhone;
+              const cloudR = await CloudService.getInstance().updateUser(fields);
+              if (!cloudR.success) {
+                this.errorMsg = cloudR.message === '网络不可用'
+                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
+                this.saving = false;
+                return;
+              }
+              // 2) 云端成功，再写本地 + AppStorage
+              user.phone = newPhone;
+              await DatabaseHelper.getInstance().updateUser(user);
+              AppStorage.setOrCreate<string>(STORE_KEY_PHONE, newPhone);
               promptAction.showToast({ message: '手机号修改成功' });
+              this.onSuccess(newPhone);
               this.controller.close();
-            } else {
-              this.errorMsg = '用户信息异常';
+            } catch (e) {
+              this.errorMsg = '保存失败，请重试';
+              console.error('[PhoneEditDialog]: ' + JSON.stringify(e));
             }
             this.saving = false;
           })
@@ -103,7 +119,9 @@ struct EmailEditDialog {
   controller: CustomDialogController;
   themeManager: ThemeManager = ThemeManager.getInstance();
   currentEmail: string = '';
-  currentUser: string = '';
+  cloudLookupKey: string = '';   // 当前登录态 loginId，作为云端 lookup key
+  loadedUser: UserInfo | null = null;
+  onSuccess: (newEmail: string) => void = (_v: string) => {};
 
   @State email: string = '';
   @State saving: boolean = false;
@@ -148,21 +166,34 @@ struct EmailEditDialog {
             colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim())) { this.errorMsg = '请输入正确的邮箱'; return; }
+            const newEmail = this.email.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) { this.errorMsg = '请输入正确的邮箱'; return; }
+            if (newEmail === this.currentEmail) { this.errorMsg = '新邮箱与当前一致'; return; }
+            const user = this.loadedUser;
+            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
             this.saving = true;
-            const db = DatabaseHelper.getInstance();
-            const user = await db.queryUserByUsername(this.currentUser);
-            if (user && user.id !== undefined) {
-              user.email = this.email.trim();
-              await db.updateUser(user);
-              AppStorage.setOrCreate<string>(STORE_KEY_EMAIL, user.email);
+            try {
+              // 1) 先同步云端（用旧 lookup key 定位），失败不动本地
               const fields = new CloudUpdateFields();
-              fields.username = this.currentUser; fields.email = this.email.trim();
-              CloudService.getInstance().updateUser(fields).then(() => {});
+              fields.username = this.cloudLookupKey;
+              fields.email = newEmail;
+              const cloudR = await CloudService.getInstance().updateUser(fields);
+              if (!cloudR.success) {
+                this.errorMsg = cloudR.message === '网络不可用'
+                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
+                this.saving = false;
+                return;
+              }
+              // 2) 云端成功，再写本地 + AppStorage
+              user.email = newEmail;
+              await DatabaseHelper.getInstance().updateUser(user);
+              AppStorage.setOrCreate<string>(STORE_KEY_EMAIL, newEmail);
               promptAction.showToast({ message: '邮箱修改成功' });
+              this.onSuccess(newEmail);
               this.controller.close();
-            } else {
-              this.errorMsg = '用户信息异常';
+            } catch (e) {
+              this.errorMsg = '保存失败，请重试';
+              console.error('[EmailEditDialog]: ' + JSON.stringify(e));
             }
             this.saving = false;
           })
@@ -178,7 +209,8 @@ struct EmailEditDialog {
 struct PasswordEditDialog {
   controller: CustomDialogController;
   themeManager: ThemeManager = ThemeManager.getInstance();
-  currentUser: string = '';
+  loadedUser: UserInfo | null = null;
+  onSuccess: () => void = () => {};
 
   @State oldPwd: string = '';
   @State newPwd: string = '';
@@ -221,26 +253,35 @@ struct PasswordEditDialog {
             if (this.oldPwd.length < 4) { this.errorMsg = '当前密码至少4位'; return; }
             if (this.newPwd.length < 4) { this.errorMsg = '新密码至少4位'; return; }
             if (this.newPwd !== this.confirmPwd) { this.errorMsg = '两次输入的新密码不一致'; return; }
+            if (this.newPwd === this.oldPwd) { this.errorMsg = '新密码不能与当前密码相同'; return; }
+            const user = this.loadedUser;
+            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
             this.changing = true;
-            const db = DatabaseHelper.getInstance();
             try {
-              const user = await db.queryUserByUsername(this.currentUser);
-              if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; this.changing = false; return; }
-              // 先本地校验旧密码
+              const loginId = UserManager.getInstance().getCurrentUsername();
+              // 1) 先本地校验旧密码
               if (user.passwordHash !== this.oldPwd) {
-                // 本地不匹配，尝试云端验证
-                const cloud = CloudService.getInstance();
-                const fb = await cloud.login(this.currentUser, this.oldPwd);
+                // 本地不匹配，尝试云端验证（兜底本地密码丢失的 edge case）
+                const fb = await CloudService.getInstance().login(loginId, this.oldPwd);
                 if (!fb.success) { this.errorMsg = '当前密码不正确'; this.changing = false; return; }
               }
-              // 先更新本地，再尝试同步云端（云端失败不阻塞）
-              await db.updatePasswordHash(user.id!, this.newPwd);
+              // 2) 先同步云端，云端确认后再改本地，确保两端一致
+              const cloudR = await CloudService.getInstance().changePassword(loginId, this.oldPwd, this.newPwd);
+              if (!cloudR.success) {
+                this.errorMsg = cloudR.message === '网络不可用'
+                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
+                this.changing = false;
+                return;
+              }
+              // 3) 云端成功，再写本地
+              await DatabaseHelper.getInstance().updatePasswordHash(user.id!, this.newPwd);
+              user.passwordHash = this.newPwd;
               promptAction.showToast({ message: '密码修改成功' });
-              CloudService.getInstance().changePassword(this.currentUser, this.oldPwd, this.newPwd)
-                .then((r) => { if (!r.success) console.warn('[Profile]: 云端密码同步失败:', r.message); });
+              this.onSuccess();
               this.controller.close();
             } catch (e) {
               this.errorMsg = '操作异常，请重试';
+              console.error('[PasswordEditDialog]: ' + JSON.stringify(e));
             }
             this.changing = false;
           })
@@ -265,8 +306,6 @@ struct PasswordEditDialog {
           .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
           .borderRadius(12).height(44).padding({ left: 12, right: 0 })
           .onChange(onChange)
-        Text(show ? '🙈' : '👁').fontSize(16).width(36).textAlign(TextAlign.Center)
-          .onClick(onToggle)
       }.width('100%')
     }.width('100%').margin({ bottom: 10 })
   }
@@ -289,33 +328,30 @@ export struct Profile {
   @State avatarPath: string = '';
   @State phone: string = '';
   @State email: string = '';
-  @State originalDisplayName: string = '';
-  @State originalAvatarPath: string = '';
-  @State originalPhone: string = '';
-  @State originalEmail: string = '';
+  @State originalDisplayName: string = '';  // 判断昵称是否改动，决定是否显示「保存」小标签
   @State isLoading: boolean = false;
-  @State isSaving: boolean = false;
-  @State hasChanged: boolean = false;
+  @State isSaving: boolean = false;         // 昵称保存中
   @State nameError: string = '';
 
   // ── 动画 ──────────────────────────────────────────────────
   @State avatarScale: number = 1.0;
 
   private currentUser: string = '';
+  private loadedUser: UserInfo | null = null;
 
   // ── Dialog 控制器（每次打开时重建以传递最新状态）─────────────────
   private phoneDialogController: CustomDialogController = new CustomDialogController({
-    builder: PhoneEditDialog({ currentPhone: '', currentUser: '' }),
+    builder: PhoneEditDialog({ currentPhone: '', loadedUser: null }),
     alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
   });
 
   private emailDialogController: CustomDialogController = new CustomDialogController({
-    builder: EmailEditDialog({ currentEmail: '', currentUser: '' }),
+    builder: EmailEditDialog({ currentEmail: '', loadedUser: null }),
     alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
   });
 
   private pwdDialogController: CustomDialogController = new CustomDialogController({
-    builder: PasswordEditDialog({ currentUser: '' }),
+    builder: PasswordEditDialog({ loadedUser: null }),
     alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
   });
 
@@ -325,30 +361,28 @@ export struct Profile {
   }
 
   // ── 数据加载 ──────────────────────────────────────────────
-  private loadProfile(): void {
+  private async loadProfile(): Promise<void> {
     this.isLoading = true;
     const db = DatabaseHelper.getInstance();
-    db.queryUserByIdentifier(this.currentUser)
-      .then((user: UserInfo | null) => {
-        this.isLoading = false;
-        if (user) {
-          this.displayName = user.username || '';
-          this.avatarPath = user.avatarPath ?? '';
-          this.phone = user.phone ?? '';
-          this.email = user.email ?? '';
-          this.originalDisplayName = this.displayName;
-          this.originalAvatarPath = this.avatarPath;
-          this.originalPhone = this.phone;
-          this.originalEmail = this.email;
-          this.updateChangedState();
-        }
-      })
-      .catch(() => { this.isLoading = false; });
-  }
-
-  private updateChangedState(): void {
-    this.hasChanged = this.displayName.trim() !== this.originalDisplayName ||
-      this.avatarPath !== this.originalAvatarPath;
+    try {
+      let user = await db.queryUserByIdentifier(this.currentUser);
+      if (!user) {
+        // loginId 可能已变（如修改了手机号），用昵称兜底查一次
+        const nickname = AppStorage.get<string>(STORE_KEY_NICKNAME) ?? '';
+        if (nickname) user = await db.queryUserByUsername(nickname);
+      }
+      this.isLoading = false;
+      if (user) {
+        this.loadedUser = user;
+        this.displayName = user.username || '';
+        this.avatarPath = user.avatarPath ?? '';
+        this.phone = user.phone ?? '';
+        this.email = user.email ?? '';
+        this.originalDisplayName = this.displayName;
+      }
+    } catch (_e) {
+      this.isLoading = false;
+    }
   }
 
   private validateName(): string {
@@ -360,24 +394,68 @@ export struct Profile {
 
   // ── 打开弹窗（每次重建 controller 以传入最新字段） ───────────
   private openPhoneDialog(): void {
+    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
     this.phoneDialogController = new CustomDialogController({
-      builder: PhoneEditDialog({ currentPhone: this.phone, currentUser: this.currentUser }),
+      builder: PhoneEditDialog({
+        currentPhone: this.phone,
+        cloudLookupKey: this.currentUser,
+        loadedUser: this.loadedUser,
+        onSuccess: (newPhone: string) => {
+          this.phone = newPhone;
+          if (this.loadedUser) this.loadedUser.phone = newPhone;
+          // 若当前 loginId 是手机号，同步更新，避免下次 loadProfile 找不到用户
+          if (/^1[3-9]\d{9}$/.test(this.currentUser)) {
+            this.currentUser = newPhone;
+            UserManager.getInstance().setCurrentUsername(newPhone);
+            const ctx = getContext(this) as common.UIAbilityContext;
+            try {
+              const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+              pref.putSync(PREF_KEY_LAST_USERNAME, newPhone);
+              pref.flush();
+            } catch (_e) {}
+          }
+        },
+      }),
       alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
     });
     this.phoneDialogController.open();
   }
 
   private openEmailDialog(): void {
+    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
     this.emailDialogController = new CustomDialogController({
-      builder: EmailEditDialog({ currentEmail: this.email, currentUser: this.currentUser }),
+      builder: EmailEditDialog({
+        currentEmail: this.email,
+        cloudLookupKey: this.currentUser,
+        loadedUser: this.loadedUser,
+        onSuccess: (newEmail: string) => {
+          this.email = newEmail;
+          if (this.loadedUser) this.loadedUser.email = newEmail;
+          // 若当前 loginId 是邮箱，同步更新
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.currentUser)) {
+            this.currentUser = newEmail;
+            UserManager.getInstance().setCurrentUsername(newEmail);
+            const ctx = getContext(this) as common.UIAbilityContext;
+            try {
+              const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+              pref.putSync(PREF_KEY_LAST_USERNAME, newEmail);
+              pref.flush();
+            } catch (_e) {}
+          }
+        },
+      }),
       alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
     });
     this.emailDialogController.open();
   }
 
   private openPwdDialog(): void {
+    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
     this.pwdDialogController = new CustomDialogController({
-      builder: PasswordEditDialog({ currentUser: this.currentUser }),
+      builder: PasswordEditDialog({
+        loadedUser: this.loadedUser,
+        onSuccess: () => {},
+      }),
       alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
     });
     this.pwdDialogController.open();
@@ -401,66 +479,141 @@ export struct Profile {
     try {
       const pickerResult = await picker.select(selectOptions);
       if (!pickerResult || pickerResult.photoUris.length === 0) return;
-      await this.copyAvatarToSandbox(context, pickerResult.photoUris[0]);
+      await this.processAndSaveAvatar(context, pickerResult.photoUris[0]);
     } catch (e) {
       console.error('[Profile]: 选图失败', JSON.stringify(e));
       promptAction.showToast({ message: '选取图片失败，请重试' });
     }
   }
 
-  private async copyAvatarToSandbox(context: common.UIAbilityContext, sourceUri: string): Promise<void> {
+  /**
+   * 处理并保存头像：
+   *   1. 用 fd 打开相册 URI（真机必须先取 fd，不能直接 fs.copyFile URI）
+   *   2. ImageKit 解码任意尺寸图片为 PixelMap
+   *   3. 按短边居中裁成正方形，再缩放到 512×512（统一规格，控制体积）
+   *   4. 重编码为 JPEG 写入沙箱（带时间戳文件名，绕过 Image 组件路径缓存）
+   *   5. 尽力删除旧头像文件，避免堆积
+   */
+  private async processAndSaveAvatar(context: common.UIAbilityContext, sourceUri: string): Promise<void> {
+    let srcFile: fs.File | undefined;
+    let imageSource: image.ImageSource | undefined;
+    let pixelMap: image.PixelMap | undefined;
+    let packer: image.ImagePacker | undefined;
     try {
       const avatarDir = context.filesDir + '/avatars';
       try { fs.mkdirSync(avatarDir); } catch (_e) {}
-      const destPath = avatarDir + '/avatar_' + this.currentUser + '.jpg';
-      await fs.copyFile(sourceUri, destPath);
-      this.avatarPath = '';
-      setTimeout(() => { this.avatarPath = destPath; this.updateChangedState(); }, 50);
+
+      // 1) fd 打开来源 URI
+      srcFile = fs.openSync(sourceUri, fs.OpenMode.READ_ONLY);
+      imageSource = image.createImageSource(srcFile.fd);
+      const info = await imageSource.getImageInfo();
+      pixelMap = await imageSource.createPixelMap();
+
+      // 2) 短边居中裁正方形
+      const w = info.size.width;
+      const h = info.size.height;
+      const side = Math.min(w, h);
+      const region: image.Region = {
+        x: Math.max(0, Math.floor((w - side) / 2)),
+        y: Math.max(0, Math.floor((h - side) / 2)),
+        size: { width: side, height: side },
+      };
+      await pixelMap.crop(region);
+
+      // 3) 缩放到 512×512
+      const TARGET = 512;
+      await pixelMap.scale(TARGET / side, TARGET / side);
+
+      // 4) JPEG 重编码
+      packer = image.createImagePacker();
+      const jpegBuffer = await packer.packing(pixelMap, { format: 'image/jpeg', quality: 90 });
+
+      // 5) 写入带时间戳的新文件，删除旧文件
+      const destPath = avatarDir + '/avatar_' + this.currentUser + '_' + Date.now() + '.jpg';
+      const destFile = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      fs.writeSync(destFile.fd, jpegBuffer);
+      fs.closeSync(destFile);
+
+      const oldPath = this.avatarPath;
+      this.avatarPath = destPath;
+      if (oldPath && oldPath !== destPath) {
+        try { fs.unlinkSync(oldPath); } catch (_e) {}
+      }
+      // 选完即存：立即落地本地 + 云端
+      await this.saveAvatar();
     } catch (e) {
-      console.error('[Profile]: 复制头像失败', JSON.stringify(e));
+      console.error('[Profile]: 处理头像失败', JSON.stringify(e));
       promptAction.showToast({ message: '处理图片失败，请重试' });
+    } finally {
+      pixelMap?.release();
+      packer?.release();
+      imageSource?.release();
+      if (srcFile !== undefined) { try { fs.closeSync(srcFile); } catch (_e) {} }
     }
   }
 
-  // ── 保存昵称/头像 ─────────────────────────────────────────
-  private async saveProfile(): Promise<void> {
+  // ── 保存昵称（内联即时，云端优先）─────────────────────────
+  private async saveNickname(): Promise<void> {
     const err = this.validateName();
     if (err !== '') { this.nameError = err; return; }
     this.nameError = '';
+    const newName = this.displayName.trim();
+    if (newName === this.originalDisplayName) return; // 没改，不动
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) { promptAction.showToast({ message: '用户信息异常' }); return; }
     this.isSaving = true;
-    const db = DatabaseHelper.getInstance();
     try {
-      const user = await db.queryUserByIdentifier(this.currentUser);
-      if (!user || user.id === undefined) throw new Error('用户不存在');
-      user.username = this.displayName.trim();
-      user.avatarPath = this.avatarPath;
-      if (this.phone) user.phone = this.phone;
-      if (this.email) user.email = this.email;
-      await db.updateUser(user);
-      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.displayName.trim());
-      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
+      // 1) 先同步云端，失败不动本地。
+      //    同时更新 username(PK，newUsername) 和 nickname 两列：
+      //    nickname 列任何后端版本都支持，避免只依赖 PK 改名而旧后端静默忽略。
+      const fields = new CloudUpdateFields();
+      fields.username = this.currentUser;
+      fields.newUsername = newName;
+      fields.nickname = newName;
+      const cloudR = await CloudService.getInstance().updateUser(fields);
+      if (!cloudR.success) {
+        promptAction.showToast({ message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
+        this.isSaving = false;
+        return;
+      }
+      // 2) 云端成功，再写本地 + AppStorage + Preferences
+      user.username = newName;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, newName);
       try {
         const ctx = getContext(this) as common.UIAbilityContext;
         const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
-        pref.putSync(PREF_KEY_LAST_NICKNAME, this.displayName.trim());
+        pref.putSync(PREF_KEY_LAST_NICKNAME, newName);
         pref.flush();
       } catch (_) {}
+      this.originalDisplayName = newName;
+      promptAction.showToast({ message: '名字已更新', duration: 1500 });
+    } catch (e) {
+      console.error('[Profile]: 昵称保存失败', JSON.stringify(e));
+      promptAction.showToast({ message: '保存失败，请重试' });
+    }
+    this.isSaving = false;
+  }
+
+  // ── 保存头像（选完即存：本地立即落地，云端尽力同步）───────────
+  private async saveAvatar(): Promise<void> {
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) return;
+    try {
+      user.avatarPath = this.avatarPath;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
+      // 云端同步头像路径（不退页，请求可完整跑完；路径为设备本地，仅作信息留存）
       const fields = new CloudUpdateFields();
-      fields.username = this.displayName.trim();
+      fields.username = this.currentUser;
       fields.avatarPath = this.avatarPath;
       CloudService.getInstance().updateUser(fields).then(r => {
-        console.info('[Profile]: 云端同步', r.success ? '成功' : '失败:' + r.message);
+        console.info('[Profile]: 头像云端同步', r.success ? '成功' : '失败:' + r.message);
       });
-      this.isSaving = false;
-      this.originalDisplayName = this.displayName.trim();
-      this.originalAvatarPath = this.avatarPath;
-      this.updateChangedState();
-      promptAction.showToast({ message: '保存好啦', duration: 1500 });
-      setTimeout(() => { this.pathStack.pop(); }, 1000);
+      promptAction.showToast({ message: '头像已更新', duration: 1500 });
     } catch (e) {
-      this.isSaving = false;
-      console.error('[Profile]: 保存失败', JSON.stringify(e));
-      promptAction.showToast({ message: '保存失败，请重试' });
+      console.error('[Profile]: 头像保存失败', JSON.stringify(e));
+      promptAction.showToast({ message: '头像保存失败，请重试' });
     }
   }
 
@@ -534,7 +687,16 @@ export struct Profile {
             .placeholderColor(this.themeManager.colors.tertiaryTextColor)
             .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
             .maxLength(12)
-            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); this.updateChangedState(); })
+            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); })
+            .onSubmit(() => { this.saveNickname(); })
+          // 改动且合法时才出现「保存」小标签，点击即云端优先保存
+          if (this.displayName.trim() !== this.originalDisplayName && this.nameError === '') {
+            Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(100)
+              .onClick(() => { if (!this.isSaving) this.saveNickname(); })
+          }
         }
         .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
         if (this.nameError !== '') {
@@ -604,19 +766,6 @@ export struct Profile {
     return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
   }
 
-  // ── 账号行 ────────────────────────────────────────────────
-  @Builder
-  AccountRow(): void {
-    Row() {
-      Text('账号').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
-      Text(this.currentUser).fontSize(15).fontColor(this.themeManager.colors.tertiaryTextColor).layoutWeight(1)
-      Text('不可修改').fontSize(11).fontColor(this.themeManager.colors.tertiaryTextColor)
-        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-        .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9').borderRadius(6)
-    }
-    .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
-  }
-
   // ── 标题栏 ────────────────────────────────────────────────
   @Builder
   GradientHeader(): void {
@@ -628,13 +777,6 @@ export struct Profile {
           .onClick((): void => { this.pathStack.pop(); })
         Text("个人资料").fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
           .margin({ left: "5%" }).layoutWeight(1)
-        Text("保存").fontSize(15).fontColor("#ffffff")
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor("#33FFFFFF").borderRadius(20)
-          .onClick((): void => {
-            if (!this.hasChanged) { promptAction.showToast({ message: '你还没有进行修改' }); }
-            else { this.saveProfile(); }
-          })
       }
       .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
     }
@@ -653,8 +795,6 @@ export struct Profile {
               Text('基本信息').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
                 .alignSelf(ItemAlign.Start).margin({ left: '4%', bottom: 10, top: 8 })
               Column() { this.FormSection() }.width('100%').alignItems(HorizontalAlign.Center)
-Column() { this.AccountRow() }
-                .width('92%').margin({ top: 12 }).backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
 
               // ── 安全与联系 ──
               Text('安全与联系').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
@@ -677,18 +817,6 @@ Column() { this.AccountRow() }
     }
     .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
-    .onBackPressed(() => {
-      if (this.hasChanged) {
-        AlertDialog.show({
-          title: '提示', message: '有未保存的修改，是否保存？',
-          primaryButton: { value: '不保存', action: () => { this.pathStack.pop(); } },
-          secondaryButton: { value: '保存', action: () => { this.saveProfile(); } },
-          cancel: () => {}, alignment: DialogAlignment.Center,
-        });
-        return true;
-      }
-      return false;
-    })
     .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
   }
 }

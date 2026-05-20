@@ -706,15 +706,17 @@ struct Login {
           if (cloudResult.success && cloudResult.user) {
             // 云端有 → 换新手机，密码已在云端验证通过，写入本地 RDB
             const cu = cloudResult.user;
+            // 显示名优先取 nickname 列（改名后写在这里），回退 username
+            const cloudDisplay = cu.nickname || cu.username || cu.phone || cu.email || uname;
             await db.insertUser({
-              username: cu.username || cu.phone || cu.email || uname,
+              username: cloudDisplay,
               phone: cu.phone || (this.inputMode === 0 ? uname : ''),
               email: cu.email || (this.inputMode === 1 ? uname : ''),
               passwordHash: cu.passwordHash || pwd,
               avatarPath: cu.avatarPath,
               address: cu.address, createTime: cu.createTime,
             });
-            const r: LoginResult = { loginId: uname, displayName: cu.username || uname, isNew: false };
+            const r: LoginResult = { loginId: uname, displayName: cloudDisplay, isNew: false };
             return r;
           } else if (!cloudResult.success && cloudResult.message !== '账号不存在' && cloudResult.message !== '网络不可用') {
             // 云端明确说密码错 / 其他错误
@@ -735,7 +737,7 @@ struct Login {
             this.isLoading = false;
             const cloudFallback = await cloud.login(uname, pwd);
             if (cloudFallback.success && cloudFallback.user) {
-              existing.passwordHash = pwd;
+              // 只同步昵称，不覆盖本地密码（本地可能已改为新密码，覆盖会导致新旧密码都能登录）
               existing.username = cloudFallback.user.username || existing.username;
               await db.updateUser(existing).catch(() => {});
               const r: LoginResult = { loginId: uname, displayName: existing.username ?? uname, isNew: false };

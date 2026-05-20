@@ -30,7 +30,6 @@ export struct AiChat {
   @State messages: BubbleMsg[] = [];
   @State inputText: string = '';
   @State isRequesting: boolean = false;
-  @State showQuickQuestions: boolean = true;
   @State dotPhase: number = 0;
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
@@ -107,7 +106,6 @@ export struct AiChat {
 
     this.inputText = '';
     this.isRequesting = true;
-    this.showQuickQuestions = false;
 
     this.pushMsg({
       id: this.nextId(), role: 'user',
@@ -234,25 +232,38 @@ export struct AiChat {
 
   @Builder
   QuickQuestions(): void {
-    if (this.showQuickQuestions) {
-      Column() {
-        Text('快捷提问').fontSize(12)
-          .fontColor(this.themeManager.colors.secondaryTextColor)
-          .margin({ left: '5%', bottom: 8 }).alignSelf(ItemAlign.Start)
-        Scroll(new Scroller()) {
-          Row({ space: 10 }) {
-            ForEach(QUICK_QUESTIONS, (q: string) => {
-              Text(q)
-                .fontSize(13).fontColor('#2563eb')
-                .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-                .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-                .borderRadius(20).border({ width: 1, color: '#93c5fd' })
-                .onClick((): void => { this.sendMessage(q); })
-            })
-          }.padding({ left: '5%', right: '5%' })
-        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
-      }.margin({ bottom: 10 })
+    Column() {
+      Text('快捷提问').fontSize(12)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .margin({ left: '5%', bottom: 8 }).alignSelf(ItemAlign.Start)
+      Scroll(new Scroller()) {
+        Row({ space: 10 }) {
+          ForEach(QUICK_QUESTIONS, (q: string) => {
+            Text(q)
+              .fontSize(13).fontColor('#2563eb')
+              .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(20).border({ width: 1, color: '#93c5fd' })
+              .onClick((): void => {
+                if (!this.isRequesting) this.sendMessage(q);
+              })
+          })
+        }.padding({ left: '5%', right: '5%' })
+      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
+    }.margin({ bottom: 6 })
+  }
+
+  @Builder
+  AiDisclaimer(): void {
+    Row({ space: 4 }) {
+      Text('✨').fontSize(10)
+      Text('内容由 AI 生成，仅供参考，请勿替代专业建议')
+        .fontSize(10)
+        .fontColor(this.themeManager.colors.tertiaryTextColor)
     }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding({ top: 4, bottom: 6 })
   }
 
   @Builder
@@ -299,6 +310,7 @@ export struct AiChat {
       }
       .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
       this.QuickQuestions()
+      this.AiDisclaimer()
       this.InputBar()
     }
     .width('100%').height('100%')

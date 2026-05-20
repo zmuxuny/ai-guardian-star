@@ -123,32 +123,85 @@ def api_login():
 
 @app.route('/api/updateUser', methods=['POST'])
 def api_update_user():
+    """
+    更新用户资料。
+
+    查找规则：用客户端传来的 `username` 字段作为「柔性 lookup key」，
+      WHERE username=? OR phone=? OR email=?
+    这样无论 App 传的是注册时的昵称、当前的手机号、邮箱还是华为 HW_ ID，
+    都能唯一定位云端记录（这些字段彼此互不重叠）。
+
+    其它字段（nickname/phone/avatarPath/email/address/passwordHash）是要写入的新值。
+    若客户端希望修改 username（即昵称改名），可显式传 `newUsername`。
+    """
     d = request.get_json(force=True) or {}
-    username = (d.get('username') or '').strip()
-    if not username:
-        return jsonify({"success": False, "message": "username 缺失"}), 400
-    # 只更新传入的字段
-    allowed = {'nickname', 'phone', 'avatar_path', 'email', 'address', 'password_hash'}
-    # App 传来的字段名是驼峰，映射到数据库列名
+    lookup = (d.get('username') or '').strip()
+    if not lookup:
+        return jsonify({"success": False, "message": "lookup key 缺失"}), 400
+
     field_map = {
         'nickname': 'nickname', 'phone': 'phone',
         'avatarPath': 'avatar_path', 'email': 'email',
         'address': 'address', 'passwordHash': 'password_hash',
+        'newUsername': 'username',
     }
     updates = {}
     for app_key, db_col in field_map.items():
-        if app_key in d and d[app_key] is not None:
+        if app_key in d and d[app_key] is not None and str(d[app_key]) != '':
             updates[db_col] = d[app_key]
+
     if not updates:
         return jsonify({"success": True, "message": "无需更新"})
+
     try:
         conn = get_db()
         set_clause = ', '.join(f"{col}=?" for col in updates.keys())
-        values = list(updates.values()) + [username]
-        conn.execute(f"UPDATE t_user SET {set_clause} WHERE username=?", values)
+        values = list(updates.values()) + [lookup, lookup, lookup]
+        cursor = conn.execute(
+            f"UPDATE t_user SET {set_clause} WHERE username=? OR phone=? OR email=?",
+            values
+        )
+        affected = cursor.rowcount
         conn.commit()
         conn.close()
+        if affected == 0:
+            return jsonify({"success": False, "message": "找不到对应账号"})
         return jsonify({"success": True, "message": "更新成功"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/changePassword', methods=['POST'])
+def api_change_password():
+    """
+    修改密码：必须验证旧密码哈希后才允许写新密码。
+    lookup 规则同 updateUser，username 字段允许传昵称/手机/邮箱/HW_ID。
+    """
+    d = request.get_json(force=True) or {}
+    lookup = (d.get('username') or '').strip()
+    old_hash = (d.get('oldPasswordHash') or '').strip()
+    new_hash = (d.get('newPasswordHash') or '').strip()
+    if not lookup or not old_hash or not new_hash:
+        return jsonify({"success": False, "message": "参数缺失"}), 400
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
+            (lookup, lookup, lookup)
+        ).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "message": "账号不存在"})
+        if row['password_hash'] != old_hash:
+            conn.close()
+            return jsonify({"success": False, "message": "原密码不正确"})
+        conn.execute(
+            "UPDATE t_user SET password_hash=? WHERE username=?",
+            (new_hash, row['username'])
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "密码已更新"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -218,10 +271,17 @@ def ai_chat():
     except requests.exceptions.Timeout:
         return jsonify({"error": "AI 服务响应超时，请稍后重试"}), 504
     except requests.exceptions.HTTPError as e:
-        return jsonify({"error": f"扣子 API 错误: {e.response.status_code}"}), 502
+        coze_status = e.response.status_code
+        coze_body = ""
+        try:
+            coze_body = e.response.text[:500]
+        except Exception:
+            pass
+        app.logger.error(f"[ai_chat] Coze HTTP {coze_status}: {coze_body}")
+        return jsonify({"error": f"扣子 API 错误: {coze_status}", "detail": coze_body}), 502
     except Exception as e:
-        app.logger.error(f"ai_chat error: {e}")
-        return jsonify({"error": "服务内部错误，请稍后重试"}), 500
+        app.logger.error(f"[ai_chat] exception: {e}")
+        return jsonify({"error": "服务内部错误，请稍后重试", "detail": str(e)}), 500
 
 
 def _parse_sse_response(resp) -> str:
