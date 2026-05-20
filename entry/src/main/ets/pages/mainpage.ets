@@ -5,6 +5,7 @@ import display from '@ohos.display';
 import { AudioTransferManager } from '../common/AudioTransferManager';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { common } from '@kit.AbilityKit';
+import { promptAction } from '@kit.ArkUI';
 import http from '@ohos.net.http';
 import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
 import { GradientHeader } from '../components/GradientHeader';
@@ -355,6 +356,11 @@ export struct mainPage {
         if (this.isTalking) {
           await this.audioManager.stopCall(); this.isTalking = false;
         } else {
+          // 设备未连接时不允许发起通话，仅提示
+          if (!this.deviceOnline) {
+            promptAction.showToast({ message: '设备未连接，无法发起通话' });
+            return;
+          }
           const atManager = abilityAccessCtrl.createAtManager();
           const res = await atManager.requestPermissionsFromUser(this.context, ['ohos.permission.MICROPHONE']);
           if (res.authResults[0] === 0) { await this.audioManager.startCall(); this.isTalking = true; }

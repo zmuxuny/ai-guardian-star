@@ -328,13 +328,9 @@ export struct Profile {
   @State avatarPath: string = '';
   @State phone: string = '';
   @State email: string = '';
-  @State originalDisplayName: string = '';
-  @State originalAvatarPath: string = '';
-  @State originalPhone: string = '';
-  @State originalEmail: string = '';
+  @State originalDisplayName: string = '';  // 判断昵称是否改动，决定是否显示「保存」小标签
   @State isLoading: boolean = false;
-  @State isSaving: boolean = false;
-  @State hasChanged: boolean = false;
+  @State isSaving: boolean = false;         // 昵称保存中
   @State nameError: string = '';
 
   // ── 动画 ──────────────────────────────────────────────────
@@ -383,19 +379,10 @@ export struct Profile {
         this.phone = user.phone ?? '';
         this.email = user.email ?? '';
         this.originalDisplayName = this.displayName;
-        this.originalAvatarPath = this.avatarPath;
-        this.originalPhone = this.phone;
-        this.originalEmail = this.email;
-        this.updateChangedState();
       }
     } catch (_e) {
       this.isLoading = false;
     }
-  }
-
-  private updateChangedState(): void {
-    this.hasChanged = this.displayName.trim() !== this.originalDisplayName ||
-      this.avatarPath !== this.originalAvatarPath;
   }
 
   private validateName(): string {
@@ -415,7 +402,6 @@ export struct Profile {
         loadedUser: this.loadedUser,
         onSuccess: (newPhone: string) => {
           this.phone = newPhone;
-          this.originalPhone = newPhone;
           if (this.loadedUser) this.loadedUser.phone = newPhone;
           // 若当前 loginId 是手机号，同步更新，避免下次 loadProfile 找不到用户
           if (/^1[3-9]\d{9}$/.test(this.currentUser)) {
@@ -444,7 +430,6 @@ export struct Profile {
         loadedUser: this.loadedUser,
         onSuccess: (newEmail: string) => {
           this.email = newEmail;
-          this.originalEmail = newEmail;
           if (this.loadedUser) this.loadedUser.email = newEmail;
           // 若当前 loginId 是邮箱，同步更新
           if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.currentUser)) {
@@ -551,10 +536,11 @@ export struct Profile {
 
       const oldPath = this.avatarPath;
       this.avatarPath = destPath;
-      this.updateChangedState();
       if (oldPath && oldPath !== destPath) {
         try { fs.unlinkSync(oldPath); } catch (_e) {}
       }
+      // 选完即存：立即落地本地 + 云端
+      await this.saveAvatar();
     } catch (e) {
       console.error('[Profile]: 处理头像失败', JSON.stringify(e));
       promptAction.showToast({ message: '处理图片失败，请重试' });
@@ -566,45 +552,68 @@ export struct Profile {
     }
   }
 
-  // ── 保存昵称/头像 ─────────────────────────────────────────
-  private async saveProfile(): Promise<void> {
+  // ── 保存昵称（内联即时，云端优先）─────────────────────────
+  private async saveNickname(): Promise<void> {
     const err = this.validateName();
     if (err !== '') { this.nameError = err; return; }
     this.nameError = '';
+    const newName = this.displayName.trim();
+    if (newName === this.originalDisplayName) return; // 没改，不动
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) { promptAction.showToast({ message: '用户信息异常' }); return; }
     this.isSaving = true;
     try {
-      const user = this.loadedUser;
-      if (!user || user.id === undefined) throw new Error('用户不存在');
-      user.username = this.displayName.trim();
-      user.avatarPath = this.avatarPath;
-      if (this.phone) user.phone = this.phone;
-      if (this.email) user.email = this.email;
+      // 1) 先同步云端，失败不动本地。
+      //    同时更新 username(PK，newUsername) 和 nickname 两列：
+      //    nickname 列任何后端版本都支持，避免只依赖 PK 改名而旧后端静默忽略。
+      const fields = new CloudUpdateFields();
+      fields.username = this.currentUser;
+      fields.newUsername = newName;
+      fields.nickname = newName;
+      const cloudR = await CloudService.getInstance().updateUser(fields);
+      if (!cloudR.success) {
+        promptAction.showToast({ message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
+        this.isSaving = false;
+        return;
+      }
+      // 2) 云端成功，再写本地 + AppStorage + Preferences
+      user.username = newName;
       await DatabaseHelper.getInstance().updateUser(user);
-      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.displayName.trim());
-      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
+      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, newName);
       try {
         const ctx = getContext(this) as common.UIAbilityContext;
         const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
-        pref.putSync(PREF_KEY_LAST_NICKNAME, this.displayName.trim());
+        pref.putSync(PREF_KEY_LAST_NICKNAME, newName);
         pref.flush();
       } catch (_) {}
+      this.originalDisplayName = newName;
+      promptAction.showToast({ message: '名字已更新', duration: 1500 });
+    } catch (e) {
+      console.error('[Profile]: 昵称保存失败', JSON.stringify(e));
+      promptAction.showToast({ message: '保存失败，请重试' });
+    }
+    this.isSaving = false;
+  }
+
+  // ── 保存头像（选完即存：本地立即落地，云端尽力同步）───────────
+  private async saveAvatar(): Promise<void> {
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) return;
+    try {
+      user.avatarPath = this.avatarPath;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
+      // 云端同步头像路径（不退页，请求可完整跑完；路径为设备本地，仅作信息留存）
       const fields = new CloudUpdateFields();
-      fields.username = this.currentUser;          // 用当前 loginId 作为 lookup key
-      fields.newUsername = this.displayName.trim(); // 把云端昵称改成新值
+      fields.username = this.currentUser;
       fields.avatarPath = this.avatarPath;
       CloudService.getInstance().updateUser(fields).then(r => {
-        console.info('[Profile]: 云端同步', r.success ? '成功' : '失败:' + r.message);
+        console.info('[Profile]: 头像云端同步', r.success ? '成功' : '失败:' + r.message);
       });
-      this.isSaving = false;
-      this.originalDisplayName = this.displayName.trim();
-      this.originalAvatarPath = this.avatarPath;
-      this.updateChangedState();
-      promptAction.showToast({ message: '保存好啦', duration: 1500 });
-      setTimeout(() => { this.pathStack.pop(); }, 1000);
+      promptAction.showToast({ message: '头像已更新', duration: 1500 });
     } catch (e) {
-      this.isSaving = false;
-      console.error('[Profile]: 保存失败', JSON.stringify(e));
-      promptAction.showToast({ message: '保存失败，请重试' });
+      console.error('[Profile]: 头像保存失败', JSON.stringify(e));
+      promptAction.showToast({ message: '头像保存失败，请重试' });
     }
   }
 
@@ -678,7 +687,16 @@ export struct Profile {
             .placeholderColor(this.themeManager.colors.tertiaryTextColor)
             .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
             .maxLength(12)
-            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); this.updateChangedState(); })
+            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); })
+            .onSubmit(() => { this.saveNickname(); })
+          // 改动且合法时才出现「保存」小标签，点击即云端优先保存
+          if (this.displayName.trim() !== this.originalDisplayName && this.nameError === '') {
+            Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(100)
+              .onClick(() => { if (!this.isSaving) this.saveNickname(); })
+          }
         }
         .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
         if (this.nameError !== '') {
@@ -748,19 +766,6 @@ export struct Profile {
     return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
   }
 
-  // ── 账号行 ────────────────────────────────────────────────
-  @Builder
-  AccountRow(): void {
-    Row() {
-      Text('账号').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
-      Text(this.currentUser).fontSize(15).fontColor(this.themeManager.colors.tertiaryTextColor).layoutWeight(1)
-      Text('不可修改').fontSize(11).fontColor(this.themeManager.colors.tertiaryTextColor)
-        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-        .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9').borderRadius(6)
-    }
-    .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
-  }
-
   // ── 标题栏 ────────────────────────────────────────────────
   @Builder
   GradientHeader(): void {
@@ -772,13 +777,6 @@ export struct Profile {
           .onClick((): void => { this.pathStack.pop(); })
         Text("个人资料").fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
           .margin({ left: "5%" }).layoutWeight(1)
-        Text("保存").fontSize(15).fontColor("#ffffff")
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor("#33FFFFFF").borderRadius(20)
-          .onClick((): void => {
-            if (!this.hasChanged) { promptAction.showToast({ message: '你还没有进行修改' }); }
-            else { this.saveProfile(); }
-          })
       }
       .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
     }
@@ -797,8 +795,6 @@ export struct Profile {
               Text('基本信息').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
                 .alignSelf(ItemAlign.Start).margin({ left: '4%', bottom: 10, top: 8 })
               Column() { this.FormSection() }.width('100%').alignItems(HorizontalAlign.Center)
-Column() { this.AccountRow() }
-                .width('92%').margin({ top: 12 }).backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
 
               // ── 安全与联系 ──
               Text('安全与联系').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
@@ -821,18 +817,6 @@ Column() { this.AccountRow() }
     }
     .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
-    .onBackPressed(() => {
-      if (this.hasChanged) {
-        AlertDialog.show({
-          title: '提示', message: '有未保存的修改，是否保存？',
-          primaryButton: { value: '不保存', action: () => { this.pathStack.pop(); } },
-          secondaryButton: { value: '保存', action: () => { this.saveProfile(); } },
-          cancel: () => {}, alignment: DialogAlignment.Center,
-        });
-        return true;
-      }
-      return false;
-    })
     .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
   }
 }
