@@ -246,8 +246,8 @@ struct NicknameDialog {
           .borderRadius(12)
           .onClick(() => {
             const nick = this.nickname.trim();
-            if (nick.length < 2) {
-              this.errorMsg = "名字至少2个字";
+            if (nick.length < 1) {
+              this.errorMsg = "名字不能为空";
               return;
             }
             if (nick.length > 12) {
