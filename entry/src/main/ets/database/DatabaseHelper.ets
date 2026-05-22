@@ -387,6 +387,20 @@ export class DatabaseHelper {
     return this._querySingleUser(predicates);
   }
 
+  /** 按用户名删除用户（云端账号已被删除时清理本地数据） */
+  public async deleteUserByUsername(username: string): Promise<void> {
+    const predicates = new relationalStore.RdbPredicates("t_user");
+    predicates.equalTo("username", username);
+    try {
+      await this.getStore().delete(predicates);
+      hilog.info(DOMAIN, TAG, `deleteUserByUsername 成功 username=${username}`);
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.error(DOMAIN, TAG, `deleteUserByUsername 失败 ${err.code} ${err.message}`);
+      throw new Error(err.code + ": " + err.message);
+    }
+  }
+
   /** 更新密码哈希 */
   public async updatePasswordHash(userId: number, newHash: string): Promise<void> {
     const predicates = new relationalStore.RdbPredicates("t_user");
