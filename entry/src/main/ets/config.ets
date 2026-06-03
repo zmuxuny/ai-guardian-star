@@ -26,8 +26,12 @@ export const BOARD_FACE_LIST_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/fa
 export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face`;
 
 // ── MQTT ────────────────────────────────────────────────────
+// 上线前：broker 开启 TLS 后把 BROKER_URL 改为 ssl://${ECS_HOST}:8883
 export const ALERT_TOPIC = 'ai_guardian/alerts/#';
 export const MQTT_CLIENT_ID = 'HarmonyOS_Client_sad';
+// broker 鉴权凭据 — 配置完 ACL 后填入，不得硬编码明文密码到生产包
+export const MQTT_USERNAME = '';
+export const MQTT_PASSWORD = '';
 
 // ── AppStorage Keys ──────────────────────────────────────────
 export const STORE_KEY_LOGGED_IN_USER = 'loggedInUsername';
