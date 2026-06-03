@@ -23,8 +23,9 @@ import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
 import { fileUri } from "@kit.CoreFileKit";
+import { util } from "@kit.ArkTS";
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -50,36 +51,49 @@ export struct person {
   pathStack: NavPathStack = new NavPathStack();
 
   private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
-    // ── Step 0: 运行时动态申请相机权限 ────────────────────────────────────
-    // module.json5 里的静态声明只是"告知系统该应用需要此权限"，
-    // HarmonyOS NEXT 上还必须在运行时主动弹窗请求，才能真正拿到授权。
+    // Step 0: 弹窗让用户输入老人姓名
+    let enrollName = '';
+    try {
+      const nameDialog = await promptAction.showDialog({
+        title: '录入人脸',
+        message: '请输入被监护人姓名（用于识别显示）',
+        buttons: [
+          { text: '取消', color: '#64748b' },
+          { text: '去拍照', color: '#2563eb' },
+        ],
+      });
+      if (nameDialog.index !== 1) {
+        return;
+      }
+      // ArkTS 无法弹 TextInput，用当前登录昵称作为默认姓名，后续可扩展
+      enrollName = AppStorage.get<string>('loggedInNickname') ?? this.userName ?? 'unknown';
+      if (!enrollName || enrollName.trim() === '') {
+        enrollName = 'unknown';
+      }
+    } catch (e) {
+      return;
+    }
+
+    // Step 1: 申请相机权限
     const atManager = abilityAccessCtrl.createAtManager();
     const grantResult = await atManager.requestPermissionsFromUser(
       context, ['ohos.permission.CAMERA']
     );
-    // authResults[0] === 0 表示已授权；非 0（如 -1）表示用户拒绝
     if (grantResult.authResults[0] !== 0) {
       promptAction.showToast({ message: '需要相机权限才能录入人脸，请在系统设置中开启' });
-      console.warn('[person]: 相机权限被拒绝，authResult=' + grantResult.authResults[0]);
       return;
     }
-    // ─────────────────────────────────────────────────────────────────────
 
-    // 在应用沙箱 cacheDir 预先创建临时文件，并通过 saveUri 告知系统相机直接写入此处
-    // 这样 resultUri 返回的就是可直接读取的沙箱 file:// 路径，无需额外拷贝
     const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
     let httpRequest = http.createHttp();
 
     try {
-      // Step 1: 在沙箱预创建目标文件，供 saveUri 使用
-      // CREATE | WRITE_ONLY 确保文件存在且为空
+      // Step 2: 预创建沙箱文件
       let tempFile = fs.openSync(sandboxPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
       fs.closeSync(tempFile);
 
-      // Step 2: 将沙箱路径转为 file:// URI 格式传给 saveUri
+      // Step 3: 调起前置相机
       const sandboxUri = fileUri.getUriFromPath(sandboxPath);
-
-      // Step 3: 调起前置相机拍照，saveUri 指定相机把照片直接写入沙箱文件
       let pickerProfile: cameraPicker.PickerProfile = {
         cameraPosition: camera.CameraPosition.CAMERA_POSITION_FRONT,
         saveUri: sandboxUri,
@@ -89,20 +103,17 @@ export struct person {
         [cameraPicker.PickerMediaType.PHOTO],
         pickerProfile,
       );
-
-      // resultCode 非 0 或 URI 为空 = 用户取消，静默退出
       if (pickerResult.resultCode !== 0 || pickerResult.resultUri === '') {
         console.log('[person]: 用户取消拍照');
-        httpRequest.destroy();
         return;
       }
 
-      // Step 4: 直接读取沙箱文件（saveUri 已保证照片落地于此）
+      // Step 4: 读取图片文件
       let file = fs.openSync(sandboxPath, fs.OpenMode.READ_ONLY);
       let fileStat = fs.statSync(file.fd);
       if (fileStat.size === 0) {
         fs.closeSync(file);
-        throw new Error('照片文件为空，拍照可能未成功写入');
+        throw new Error('照片文件为空');
       }
       let buffer = new ArrayBuffer(fileStat.size);
       fs.readSync(file.fd, buffer);
@@ -110,31 +121,62 @@ export struct person {
 
       promptAction.showToast({ message: '正在上传人脸信息...' });
 
-      // Step 5: POST 原始图片数据到开发板
-      let response = await httpRequest.request(BOARD_UPLOAD_URL, {
+      // Step 5: 构造 multipart/form-data 手动拼装
+      // ArkTS http 模块不支持 FormData，手动拼 boundary
+      const boundary = 'GuardianBoundary' + Date.now().toString();
+      const nameField = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="name"\r\n\r\n'
+        + enrollName + '\r\n';
+      const userIdField = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="user_id"\r\n\r\n'
+        + (this.userName ?? 'unknown') + '\r\n';
+      const fileHeader = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="file"; filename="face.jpg"\r\n'
+        + 'Content-Type: image/jpeg\r\n\r\n';
+      const tail = '\r\n--' + boundary + '--\r\n';
+
+      // 编码各部分为 Uint8Array 再合并
+      const encoder = new util.TextEncoder();
+      const namePart = encoder.encodeInto(nameField).buffer as ArrayBuffer;
+      const userIdPart = encoder.encodeInto(userIdField).buffer as ArrayBuffer;
+      const headerPart = encoder.encodeInto(fileHeader).buffer as ArrayBuffer;
+      const tailPart = encoder.encodeInto(tail).buffer as ArrayBuffer;
+
+      const totalLen = namePart.byteLength + userIdPart.byteLength
+        + headerPart.byteLength + buffer.byteLength + tailPart.byteLength;
+      const merged = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const part of [namePart, userIdPart, headerPart, buffer, tailPart]) {
+        merged.set(new Uint8Array(part), offset);
+        offset += part.byteLength;
+      }
+
+      // Step 6: 发送到板子
+      let response = await httpRequest.request(BOARD_FACE_ENROLL_URL, {
         method: http.RequestMethod.POST,
-        header: { 'Content-Type': 'image/jpeg' },
-        extraData: buffer,
-        connectTimeout: 8000,
-        readTimeout: 8000,
+        header: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+        extraData: merged.buffer as ArrayBuffer,
+        connectTimeout: 10000,
+        readTimeout: 10000,
       });
 
-      if (response.responseCode === 200 || response.responseCode === 201) {
-        promptAction.showToast({ message: '人脸信息上传成功，开发板已接收' });
+      if (response.responseCode === 200) {
+        promptAction.showToast({ message: '人脸录入成功！开发板已更新识别库' });
+        console.log('[person]: 人脸录入成功 name=' + enrollName);
       } else {
         promptAction.showToast({ message: '上传失败，状态码: ' + response.responseCode });
+        console.warn('[person]: 人脸上传失败 code=' + response.responseCode + ' body=' + response.result);
       }
     } catch (error) {
       console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
       promptAction.showToast({ message: '操作失败，请重试' });
     } finally {
       httpRequest.destroy();
-      // 阅后即焚：无论流程成败，沙箱临时文件必须销毁
       try {
         fs.unlinkSync(sandboxPath);
         console.log('[person]: 人脸临时文件已销毁');
       } catch (e) {
-        // 文件不存在时忽略（Step1 之前就失败的场景）
+        // 忽略
       }
     }
   }

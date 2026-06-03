@@ -21,6 +21,9 @@ export const HEALTH_CHECK_URL = `http://${ECS_HOST}:${ECS_VIDEO_PORT}/api/stats`
 export const BROKER_URL = `tcp://${ECS_HOST}:${ECS_MQTT_PORT}`;
 export const WS_INTERCOM_URL = `ws://${ECS_HOST}:${ECS_WS_PORT}/ws/intercom`;
 export const BOARD_UPLOAD_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/upload`;
+export const BOARD_FACE_ENROLL_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/enroll`;
+export const BOARD_FACE_LIST_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/list`;
+export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face`;
 
 // ── MQTT ────────────────────────────────────────────────────
 export const ALERT_TOPIC = 'ai_guardian/alerts/#';
