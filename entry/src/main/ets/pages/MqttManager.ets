@@ -9,7 +9,7 @@ import {
 } from "@ohos/mqtt";
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
-import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD } from '../config';
+import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT } from '../config';
 import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
 
 export interface FallRecord {
@@ -118,6 +118,11 @@ export class MqttManager {
         userName: MQTT_USERNAME,
         password: MQTT_PASSWORD,
         MQTTVersion: 4,
+        sslOptions: {
+          enableServerCertAuth: true,
+          trustStoreContent: MQTT_CA_CERT,
+          verify: false, // IP地址无法做 hostname 校验，跳过
+        },
       };
       const result = await this.mqttClient.connect(connectOptions);
       if (result.code === 0) {
@@ -161,6 +166,11 @@ export class MqttManager {
       userName: MQTT_USERNAME,
       password: MQTT_PASSWORD,
       MQTTVersion: 4,
+      sslOptions: {
+        enableServerCertAuth: true,
+        trustStoreContent: MQTT_CA_CERT,
+        verify: false, // IP地址无法做 hostname 校验，跳过
+      },
     };
     try {
       this.latestMessage = "正在连接...";
