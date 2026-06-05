@@ -1,20 +1,156 @@
-import { common } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { STORAGE_KEY_LOGGED_IN_USER } from './Login';
 import { CloudSyncService } from '../common/CloudSyncService';
 import { CloudService } from '../common/CloudService';
 import { DatabaseHelper } from '../database/DatabaseHelper';
-import { PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
+import { PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+
+@CustomDialog
+struct PrivacyDialog {
+  controller: CustomDialogController;
+  onAgree: () => void = () => {};
+  onDisagree: () => void = () => {};
+
+  build() {
+    Column({ space: 0 }) {
+      Text('隐私政策与用户协议')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1e293b')
+        .margin({ top: 24, bottom: 16 })
+        .textAlign(TextAlign.Center)
+        .width('100%')
+
+      Scroll() {
+        Column({ space: 8 }) {
+          Text('智护星（Guardian Star）非常重视您的隐私保护。使用本应用前，请阅读以下说明：')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('• 账号信息（手机号 / 邮箱）：用于身份识别和跨设备登录')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('• 健康监测数据（摔倒 / 久坐事件）：存储于本机及您的云端账号，仅用于监护服务')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('• 摄像头（人脸录入，可选）：照片仅上传至您自己的开发板，不经过第三方服务器')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('数据不会向任何第三方共享或出售。')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+            .margin({ top: 4 })
+          Text('查看完整隐私政策 →')
+            .fontSize(13)
+            .fontColor('#3b82f6')
+            .decoration({ type: TextDecorationType.Underline, color: '#3b82f6' })
+            .margin({ top: 4 })
+            .onClick(() => {
+              const ctx = getContext(this) as common.UIAbilityContext;
+              const want: Want = {
+                action: 'ohos.want.action.viewData',
+                entities: ['entity.system.browsable'],
+                uri: PRIVACY_POLICY_URL,
+              };
+              ctx.startAbility(want).catch((e: Error) => {
+                console.warn('[PrivacyDialog]: 打开隐私政策链接失败', e.message);
+              });
+            })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+      .height(200)
+      .width('100%')
+      .padding({ left: 20, right: 20 })
+
+      Row({ space: 12 }) {
+        Button('不同意', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#f1f5f9')
+          .fontColor('#64748b')
+          .borderRadius(10)
+          .onClick(() => { this.onDisagree(); })
+        Button('同意并继续', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#3b82f6')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .onClick(() => { this.onAgree(); })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 16, bottom: 24 })
+    }
+    .width('100%')
+    .backgroundColor('#ffffff')
+    .borderRadius(16)
+  }
+}
 
 @Entry
 @Component
 struct Index {
   pathStack: NavPathStack = new NavPathStack();
 
+  private privacyDialogController: CustomDialogController = new CustomDialogController({
+    builder: PrivacyDialog({
+      onAgree: () => {
+        this.privacyDialogController.close();
+        this.savePrivacyAccepted();
+        this.checkAutoLogin();
+      },
+      onDisagree: () => {
+        this.privacyDialogController.close();
+        const ctx = getContext(this) as common.UIAbilityContext;
+        ctx.terminateSelf();
+      },
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false,
+    cornerRadius: 16,
+    width: '88%',
+  });
+
+  private savePrivacyAccepted(): void {
+    try {
+      const ctx = getContext(this) as common.UIAbilityContext;
+      const options: preferences.Options = { name: PREF_NAME_AUTH };
+      const pref = preferences.getPreferencesSync(ctx, options);
+      pref.putSync(PREF_KEY_PRIVACY_ACCEPTED, true);
+      pref.flushSync();
+    } catch (e) {
+      console.warn('[Index]: 保存隐私协议状态失败', JSON.stringify(e));
+    }
+  }
+
+  private checkPrivacyThenLogin(): void {
+    try {
+      const ctx = getContext(this) as common.UIAbilityContext;
+      const options: preferences.Options = { name: PREF_NAME_AUTH };
+      const pref = preferences.getPreferencesSync(ctx, options);
+      const accepted = pref.getSync(PREF_KEY_PRIVACY_ACCEPTED, false) as boolean;
+      if (!accepted) {
+        this.privacyDialogController.open();
+        return;
+      }
+    } catch (e) {
+      console.warn('[Index]: 读取隐私协议状态失败', JSON.stringify(e));
+    }
+    this.checkAutoLogin();
+  }
+
   build() {
     Navigation(this.pathStack) {
     }.onAppear(() => {
-      this.checkAutoLogin();
+      this.checkPrivacyThenLogin();
     })
     .hideNavBar(true)
   }
