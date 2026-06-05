@@ -127,6 +127,29 @@ def api_login():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route('/api/deleteUser', methods=['POST'])
+def api_delete_user():
+    d = request.get_json(force=True) or {}
+    username = (d.get('username') or '').strip()
+    if not username:
+        return jsonify({"success": False, "message": "参数缺失"}), 400
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT username FROM t_user WHERE username=? OR phone=? OR email=?",
+            (username, username, username)
+        ).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "message": "账号不存在"})
+        conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "账号已注销"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/updateUser', methods=['POST'])
 def api_update_user():
     """
