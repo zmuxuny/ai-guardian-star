@@ -71,15 +71,18 @@ export const PREF_KEY_PRIVACY_ACCEPTED = 'privacyAccepted';
 - 不匹配 → `showToast('密码错误')` + 弹窗保持打开
 - 匹配 → Step 3
 
-**Step 3 — 执行删除**（async，显示 loading toast）
+**Step 3 — 执行删除**（async，云端优先，失败则中止）
 1. `POST /api/deleteUser`（body: `{username: loginId}`）→ 云端删除
-2. `db.deleteUserByUsername(username)` → 本地删除
-3. 清 Preferences（`lastUsername`, `lastNickname`, `privacyAccepted`）
-4. 清 AppStorage（`loggedInUsername`, `loggedInNickname`, `loggedInAvatarPath`）
-5. `UserManager.getInstance().clearCurrentUsername()`
-6. `pathStack.clear()` → `pushPathByName('Login', null)`
+   - 网络不可达 → toast "网络不可用，请检查网络后重试"，**中止，不动本地**
+   - 服务端返回非 success → toast "服务器拒绝注销，请稍后重试或联系客服"，**中止，不动本地**
+2. 云端成功后才执行本地清除：
+   - `db.deleteUserByUsername(username)`
+   - 清 Preferences（`lastUsername`, `lastNickname`, `privacyAccepted`）
+   - 清 AppStorage（`loggedInUsername`, `loggedInNickname`, `loggedInAvatarPath`）
+   - `UserManager.getInstance().clearCurrentUsername()`
+3. `pathStack.clear()` → `pushPathByName('Login', null)`
 
-云端失败时：弹 toast 提示"云端注销失败，本地数据已清除"，但仍执行本地清除并跳转登录（离线可用原则）。
+**原则：云端与本地保持一致，任何一步失败均中止并提示，不留半删除状态。**
 
 ### 后端新增端点 — wenxin_proxy.py
 ```
