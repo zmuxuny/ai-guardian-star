@@ -23,7 +23,8 @@ import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
+import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
 @Builder
@@ -32,6 +33,63 @@ export function personBuilder(): void {
     person()
   }.hideTitleBar(true);
 }
+@CustomDialog
+struct DeleteAccountDialog {
+  controller: CustomDialogController;
+  inputPassword: string = '';
+  isDeleting: boolean = false;
+  onPasswordChange: (v: string) => void = () => {};
+  onConfirm: () => void = () => {};
+  onCancel: () => void = () => {};
+
+  build() {
+    Column({ space: 0 }) {
+      Text('验证身份')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1e293b')
+        .margin({ top: 24, bottom: 8 })
+        .textAlign(TextAlign.Center)
+        .width('100%')
+      Text('注销账号将永久删除所有数据，请输入当前密码确认')
+        .fontSize(13)
+        .fontColor('#64748b')
+        .textAlign(TextAlign.Center)
+        .padding({ left: 20, right: 20 })
+        .margin({ bottom: 16 })
+      TextInput({ placeholder: '请输入当前密码', text: this.inputPassword })
+        .type(InputType.Password)
+        .width('100%')
+        .padding({ left: 20, right: 20 })
+        .margin({ bottom: 20 })
+        .onChange((v: string) => { this.onPasswordChange(v); })
+      Row({ space: 12 }) {
+        Button('取消', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#f1f5f9')
+          .fontColor('#64748b')
+          .borderRadius(10)
+          .enabled(!this.isDeleting)
+          .onClick(() => { this.onCancel(); })
+        Button(this.isDeleting ? '注销中...' : '确认注销', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#ef4444')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .enabled(!this.isDeleting)
+          .onClick(() => { this.onConfirm(); })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, bottom: 24 })
+    }
+    .width('100%')
+    .backgroundColor('#ffffff')
+    .borderRadius(16)
+  }
+}
+
 @Component
 export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -47,8 +105,97 @@ export struct person {
   @State pressedRow: string = "";
   // 退出登录按钮缩放
   @State logoutScale: number = 1.0;
+  @State deleteInputPassword: string = '';
+  @State isDeleting: boolean = false;
   // 导航路径栈
   pathStack: NavPathStack = new NavPathStack();
+
+  private deleteAccountDialogController: CustomDialogController = new CustomDialogController({
+    builder: DeleteAccountDialog({
+      inputPassword: this.deleteInputPassword,
+      isDeleting: this.isDeleting,
+      onPasswordChange: (v: string) => { this.deleteInputPassword = v; },
+      onConfirm: () => { this.executeDeleteAccount(); },
+      onCancel: () => {
+        this.deleteInputPassword = '';
+        this.deleteAccountDialogController.close();
+      },
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    customStyle: false,
+    cornerRadius: 16,
+    width: '88%',
+  });
+
+  private async executeDeleteAccount(): Promise<void> {
+    const currentUser = UserManager.getInstance().getCurrentUsername();
+    const db = DatabaseHelper.getInstance();
+
+    let user: UserInfo | null = null;
+    try {
+      user = await db.queryUserByIdentifier(currentUser);
+    } catch (e) {
+      promptAction.showToast({ message: '查询用户失败，请重试' });
+      return;
+    }
+    if (!user) {
+      promptAction.showToast({ message: '用户信息不存在' });
+      return;
+    }
+
+    if (this.deleteInputPassword.trim() !== user.passwordHash) {
+      promptAction.showToast({ message: '密码错误，请重新输入' });
+      return;
+    }
+
+    this.isDeleting = true;
+    try {
+      const cloud = CloudService.getInstance();
+      const result = await cloud.deleteUser(currentUser, user.passwordHash);
+      if (!result.success) {
+        this.isDeleting = false;
+        promptAction.showToast({ message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
+        return;
+      }
+    } catch (e) {
+      this.isDeleting = false;
+      promptAction.showToast({ message: '网络不可用，请检查网络后重试' });
+      return;
+    }
+
+    try {
+      await db.deleteUserByUsername(user.username);
+    } catch (e) {
+      console.error('[person]: 本地删除失败', JSON.stringify(e));
+    }
+
+    try {
+      const ctx = getContext(this) as common.UIAbilityContext;
+      const opts: preferences.Options = { name: PREF_NAME_AUTH };
+      const pref = preferences.getPreferencesSync(ctx, opts);
+      pref.deleteSync(PREF_KEY_LAST_USERNAME);
+      pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+      pref.deleteSync(PREF_KEY_PRIVACY_ACCEPTED);
+      pref.flushSync();
+    } catch (e) {
+      console.warn('[person]: 清除 Preferences 失败', JSON.stringify(e));
+    }
+
+    AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, '');
+    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, '');
+    AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, '');
+    UserManager.getInstance().clearCurrentUsername();
+
+    this.isDeleting = false;
+    this.deleteInputPassword = '';
+    this.deleteAccountDialogController.close();
+
+    if (this.pathStack) {
+      this.pathStack.clear();
+      this.pathStack.pushPathByName('Login', null);
+    }
+  }
 
   private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
     // Step 0: 弹窗让用户输入老人姓名
@@ -614,7 +761,7 @@ export struct person {
                       const ctx = getContext(this) as common.UIAbilityContext;
                       const opts: preferences.Options = { name: PREF_NAME_AUTH };
                       const pref = preferences.getPreferencesSync(ctx, opts);
-                      pref.deleteSync("lastUsername");
+                      pref.deleteSync(PREF_KEY_LAST_USERNAME);
                       pref.deleteSync(PREF_KEY_LAST_NICKNAME);
                       pref.flush();
                     } catch (e) {
@@ -627,6 +774,29 @@ export struct person {
                     this.pathStack.pushPathByName("Login", null);
                   }
                 });
+            })
+          Button('注销账号', { type: ButtonType.Normal })
+            .width('80%')
+            .height(40)
+            .constraintSize({ minHeight: 36 })
+            .margin({ top: '2%', bottom: '2%' })
+            .backgroundColor('transparent')
+            .fontColor('#dc2626')
+            .fontSize(14)
+            .onClick(() => {
+              promptAction.showDialog({
+                title: '注销账号',
+                message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
+                buttons: [
+                  { text: '取消', color: '#64748b' },
+                  { text: '继续注销', color: '#ef4444' },
+                ],
+              }).then((res) => {
+                if (res.index === 1) {
+                  this.deleteInputPassword = '';
+                  this.deleteAccountDialogController.open();
+                }
+              });
             })
           Text("智护星 v1.0.0")
             .fontSize(12)
