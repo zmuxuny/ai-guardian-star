@@ -19,14 +19,14 @@ app = Flask(__name__)
 CORS(app)
 
 # ─── 管理后台配置 ──────────────────────────────────────────────
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']   # 未设置则启动报 KeyError，拒绝带默认密码上线
 app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24).hex()
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
 COZE_STREAM_URL = "https://yhgh6fywzc.coze.site/stream_run"
 COZE_PROJECT_ID = "7627479213733445658"
-COZE_API_TOKEN  = "YOUR_COZE_TOKEN_HERE"   # 填入 pat_erXhx... 令牌
+COZE_API_TOKEN  = os.environ['COZE_API_TOKEN']  # 未设置则启动报 KeyError
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")

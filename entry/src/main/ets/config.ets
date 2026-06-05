@@ -4,14 +4,14 @@
  */
 
 // ── ECS 云端服务器 ──────────────────────────────────────────
-export const ECS_HOST = '117.78.9.144';
+export const ECS_HOST = "117.78.9.144";
 export const ECS_API_PORT = 8899;
 export const ECS_VIDEO_PORT = 6001;
 export const ECS_MQTT_PORT = 8883;
 export const ECS_WS_PORT = 6000;
 
 // ── 局域网开发板 ────────────────────────────────────────────
-export const LAN_HOST = '192.168.137.100';
+export const LAN_HOST = "192.168.137.100";
 export const LAN_UPLOAD_PORT = 8080;
 
 // ── 派生 URL ───────────────────────────────────────────────
@@ -26,11 +26,11 @@ export const BOARD_FACE_LIST_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/fa
 export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face`;
 
 // ── MQTT ────────────────────────────────────────────────────
-export const ALERT_TOPIC = 'ai_guardian/alerts/#';
-export const MQTT_CLIENT_ID = 'HarmonyOS_Client_sad';
+export const ALERT_TOPIC = "ai_guardian/alerts/#";
+export const MQTT_CLIENT_ID = "HarmonyOS_Client_sad";
 // broker 鉴权凭据 — 配置完 amqtt ACL 后填入
-export const MQTT_USERNAME = '';
-export const MQTT_PASSWORD = '';
+export const MQTT_USERNAME = "harmony_app";
+export const MQTT_PASSWORD = "Abcd1234-/:;";
 // GuardianCA 自签名根证书（公钥，非私钥，可安全内嵌）
 // 用于验证 broker TLS 证书，避免中间人攻击
 export const MQTT_CA_CERT = `-----BEGIN CERTIFICATE-----
@@ -54,14 +54,14 @@ Kz6LI4sfTgmSL0/Otmzc
 -----END CERTIFICATE-----`;
 
 // ── AppStorage Keys ──────────────────────────────────────────
-export const STORE_KEY_LOGGED_IN_USER = 'loggedInUsername';
-export const STORE_KEY_NICKNAME = 'loggedInNickname';
-export const STORE_KEY_AVATAR = 'loggedInAvatarPath';
-export const STORE_KEY_PHONE = 'loggedInPhone';
-export const STORE_KEY_EMAIL = 'loggedInEmail';
-export const STORE_KEY_RETENTION = 'retentionDays';
+export const STORE_KEY_LOGGED_IN_USER = "loggedInUsername";
+export const STORE_KEY_NICKNAME = "loggedInNickname";
+export const STORE_KEY_AVATAR = "loggedInAvatarPath";
+export const STORE_KEY_PHONE = "loggedInPhone";
+export const STORE_KEY_EMAIL = "loggedInEmail";
+export const STORE_KEY_RETENTION = "retentionDays";
 
 // ── Preferences ──────────────────────────────────────────────
-export const PREF_NAME_AUTH = 'guardian_auth';
-export const PREF_KEY_LAST_USERNAME = 'lastUsername';
-export const PREF_KEY_LAST_NICKNAME = 'lastNickname';
+export const PREF_NAME_AUTH = "guardian_auth";
+export const PREF_KEY_LAST_USERNAME = "lastUsername";
+export const PREF_KEY_LAST_NICKNAME = "lastNickname";
