@@ -47,14 +47,6 @@
       "data": {
         "description": "this is HealthHistory"
       }
-    },
-    {
-      "name": "DatabaseDiagnostic",
-      "pageSourceFile": "src/main/ets/pages/DatabaseDiagnostic.ets",
-      "buildFunction": "DatabaseDiagnosticBuilder",
-      "data": {
-        "description": "this is DatabaseDiagnostic"
-      }
     }
   ]
 }
