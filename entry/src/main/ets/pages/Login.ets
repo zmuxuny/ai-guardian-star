@@ -9,8 +9,6 @@ import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
 
-export const STORAGE_KEY_LOGGED_IN_USER = STORE_KEY_LOGGED_IN_USER;
-
 interface LoginResult {
   loginId: string;     // phone or email (unique identifier)
   displayName: string; // stored in username column

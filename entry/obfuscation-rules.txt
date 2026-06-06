@@ -21,6 +21,7 @@
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
+-remove-log
 
 # ── 云端接口字段名保留（否则服务器收不到正确字段） ──
 -keep-property-name

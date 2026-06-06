@@ -18,12 +18,11 @@ import {
 import { preferences } from "@kit.ArkData";
 import { common, abilityAccessCtrl } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
-import { STORAGE_KEY_LOGGED_IN_USER } from "./Login";
 import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
 import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
@@ -182,7 +181,7 @@ export struct person {
       console.warn('[person]: 清除 Preferences 失败', JSON.stringify(e));
     }
 
-    AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, '');
+    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, '');
     AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, '');
     UserManager.getInstance().clearCurrentUsername();
@@ -767,7 +766,7 @@ export struct person {
                     } catch (e) {
                       console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
                     }
-                    AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, "");
+                    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
                     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
                     UserManager.getInstance().clearCurrentUsername();
                     this.pathStack.clear();

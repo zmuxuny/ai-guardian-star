@@ -1,10 +1,8 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
-import { STORAGE_KEY_LOGGED_IN_USER } from './Login';
-import { CloudSyncService } from '../common/CloudSyncService';
 import { CloudService } from '../common/CloudService';
 import { DatabaseHelper } from '../database/DatabaseHelper';
-import { PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 
 @CustomDialog
 struct PrivacyDialog {
@@ -162,16 +160,13 @@ struct Index {
    */
   private checkAutoLogin(): void {
     try {
-      // 启动云端数据预同步（后台异步，不阻塞UI）
-      this.startCloudPreSync();
-
       const ctx = getContext(this) as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       const savedUser = pref.getSync(PREF_KEY_LAST_USERNAME, '') as string;
 
       if (savedUser !== '') {
-        AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, savedUser);
+        AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, savedUser);
         this.pathStack.pushPathByName('Layout', null, false);
         // 后台验证云端账号是否被删除
         this.validateAccountOnCloud(savedUser);
@@ -225,7 +220,7 @@ struct Index {
         }
 
         // 清除 AppStorage
-        AppStorage.setOrCreate<string>(STORAGE_KEY_LOGGED_IN_USER, '');
+        AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
 
         // 跳转登录页
         this.pathStack.clear();
@@ -237,21 +232,4 @@ struct Index {
     }
   }
   
-  /**
-   * 启动云端数据预同步
-   * 后台异步执行，不阻塞UI
-   */
-  private startCloudPreSync(): void {
-    try {
-      const cloudSync = CloudSyncService.getInstance();
-      // 异步执行，不等待结果
-      cloudSync.preSyncOnAppStart().then(() => {
-        console.info('[Index]: 云端预同步完成');
-      }).catch((e: Error) => {
-        console.warn('[Index]: 云端预同步失败:', e.message);
-      });
-    } catch (e) {
-      console.warn('[Index]: 启动云端预同步失败:', e);
-    }
-  }
 }
