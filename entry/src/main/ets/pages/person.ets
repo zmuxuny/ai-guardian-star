@@ -729,10 +729,81 @@ export struct person {
             .clip(true)
             .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
           }.width("100%")
+          Column({ space: 12 }) {
+            Button("退出登录", { type: ButtonType.Capsule })
+              .width("88%")
+              .height(50)
+              .backgroundColor("#fee2e2")
+              .fontColor("#ef4444")
+              .fontWeight(FontWeight.Medium)
+              .fontSize(16)
+              .scale({ x: this.logoutScale, y: this.logoutScale })
+              .animation({ duration: 120, curve: Curve.EaseInOut })
+              .onClick((): void => {
+                this.logoutScale = 0.95;
+                setTimeout(() => {
+                  this.logoutScale = 1.0;
+                }, 150);
+                promptAction
+                  .showDialog({
+                    title: "退出确认",
+                    message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
+                    buttons: [
+                      { text: "取消", color: "#64748b" },
+                      { text: "退出", color: "#ef4444" },
+                    ],
+                  })
+                  .then((data) => {
+                    if (data.index === 1 && this.pathStack) {
+                      try {
+                        const ctx = getContext(this) as common.UIAbilityContext;
+                        const opts: preferences.Options = { name: PREF_NAME_AUTH };
+                        const pref = preferences.getPreferencesSync(ctx, opts);
+                        pref.deleteSync(PREF_KEY_LAST_USERNAME);
+                        pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+                        pref.flush();
+                      } catch (e) {
+                        console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
+                      }
+                      AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
+                      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
+                      UserManager.getInstance().clearCurrentUsername();
+                      this.pathStack.clear();
+                      this.pathStack.pushPathByName("Login", null);
+                    }
+                  });
+              })
+            Button('注销账号', { type: ButtonType.Normal })
+              .width("88%")
+              .height(50)
+              .backgroundColor("#dc2626")
+              .fontColor("#ffffff")
+              .fontWeight(FontWeight.Medium)
+              .fontSize(16)
+              .borderRadius(100)
+              .onClick(() => {
+                promptAction.showDialog({
+                  title: '注销账号',
+                  message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
+                  buttons: [
+                    { text: '取消', color: '#64748b' },
+                    { text: '继续注销', color: '#ef4444' },
+                  ],
+                }).then((res) => {
+                  if (res.index === 1) {
+                    this.deleteInputPassword = '';
+                    this.deleteAccountDialogController.open();
+                  }
+                });
+              })
+          }
+          .width("100%")
+          .alignItems(HorizontalAlign.Center)
+          .margin({ top: "8%", bottom: "4%" })
           Text("智护星 v1.0.0")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ top: "8%", bottom: "6%" })
+            .margin({ bottom: "8%" })
         }
         .width("100%")
         .alignItems(HorizontalAlign.Center)
@@ -740,81 +811,6 @@ export struct person {
       .layoutWeight(1)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
-      Column() {
-        Divider()
-          .color(this.themeManager.colors.separatorColor)
-        Button("退出登录", { type: ButtonType.Capsule })
-          .width("88%")
-          .height(50)
-          .margin({ top: 16 })
-          .backgroundColor("#fee2e2")
-          .fontColor("#ef4444")
-          .fontWeight(FontWeight.Medium)
-          .fontSize(16)
-          .scale({ x: this.logoutScale, y: this.logoutScale })
-          .animation({ duration: 120, curve: Curve.EaseInOut })
-          .onClick((): void => {
-            this.logoutScale = 0.95;
-            setTimeout(() => {
-              this.logoutScale = 1.0;
-            }, 150);
-            promptAction
-              .showDialog({
-                title: "退出确认",
-                message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
-                buttons: [
-                  { text: "取消", color: "#64748b" },
-                  { text: "退出", color: "#ef4444" },
-                ],
-              })
-              .then((data) => {
-                if (data.index === 1 && this.pathStack) {
-                  try {
-                    const ctx = getContext(this) as common.UIAbilityContext;
-                    const opts: preferences.Options = { name: PREF_NAME_AUTH };
-                    const pref = preferences.getPreferencesSync(ctx, opts);
-                    pref.deleteSync(PREF_KEY_LAST_USERNAME);
-                    pref.deleteSync(PREF_KEY_LAST_NICKNAME);
-                    pref.flush();
-                  } catch (e) {
-                    console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
-                  }
-                  AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
-                  AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
-                  UserManager.getInstance().clearCurrentUsername();
-                  this.pathStack.clear();
-                  this.pathStack.pushPathByName("Login", null);
-                }
-              });
-          })
-        Button('注销账号', { type: ButtonType.Normal })
-          .width("88%")
-          .height(44)
-          .margin({ top: 8, bottom: 16 })
-          .backgroundColor("#fef2f2")
-          .fontColor("#dc2626")
-          .fontWeight(FontWeight.Medium)
-          .fontSize(14)
-          .borderRadius(100)
-          .onClick(() => {
-            promptAction.showDialog({
-              title: '注销账号',
-              message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
-              buttons: [
-                { text: '取消', color: '#64748b' },
-                { text: '继续注销', color: '#ef4444' },
-              ],
-            }).then((res) => {
-              if (res.index === 1) {
-                this.deleteInputPassword = '';
-                this.deleteAccountDialogController.open();
-              }
-            });
-          })
-      }
-      .width("100%")
-      .alignItems(HorizontalAlign.Center)
-      .backgroundColor(this.themeManager.colors.backgroundColor)
     }
     .width("100%")
     .height("100%")
