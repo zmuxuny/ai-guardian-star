@@ -1,5 +1,5 @@
-import { LoginWithHuaweiIDButton, loginComponentManager } from "@kit.AccountKit";
-import { BusinessError } from "@kit.BasicServicesKit";
+// import { LoginWithHuaweiIDButton, loginComponentManager } from "@kit.AccountKit"; // 华为一键登录暂不可用
+// import { BusinessError } from "@kit.BasicServicesKit";
 import { ThemeManager } from "../common/ThemeManager";
 import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
@@ -8,8 +8,6 @@ import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
-
-export const STORAGE_KEY_LOGGED_IN_USER = STORE_KEY_LOGGED_IN_USER;
 
 interface LoginResult {
   loginId: string;     // phone or email (unique identifier)
@@ -593,7 +591,7 @@ struct Login {
               .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
               .animation({ duration: 120, curve: Curve.EaseInOut })
 
-            // 分割线
+            /* 华为一键登录暂时不可用
             Row() {
               Divider()
                 .layoutWeight(1)
@@ -610,7 +608,6 @@ struct Login {
             .width("100%")
             .margin({ bottom: 16 })
 
-            // 华为官方登录按钮
             LoginWithHuaweiIDButton({
               params: {
                 style: loginComponentManager.Style.BUTTON_RED,
@@ -618,7 +615,7 @@ struct Login {
               },
               controller:
                 new loginComponentManager.LoginWithHuaweiIDButtonController().onClickLoginWithHuaweiIDButton(
-                  (error: BusinessError, response: loginComponentManager.HuaweiIDCredential) => {
+                  (error, response) => {
                     if (error) {
                       let msg = "登录失败";
                       if (error.code === 100004) msg = "环境不支持，请检查HMS Core";
@@ -634,6 +631,7 @@ struct Login {
             })
               .width("100%")
               .height(50)
+            */
             }
             .width("100%")
             .padding({ left: 24, right: 24, top: 28, bottom: 32 })
@@ -874,11 +872,11 @@ struct Login {
     });
   }
 
-  /** 华为账号登录：解析凭证 → 写本地DB → 异步同步云端 */
+  /* 华为一键登录暂时不可用
+  // 华为账号登录：解析凭证 → 写本地DB → 异步同步云端
   private handleHuaweiLogin(credential: loginComponentManager.HuaweiIDCredential): void {
     this.isLoading = true;
     console.info('[Login]: 华为账号凭证原始数据: ' + JSON.stringify(credential));
-    // ArkTS 严格模式不允许直接 cast，通过 JSON 序列化将 credential 转成普通对象
     const src: Record<string, Object> = JSON.parse(JSON.stringify(credential)) as Record<string, Object>;
     const openID: string = (src.openID as string) || (src.openId as string) || '';
     const unionID: string = (src.unionID as string) || (src.unionId as string) || '';
@@ -891,16 +889,13 @@ struct Login {
 
     const db = DatabaseHelper.getInstance();
     const cloud = CloudService.getInstance();
-    // 先查本地是否有此华为账号
     db.queryUserByPhone(loginId).then((existing: UserInfo | null) => {
       if (existing) {
-        // 已存在 → 直接登录
         this.isLoading = false;
         promptAction.showToast({ message: `欢迎回来，${existing.username || loginId}`, duration: 1500 });
         setTimeout(() => { this.saveLoginAndJump(loginId, existing.username ?? loginId); }, 800);
         return;
       }
-      // 新用户 → 写入本地DB + 异步云端注册
       db.insertUser({
         username: displayName,
         phone: loginId,
@@ -935,4 +930,5 @@ struct Login {
       this.showAlert('登录失败，请重试');
     });
   }
+  */
 }

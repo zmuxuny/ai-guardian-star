@@ -56,6 +56,11 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
+interface DeleteUserRequest {
+  username: string;
+  passwordHash: string;
+}
+
 /**
  * 更新资料时传给云端的字段（全部可选，用显式 class 替代 Partial）
  * - username：作为「lookup key」定位云端记录（传当前 loginId：手机/邮箱/HW_ID/昵称均可）
@@ -151,5 +156,11 @@ export class CloudService {
   async changePassword(username: string, oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {
     const body: ChangePasswordRequest = { username: username, oldPasswordHash: oldPasswordHash, newPasswordHash: newPasswordHash };
     return postJson('/api/changePassword', body);
+  }
+
+  /** 注销账号 — 从云端永久删除用户记录（服务端会校验密码） */
+  async deleteUser(username: string, passwordHash: string): Promise<CloudResult> {
+    const body: DeleteUserRequest = { username: username, passwordHash: passwordHash };
+    return postJson('/api/deleteUser', body);
   }
 }

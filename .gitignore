@@ -52,3 +52,14 @@ Thumbs.db
 
 # Personal IDE settings
 .claude/settings.local.json
+
+# TLS certificates — CA public key may be kept, but private keys must never be committed
+entry/src/main/resources/resfile/client.key
+entry/src/main/resources/resfile/client.crt
+
+# Personal / temporary files at project root
+1.20
+DEFENSE_TECH_BRIEF.md
+iCAN_*.txt
+iCAN_*.docx
+project-overview.html

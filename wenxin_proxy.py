@@ -19,14 +19,14 @@ app = Flask(__name__)
 CORS(app)
 
 # ─── 管理后台配置 ──────────────────────────────────────────────
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']   # 未设置则启动报 KeyError，拒绝带默认密码上线
 app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24).hex()
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
 COZE_STREAM_URL = "https://yhgh6fywzc.coze.site/stream_run"
 COZE_PROJECT_ID = "7627479213733445658"
-COZE_API_TOKEN  = "YOUR_COZE_TOKEN_HERE"   # 填入 pat_erXhx... 令牌
+COZE_API_TOKEN  = os.environ['COZE_API_TOKEN']  # 未设置则启动报 KeyError
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -123,6 +123,33 @@ def api_login():
                 "createTime":   row['create_time'],
             }
         })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/deleteUser', methods=['POST'])
+def api_delete_user():
+    d = request.get_json(force=True) or {}
+    username = (d.get('username') or '').strip()
+    pwd_hash = (d.get('passwordHash') or '').strip()
+    if not username or not pwd_hash:
+        return jsonify({"success": False, "message": "参数缺失"}), 400
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
+            (username, username, username)
+        ).fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "message": "账号不存在"})
+        if row['password_hash'] != pwd_hash:
+            conn.close()
+            return jsonify({"success": False, "message": "密码错误"})
+        conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "账号已注销"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
