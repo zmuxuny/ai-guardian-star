@@ -145,7 +145,7 @@ def api_delete_user():
             return jsonify({"success": False, "message": "账号不存在"})
         if row['password_hash'] != pwd_hash:
             conn.close()
-            return jsonify({"success": False, "message": "密码错误"}), 403
+            return jsonify({"success": False, "message": "密码错误"})
         conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
         conn.commit()
         conn.close()
