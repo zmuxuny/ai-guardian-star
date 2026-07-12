@@ -38,7 +38,11 @@ struct PrivacyDialog {
             .fontSize(13)
             .fontColor('#475569')
             .lineHeight(20)
-          Text('数据不会向任何第三方共享或出售。')
+          Text('• AI 健康助手：为回答您的提问，会将健康统计摘要（如近7天摔倒次数、久坐告警次数等聚合数据，不含姓名、人脸、位置等身份信息）发送至第三方智能对话服务（扣子 Coze，底层为豆包大模型）以生成回复')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('除上述 AI 问答场景外，数据不会向其他第三方共享或出售。')
             .fontSize(13)
             .fontColor('#475569')
             .lineHeight(20)
@@ -63,7 +67,7 @@ struct PrivacyDialog {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
       }
-      .height(200)
+      .height(260)
       .width('100%')
       .padding({ left: 20, right: 20 })
 

@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CAVEMAN_DEFAULT_MODE": "lite"
+  },
   "permissions": {
     "allow": [
       "WebSearch",
@@ -32,7 +35,25 @@
       "Bash(netstat -ano)",
       "Bash(findstr \"LISTENING\")",
       "Bash(findstr \"789 108 909 991 808 312 888 555 777\")",
-      "Skill(telegram:access)"
+      "Skill(telegram:access)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git tag *)",
+      "Bash(cp \"build/outputs/default/caringSystem-default-signed.app\" /tmp/guardianstar-v1.0.0.app)",
+      "Read(//tmp/**)",
+      "PowerShell(Compress-Archive *)",
+      "Bash(gh release *)",
+      "Bash(Get-Date *)",
+      "PowerShell(git add *)",
+      "Bash(git commit *)",
+      "PowerShell(Get-Item e:\\\\caringSystem\\\\repomix-output.xml | Select-Object Length, @{N='MB';E={[math]::Round\\($_.Length/1MB,2\\)}})",
+      "PowerShell(\\(Get-Item 'e:\\\\caringSystem\\\\repomix-output.xml'\\).Length / 1MB)",
+      "Read(//d/WindTerm_2.7.0/temp/2026-05-05 11.12.08.789/117.78.9.144/root/**)",
+      "Bash(powershell -Command \"\\(Get-Date -Format 'HH:mm:ss'\\) + ' | mainpage.ets 平板适配 — 增加 rSize\\(\\) 自适应缩放 + 600vp断点 + 双列StatusCards + maxWidth约束 | mainpage.ets | 手机固定尺寸保持不变，平板等比放大1.35x' | Out-File -Append -Encoding utf8 .wolf/memory.md\")",
+      "Skill(claude-hud:setup)",
+      "PowerShell($settings = Join-Path $HOME '.claude\\\\settings.json'; $backup = Join-Path $HOME '.claude\\\\settings.json.bak.20260613-084034'; function Summarize\\($path\\) { $json = Get-Content $path -Raw | ConvertFrom-Json; $props = @\\($json.PSObject.Properties.Name\\); $status = if \\($json.statusLine -and $json.statusLine.command\\) { if \\($json.statusLine.command -match 'claude-hud'\\) { 'claude-hud' } elseif \\($json.statusLine.command -match 'caveman'\\) { 'caveman' } else { 'custom' } } else { 'none' }; $plugins = if \\($json.plugins\\) { @\\($json.plugins.PSObject.Properties.Name\\) } else { @\\(\\) }; $hooks = if \\($json.hooks\\) { @\\($json.hooks.PSObject.Properties.Name\\) } else { @\\(\\) }; [PSCustomObject]@{ Path=$path; Keys=\\($props -join ', '\\); StatusLine=$status; PluginKeys=\\($plugins -join ', '\\); HookEvents=\\($hooks -join ', '\\) } }; Summarize $backup | Format-List; Summarize $settings | Format-List)",
+      "PowerShell($global = Get-Content \\(Join-Path $HOME '.claude\\\\settings.json'\\) -Raw | ConvertFrom-Json; $localPath = Join-Path \\(Get-Location\\) '.claude\\\\settings.local.json'; $local = Get-Content $localPath -Raw | ConvertFrom-Json; Write-Host 'Global enabledPlugins:'; @\\($global.enabledPlugins\\) | ForEach-Object { Write-Host \"- $_\" }; Write-Host 'Global model:' $global.model; Write-Host 'Global effortLevel:' $global.effortLevel; Write-Host 'Project local keys:' \\(@\\($local.PSObject.Properties.Name\\) -join ', '\\); if \\($local.permissions\\) { Write-Host 'Project permission keys:' \\(@\\($local.permissions.PSObject.Properties.Name\\) -join ', '\\) }; if \\($local.enabledPlugins\\) { Write-Host 'Project enabledPlugins:'; @\\($local.enabledPlugins\\) | ForEach-Object { Write-Host \"- $_\" } })",
+      "Bash(rtk git *)"
     ]
   }
 }
