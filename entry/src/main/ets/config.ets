@@ -60,6 +60,8 @@ export const STORE_KEY_AVATAR = "loggedInAvatarPath";
 export const STORE_KEY_PHONE = "loggedInPhone";
 export const STORE_KEY_EMAIL = "loggedInEmail";
 export const STORE_KEY_RETENTION = "retentionDays";
+export const STORE_KEY_AI_ENABLED = "aiAssistantEnabled";
+export const STORE_KEY_AI_ACCESS_LEVEL = "aiAccessLevel";
 
 // ── Preferences ──────────────────────────────────────────────
 export const PREF_NAME_AUTH = "guardian_auth";

@@ -254,7 +254,7 @@ def ai_chat():
         if not user_message:
             return jsonify({"error": "message 不能为空"}), 400
 
-        # ── 把监护上下文摘要拼到消息里（脱敏，仅统计数据）────────
+        # ── 按用户选择的 AI 数据权限拼接监护上下文 ──────────────
         context_summary = _build_context_summary(context)
         if context_summary:
             full_text = f"[当前监护摘要]\n{context_summary}\n\n[家属提问]\n{user_message}"
@@ -352,8 +352,9 @@ def _parse_sse_response(resp) -> str:
 
 
 def _build_context_summary(context: dict) -> str:
-    """将健康统计数据构建为自然语言摘要（只传聚合统计，不含任何PII）"""
-    if not context:
+    """按 AI 数据权限构建监护摘要。"""
+    access_level = context.get('accessLevel', 'privacy') if context else 'privacy'
+    if not context or access_level == 'basic':
         return ""
     parts = []
     fall      = context.get('fallCount7d', 0)
@@ -365,6 +366,17 @@ def _build_context_summary(context: dict) -> str:
     if last_fall >= 0:
         parts.append(f"最近一次摔倒：{last_fall}天前" if last_fall > 0 else "最近一次摔倒：今天")
     parts.append(f"近7天久坐告警：{sedentary}次")
+    if access_level == 'full':
+        parts.append(f"设备连接：{'已连接' if context.get('deviceConnected', False) else '未连接'}")
+        current_status = context.get('currentStatus', '')
+        latest_fall = context.get('latestFallRecord', '')
+        latest_sedentary = context.get('latestSedentaryRecord', '')
+        if current_status:
+            parts.append(f"当前监护状态：{current_status}")
+        if latest_fall:
+            parts.append(f"最近摔倒记录：{latest_fall}")
+        if latest_sedentary:
+            parts.append(f"最近久坐记录：{latest_sedentary}")
     return "\n".join(parts)
 
 

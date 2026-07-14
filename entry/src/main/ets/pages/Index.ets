@@ -2,7 +2,7 @@ import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
 import { DatabaseHelper } from '../database/DatabaseHelper';
-import { STORE_KEY_LOGGED_IN_USER, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 
 @CustomDialog
 struct PrivacyDialog {
@@ -162,7 +162,7 @@ struct Index {
    * 这里只做登录态检测，直接读 Preferences 判断跳转。
    * 跳转 Layout 后后台验证云端账号是否仍然存在。
    */
-  private checkAutoLogin(): void {
+  private async checkAutoLogin(): Promise<void> {
     try {
       const ctx = getContext(this) as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
@@ -171,6 +171,12 @@ struct Index {
 
       if (savedUser !== '') {
         AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, savedUser);
+        const aiEnabled = await DatabaseHelper.getInstance().loadSetting(savedUser, STORE_KEY_AI_ENABLED);
+        const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(savedUser, STORE_KEY_AI_ACCESS_LEVEL);
+        const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
+          ? savedAccessLevel : 'privacy';
+        AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
+        AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
         this.pathStack.pushPathByName('Layout', null, false);
         // 后台验证云端账号是否被删除
         this.validateAccountOnCloud(savedUser);

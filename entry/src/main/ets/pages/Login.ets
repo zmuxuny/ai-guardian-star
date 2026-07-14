@@ -7,7 +7,7 @@ import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
-import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME } from '../config';
 
 interface LoginResult {
   loginId: string;     // phone or email (unique identifier)
@@ -784,7 +784,7 @@ struct Login {
     this.verifyDialogController.open();
   }
 
-  private saveLoginAndJump(loginId: string, displayName: string = ""): void {
+  private async saveLoginAndJump(loginId: string, displayName: string = ""): Promise<void> {
     UserManager.getInstance().setCurrentUsername(loginId);
     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, displayName || loginId);
     try {
@@ -797,6 +797,12 @@ struct Login {
     } catch (e) {
       console.warn("[Login]: Preferences 写入失败 " + JSON.stringify(e));
     }
+    const aiEnabled = await DatabaseHelper.getInstance().loadSetting(loginId, STORE_KEY_AI_ENABLED);
+    const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(loginId, STORE_KEY_AI_ACCESS_LEVEL);
+    const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
+      ? savedAccessLevel : 'privacy';
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
+    AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
     this.pathStack.replacePathByName("Layout", {}, false);
   }
 

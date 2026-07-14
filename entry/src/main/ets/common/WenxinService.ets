@@ -2,12 +2,12 @@
  * WenxinService.ets — 文心 AI 助手服务层
  *
  * 职责：封装与云端 Flask 中转服务的通信，构建带健康上下文的请求
- * 隐私原则：仅传脱敏统计摘要（次数/天数），不传手机号/人脸/原始事件详情
+ * 隐私原则：按用户选择裁剪上下文，不传手机号、人脸等身份数据
  */
 
 import http from '@ohos.net.http';
 import { MqttManager } from '../pages/MqttManager';
-import { ECS_BASE_URL } from '../config';
+import { ECS_BASE_URL, STORE_KEY_AI_ACCESS_LEVEL } from '../config';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -15,10 +15,15 @@ export interface ChatMessage {
 }
 
 export interface HealthContext {
-  fallCount7d: number;
-  sedentaryCount7d: number;
-  lastFallDaysAgo: number;      // -1 表示没有记录
-  deviceOnline: boolean;
+  accessLevel: string;
+  fallCount7d?: number;
+  sedentaryCount7d?: number;
+  lastFallDaysAgo?: number;
+  deviceOnline?: boolean;
+  deviceConnected?: boolean;
+  currentStatus?: string;
+  latestFallRecord?: string;
+  latestSedentaryRecord?: string;
 }
 
 export interface ChatRequest {
@@ -89,11 +94,15 @@ export class WenxinService {
     }
   }
 
-  /**
-   * 从 MqttManager 提取脱敏健康摘要
-   * 只取统计数字，不含任何可识别个人身份的字段
-   */
+  /** 从 MqttManager 按用户选择提取监护上下文。 */
   private buildHealthContext(): HealthContext {
+    const savedAccessLevel = AppStorage.get<string>(STORE_KEY_AI_ACCESS_LEVEL);
+    const accessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
+      ? savedAccessLevel : 'privacy';
+    if (accessLevel === 'basic') {
+      return { accessLevel: accessLevel };
+    }
+
     const mqtt = MqttManager.getInstance();
     const falls = mqtt.fallRecords;
     const sedentaries = mqtt.sedentaryRecords;
@@ -108,15 +117,24 @@ export class WenxinService {
     // 最近一次摔倒距今天数（脱敏：只传天数，不传具体时间）
     let lastFallDaysAgo = -1;
     if (falls.length > 0) {
-      const latestFall = falls[falls.length - 1];
+      const latestFall = falls[0];
       lastFallDaysAgo = Math.floor((now - latestFall.timestamp) / (24 * 60 * 60 * 1000));
     }
 
-    return {
+    const context: HealthContext = {
+      accessLevel,
       fallCount7d,
       sedentaryCount7d,
       lastFallDaysAgo,
-      deviceOnline: mqtt.isConnected,
+      deviceOnline: mqtt.deviceOnline,
     };
+    if (accessLevel === 'full') {
+      context.deviceConnected = mqtt.isConnected;
+      context.currentStatus = mqtt.latestMessage;
+      context.latestFallRecord = falls.length > 0 ? `${falls[0].date} ${falls[0].time}` : '';
+      context.latestSedentaryRecord = sedentaries.length > 0
+        ? `${sedentaries[0].date} ${sedentaries[0].time}` : '';
+    }
+    return context;
   }
 }

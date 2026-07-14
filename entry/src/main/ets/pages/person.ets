@@ -22,7 +22,7 @@ import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
 import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
@@ -99,6 +99,8 @@ export struct person {
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
   @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
+  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
+  @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   // 各菜单行按压状态
   @State pressedRow: string = "";
@@ -565,6 +567,111 @@ export struct person {
                     this.pressedRow = "";
                   }, 150);
                 }
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image($r("app.media.tab_ai_active"))
+                  .width(36)
+                  .height(36)
+                  .objectFit(ImageFit.Contain)
+                  .padding(7)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("AI 健康助手")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text("关闭后隐藏 AI 页面与底栏入口")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Toggle({ type: ToggleType.Switch, isOn: this.aiEnabled })
+                  .selectedColor("#2563eb")
+                  .onChange((enabled: boolean): void => {
+                    this.aiEnabled = enabled;
+                    DatabaseHelper.getInstance().saveSetting(
+                      UserManager.getInstance().getCurrentUsername(),
+                      STORE_KEY_AI_ENABLED,
+                      enabled ? 'true' : 'false',
+                    );
+                    promptAction.showToast({ message: enabled ? "AI 助手已开启" : "AI 助手已关闭" });
+                  })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_blue"),
+                )
+                  .width(36)
+                  .height(36)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("AI 分析权限")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text(this.aiEnabled ? "选择 AI 可读取的监护数据范围" : "开启 AI 助手后可设置")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Text(
+                  this.aiAccessLevel === 'full' ? '深度照护'
+                    : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护',
+                )
+                  .fontSize(12)
+                  .fontColor("#2563eb")
+                  .fontWeight(FontWeight.Medium)
+                  .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(100)
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .opacity(this.aiEnabled ? 1 : 0.5)
+              .enabled(this.aiEnabled)
+              .onClick((): void => {
+                promptAction.showDialog({
+                  title: "AI 分析权限",
+                  message: "深度照护：完整监护状态与精确记录\n隐私保护：仅脱敏统计摘要（默认）\n基础问答：不读取任何监护状态",
+                  buttons: [
+                    { text: "深度照护", color: "#2563eb" },
+                    { text: "隐私保护", color: "#2563eb" },
+                    { text: "基础问答", color: "#64748b" },
+                  ],
+                }).then((result) => {
+                  const levels: string[] = ['full', 'privacy', 'basic'];
+                  const selected = levels[result.index];
+                  if (selected === undefined) return;
+                  this.aiAccessLevel = selected;
+                  DatabaseHelper.getInstance().saveSetting(
+                    UserManager.getInstance().getCurrentUsername(),
+                    STORE_KEY_AI_ACCESS_LEVEL,
+                    selected,
+                  );
+                  promptAction.showToast({ message: "AI 分析权限已更新" });
+                });
               })
               Divider()
                 .margin({ left: "15%", right: "4%" })
