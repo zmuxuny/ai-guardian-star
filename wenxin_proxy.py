@@ -15,18 +15,27 @@ import sqlite3
 import os
 import functools
 
+from security_utils import hash_password, password_needs_rehash, verify_password
+
 app = Flask(__name__)
-CORS(app)
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if CORS_ALLOWED_ORIGINS:
+    CORS(app, origins=CORS_ALLOWED_ORIGINS)
 
 # ─── 管理后台配置 ──────────────────────────────────────────────
 ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']   # 未设置则启动报 KeyError，拒绝带默认密码上线
-app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24).hex()
+app.secret_key = os.environ['FLASK_SECRET_KEY']
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
 COZE_STREAM_URL = "https://yhgh6fywzc.coze.site/stream_run"
 COZE_PROJECT_ID = "7627479213733445658"
 COZE_API_TOKEN  = os.environ['COZE_API_TOKEN']  # 未设置则启动报 KeyError
+AI_MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', '2000'))
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -79,7 +88,7 @@ def api_register():
             username,
             d.get('nickname') or username,
             d.get('phone') or '',
-            pwd_hash,
+            hash_password(pwd_hash),
             d.get('avatarPath') or '',
             d.get('email') or '',
             d.get('address') or '',
@@ -104,11 +113,19 @@ def api_login():
         row = conn.execute(
             "SELECT * FROM t_user WHERE username=? OR phone=? OR email=?", (username, username, username)
         ).fetchone()
-        conn.close()
         if not row:
+            conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != pwd_hash:
+        if not verify_password(row['password_hash'], pwd_hash):
+            conn.close()
             return jsonify({"success": False, "message": "密码错误"})
+        if password_needs_rehash(row['password_hash']):
+            conn.execute(
+                "UPDATE t_user SET password_hash=? WHERE username=?",
+                (hash_password(pwd_hash), row['username'])
+            )
+            conn.commit()
+        conn.close()
         return jsonify({
             "success": True,
             "message": "登录成功",
@@ -116,7 +133,6 @@ def api_login():
                 "username":     row['username'],
                 "nickname":     row['nickname'] or '',
                 "phone":        row['phone'] or '',
-                "passwordHash": row['password_hash'],
                 "avatarPath":   row['avatar_path'] or '',
                 "email":        row['email'] or '',
                 "address":      row['address'] or '',
@@ -143,7 +159,7 @@ def api_delete_user():
         if not row:
             conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != pwd_hash:
+        if not verify_password(row['password_hash'], pwd_hash):
             conn.close()
             return jsonify({"success": False, "message": "密码错误"})
         conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
@@ -164,18 +180,20 @@ def api_update_user():
     这样无论 App 传的是注册时的昵称、当前的手机号、邮箱还是华为 HW_ ID，
     都能唯一定位云端记录（这些字段彼此互不重叠）。
 
-    其它字段（nickname/phone/avatarPath/email/address/passwordHash）是要写入的新值。
+    其它字段（nickname/phone/avatarPath/email/address）是要写入的新值。
     若客户端希望修改 username（即昵称改名），可显式传 `newUsername`。
     """
     d = request.get_json(force=True) or {}
     lookup = (d.get('username') or '').strip()
     if not lookup:
         return jsonify({"success": False, "message": "lookup key 缺失"}), 400
+    if 'passwordHash' in d:
+        return jsonify({"success": False, "message": "请使用专用密码修改接口"}), 400
 
     field_map = {
         'nickname': 'nickname', 'phone': 'phone',
         'avatarPath': 'avatar_path', 'email': 'email',
-        'address': 'address', 'passwordHash': 'password_hash',
+        'address': 'address',
         'newUsername': 'username',
     }
     updates = {}
@@ -225,12 +243,12 @@ def api_change_password():
         if not row:
             conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != old_hash:
+        if not verify_password(row['password_hash'], old_hash):
             conn.close()
             return jsonify({"success": False, "message": "原密码不正确"})
         conn.execute(
             "UPDATE t_user SET password_hash=? WHERE username=?",
-            (new_hash, row['username'])
+            (hash_password(new_hash), row['username'])
         )
         conn.commit()
         conn.close()
@@ -247,12 +265,14 @@ def health_check():
 @app.route('/ai/chat', methods=['POST'])
 def ai_chat():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True) or {}
         user_message = data.get('message', '').strip()
         context = data.get('context', {})
 
         if not user_message:
             return jsonify({"error": "message 不能为空"}), 400
+        if len(user_message) > AI_MAX_MESSAGE_LENGTH:
+            return jsonify({"error": "消息过长，请缩短后重试"}), 413
 
         # ── 按用户选择的 AI 数据权限拼接监护上下文 ──────────────
         context_summary = _build_context_summary(context)
@@ -305,16 +325,11 @@ def ai_chat():
         return jsonify({"error": "AI 服务响应超时，请稍后重试"}), 504
     except requests.exceptions.HTTPError as e:
         coze_status = e.response.status_code
-        coze_body = ""
-        try:
-            coze_body = e.response.text[:500]
-        except Exception:
-            pass
-        app.logger.error(f"[ai_chat] Coze HTTP {coze_status}: {coze_body}")
-        return jsonify({"error": f"扣子 API 错误: {coze_status}", "detail": coze_body}), 502
+        app.logger.error("[ai_chat] upstream HTTP status=%s", coze_status)
+        return jsonify({"error": "AI 服务暂时不可用，请稍后重试"}), 502
     except Exception as e:
-        app.logger.error(f"[ai_chat] exception: {e}")
-        return jsonify({"error": "服务内部错误，请稍后重试", "detail": str(e)}), 500
+        app.logger.error("[ai_chat] internal error type=%s", type(e).__name__)
+        return jsonify({"error": "服务内部错误，请稍后重试"}), 500
 
 
 def _parse_sse_response(resp) -> str:
@@ -460,7 +475,11 @@ def admin_panel():
 def admin_list_users():
     try:
         conn = get_db()
-        rows = conn.execute("SELECT * FROM t_user ORDER BY create_time DESC").fetchall()
+        rows = conn.execute("""
+            SELECT username, nickname, phone, avatar_path, email, address, create_time
+            FROM t_user
+            ORDER BY create_time DESC
+        """).fetchall()
         conn.close()
         return jsonify({"success": True, "data": [dict(r) for r in rows]})
     except Exception as e:
@@ -472,8 +491,9 @@ def admin_list_users():
 def admin_create_user():
     d = request.get_json(force=True) or {}
     username = (d.get('username') or '').strip()
-    if not username:
-        return jsonify({"success": False, "message": "用户名不能为空"}), 400
+    password = (d.get('password') or '').strip()
+    if not username or not password:
+        return jsonify({"success": False, "message": "用户名和初始密码不能为空"}), 400
     try:
         conn = get_db()
         existing = conn.execute(
@@ -489,7 +509,7 @@ def admin_create_user():
             username,
             d.get('nickname') or '',
             d.get('phone') or '',
-            d.get('password_hash') or '',
+            hash_password(password),
             d.get('avatar_path') or '',
             d.get('email') or '',
             d.get('address') or '',
@@ -506,9 +526,11 @@ def admin_create_user():
 @admin_required
 def admin_update_user(username):
     d = request.get_json(force=True) or {}
+    if 'password_hash' in d or 'password' in d:
+        return jsonify({"success": False, "message": "管理后台不能读取或直接改写密码"}), 400
     field_map = {
         'nickname': 'nickname', 'phone': 'phone',
-        'password_hash': 'password_hash', 'avatar_path': 'avatar_path',
+        'avatar_path': 'avatar_path',
         'email': 'email', 'address': 'address', 'newUsername': 'username',
     }
     updates = {}
@@ -588,7 +610,6 @@ td { padding:10px 14px; border-bottom:1px solid #fafafa; color:#434343; }
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:#fafafa; }
 .col-addr { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.col-hash { max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace; font-size:11px; color:#8c8c8c; }
 .actions { display:flex; gap:6px; }
 .empty { text-align:center; padding:60px 20px; color:#8c8c8c; font-size:14px; }
 
@@ -649,7 +670,6 @@ tr:hover td { background:#fafafa; }
           <th>手机号</th>
           <th>邮箱</th>
           <th>地址</th>
-          <th>密码哈希</th>
           <th>注册时间</th>
           <th>操作</th>
         </tr>
@@ -688,10 +708,10 @@ tr:hover td { background:#fafafa; }
         <label>地址</label>
         <textarea id="editAddress" rows="2"></textarea>
       </div>
-      <div class="form-group">
-        <label>密码哈希</label>
-        <input type="text" id="editPasswordHash">
-        <div class="hint">⚠ 修改此项会导致用户无法登录，除非填入正确的哈希值</div>
+      <div class="form-group" id="passwordGroup">
+        <label>初始密码</label>
+        <input type="password" id="editPassword" autocomplete="new-password">
+        <div class="hint">仅创建账号时使用，后台不会显示或回传已存密码</div>
       </div>
       <div class="form-group">
         <label>头像路径</label>
@@ -749,7 +769,7 @@ function renderTable() {
 
   const tbody = document.getElementById('tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">' + (q ? '无匹配结果' : '暂无数据，点击「添加用户」开始') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">' + (q ? '无匹配结果' : '暂无数据，点击「添加用户」开始') + '</td></tr>';
     return;
   }
 
@@ -761,7 +781,6 @@ function renderTable() {
       <td>${esc(u.phone || '-')}</td>
       <td>${esc(u.email || '-')}</td>
       <td><div class="col-addr" title="${escAttr(u.address || '')}">${esc(u.address || '-')}</div></td>
-      <td><div class="col-hash" title="${escAttr(u.password_hash || '')}">${esc(u.password_hash ? u.password_hash.substring(0,16)+'...' : '-')}</div></td>
       <td>${time}</td>
       <td>
         <div class="actions">
@@ -799,7 +818,8 @@ function openAdd() {
   document.getElementById('editPhone').value = '';
   document.getElementById('editEmail').value = '';
   document.getElementById('editAddress').value = '';
-  document.getElementById('editPasswordHash').value = '';
+  document.getElementById('editPassword').value = '';
+  document.getElementById('passwordGroup').style.display = '';
   document.getElementById('editAvatarPath').value = '';
   document.getElementById('editModal').classList.add('show');
 }
@@ -818,7 +838,8 @@ function openEdit(username) {
   document.getElementById('editPhone').value = u.phone || '';
   document.getElementById('editEmail').value = u.email || '';
   document.getElementById('editAddress').value = u.address || '';
-  document.getElementById('editPasswordHash').value = u.password_hash || '';
+  document.getElementById('editPassword').value = '';
+  document.getElementById('passwordGroup').style.display = 'none';
   document.getElementById('editAvatarPath').value = u.avatar_path || '';
   document.getElementById('editModal').classList.add('show');
 }
@@ -833,13 +854,14 @@ async function saveUser() {
     phone: document.getElementById('editPhone').value.trim(),
     email: document.getElementById('editEmail').value.trim(),
     address: document.getElementById('editAddress').value.trim(),
-    password_hash: document.getElementById('editPasswordHash').value.trim(),
     avatar_path: document.getElementById('editAvatarPath').value.trim(),
   };
 
   if (editMode === 'add') {
     body.username = document.getElementById('editUsername').value.trim();
+    body.password = document.getElementById('editPassword').value;
     if (!body.username) { showToast('用户名不能为空', 'error'); return; }
+    if (!body.password) { showToast('初始密码不能为空', 'error'); return; }
     try {
       const resp = await fetch('/admin/api/users', {
         method: 'POST',

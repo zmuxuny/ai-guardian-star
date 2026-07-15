@@ -110,6 +110,10 @@ export class MqttManager {
 
   public async testConnection(): Promise<boolean> {
     try {
+      if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+        console.error("[mqtt]:安全凭据未配置，拒绝使用安装包内共享密码");
+        return false;
+      }
       if (!this.mqttClient) return false;
       const connectOptions: MqttConnectOptions = {
         connectTimeout: 10,
@@ -152,6 +156,11 @@ export class MqttManager {
   }
 
   public async connectAndSubscribe(topic: string = ALERT_TOPIC) {
+    if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+      this.latestMessage = "安全凭据未配置";
+      this.isConnected = false;
+      return;
+    }
     if (!this.mqttClient) {
       this.initClient();
       if (!this.mqttClient) {

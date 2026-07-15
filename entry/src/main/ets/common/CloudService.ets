@@ -7,9 +7,7 @@
  *   POST /api/updateUser 更新昵称/头像路径
  *
  * 设计原则：
- *   - 本地 RDB 是主库，云端是备份/跨设备恢复用
- *   - 所有接口失败时静默降级，不阻塞本地流程
- *   - App 侧永远先操作本地，再异步同步云端
+ *   - 请求和响应正文可能包含凭据、手机号等敏感信息，禁止写日志
  */
 import http from '@ohos.net.http';
 import { ECS_BASE_URL } from '../config';
@@ -20,7 +18,7 @@ export interface CloudUser {
   username: string;
   nickname: string;
   phone: string;
-  passwordHash: string;
+  passwordHash?: string;
   avatarPath: string;
   email: string;
   address: string;
@@ -84,7 +82,7 @@ async function postJson(path: string, body: Object): Promise<CloudResult> {
   const req = http.createHttp();
   try {
     const bodyStr = JSON.stringify(body);
-    console.info('[CloudService]: POST', path, 'body:', bodyStr);
+    console.info('[CloudService]: POST', path);
     const resp = await req.request(ECS_BASE_URL + path, {
       method: http.RequestMethod.POST,
       header: { 'Content-Type': 'application/json' },
@@ -94,18 +92,18 @@ async function postJson(path: string, body: Object): Promise<CloudResult> {
     });
 
     const resultStr = resp.result as string;
-    console.info('[CloudService]: 响应', path, 'status:', resp.responseCode, 'body:', resultStr);
+    console.info('[CloudService]: 响应', path, 'status:', resp.responseCode);
 
     try {
       const result = JSON.parse(resultStr) as CloudResult;
       console.info('[CloudService]: 解析成功', path, 'success:', result.success);
       return result;
     } catch (parseError) {
-      console.error('[CloudService]: JSON解析失败', path, '响应内容:', resultStr.substring(0, 200));
+      console.error('[CloudService]: JSON解析失败', path, 'status:', resp.responseCode);
       return { success: false, message: '服务器响应格式错误' };
     }
   } catch (e) {
-    console.error('[CloudService]: 请求失败', path, '错误详情:', JSON.stringify(e));
+    console.error('[CloudService]: 请求失败', path);
     return { success: false, message: '网络不可用' };
   } finally {
     req.destroy();

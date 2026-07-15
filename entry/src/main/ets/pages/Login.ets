@@ -390,7 +390,7 @@ struct Login {
               .fontColor(this.themeManager.colors.primaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
-            Text("未注册将自动创建新账号")
+            Text(this.inputMode === 0 ? "手机号登录 / 注册" : "邮箱仅支持已有账号登录")
               .fontSize(12)
               .fontColor(this.themeManager.colors.secondaryTextColor)
               .alignSelf(ItemAlign.Start)
@@ -429,7 +429,7 @@ struct Login {
 
               // 邮箱 Tab
               Column() {
-                Text("邮箱")
+                Text("邮箱（已有账号）")
                   .fontSize(14)
                   .fontWeight(this.inputMode === 1 ? FontWeight.Bold : FontWeight.Normal)
                   .fontColor(
@@ -560,7 +560,7 @@ struct Login {
               })
 
             // 登录/注册按钮（带缩放动画）
-            Button(this.isLoading ? "处理中..." : "登录 / 注册")
+            Button(this.isLoading ? "处理中..." : (this.inputMode === 0 ? "登录 / 注册" : "登录"))
               .onClick(() => {
                 this.loginBtnScale = 0.95;
                 setTimeout(() => {
@@ -722,6 +722,11 @@ struct Login {
             this.showAlert(cloudResult.message || '登录失败');
             return Promise.reject('cloud_error');
           }
+          if (this.inputMode === 1) {
+            this.isLoading = false;
+            this.showAlert('邮箱仅支持已有账号登录。请使用手机号注册，注册后可在个人资料中选填绑定邮箱。');
+            return Promise.reject('cloud_error');
+          }
           // 云端也没有（或网络不通）→ 弹昵称Dialog让用户填写，然后注册
           this.isLoading = false;
           this.pendingRegisterName = uname;
@@ -837,6 +842,10 @@ struct Login {
 
   /** 昵称Dialog确认后，完成本地注册+云端同步 */
   private completeRegisterWithNickname(nickname: string): void {
+    if (this.inputMode !== 0) {
+      this.showAlert('邮箱仅支持已有账号登录，请使用手机号注册。');
+      return;
+    }
     const uname = this.pendingRegisterName;
     const pwd = this.pendingRegisterPassword;
     if (!uname || !pwd) return;
