@@ -117,6 +117,15 @@ class ClientSecurityRegressionTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('export const MQTT_PASSWORD = "";', config_source)
 
+    def test_ai_api_uses_https_domain(self):
+        config_source = source_path.with_name("entry").joinpath(
+            "src", "main", "ets", "config.ets"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'export const ECS_BASE_URL = "https://api.aistar.asia";',
+            config_source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

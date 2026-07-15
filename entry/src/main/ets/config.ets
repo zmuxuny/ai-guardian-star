@@ -15,7 +15,7 @@ export const LAN_HOST = "192.168.137.100";
 export const LAN_UPLOAD_PORT = 8080;
 
 // ── 派生 URL ───────────────────────────────────────────────
-export const ECS_BASE_URL = `http://${ECS_HOST}:${ECS_API_PORT}`;
+export const ECS_BASE_URL = "https://api.aistar.asia";
 export const VIDEO_FEED_URL = `http://${ECS_HOST}:${ECS_VIDEO_PORT}/video_feed`;
 export const HEALTH_CHECK_URL = `http://${ECS_HOST}:${ECS_VIDEO_PORT}/api/stats`;
 export const BROKER_URL = `ssl://${ECS_HOST}:${ECS_MQTT_PORT}`;
