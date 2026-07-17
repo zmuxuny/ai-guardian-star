@@ -3,7 +3,7 @@
  *
  * 📦 数据库：GuardianStar.db（默认沙箱路径）
  * 📋 数据表：
- *   - t_user        用户账号信息（含密码哈希）
+ *   - t_user        用户账号资料（password_hash 仅保留兼容空列）
  *   - t_health_event 健康事件（摔倒 / 久坐）
  *   - t_video_record 监控视频元数据（路径 + 元信息，7天滚动覆盖）
  *
@@ -275,7 +275,7 @@ export class DatabaseHelper {
     const values: relationalStore.ValuesBucket = {
       username: user.username,
       phone: user.phone ?? null,
-      password_hash: user.passwordHash,
+      password_hash: '',
       avatar_path: user.avatarPath ?? null,
       email: user.email ?? null,
       address: user.address ?? null,
@@ -402,11 +402,11 @@ export class DatabaseHelper {
   }
 
   /** 更新密码哈希 */
-  public async updatePasswordHash(userId: number, newHash: string): Promise<void> {
+  public async updatePasswordHash(userId: number, _newHash: string): Promise<void> {
     const predicates = new relationalStore.RdbPredicates("t_user");
     predicates.equalTo("id", userId);
     try {
-      await this.getStore().update({ password_hash: newHash }, predicates);
+      await this.getStore().update({ password_hash: '' }, predicates);
       hilog.info(DOMAIN, TAG, `updatePasswordHash 成功 userId=${userId}`);
     } catch (e) {
       const err = e as BusinessError;

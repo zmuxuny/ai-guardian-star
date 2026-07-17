@@ -1,8 +1,32 @@
 import ast
+import hashlib
+import os
+import runpy
+import sys
+import tempfile
+import threading
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from security_utils import hash_password, password_needs_rehash, verify_password
+
+
+os.environ.setdefault("ADMIN_PASSWORD", "test-admin-password")
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")
+os.environ.setdefault("COZE_API_TOKEN", "test-coze-token")
+os.environ.pop("ADMIN_ENABLED", None)
+os.environ.pop("AI_RISK_CONTROL_READY", None)
+
+try:
+    import flask_cors  # noqa: F401
+except ModuleNotFoundError:
+    flask_cors = types.ModuleType("flask_cors")
+    flask_cors.CORS = lambda *args, **kwargs: None
+    sys.modules["flask_cors"] = flask_cors
+
+import wenxin_proxy as proxy
 
 
 source_path = Path(__file__).with_name("wenxin_proxy.py")
@@ -96,6 +120,441 @@ class ServerSecurityRegressionTest(unittest.TestCase):
         self.assertNotIn('"detail": coze_body', ai_source)
         self.assertNotIn('"detail": str(e)', ai_source)
 
+    def test_account_errors_do_not_return_exception_text(self):
+        with mock.patch.object(proxy, "get_db", side_effect=RuntimeError("DB_SECRET")):
+            response = proxy.app.test_client().post(
+                "/api/login",
+                json={"username": "alice", "passwordHash": "password"},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn("DB_SECRET", response.get_data(as_text=True))
+
+    def test_server_binds_only_to_loopback(self):
+        with mock.patch.object(proxy.Flask, "run") as run:
+            runpy.run_path(str(source_path), run_name="__main__")
+
+        run.assert_called_once_with(host="127.0.0.1", port=8899, debug=False)
+
+
+class AccountSessionSecurityTest(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        proxy.DB_PATH = str(Path(self.temp_dir.name) / "users.db")
+        proxy.ADMIN_ENABLED = False
+        proxy.AI_RISK_CONTROL_READY = False
+        self.client = proxy.app.test_client()
+
+    def create_user(self, username="alice", password="old-password"):
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_user
+                (username, nickname, phone, password_hash, avatar_path, email, address, create_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                username.title(),
+                f"phone-{username}",
+                hash_password(password),
+                f"/{username}.jpg",
+                f"{username}@example.com",
+                f"{username} address",
+                1,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def login(self, username="alice", password="old-password"):
+        return self.client.post(
+            "/api/login",
+            json={"username": username, "passwordHash": password},
+        )
+
+    @staticmethod
+    def bearer(token):
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_registration_is_closed_without_touching_database(self):
+        response = self.client.post(
+            "/api/register",
+            json={"username": "new-user", "passwordHash": "password"},
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(Path(proxy.DB_PATH).exists())
+
+    def test_login_issues_opaque_tokens_and_stores_only_sha256_hashes(self):
+        self.create_user()
+
+        response = self.login()
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        access_token = body["accessToken"]
+        refresh_token = body["refreshToken"]
+        self.assertNotEqual(access_token, refresh_token)
+        self.assertNotIn(".", access_token)
+        self.assertEqual(body["expiresIn"], 15 * 60)
+        self.assertEqual(body["refreshExpiresIn"], 30 * 24 * 60 * 60)
+
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at "
+            "FROM t_session"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(
+            row["access_token_hash"], hashlib.sha256(access_token.encode()).hexdigest()
+        )
+        self.assertEqual(
+            row["refresh_token_hash"], hashlib.sha256(refresh_token.encode()).hexdigest()
+        )
+        self.assertNotEqual(row["access_token_hash"], access_token)
+        self.assertGreaterEqual(row["access_expires_at"], int(proxy.time.time()) + 14 * 60)
+        self.assertGreaterEqual(row["refresh_expires_at"], int(proxy.time.time()) + 29 * 24 * 60 * 60)
+
+    def test_refresh_atomically_rotates_both_tokens(self):
+        self.create_user()
+        first = self.login().get_json()
+
+        response = self.client.post(
+            "/api/refresh", json={"refreshToken": first["refreshToken"]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        second = response.get_json()
+        self.assertNotEqual(second["accessToken"], first["accessToken"])
+        self.assertNotEqual(second["refreshToken"], first["refreshToken"])
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(first["accessToken"])
+            ).status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/refresh", json={"refreshToken": first["refreshToken"]}
+            ).status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(second["accessToken"])
+            ).status_code,
+            200,
+        )
+
+    def test_logout_revokes_current_session(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        headers = self.bearer(tokens["accessToken"])
+
+        self.assertEqual(self.client.post("/api/logout", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/me", headers=headers).status_code, 401)
+        self.assertEqual(
+            self.client.post(
+                "/api/refresh", json={"refreshToken": tokens["refreshToken"]}
+            ).status_code,
+            401,
+        )
+
+    def test_me_and_profile_update_use_authenticated_user_only(self):
+        self.create_user("alice")
+        self.create_user("bob")
+        tokens = self.login("alice").get_json()
+        headers = self.bearer(tokens["accessToken"])
+
+        me = self.client.get("/api/me", headers=headers)
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.get_json()["user"]["username"], "alice")
+
+        spoof = self.client.post(
+            "/api/updateUser",
+            headers=headers,
+            json={"username": "bob", "nickname": "Mallory"},
+        )
+        self.assertEqual(spoof.status_code, 200)
+
+        updated = self.client.post(
+            "/api/updateUser",
+            headers=headers,
+            json={"nickname": "Alice New", "avatarPath": "/new.jpg", "address": "new"},
+        )
+        self.assertEqual(updated.status_code, 200)
+        conn = proxy.get_db()
+        alice = conn.execute(
+            "SELECT nickname, avatar_path, address FROM t_user WHERE username='alice'"
+        ).fetchone()
+        bob = conn.execute(
+            "SELECT nickname FROM t_user WHERE username='bob'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(tuple(alice), ("Alice New", "/new.jpg", "new"))
+        self.assertEqual(bob["nickname"], "Bob")
+
+    def test_profile_update_ignores_empty_sensitive_fields_and_rejects_values(self):
+        self.create_user()
+        headers = self.bearer(self.login().get_json()["accessToken"])
+
+        response = self.client.post(
+            "/api/updateUser",
+            headers=headers,
+            json={
+                "phone": "",
+                "email": None,
+                "passwordHash": "  ",
+                "newUsername": "",
+                "address": "updated address",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        for field, value in (
+            ("phone", "new-phone"),
+            ("email", "new@example.com"),
+            ("passwordHash", "new-password"),
+            ("newUsername", "renamed"),
+            ("unexpected", "value"),
+        ):
+            with self.subTest(field=field):
+                response = self.client.post(
+                    "/api/updateUser",
+                    headers=headers,
+                    json={field: value},
+                )
+                self.assertEqual(response.status_code, 400)
+
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT username, phone, email, password_hash, address "
+            "FROM t_user WHERE username='alice'"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row["username"], "alice")
+        self.assertEqual(row["phone"], "phone-alice")
+        self.assertEqual(row["email"], "alice@example.com")
+        self.assertTrue(verify_password(row["password_hash"], "old-password"))
+        self.assertEqual(row["address"], "updated address")
+
+    def test_orphaned_session_cannot_authorize_or_refresh(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        conn = proxy.get_db()
+        conn.execute("DELETE FROM t_user WHERE username='alice'")
+        conn.commit()
+        conn.close()
+
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(tokens["accessToken"])
+            ).status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/refresh", json={"refreshToken": tokens["refreshToken"]}
+            ).status_code,
+            401,
+        )
+
+    def test_login_rechecks_account_before_issuing_session(self):
+        real_verify = proxy.verify_password
+        cases = (
+            (
+                "password-change",
+                "UPDATE t_user SET password_hash=? WHERE username=?",
+                (hash_password("new-password"), "password-change"),
+            ),
+            ("account-delete", "DELETE FROM t_user WHERE username=?", ("account-delete",)),
+        )
+        for username, sql, params in cases:
+            with self.subTest(username=username):
+                self.create_user(username)
+                mutated = False
+
+                def mutate_after_first_verification(stored, candidate):
+                    nonlocal mutated
+                    valid = real_verify(stored, candidate)
+                    if valid and not mutated:
+                        mutated = True
+                        conn = proxy.sqlite3.connect(proxy.DB_PATH)
+                        conn.execute(sql, params)
+                        conn.commit()
+                        conn.close()
+                    return valid
+
+                with mock.patch.object(
+                    proxy, "verify_password", side_effect=mutate_after_first_verification
+                ):
+                    response = self.login(username)
+                self.assertFalse(response.get_json()["success"])
+
+        conn = proxy.get_db()
+        sessions = conn.execute("SELECT COUNT(*) FROM t_session").fetchone()[0]
+        conn.close()
+        self.assertEqual(sessions, 0)
+
+    def test_admin_rename_and_delete_revoke_all_user_sessions(self):
+        proxy.ADMIN_ENABLED = True
+        self.addCleanup(setattr, proxy, "ADMIN_ENABLED", False)
+        with self.client.session_transaction() as admin_session:
+            admin_session["admin_logged_in"] = True
+
+        cases = (
+            ("rename-me", "put", {"newUsername": "renamed"}),
+            ("delete-me", "delete", None),
+        )
+        for username, method, body in cases:
+            with self.subTest(method=method):
+                self.create_user(username)
+                tokens = [self.login(username).get_json() for _ in range(2)]
+                response = getattr(self.client, method)(
+                    f"/admin/api/users/{username}", json=body
+                )
+                self.assertEqual(response.status_code, 200)
+                token = tokens[0]
+                self.assertEqual(
+                    self.client.get(
+                        "/api/me", headers=self.bearer(token["accessToken"])
+                    ).status_code,
+                    401,
+                )
+                self.assertEqual(
+                    self.client.post(
+                        "/api/refresh", json={"refreshToken": token["refreshToken"]}
+                    ).status_code,
+                    401,
+                )
+            conn = proxy.get_db()
+            sessions = conn.execute("SELECT COUNT(*) FROM t_session").fetchone()[0]
+            conn.close()
+            self.assertEqual(sessions, 0)
+
+    def test_protected_endpoints_reject_missing_bearer_token(self):
+        cases = [
+            ("get", "/api/me", None),
+            ("post", "/api/logout", None),
+            ("post", "/api/updateUser", {"nickname": "x"}),
+            (
+                "post",
+                "/api/changePassword",
+                {"oldPasswordHash": "old", "newPasswordHash": "new"},
+            ),
+            ("post", "/api/deleteUser", {"passwordHash": "old"}),
+            ("post", "/ai/chat", {"message": "hello"}),
+        ]
+        for method, path, body in cases:
+            with self.subTest(path=path):
+                response = getattr(self.client, method)(path, json=body)
+                self.assertEqual(response.status_code, 401)
+
+    def test_password_change_revokes_all_user_sessions(self):
+        self.create_user()
+        first = self.login().get_json()
+        second = self.login().get_json()
+
+        response = self.client.post(
+            "/api/changePassword",
+            headers=self.bearer(first["accessToken"]),
+            json={"oldPasswordHash": "old-password", "newPasswordHash": "new-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(second["accessToken"])
+            ).status_code,
+            401,
+        )
+        self.assertEqual(self.login(password="old-password").get_json()["success"], False)
+        self.assertEqual(self.login(password="new-password").get_json()["success"], True)
+
+    def test_concurrent_password_changes_accept_old_password_only_once(self):
+        self.create_user()
+        tokens = [self.login().get_json()["accessToken"] for _ in range(2)]
+        start = threading.Barrier(2)
+        both_verified = threading.Barrier(2)
+        responses = []
+        real_hash_password = proxy.hash_password
+
+        def hash_after_both_requests_verified(password):
+            try:
+                both_verified.wait(timeout=1)
+            except threading.BrokenBarrierError:
+                pass
+            return real_hash_password(password)
+
+        def change_password(token, new_password):
+            start.wait()
+            response = proxy.app.test_client().post(
+                "/api/changePassword",
+                headers=self.bearer(token),
+                json={
+                    "oldPasswordHash": "old-password",
+                    "newPasswordHash": new_password,
+                },
+            )
+            responses.append(response)
+
+        with mock.patch.object(proxy, "hash_password", hash_after_both_requests_verified):
+            threads = [
+                threading.Thread(target=change_password, args=(token, f"new-{index}"))
+                for index, token in enumerate(tokens)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=5)
+
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(len(responses), 2)
+        self.assertEqual(
+            sum(bool(response.get_json()["success"]) for response in responses), 1
+        )
+
+    def test_delete_ignores_spoofed_username_and_revokes_sessions(self):
+        self.create_user("alice")
+        self.create_user("bob")
+        tokens = self.login("alice").get_json()
+
+        response = self.client.post(
+            "/api/deleteUser",
+            headers=self.bearer(tokens["accessToken"]),
+            json={"username": "bob", "passwordHash": "old-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        conn = proxy.get_db()
+        users = [row["username"] for row in conn.execute("SELECT username FROM t_user")]
+        sessions = conn.execute(
+            "SELECT COUNT(*) AS count FROM t_session WHERE username='alice'"
+        ).fetchone()["count"]
+        conn.close()
+        self.assertEqual(users, ["bob"])
+        self.assertEqual(sessions, 0)
+
+    def test_ai_is_fail_closed_before_any_upstream_call(self):
+        self.create_user()
+        tokens = self.login().get_json()
+
+        with mock.patch.object(
+            proxy.requests, "post", side_effect=AssertionError("upstream called")
+        ) as upstream:
+            response = self.client.post(
+                "/ai/chat",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"message": "hello"},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        upstream.assert_not_called()
+
+    def test_admin_routes_are_disabled_by_default(self):
+        self.assertEqual(self.client.get("/admin").status_code, 404)
 
 class ClientSecurityRegressionTest(unittest.TestCase):
     def test_cloud_service_does_not_log_request_or_response_bodies(self):

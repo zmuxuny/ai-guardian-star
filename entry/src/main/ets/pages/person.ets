@@ -132,28 +132,16 @@ export struct person {
   private async executeDeleteAccount(): Promise<void> {
     const currentUser = UserManager.getInstance().getCurrentUsername();
     const db = DatabaseHelper.getInstance();
-
-    let user: UserInfo | null = null;
-    try {
-      user = await db.queryUserByIdentifier(currentUser);
-    } catch (e) {
-      promptAction.showToast({ message: '查询用户失败，请重试' });
-      return;
-    }
-    if (!user) {
-      promptAction.showToast({ message: '用户信息不存在' });
-      return;
-    }
-
-    if (this.deleteInputPassword.trim() !== user.passwordHash) {
-      promptAction.showToast({ message: '密码错误，请重新输入' });
+    const password = this.deleteInputPassword.trim();
+    if (password === '') {
+      promptAction.showToast({ message: '请输入当前密码' });
       return;
     }
 
     this.isDeleting = true;
     try {
       const cloud = CloudService.getInstance();
-      const result = await cloud.deleteUser(currentUser, user.passwordHash);
+      const result = await cloud.deleteUser(password);
       if (!result.success) {
         this.isDeleting = false;
         promptAction.showToast({ message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
@@ -166,7 +154,8 @@ export struct person {
     }
 
     try {
-      await db.deleteUserByUsername(user.username);
+      const user = await db.queryUserByIdentifier(currentUser);
+      if (user) await db.deleteUserByUsername(user.username);
     } catch (e) {
       console.error('[person]: 本地删除失败', JSON.stringify(e));
     }
@@ -860,8 +849,9 @@ export struct person {
                       { text: "退出", color: "#ef4444" },
                     ],
                   })
-                  .then((data) => {
+                  .then(async (data) => {
                     if (data.index === 1 && this.pathStack) {
+                      await CloudService.getInstance().logout();
                       try {
                         const ctx = getContext(this) as common.UIAbilityContext;
                         const opts: preferences.Options = { name: PREF_NAME_AUTH };

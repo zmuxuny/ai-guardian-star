@@ -6,9 +6,11 @@ wenxin_proxy.py — 智护星 AI 助手 · 扣子编程智能体中转服务
 后台运行：nohup python3 wenxin_proxy.py > /var/log/wenxin_proxy.log 2>&1 &
 """
 
-from flask import Flask, request, jsonify, session, redirect, url_for
+from flask import Flask, request, jsonify, session, redirect, url_for, g
 from flask_cors import CORS
+import hashlib
 import requests
+import secrets
 import time
 import json
 import sqlite3
@@ -18,6 +20,12 @@ import functools
 from security_utils import hash_password, password_needs_rehash, verify_password
 
 app = Flask(__name__)
+
+
+def _env_true(name):
+    return os.environ.get(name, '').strip().lower() == 'true'
+
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
@@ -27,15 +35,23 @@ if CORS_ALLOWED_ORIGINS:
     CORS(app, origins=CORS_ALLOWED_ORIGINS)
 
 # ─── 管理后台配置 ──────────────────────────────────────────────
-ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']   # 未设置则启动报 KeyError，拒绝带默认密码上线
-app.secret_key = os.environ['FLASK_SECRET_KEY']
+ADMIN_ENABLED = _env_true('ADMIN_ENABLED')
+if ADMIN_ENABLED:
+    ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
+    app.secret_key = os.environ['FLASK_SECRET_KEY']
+else:
+    ADMIN_PASSWORD = ''
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
 COZE_STREAM_URL = "https://yhgh6fywzc.coze.site/stream_run"
 COZE_PROJECT_ID = "7627479213733445658"
-COZE_API_TOKEN  = os.environ['COZE_API_TOKEN']  # 未设置则启动报 KeyError
+COZE_API_TOKEN = os.environ.get('COZE_API_TOKEN', '')
 AI_MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', '2000'))
+AI_RISK_CONTROL_READY = _env_true('AI_RISK_CONTROL_READY')
+ACCESS_TOKEN_TTL = 15 * 60
+REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -58,47 +74,106 @@ def get_db():
             create_time   INTEGER NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS t_session (
+            access_token_hash  TEXT PRIMARY KEY,
+            refresh_token_hash TEXT NOT NULL UNIQUE,
+            username           TEXT NOT NULL,
+            access_expires_at  INTEGER NOT NULL,
+            refresh_expires_at INTEGER NOT NULL,
+            create_time        INTEGER NOT NULL
+        )
+    """)
     conn.commit()
     return conn
+
+
+def _token_hash(token):
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def _new_session(conn, username, now=None):
+    now = int(time.time()) if now is None else now
+    access_token = secrets.token_urlsafe(32)
+    refresh_token = secrets.token_urlsafe(32)
+    conn.execute(
+        """
+        INSERT INTO t_session
+            (access_token_hash, refresh_token_hash, username,
+             access_expires_at, refresh_expires_at, create_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            _token_hash(access_token),
+            _token_hash(refresh_token),
+            username,
+            now + ACCESS_TOKEN_TTL,
+            now + REFRESH_TOKEN_TTL,
+            now,
+        ),
+    )
+    return {
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
+        "expiresIn": ACCESS_TOKEN_TTL,
+        "refreshExpiresIn": REFRESH_TOKEN_TTL,
+    }
+
+
+def _user_json(row):
+    return {
+        "username": row['username'],
+        "nickname": row['nickname'] or '',
+        "phone": row['phone'] or '',
+        "avatarPath": row['avatar_path'] or '',
+        "email": row['email'] or '',
+        "address": row['address'] or '',
+        "createTime": row['create_time'],
+    }
+
+
+def _internal_error(scope, error):
+    app.logger.error("[%s] internal error type=%s", scope, type(error).__name__)
+    return jsonify({"success": False, "message": "服务内部错误"}), 500
+
+
+def bearer_required(function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        authorization = request.headers.get('Authorization', '')
+        if not authorization.startswith('Bearer '):
+            return jsonify({"success": False, "message": "未认证"}), 401
+        token = authorization[7:].strip()
+        if not token:
+            return jsonify({"success": False, "message": "未认证"}), 401
+        try:
+            access_hash = _token_hash(token)
+            conn = get_db()
+            row = conn.execute(
+                """
+                SELECT session.username
+                FROM t_session AS session
+                JOIN t_user AS user ON user.username=session.username
+                WHERE session.access_token_hash=? AND session.access_expires_at>?
+                """,
+                (access_hash, int(time.time())),
+            ).fetchone()
+            conn.close()
+        except Exception as error:
+            return _internal_error('bearer_auth', error)
+        if not row:
+            return jsonify({"success": False, "message": "会话无效或已过期"}), 401
+        g.current_username = row['username']
+        g.current_access_hash = access_hash
+        return function(*args, **kwargs)
+    return wrapper
 
 
 # ─── 账号接口 ──────────────────────────────────────────────────
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    d = request.get_json(force=True) or {}
-    username = (d.get('username') or '').strip()
-    pwd_hash = (d.get('passwordHash') or '').strip()
-    if not username or not pwd_hash:
-        return jsonify({"success": False, "message": "参数缺失"}), 400
-    try:
-        conn = get_db()
-        existing = conn.execute(
-            "SELECT username FROM t_user WHERE username=?", (username,)
-        ).fetchone()
-        if existing:
-            # 已存在：返回成功（幂等，App 侧注册时可能重复调用）
-            conn.close()
-            return jsonify({"success": True, "message": "账号已存在"})
-        conn.execute("""
-            INSERT INTO t_user
-                (username, nickname, phone, password_hash, avatar_path, email, address, create_time)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            username,
-            d.get('nickname') or username,
-            d.get('phone') or '',
-            hash_password(pwd_hash),
-            d.get('avatarPath') or '',
-            d.get('email') or '',
-            d.get('address') or '',
-            d.get('createTime') or int(time.time() * 1000),
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"success": True, "message": "注册成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"success": False, "message": "注册服务暂未开放"}), 503
 
 
 @app.route('/api/login', methods=['POST'])
@@ -119,42 +194,111 @@ def api_login():
         if not verify_password(row['password_hash'], pwd_hash):
             conn.close()
             return jsonify({"success": False, "message": "密码错误"})
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            "SELECT * FROM t_user WHERE username=?", (row['username'],)
+        ).fetchone()
+        if not row or not verify_password(row['password_hash'], pwd_hash):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "账号或密码已变更"})
         if password_needs_rehash(row['password_hash']):
             conn.execute(
                 "UPDATE t_user SET password_hash=? WHERE username=?",
                 (hash_password(pwd_hash), row['username'])
             )
-            conn.commit()
+        tokens = _new_session(conn, row['username'])
+        conn.commit()
         conn.close()
-        return jsonify({
+        response = {
             "success": True,
             "message": "登录成功",
-            "user": {
-                "username":     row['username'],
-                "nickname":     row['nickname'] or '',
-                "phone":        row['phone'] or '',
-                "avatarPath":   row['avatar_path'] or '',
-                "email":        row['email'] or '',
-                "address":      row['address'] or '',
-                "createTime":   row['create_time'],
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+            "user": _user_json(row),
+        }
+        response.update(tokens)
+        return jsonify(response)
+    except Exception as error:
+        return _internal_error('api_login', error)
+
+
+@app.route('/api/refresh', methods=['POST'])
+def api_refresh():
+    refresh_token = ((request.get_json(silent=True) or {}).get('refreshToken') or '').strip()
+    if not refresh_token:
+        return jsonify({"success": False, "message": "refreshToken 缺失"}), 400
+    try:
+        now = int(time.time())
+        old_hash = _token_hash(refresh_token)
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            """
+            SELECT session.username
+            FROM t_session AS session
+            JOIN t_user AS user ON user.username=session.username
+            WHERE session.refresh_token_hash=? AND session.refresh_expires_at>?
+            """,
+            (old_hash, now),
+        ).fetchone()
+        if not row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "刷新会话无效或已过期"}), 401
+        conn.execute("DELETE FROM t_session WHERE refresh_token_hash=?", (old_hash,))
+        tokens = _new_session(conn, row['username'], now)
+        conn.commit()
+        conn.close()
+        response = {"success": True}
+        response.update(tokens)
+        return jsonify(response)
+    except Exception as error:
+        return _internal_error('api_refresh', error)
+
+
+@app.route('/api/me', methods=['GET'])
+@bearer_required
+def api_me():
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT * FROM t_user WHERE username=?", (g.current_username,)
+        ).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"success": False, "message": "账号不存在"}), 404
+        return jsonify({"success": True, "user": _user_json(row)})
+    except Exception as error:
+        return _internal_error('api_me', error)
+
+
+@app.route('/api/logout', methods=['POST'])
+@bearer_required
+def api_logout():
+    try:
+        conn = get_db()
+        conn.execute(
+            "DELETE FROM t_session WHERE access_token_hash=?",
+            (g.current_access_hash,),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "已退出登录"})
+    except Exception as error:
+        return _internal_error('api_logout', error)
 
 
 @app.route('/api/deleteUser', methods=['POST'])
+@bearer_required
 def api_delete_user():
     d = request.get_json(force=True) or {}
-    username = (d.get('username') or '').strip()
     pwd_hash = (d.get('passwordHash') or '').strip()
-    if not username or not pwd_hash:
+    if not pwd_hash:
         return jsonify({"success": False, "message": "参数缺失"}), 400
     try:
         conn = get_db()
         row = conn.execute(
-            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
-            (username, username, username)
+            "SELECT username, password_hash FROM t_user WHERE username=?",
+            (g.current_username,)
         ).fetchone()
         if not row:
             conn.close()
@@ -162,43 +306,36 @@ def api_delete_user():
         if not verify_password(row['password_hash'], pwd_hash):
             conn.close()
             return jsonify({"success": False, "message": "密码错误"})
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
         conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
         conn.commit()
         conn.close()
         return jsonify({"success": True, "message": "账号已注销"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('api_delete_user', error)
 
 
 @app.route('/api/updateUser', methods=['POST'])
+@bearer_required
 def api_update_user():
-    """
-    更新用户资料。
-
-    查找规则：用客户端传来的 `username` 字段作为「柔性 lookup key」，
-      WHERE username=? OR phone=? OR email=?
-    这样无论 App 传的是注册时的昵称、当前的手机号、邮箱还是华为 HW_ ID，
-    都能唯一定位云端记录（这些字段彼此互不重叠）。
-
-    其它字段（nickname/phone/avatarPath/email/address）是要写入的新值。
-    若客户端希望修改 username（即昵称改名），可显式传 `newUsername`。
-    """
     d = request.get_json(force=True) or {}
-    lookup = (d.get('username') or '').strip()
-    if not lookup:
-        return jsonify({"success": False, "message": "lookup key 缺失"}), 400
-    if 'passwordHash' in d:
-        return jsonify({"success": False, "message": "请使用专用密码修改接口"}), 400
-
     field_map = {
-        'nickname': 'nickname', 'phone': 'phone',
-        'avatarPath': 'avatar_path', 'email': 'email',
+        'nickname': 'nickname',
+        'avatarPath': 'avatar_path',
         'address': 'address',
-        'newUsername': 'username',
     }
+    ignored_fields = {'username'}
+    sensitive_fields = {'phone', 'email', 'passwordHash', 'newUsername'}
+    if any(key not in field_map.keys() | ignored_fields | sensitive_fields for key in d):
+        return jsonify({"success": False, "message": "包含不允许修改的字段"}), 400
+    if any(
+        key in d and d[key] is not None and str(d[key]).strip()
+        for key in sensitive_fields
+    ):
+        return jsonify({"success": False, "message": "请使用专用敏感资料修改接口"}), 400
     updates = {}
     for app_key, db_col in field_map.items():
-        if app_key in d and d[app_key] is not None and str(d[app_key]) != '':
+        if app_key in d and d[app_key] is not None:
             updates[db_col] = d[app_key]
 
     if not updates:
@@ -207,9 +344,9 @@ def api_update_user():
     try:
         conn = get_db()
         set_clause = ', '.join(f"{col}=?" for col in updates.keys())
-        values = list(updates.values()) + [lookup, lookup, lookup]
+        values = list(updates.values()) + [g.current_username]
         cursor = conn.execute(
-            f"UPDATE t_user SET {set_clause} WHERE username=? OR phone=? OR email=?",
+            f"UPDATE t_user SET {set_clause} WHERE username=?",
             values
         )
         affected = cursor.rowcount
@@ -218,43 +355,46 @@ def api_update_user():
         if affected == 0:
             return jsonify({"success": False, "message": "找不到对应账号"})
         return jsonify({"success": True, "message": "更新成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('api_update_user', error)
 
 
 @app.route('/api/changePassword', methods=['POST'])
+@bearer_required
 def api_change_password():
-    """
-    修改密码：必须验证旧密码哈希后才允许写新密码。
-    lookup 规则同 updateUser，username 字段允许传昵称/手机/邮箱/HW_ID。
-    """
     d = request.get_json(force=True) or {}
-    lookup = (d.get('username') or '').strip()
     old_hash = (d.get('oldPasswordHash') or '').strip()
     new_hash = (d.get('newPasswordHash') or '').strip()
-    if not lookup or not old_hash or not new_hash:
+    if not old_hash or not new_hash:
         return jsonify({"success": False, "message": "参数缺失"}), 400
+    conn = None
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         row = conn.execute(
-            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
-            (lookup, lookup, lookup)
+            "SELECT username, password_hash FROM t_user WHERE username=?",
+            (g.current_username,)
         ).fetchone()
         if not row:
-            conn.close()
+            conn.rollback()
             return jsonify({"success": False, "message": "账号不存在"})
         if not verify_password(row['password_hash'], old_hash):
-            conn.close()
+            conn.rollback()
             return jsonify({"success": False, "message": "原密码不正确"})
         conn.execute(
             "UPDATE t_user SET password_hash=? WHERE username=?",
             (hash_password(new_hash), row['username'])
         )
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
         conn.commit()
-        conn.close()
         return jsonify({"success": True, "message": "密码已更新"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('api_change_password', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/health', methods=['GET'])
@@ -263,7 +403,10 @@ def health_check():
 
 
 @app.route('/ai/chat', methods=['POST'])
+@bearer_required
 def ai_chat():
+    if not AI_RISK_CONTROL_READY:
+        return jsonify({"error": "AI 风控尚未就绪"}), 503
     try:
         data = request.get_json(force=True) or {}
         user_message = data.get('message', '').strip()
@@ -399,6 +542,12 @@ def _build_context_summary(context: dict) -> str:
 # 管理后台
 # ═══════════════════════════════════════════════════════════════
 
+@app.before_request
+def disable_admin_by_default():
+    if request.path.startswith('/admin') and not ADMIN_ENABLED:
+        return jsonify({"success": False, "message": "not found"}), 404
+
+
 def admin_required(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -482,8 +631,8 @@ def admin_list_users():
         """).fetchall()
         conn.close()
         return jsonify({"success": True, "data": [dict(r) for r in rows]})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_list_users', error)
 
 
 @app.route('/admin/api/users', methods=['POST'])
@@ -518,8 +667,8 @@ def admin_create_user():
         conn.commit()
         conn.close()
         return jsonify({"success": True, "message": "创建成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_create_user', error)
 
 
 @app.route('/admin/api/users/<username>', methods=['PUT'])
@@ -541,18 +690,23 @@ def admin_update_user(username):
         return jsonify({"success": True, "message": "无需更新"})
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         set_clause = ', '.join(f"{col}=?" for col in updates.keys())
         values = list(updates.values()) + [username]
         cursor = conn.execute(
             f"UPDATE t_user SET {set_clause} WHERE username=?", values
         )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        if 'newUsername' in d and updates['username'] != username:
+            conn.execute("DELETE FROM t_session WHERE username=?", (username,))
         conn.commit()
         conn.close()
-        if cursor.rowcount == 0:
-            return jsonify({"success": False, "message": "用户不存在"}), 404
         return jsonify({"success": True, "message": "更新成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_update_user', error)
 
 
 @app.route('/admin/api/users/<username>', methods=['DELETE'])
@@ -560,14 +714,18 @@ def admin_update_user(username):
 def admin_delete_user(username):
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         cursor = conn.execute("DELETE FROM t_user WHERE username=?", (username,))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        conn.execute("DELETE FROM t_session WHERE username=?", (username,))
         conn.commit()
         conn.close()
-        if cursor.rowcount == 0:
-            return jsonify({"success": False, "message": "用户不存在"}), 404
         return jsonify({"success": True, "message": "已删除"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_delete_user', error)
 
 
 # ─── Admin Panel HTML (SPA) ───────────────────────────────────────
@@ -941,4 +1099,4 @@ loadUsers();
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8899, debug=False)
+    app.run(host='127.0.0.1', port=8899, debug=False)

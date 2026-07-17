@@ -5,9 +5,9 @@
  * 隐私原则：按用户选择裁剪上下文，不传手机号、人脸等身份数据
  */
 
-import http from '@ohos.net.http';
 import { MqttManager } from '../pages/MqttManager';
-import { ECS_BASE_URL, STORE_KEY_AI_ACCESS_LEVEL } from '../config';
+import { STORE_KEY_AI_ACCESS_LEVEL } from '../config';
+import { CloudService } from './CloudService';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -64,33 +64,20 @@ export class WenxinService {
       context: context,
     };
 
-    const httpRequest = http.createHttp();
     try {
-      const response = await httpRequest.request(
-        `${ECS_BASE_URL}/ai/chat`,
-        {
-          method: http.RequestMethod.POST,
-          header: { 'Content-Type': 'application/json' },
-          extraData: JSON.stringify(req),
-          connectTimeout: 10000,
-          readTimeout: 35000,   // 文心大模型首 token 可能较慢
-        }
-      );
+      const response = await CloudService.getInstance().authenticatedPost('/ai/chat', req, 35000);
 
       if (response.responseCode !== 200) {
-        const errBody = response.result as string;
-        console.error('[WenxinService] HTTP error:', response.responseCode, errBody);
+        console.error('[WenxinService] HTTP error:', response.responseCode);
         return `服务暂时不可用（${response.responseCode}），请稍后再试`;
       }
 
-      const data = JSON.parse(response.result as string) as ChatResponse;
+      const data = JSON.parse(response.result) as ChatResponse;
       return data.reply ?? '抱歉，AI 没有返回有效回复';
 
     } catch (e) {
-      console.error('[WenxinService] request failed:', e);
+      console.error('[WenxinService] request failed');
       return '网络连接失败，请检查网络后重试';
-    } finally {
-      httpRequest.destroy();
     }
   }
 
