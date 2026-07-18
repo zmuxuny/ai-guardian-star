@@ -77,6 +77,10 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertRegex(text, r"authenticatedPost\(\s*['\"]\/ai\/chat['\"]")
         self.assertNotIn("http.createHttp", text)
 
+    def test_http_responses_are_requested_as_json_strings(self):
+        text = source("entry/src/main/ets/common/CloudService.ets")
+        self.assertIn("expectDataType: http.HttpDataType.STRING", text)
+
     def test_login_has_no_local_auth_or_registration_fallback(self):
         text = source("entry/src/main/ets/pages/Login.ets")
         self.assertIn("手机号验证尚未开放", text)

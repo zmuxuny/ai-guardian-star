@@ -117,6 +117,7 @@ export class CloudService {
         extraData: JSON.stringify(body),
         connectTimeout: 10000,
         readTimeout: readTimeout,
+        expectDataType: http.HttpDataType.STRING,
       });
       response = { responseCode: raw.responseCode, result: raw.result as string };
     } catch (_e) {

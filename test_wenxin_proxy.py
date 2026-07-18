@@ -553,6 +553,99 @@ class AccountSessionSecurityTest(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         upstream.assert_not_called()
 
+    def test_ai_requires_moderation_provider_before_coze(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        proxy.AI_RISK_CONTROL_READY = True
+        self.addCleanup(setattr, proxy, "AI_RISK_CONTROL_READY", False)
+
+        with mock.patch.object(proxy.requests, "post") as upstream:
+            response = self.client.post(
+                "/ai/chat",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"message": "普通健康咨询"},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        upstream.assert_not_called()
+
+    def test_local_crisis_response_bypasses_paid_services(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        proxy.AI_RISK_CONTROL_READY = True
+        proxy.ALIYUN_MODERATION_ENABLED = True
+        self.addCleanup(setattr, proxy, "AI_RISK_CONTROL_READY", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_MODERATION_ENABLED", False)
+
+        with mock.patch.object(proxy, "_moderate_text") as moderation, \
+             mock.patch.object(proxy.requests, "post") as upstream:
+            response = self.client.post(
+                "/ai/chat",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"message": "我想自杀"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("120", response.get_json()["reply"])
+        moderation.assert_not_called()
+        upstream.assert_not_called()
+
+    def test_high_risk_input_never_reaches_coze(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        proxy.AI_RISK_CONTROL_READY = True
+        proxy.ALIYUN_MODERATION_ENABLED = True
+        self.addCleanup(setattr, proxy, "AI_RISK_CONTROL_READY", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_MODERATION_ENABLED", False)
+
+        with mock.patch.object(
+            proxy, "_moderate_text", return_value={"risk_level": "high", "advice": ""}
+        ) as moderation, mock.patch.object(proxy.requests, "post") as upstream:
+            response = self.client.post(
+                "/ai/chat",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"message": "测试高风险输入"},
+            )
+
+        self.assertEqual(response.status_code, 422)
+        moderation.assert_called_once()
+        upstream.assert_not_called()
+
+    def test_safe_ai_reply_is_moderated_before_return(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        proxy.AI_RISK_CONTROL_READY = True
+        proxy.ALIYUN_MODERATION_ENABLED = True
+        self.addCleanup(setattr, proxy, "AI_RISK_CONTROL_READY", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_MODERATION_ENABLED", False)
+        coze_response = mock.Mock()
+        coze_response.iter_lines.return_value = [
+            'data: {"type":"answer","content":{"answer":"请规律作息。"},"finish":true}'
+        ]
+
+        with mock.patch.object(
+            proxy,
+            "_moderate_text",
+            side_effect=[
+                {"risk_level": "none", "advice": ""},
+                {"risk_level": "none", "advice": ""},
+            ],
+        ) as moderation, mock.patch.object(
+            proxy.requests, "post", return_value=coze_response
+        ) as upstream:
+            response = self.client.post(
+                "/ai/chat",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"message": "如何改善睡眠"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["reply"], "请规律作息。")
+        self.assertEqual(moderation.call_count, 2)
+        self.assertEqual(moderation.call_args_list[0].args[0], "llm_query_moderation")
+        self.assertEqual(moderation.call_args_list[1].args[0], "llm_response_moderation")
+        upstream.assert_called_once()
+
     def test_admin_routes_are_disabled_by_default(self):
         self.assertEqual(self.client.get("/admin").status_code, 404)
 

@@ -16,6 +16,7 @@ import json
 import sqlite3
 import os
 import functools
+import re
 
 from security_utils import hash_password, password_needs_rehash, verify_password
 
@@ -50,6 +51,10 @@ COZE_PROJECT_ID = "7627479213733445658"
 COZE_API_TOKEN = os.environ.get('COZE_API_TOKEN', '')
 AI_MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', '2000'))
 AI_RISK_CONTROL_READY = _env_true('AI_RISK_CONTROL_READY')
+ALIYUN_MODERATION_ENABLED = _env_true('ALIYUN_MODERATION_ENABLED')
+ALIYUN_MODERATION_ENDPOINT = os.environ.get(
+    'ALIYUN_MODERATION_ENDPOINT', 'green-cip.cn-shanghai.aliyuncs.com'
+)
 ACCESS_TOKEN_TTL = 15 * 60
 REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 
@@ -402,11 +407,90 @@ def health_check():
     return jsonify({"status": "ok", "service": "coze-proxy", "time": int(time.time())})
 
 
+class ModerationUnavailable(Exception):
+    pass
+
+
+def _local_crisis_response(text):
+    crisis_terms = (
+        '自杀', '自残', '不想活', '结束生命', '服药过量', '吞药', '中毒',
+        '昏迷', '胸痛', '呼吸困难', '严重出血', '严重过敏',
+    )
+    if not any(term in text for term in crisis_terms):
+        return ''
+    return (
+        '我很担心你现在的安全。若有立即危险、已经受伤或服药过量，请马上拨打 '
+        '120 或 110，并尽快联系身边可信任的人陪着你；心理援助也可拨打 12356。'
+        '这类紧急情况不要只依赖在线回复。'
+    )
+
+
+def _redact_sensitive_text(text):
+    text = re.sub(r'(?<!\d)1\d{10}(?!\d)', '[手机号已隐藏]', text)
+    text = re.sub(r'(?<!\w)[1-9]\d{16}[0-9Xx](?!\w)', '[身份证号已隐藏]', text)
+    return re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', '[邮箱已隐藏]', text)
+
+
+def _local_output_unsafe(text):
+    unsafe_terms = (
+        '自行停药', '立即停药', '保证治愈', '无需就医', '不用去医院',
+        '替代医生诊断', '增加剂量', '减少剂量',
+    )
+    return any(term in text for term in unsafe_terms)
+
+
+def _moderate_text(service, content):
+    access_key_id = os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_ID', '')
+    access_key_secret = os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_SECRET', '')
+    if not access_key_id or not access_key_secret:
+        raise ModerationUnavailable('missing credentials')
+    try:
+        from alibabacloud_green20220302.client import Client as GreenClient
+        from alibabacloud_green20220302 import models as green_models
+        from alibabacloud_tea_openapi import models as open_api_models
+        from alibabacloud_tea_util import models as util_models
+
+        config = open_api_models.Config(
+            access_key_id=access_key_id,
+            access_key_secret=access_key_secret,
+        )
+        config.endpoint = ALIYUN_MODERATION_ENDPOINT
+        client = GreenClient(config)
+        moderation_request = green_models.TextModerationPlusRequest(
+            service=service,
+            service_parameters=json.dumps({
+                'content': _redact_sensitive_text(content),
+                'dataId': secrets.token_hex(16),
+            }, ensure_ascii=False),
+        )
+        response = client.text_moderation_plus_with_options(
+            moderation_request,
+            util_models.RuntimeOptions(connect_timeout=1000, read_timeout=3000),
+        )
+        body = response.body
+        if getattr(body, 'code', None) != 200:
+            raise ModerationUnavailable('provider rejected request')
+        data = getattr(body, 'data', None)
+        risk_level = getattr(data, 'risk_level', None)
+        if risk_level not in ('high', 'medium', 'low', 'none'):
+            raise ModerationUnavailable('invalid provider response')
+        advice_items = getattr(data, 'advice', None) or []
+        advice = getattr(advice_items[0], 'answer', '') if advice_items else ''
+        return {'risk_level': risk_level, 'advice': advice}
+    except ModerationUnavailable:
+        raise
+    except Exception as error:
+        app.logger.error('[moderation] unavailable type=%s', type(error).__name__)
+        raise ModerationUnavailable('provider unavailable') from error
+
+
 @app.route('/ai/chat', methods=['POST'])
 @bearer_required
 def ai_chat():
     if not AI_RISK_CONTROL_READY:
         return jsonify({"error": "AI 风控尚未就绪"}), 503
+    if not ALIYUN_MODERATION_ENABLED:
+        return jsonify({"error": "内容安全检查尚未启用"}), 503
     try:
         data = request.get_json(force=True) or {}
         user_message = data.get('message', '').strip()
@@ -416,6 +500,24 @@ def ai_chat():
             return jsonify({"error": "message 不能为空"}), 400
         if len(user_message) > AI_MAX_MESSAGE_LENGTH:
             return jsonify({"error": "消息过长，请缩短后重试"}), 413
+
+        crisis_reply = _local_crisis_response(user_message)
+        if crisis_reply:
+            return jsonify({
+                "reply": crisis_reply,
+                "model": "local-safety",
+                "timestamp": int(time.time())
+            })
+
+        input_result = _moderate_text('llm_query_moderation', user_message)
+        if input_result['advice']:
+            return jsonify({
+                "reply": input_result['advice'],
+                "model": "aliyun-safety",
+                "timestamp": int(time.time())
+            })
+        if input_result['risk_level'] in ('high', 'medium'):
+            return jsonify({"error": "该问题暂时无法由 AI 助手处理"}), 422
 
         # ── 按用户选择的 AI 数据权限拼接监护上下文 ──────────────
         context_summary = _build_context_summary(context)
@@ -458,12 +560,18 @@ def ai_chat():
 
         ai_reply = _parse_sse_response(resp)
 
+        output_result = _moderate_text('llm_response_moderation', ai_reply)
+        if output_result['risk_level'] in ('high', 'medium') or _local_output_unsafe(ai_reply):
+            return jsonify({"error": "AI 回复未通过安全检查"}), 422
+
         return jsonify({
             "reply": ai_reply,
             "model": "coze-doubao",
             "timestamp": int(time.time())
         })
 
+    except ModerationUnavailable:
+        return jsonify({"error": "内容安全检查暂时不可用，请稍后重试"}), 503
     except requests.exceptions.Timeout:
         return jsonify({"error": "AI 服务响应超时，请稍后重试"}), 504
     except requests.exceptions.HTTPError as e:
