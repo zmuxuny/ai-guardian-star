@@ -81,6 +81,11 @@ class ClientAuthContractTest(unittest.TestCase):
         text = source("entry/src/main/ets/common/CloudService.ets")
         self.assertIn("expectDataType: http.HttpDataType.STRING", text)
 
+    def test_server_session_fields_survive_release_property_obfuscation(self):
+        rules = source("entry/obfuscation-rules.txt")
+        for field in ("accessToken", "refreshToken"):
+            self.assertRegex(rules, rf"(?m)^\s+{field}\s*$")
+
     def test_login_has_no_local_auth_or_registration_fallback(self):
         text = source("entry/src/main/ets/pages/Login.ets")
         self.assertIn("手机号验证尚未开放", text)

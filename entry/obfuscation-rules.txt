@@ -41,6 +41,8 @@
     success
     message
     user
+    accessToken
+    refreshToken
 
 # ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
 -keep-property-name
