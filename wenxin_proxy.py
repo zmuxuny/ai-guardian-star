@@ -55,8 +55,17 @@ ALIYUN_MODERATION_ENABLED = _env_true('ALIYUN_MODERATION_ENABLED')
 ALIYUN_MODERATION_ENDPOINT = os.environ.get(
     'ALIYUN_MODERATION_ENDPOINT', 'green-cip.cn-shanghai.aliyuncs.com'
 )
+ALIYUN_SMS_ENABLED = _env_true('ALIYUN_SMS_ENABLED')
+ALIYUN_SMS_ACCESS_KEY_ID = os.environ.get('ALIBABA_CLOUD_SMS_ACCESS_KEY_ID', '')
+ALIYUN_SMS_ACCESS_KEY_SECRET = os.environ.get('ALIBABA_CLOUD_SMS_ACCESS_KEY_SECRET', '')
+ALIYUN_SMS_SIGN_NAME = os.environ.get('ALIYUN_SMS_SIGN_NAME', '')
+ALIYUN_SMS_TEMPLATE_CODE = os.environ.get('ALIYUN_SMS_TEMPLATE_CODE', '100001')
+ALIYUN_SMS_SCHEME_NAME = os.environ.get('ALIYUN_SMS_SCHEME_NAME', 'guardian-register')
+ALIYUN_SMS_DAILY_LIMIT = int(os.environ.get('ALIYUN_SMS_DAILY_LIMIT', '100'))
 ACCESS_TOKEN_TTL = 15 * 60
 REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
+SMS_CODE_TTL = 5 * 60
+SMS_MAX_ATTEMPTS = 5
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -89,6 +98,27 @@ def get_db():
             create_time        INTEGER NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS t_sms_challenge (
+            challenge_hash TEXT PRIMARY KEY,
+            phone          TEXT NOT NULL,
+            purpose        TEXT NOT NULL,
+            requester_ip   TEXT NOT NULL,
+            sent_at        INTEGER NOT NULL,
+            expires_at     INTEGER NOT NULL,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            checking_at    INTEGER,
+            consumed_at    INTEGER
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sms_challenge_phone_sent "
+        "ON t_sms_challenge(phone, sent_at)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sms_challenge_ip_sent "
+        "ON t_sms_challenge(requester_ip, sent_at)"
+    )
     conn.commit()
     return conn
 
@@ -142,6 +172,99 @@ def _internal_error(scope, error):
     return jsonify({"success": False, "message": "服务内部错误"}), 500
 
 
+def _client_ip():
+    if request.remote_addr in ('127.0.0.1', '::1'):
+        forwarded = request.headers.get('X-Real-IP', '').strip()
+        if forwarded:
+            return forwarded[:64]
+    return (request.remote_addr or 'unknown')[:64]
+
+
+def _sms_client():
+    if not ALIYUN_SMS_ACCESS_KEY_ID or not ALIYUN_SMS_ACCESS_KEY_SECRET:
+        raise RuntimeError('SMS credentials are not configured')
+    try:
+        from alibabacloud_dypnsapi20170525.client import Client
+        from alibabacloud_tea_openapi import models as open_api_models
+    except ImportError as error:
+        raise RuntimeError('SMS SDK is not installed') from error
+    config = open_api_models.Config(
+        access_key_id=ALIYUN_SMS_ACCESS_KEY_ID,
+        access_key_secret=ALIYUN_SMS_ACCESS_KEY_SECRET,
+    )
+    config.endpoint = 'dypnsapi.aliyuncs.com'
+    return Client(config)
+
+
+def _send_sms_verification(phone, challenge_id):
+    if not ALIYUN_SMS_SIGN_NAME or not ALIYUN_SMS_TEMPLATE_CODE:
+        raise RuntimeError('SMS sign or template is not configured')
+    from alibabacloud_dypnsapi20170525 import models as sms_models
+    from alibabacloud_tea_util import models as util_models
+
+    sms_request = sms_models.SendSmsVerifyCodeRequest(
+        scheme_name=ALIYUN_SMS_SCHEME_NAME,
+        country_code='86',
+        phone_number=phone,
+        sign_name=ALIYUN_SMS_SIGN_NAME,
+        template_code=ALIYUN_SMS_TEMPLATE_CODE,
+        template_param='{"code":"##code##","min":"5"}',
+        out_id=challenge_id,
+        code_length=6,
+        valid_time=SMS_CODE_TTL,
+        duplicate_policy=1,
+        interval=60,
+        return_verify_code=False,
+        code_type=1,
+        auto_retry=1,
+    )
+    response = _sms_client().send_sms_verify_code_with_options(
+        sms_request,
+        util_models.RuntimeOptions(
+            connect_timeout=5000,
+            read_timeout=10000,
+            autoretry=False,
+            max_attempts=1,
+        ),
+    )
+    body = getattr(response, 'body', None)
+    if not body or not getattr(body, 'success', False) or getattr(body, 'code', '') != 'OK':
+        raise RuntimeError('SMS provider rejected send request')
+
+
+def _check_sms_verification(phone, verify_code, challenge_id):
+    from alibabacloud_dypnsapi20170525 import models as sms_models
+    from alibabacloud_tea_util import models as util_models
+
+    sms_request = sms_models.CheckSmsVerifyCodeRequest(
+        scheme_name=ALIYUN_SMS_SCHEME_NAME,
+        country_code='86',
+        phone_number=phone,
+        out_id=challenge_id,
+        verify_code=verify_code,
+        case_auth_policy=1,
+    )
+    response = _sms_client().check_sms_verify_code_with_options(
+        sms_request,
+        util_models.RuntimeOptions(
+            connect_timeout=5000,
+            read_timeout=10000,
+            autoretry=False,
+            max_attempts=1,
+        ),
+    )
+    body = getattr(response, 'body', None)
+    model = getattr(body, 'model', None) if body else None
+    if not body or not getattr(body, 'success', False) or getattr(body, 'code', '') != 'OK' or not model:
+        raise RuntimeError('SMS provider rejected verification request')
+    verify_result = getattr(model, 'verify_result', '')
+    if verify_result == 'PASS':
+        return True
+    if verify_result == 'UNKNOWN':
+        return False
+    raise RuntimeError('SMS provider returned an unknown verification result')
+
+
 def bearer_required(function):
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
@@ -176,9 +299,219 @@ def bearer_required(function):
 
 # ─── 账号接口 ──────────────────────────────────────────────────
 
+@app.route('/api/otp/send', methods=['POST'])
+def api_send_otp():
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "短信注册服务暂未开放"}), 503
+    phone = ((request.get_json(silent=True) or {}).get('phone') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+
+    now = int(time.time())
+    requester_ip = _client_ip()
+    challenge_id = secrets.token_urlsafe(32)
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 7 * 24 * 60 * 60,))
+        recent = conn.execute(
+            "SELECT "
+            "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_minute, "
+            "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
+            "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
+            "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
+            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day "
+            "FROM t_sms_challenge",
+            (
+                phone, now - 60,
+                phone, now - 60 * 60,
+                phone, now - 24 * 60 * 60,
+                requester_ip, now - 60 * 60,
+                now - 24 * 60 * 60,
+            ),
+        ).fetchone()
+        if (
+            (recent['phone_minute'] or 0) >= 1
+            or (recent['phone_hour'] or 0) >= 5
+            or (recent['phone_day'] or 0) >= 10
+            or (recent['ip_hour'] or 0) >= 20
+            or (recent['total_day'] or 0) >= ALIYUN_SMS_DAILY_LIMIT
+        ):
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码发送过于频繁，请稍后再试"}), 429
+        if conn.execute(
+            "SELECT 1 FROM t_user WHERE username=? OR phone=?", (phone, phone)
+        ).fetchone():
+            conn.execute(
+                """
+                INSERT INTO t_sms_challenge
+                    (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+                VALUES (?, ?, 'blocked', ?, ?, ?)
+                """,
+                (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "该手机号已注册"}), 409
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES (?, ?, 'register', ?, ?, ?)
+            """,
+            (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+
+        _send_sms_verification(phone, challenge_id)
+        return jsonify({
+            "success": True,
+            "message": "验证码已发送",
+            "challengeId": challenge_id,
+            "expiresIn": SMS_CODE_TTL,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_send_otp', error)
+
+
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    return jsonify({"success": False, "message": "注册服务暂未开放"}), 503
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "注册服务暂未开放"}), 503
+    d = request.get_json(silent=True) or {}
+    phone = (d.get('phone') or '').strip()
+    password = (d.get('passwordHash') or '').strip()
+    verify_code = (d.get('verifyCode') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    nickname = (d.get('nickname') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    if len(password) < 8 or len(password) > 128:
+        return jsonify({"success": False, "message": "密码长度应为 8 到 128 位"}), 400
+    if not re.fullmatch(r'\d{4,8}', verify_code):
+        return jsonify({"success": False, "message": "验证码格式不正确"}), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+    if len(nickname) > 32:
+        return jsonify({"success": False, "message": "昵称不能超过 32 个字符"}), 400
+
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash
+            FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND purpose='register'
+              AND expires_at>? AND failed_attempts<?
+              AND (checking_at IS NULL OR checking_at<?) AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now, SMS_MAX_ATTEMPTS, now - 30),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "验证码会话无效或已过期"}), 400
+        conn.execute(
+            "UPDATE t_sms_challenge SET checking_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+
+        verified = _check_sms_verification(phone, verify_code, challenge_id)
+        if not verified:
+            conn = get_db()
+            conn.execute(
+                """
+                UPDATE t_sms_challenge
+                SET failed_attempts=failed_attempts+1, checking_at=NULL
+                WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL
+                """,
+                (challenge_hash, now),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码错误"}), 400
+
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND checking_at=? AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "验证码会话已被使用"}), 400
+        if conn.execute(
+            "SELECT 1 FROM t_user WHERE username=? OR phone=?", (phone, phone)
+        ).fetchone():
+            conn.execute(
+                "UPDATE t_sms_challenge SET consumed_at=?, checking_at=NULL WHERE challenge_hash=?",
+                (now, challenge_hash),
+            )
+            conn.commit()
+            conn.close()
+            return jsonify({"success": False, "message": "该手机号已注册"}), 409
+        conn.execute(
+            """
+            INSERT INTO t_user
+                (username, nickname, phone, password_hash, avatar_path, email, address, create_time)
+            VALUES (?, ?, ?, ?, '', '', '', ?)
+            """,
+            (phone, nickname or f"用户{phone[-4:]}", phone, hash_password(password), now * 1000),
+        )
+        conn.execute(
+            "UPDATE t_sms_challenge SET consumed_at=?, checking_at=NULL WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        tokens = _new_session(conn, phone, now)
+        user = conn.execute("SELECT * FROM t_user WHERE username=?", (phone,)).fetchone()
+        conn.commit()
+        conn.close()
+        conn = None
+        response = {
+            "success": True,
+            "message": "注册成功",
+            "user": _user_json(user),
+        }
+        response.update(tokens)
+        return jsonify(response)
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        try:
+            retry = get_db()
+            retry.execute(
+                "UPDATE t_sms_challenge SET checking_at=NULL "
+                "WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL",
+                (challenge_hash, now),
+            )
+            retry.commit()
+            retry.close()
+        except Exception:
+            pass
+        return _internal_error('api_register', error)
 
 
 @app.route('/api/login', methods=['POST'])

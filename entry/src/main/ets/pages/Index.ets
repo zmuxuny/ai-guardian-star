@@ -158,10 +158,10 @@ struct Index {
     .hideNavBar(true)
   }
 
-  /** 仅内存中的服务端会话可进入应用；缓存账号名不是登录凭据。 */
+  /** 内存会话或经 Asset Store 恢复并换新的服务端会话才可进入应用。 */
   private async checkAutoLogin(): Promise<void> {
     const cloud = CloudService.getInstance();
-    if (!cloud.hasSession()) {
+    if (!cloud.hasSession() && !await cloud.restorePersistedSession()) {
       this.pathStack.pushPathByName('Login', null, false);
       return;
     }

@@ -28,15 +28,17 @@
 | MQTT 告警 | 已接入 | 使用 TLS 连接，需结合实际设备继续联调 |
 | AI 健康助手 | 已接入 | Coze 对话、三档数据授权、阿里云输入/输出内容审核 |
 | 视频、人脸与语音 | 待联调 | App 接口已接入，依赖边缘设备和服务器端到端验证 |
-| 手机验证码注册 | 待完成 | 当前生产注册接口关闭 |
-| 记住登录 | 待完成 | 当前退出或应用重启后需重新登录 |
-| 数据库管理后台 | 待安全开放 | 已有管理页面，默认关闭 |
-| openGauss | 已评估 | 服务器已安装；生产数据当前仍使用 SQLite |
+| 手机验证码注册 | 已接入，待启用 | App 与服务端流程已完成；待配置阿里云短信认证后进行真实发送验收 |
+| 记住登录 | 已实现 | 勾选后通过系统安全凭据存储恢复会话；主动退出仍会清除会话 |
+| 数据库管理后台 | 已安全开放 | 仅允许通过 SSH 隧道访问，不对公网暴露管理路由 |
+| openGauss | 已评估 | 服务器已安装并仅监听回环地址；生产数据当前仍使用 SQLite |
 
 ## 核心能力
 
 - HarmonyOS 原生手机/平板界面，支持资料、地址、密码、主题和账号管理。
 - HTTPS 云账号服务，支持登录鉴权、令牌刷新与主动撤销。
+- 可选“记住我”，Refresh Token 存入 HarmonyOS Asset Store，Access Token 仅保存在内存。
+- 手机号验证码注册具备本地频控、每日费用上限和一次性挑战校验。
 - ArkDB 本地存储健康事件、视频记录、用户设置和基础资料。
 - MQTT TLS 接收跌倒、久坐等设备事件并生成健康记录。
 - AI 助手支持 `basic`、`privacy`、`full` 三档上下文授权。
@@ -127,6 +129,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install flask flask-cors requests
 pip install -r requirements-moderation.txt
+pip install -r requirements-sms.txt
 python wenxin_proxy.py
 ```
 
@@ -141,8 +144,11 @@ App 当前通过 `https://api.aistar.asia` 访问公网接口。云端密钥只�
 - `ALIBABA_CLOUD_ACCESS_KEY_SECRET`
 - `AI_RISK_CONTROL_READY`
 - `ALIYUN_MODERATION_ENABLED`
+- `ALIBABA_CLOUD_SMS_ACCESS_KEY_ID`
+- `ALIBABA_CLOUD_SMS_ACCESS_KEY_SECRET`
+- `ALIYUN_SMS_ENABLED`
 
-管理后台默认关闭。确需启用时，还需安全配置 `ADMIN_ENABLED`、`ADMIN_PASSWORD` 与 `FLASK_SECRET_KEY`，并限制访问来源。
+管理后台默认关闭。生产环境启用后仍应由 Nginx 对公网返回 404，只允许通过 SSH 隧道访问本机回环地址；同时必须配置 `ADMIN_PASSWORD` 与 `FLASK_SECRET_KEY`。
 
 更多说明见 [安全策略](SECURITY.md) 和 [安全整改记录](docs/security-remediation-2026-07-15.md)。
 
@@ -159,6 +165,8 @@ D:\Anaconda\python.exe -m unittest discover -v
 ## 部署与运维文档
 
 - [阿里云内容审核配置](docs/aliyun-content-moderation-setup.md)
+- [阿里云短信验证码注册配置](docs/aliyun-sms-registration-setup.md)
+- [数据库管理后台安全访问](docs/database-admin-access.md)
 - [openGauss 迁移评估](docs/opengauss-migration-assessment.md)
 - [安全整改记录](docs/security-remediation-2026-07-15.md)
 - [贡献指南](CONTRIBUTING.md)
@@ -166,9 +174,9 @@ D:\Anaconda\python.exe -m unittest discover -v
 
 ## 路线图
 
-- [ ] 接通短信验证码注册
-- [ ] 增加安全的“记住我”与会话恢复
-- [ ] 通过受限通道开放数据库管理后台
+- [ ] 完成阿里云短信认证配置与真实注册验收
+- [ ] 完成“记住我”真机重启与令牌轮换验收
+- [x] 通过 SSH 隧道开放数据库管理后台
 - [ ] 完成 openGauss 生产迁移前置整改与备份演练
 - [ ] 完成边缘设备的视频、人脸和语音端到端联调
 - [ ] 增加自动化构建、部署和恢复验证

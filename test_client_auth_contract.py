@@ -51,7 +51,7 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertNotRegex(database, r"UPDATE\s+t_user\s+SET\s+password_hash\s*=\s*''")
         self.assertIn("password_hash: ''", database)
         self.assertNotIn("password_hash: user.passwordHash", database)
-        self.assertIn("updatePasswordHash(existing.id, '')", login)
+        self.assertRegex(login, r"updatePasswordHash\([a-zA-Z]+\.id,\s*['\"]{2}\)")
 
     def test_password_change_always_logs_out_after_server_success(self):
         text = source("entry/src/main/ets/pages/Profile.ets")
@@ -86,11 +86,11 @@ class ClientAuthContractTest(unittest.TestCase):
         for field in ("accessToken", "refreshToken"):
             self.assertRegex(rules, rf"(?m)^\s+{field}\s*$")
 
-    def test_login_has_no_local_auth_or_registration_fallback(self):
+    def test_login_has_no_local_auth_fallback(self):
         text = source("entry/src/main/ets/pages/Login.ets")
-        self.assertIn("手机号验证尚未开放", text)
-        self.assertIn("passwordHash: ''", text)
-        self.assertNotIn("cloud.register", text)
+        self.assertIn("handleRegister", text)
+        self.assertIn("CloudService.getInstance().register", text)
+        self.assertRegex(text, r"passwordHash:\s*['\"]{2}")
         self.assertNotIn("existing.passwordHash", text)
         self.assertNotIn("网络不通", text)
 
@@ -109,6 +109,70 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertNotIn("fields.phone", profile)
         self.assertNotIn("fields.email", profile)
         self.assertNotRegex(profile, r"changePassword\([^\n]*loginId")
+
+    def test_remember_me_uses_asset_store_instead_of_plaintext_preferences(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        login = source("entry/src/main/ets/pages/Login.ets")
+        self.assertIn("@kit.AssetStoreKit", cloud)
+        self.assertIn("asset.Tag.SECRET", cloud)
+        self.assertIn("asset.Tag.ALIAS", cloud)
+        self.assertIn("asset.ConflictResolution.OVERWRITE", cloud)
+        self.assertNotIn("PREF_KEY_REFRESH_TOKEN", cloud)
+        self.assertIn("@State rememberMe: boolean", login)
+        self.assertIn("Checkbox({ name: 'rememberMe'", login)
+        self.assertIn("this.rememberMe = value", login)
+        self.assertRegex(login, r"\.login\(uname,\s*pwd,\s*this\.rememberMe\)")
+
+    def test_persisted_refresh_token_is_restored_and_rotated(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        index = source("entry/src/main/ets/pages/Index.ets")
+        self.assertIn("restorePersistedSession", cloud)
+        self.assertIn("await cloud.restorePersistedSession()", index)
+        self.assertRegex(cloud, r"login\(username:\s*string,\s*passwordHash:\s*string,\s*rememberMe:\s*boolean")
+        self.assertIn("await this.persistSession()", cloud)
+        refresh_success = cloud.index("this.refreshToken = result.refreshToken")
+        rotated_save = cloud.index("await this.persistSession()", refresh_success)
+        self.assertGreater(rotated_save, refresh_success)
+
+    def test_explicit_logout_and_unchecked_login_forget_persisted_session(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        login_start = cloud.index("public async login(")
+        login_end = cloud.index("public async getMe", login_start)
+        login = cloud[login_start:login_end]
+        self.assertIn("await this.clearPersistedSession()", login)
+        self.assertIn("if (rememberMe)", login)
+        logout_start = cloud.index("public async logout(")
+        logout_end = cloud.index("public async updateUser", logout_start)
+        logout = cloud[logout_start:logout_end]
+        self.assertIn("await this.clearPersistedSession()", logout)
+
+    def test_registration_uses_server_sms_challenge_contract(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        login = source("entry/src/main/ets/pages/Login.ets")
+        self.assertIn("'/api/otp/send'", cloud)
+        self.assertIn("'/api/register'", cloud)
+        for field in ("phone", "passwordHash", "verifyCode", "challengeId"):
+            self.assertIn(field + ":", cloud)
+        self.assertIn("@State registerMode: boolean", login)
+        self.assertIn("@State verifyCode: string", login)
+        self.assertIn("handleSendCode", login)
+        self.assertIn("handleRegister", login)
+        self.assertNotIn("手机号验证尚未开放", login)
+        self.assertRegex(
+            cloud,
+            r"requestRaw\('/api/otp/send',[^\n]+20000,\s*false\)",
+        )
+        self.assertRegex(
+            cloud,
+            r"requestRaw\('/api/register',[^\n]+20000,\s*false\)",
+        )
+
+    def test_transient_refresh_failure_does_not_forget_remembered_session(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        refresh_start = cloud.index("private async performRefresh")
+        refresh_end = cloud.index("private parseResult", refresh_start)
+        refresh = cloud[refresh_start:refresh_end]
+        self.assertIn("response.responseCode === 400 || response.responseCode === 401", refresh)
 
 
 if __name__ == "__main__":
