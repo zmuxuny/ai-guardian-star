@@ -18,6 +18,7 @@ os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("COZE_API_TOKEN", "test-coze-token")
 os.environ.pop("ADMIN_ENABLED", None)
 os.environ.pop("AI_RISK_CONTROL_READY", None)
+os.environ.pop("ALIYUN_SMS_ENABLED", None)
 
 try:
     import flask_cors  # noqa: F401
@@ -144,6 +145,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
         proxy.DB_PATH = str(Path(self.temp_dir.name) / "users.db")
         proxy.ADMIN_ENABLED = False
         proxy.AI_RISK_CONTROL_READY = False
+        proxy.ALIYUN_SMS_ENABLED = False
         self.client = proxy.app.test_client()
 
     def create_user(self, username="alice", password="old-password"):
@@ -179,13 +181,19 @@ class AccountSessionSecurityTest(unittest.TestCase):
         return {"Authorization": f"Bearer {token}"}
 
     def test_registration_is_closed_without_touching_database(self):
+        send = self.client.post(
+            "/api/otp/send",
+            json={"phone": "13340878619"},
+        )
         response = self.client.post(
             "/api/register",
             json={"username": "new-user", "passwordHash": "password"},
         )
 
+        self.assertEqual(send.status_code, 503)
         self.assertEqual(response.status_code, 503)
         self.assertFalse(Path(proxy.DB_PATH).exists())
+
 
     def test_login_issues_opaque_tokens_and_stores_only_sha256_hashes(self):
         self.create_user()
@@ -648,6 +656,211 @@ class AccountSessionSecurityTest(unittest.TestCase):
 
     def test_admin_routes_are_disabled_by_default(self):
         self.assertEqual(self.client.get("/admin").status_code, 404)
+
+class SmsRegistrationTest(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        proxy.DB_PATH = str(Path(self.temp_dir.name) / "users.db")
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+        self.client = proxy.app.test_client()
+
+    def send_code(self, phone="13340878619"):
+        with mock.patch.object(proxy, "_send_sms_verification") as send:
+            response = self.client.post("/api/otp/send", json={"phone": phone})
+        return response, send
+
+    def create_user(self, phone="13340878619"):
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_user
+                (username, nickname, phone, password_hash, avatar_path, email, address, create_time)
+            VALUES (?, ?, ?, ?, '', '', '', ?)
+            """,
+            (phone, "existing", phone, hash_password("old-password"), 1),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_send_code_stores_only_an_opaque_challenge_hash(self):
+        response, send = self.send_code()
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["expiresIn"], 300)
+        self.assertGreaterEqual(len(body["challengeId"]), 32)
+        send.assert_called_once_with("13340878619", body["challengeId"])
+
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT challenge_hash, phone, purpose FROM t_sms_challenge"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row["challenge_hash"], proxy._token_hash(body["challengeId"]))
+        self.assertNotEqual(row["challenge_hash"], body["challengeId"])
+        self.assertEqual(row["phone"], "13340878619")
+        self.assertEqual(row["purpose"], "register")
+
+    def test_send_code_rejects_invalid_phone_and_local_repeats(self):
+        with mock.patch.object(proxy, "_send_sms_verification") as send:
+            invalid = self.client.post("/api/otp/send", json={"phone": "123"})
+            first = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+            repeated = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(repeated.status_code, 429)
+        self.assertEqual(send.call_count, 1)
+
+    def test_provider_failure_still_counts_toward_rate_limits(self):
+        with mock.patch.object(
+            proxy, "_send_sms_verification", side_effect=RuntimeError("provider unavailable")
+        ):
+            failed = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+        with mock.patch.object(proxy, "_send_sms_verification") as send:
+            retried = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+
+        self.assertEqual(failed.status_code, 500)
+        self.assertEqual(retried.status_code, 429)
+        send.assert_not_called()
+
+    def test_existing_phone_is_rate_limited_without_calling_provider(self):
+        self.create_user()
+        with mock.patch.object(proxy, "_send_sms_verification") as send:
+            first = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+            repeated = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+
+        self.assertEqual(first.status_code, 409)
+        self.assertEqual(repeated.status_code, 429)
+        send.assert_not_called()
+
+    def test_registration_requires_at_least_eight_character_password(self):
+        send_response, _ = self.send_code()
+        body = send_response.get_json()
+        with mock.patch.object(proxy, "_check_sms_verification") as check:
+            response = self.client.post(
+                "/api/register",
+                json={
+                    "phone": "13340878619",
+                    "passwordHash": "1234",
+                    "verifyCode": "123456",
+                    "challengeId": body["challengeId"],
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        check.assert_not_called()
+
+    def test_global_daily_budget_stops_additional_send_cost(self):
+        old_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
+        proxy.ALIYUN_SMS_DAILY_LIMIT = 1
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_DAILY_LIMIT", old_limit)
+        with mock.patch.object(proxy, "_send_sms_verification") as send:
+            first = self.client.post("/api/otp/send", json={"phone": "13340878619"})
+            blocked = self.client.post("/api/otp/send", json={"phone": "13900000000"})
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(blocked.status_code, 429)
+        self.assertEqual(send.call_count, 1)
+
+    def test_registration_requires_matching_one_time_challenge(self):
+        send_response, _ = self.send_code()
+        challenge = send_response.get_json()["challengeId"]
+        payload = {
+            "phone": "13340878619",
+            "passwordHash": "new-password",
+            "verifyCode": "123456",
+            "challengeId": challenge,
+        }
+
+        with mock.patch.object(proxy, "_check_sms_verification", return_value=True) as check:
+            response = self.client.post("/api/register", json=payload)
+            replay = self.client.post("/api/register", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["user"]["username"], "13340878619")
+        self.assertEqual(body["user"]["phone"], "13340878619")
+        self.assertIn("accessToken", body)
+        self.assertIn("refreshToken", body)
+        self.assertEqual(replay.status_code, 400)
+        check.assert_called_once_with("13340878619", "123456", challenge)
+
+        conn = proxy.get_db()
+        user = conn.execute(
+            "SELECT username, phone, password_hash FROM t_user WHERE username=?",
+            ("13340878619",),
+        ).fetchone()
+        consumed = conn.execute(
+            "SELECT consumed_at FROM t_sms_challenge WHERE challenge_hash=?",
+            (proxy._token_hash(challenge),),
+        ).fetchone()
+        conn.close()
+        self.assertTrue(verify_password(user["password_hash"], "new-password"))
+        self.assertIsNotNone(consumed["consumed_at"])
+
+    def test_wrong_code_counts_attempt_and_can_be_retried(self):
+        send_response, _ = self.send_code()
+        challenge = send_response.get_json()["challengeId"]
+        payload = {
+            "phone": "13340878619",
+            "passwordHash": "new-password",
+            "verifyCode": "000000",
+            "challengeId": challenge,
+        }
+
+        with mock.patch.object(proxy, "_check_sms_verification", return_value=False):
+            response = self.client.post("/api/register", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT failed_attempts, checking_at, consumed_at FROM t_sms_challenge"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row["failed_attempts"], 1)
+        self.assertIsNone(row["checking_at"])
+        self.assertIsNone(row["consumed_at"])
+
+    def test_stale_verification_cannot_clear_new_reservation(self):
+        send_response, _ = self.send_code()
+        challenge = send_response.get_json()["challengeId"]
+        payload = {
+            "phone": "13340878619",
+            "passwordHash": "new-password",
+            "verifyCode": "000000",
+            "challengeId": challenge,
+        }
+
+        def replace_reservation(*_args):
+            conn = proxy.get_db()
+            old_owner = conn.execute(
+                "SELECT checking_at FROM t_sms_challenge"
+            ).fetchone()["checking_at"]
+            conn.execute(
+                "UPDATE t_sms_challenge SET checking_at=?",
+                (old_owner + 31,),
+            )
+            conn.commit()
+            conn.close()
+            return False
+
+        with mock.patch.object(proxy, "_check_sms_verification", side_effect=replace_reservation):
+            response = self.client.post("/api/register", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT failed_attempts, checking_at FROM t_sms_challenge"
+        ).fetchone()
+        conn.close()
+        self.assertEqual(row["failed_attempts"], 0)
+        self.assertIsNotNone(row["checking_at"])
+
 
 class ClientSecurityRegressionTest(unittest.TestCase):
     def test_cloud_service_does_not_log_request_or_response_bodies(self):

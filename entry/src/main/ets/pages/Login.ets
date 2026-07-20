@@ -1,9 +1,9 @@
 // import { LoginWithHuaweiIDButton, loginComponentManager } from "@kit.AccountKit"; // 华为一键登录暂不可用
 // import { BusinessError } from "@kit.BasicServicesKit";
 import { ThemeManager } from "../common/ThemeManager";
-import { DatabaseHelper } from "../database/DatabaseHelper";
+import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
-import { CloudService } from "../common/CloudService";
+import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
@@ -25,6 +25,14 @@ struct Login {
   @State loginBtnScale: number = 1.0;
   @State inputMode: number = 0;
   @State usernameError: string = "";
+  @State rememberMe: boolean = false;
+  @State registerMode: boolean = false;
+  @State confirmPassword: string = "";
+  @State verifyCode: string = "";
+  @State challengeId: string = "";
+  @State challengePhone: string = "";
+  @State canSendCode: boolean = true;
+  @State isSendingCode: boolean = false;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
 
   /** 校验当前输入格式，返回错误信息（空字符串=通过） */
@@ -104,19 +112,22 @@ struct Login {
           // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
           Scroll() {
             Column() {
-            Text("登录账号")
+            Text(this.registerMode ? "注册账号" : "登录账号")
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.themeManager.colors.primaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
-            Text(this.inputMode === 0 ? "手机号仅支持已有账号登录" : "邮箱仅支持已有账号登录")
+            Text(this.registerMode
+              ? "使用手机号验证码创建账号"
+              : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
               .fontSize(12)
               .fontColor(this.themeManager.colors.secondaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 24 })
 
             // ── 手机号 / 邮箱 切换选项 ───────────────────────────
+            if (!this.registerMode) {
             Row() {
               // 手机号 Tab
               Column() {
@@ -176,6 +187,7 @@ struct Login {
             .width("100%")
             .margin({ bottom: 12 })
             .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
+            }
 
             // 输入框 + 右侧状态图标
             Row() {
@@ -186,6 +198,9 @@ struct Login {
                 .onChange((v: string) => {
                   this.username = v;
                   this.usernameError = this.validateUsername();
+                  if (v.trim() !== this.challengePhone) {
+                    this.challengeId = "";
+                  }
                 })
                 .layoutWeight(1)
                 .fontSize(14)
@@ -241,7 +256,10 @@ struct Login {
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 6 })
             Row() {
-              TextInput({ placeholder: "请输入密码（至少4位）", text: this.password })
+              TextInput({
+                placeholder: this.registerMode ? "请输入密码（至少8位）" : "请输入密码（至少4位）",
+                text: this.password
+              })
                 .onChange((v: string) => {
                   this.password = v;
                 })
@@ -261,30 +279,110 @@ struct Login {
             .borderRadius(12)
             .margin({ bottom: 8 })
 
-            // 忘记密码
-            Text("忘记密码？")
-              .fontSize(12)
-              .fontColor("#3b82f6")
-              .fontWeight(FontWeight.Medium)
-              .alignSelf(ItemAlign.End)
-              .margin({ bottom: 24 })
-              .onClick(() => {
-                AlertDialog.show({
-                  title: "忘记密码",
-                  message: "请联系管理员重置密码，或使用华为账号登录后重新绑定。",
-                  primaryButton: { value: "知道了", action: () => {} },
-                  alignment: DialogAlignment.Center,
-                });
-              })
+            if (this.registerMode) {
+              Text("确认密码")
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.themeManager.colors.secondaryTextColor)
+                .alignSelf(ItemAlign.Start)
+                .margin({ bottom: 6, top: 6 })
+              TextInput({ placeholder: "请再次输入密码", text: this.confirmPassword })
+                .onChange((v: string) => {
+                  this.confirmPassword = v;
+                })
+                .width("100%")
+                .height(48)
+                .fontSize(14)
+                .type(this.showPassword ? InputType.Normal : InputType.Password)
+                .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+                .fontColor(this.themeManager.colors.primaryTextColor)
+                .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
+                .borderRadius(12)
+                .padding({ left: 12, right: 12 })
+                .margin({ bottom: 14 })
+
+              Text("短信验证码")
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.themeManager.colors.secondaryTextColor)
+                .alignSelf(ItemAlign.Start)
+                .margin({ bottom: 6 })
+              Row({ space: 8 }) {
+                TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
+                  .onChange((v: string) => {
+                    this.verifyCode = v;
+                  })
+                  .layoutWeight(1)
+                  .height(48)
+                  .fontSize(14)
+                  .type(InputType.Number)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                  .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+                  .fontColor(this.themeManager.colors.primaryTextColor)
+                  .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
+                  .borderRadius(12)
+                  .padding({ left: 12, right: 12 })
+                Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
+                  .height(48)
+                  .fontSize(12)
+                  .fontColor(Color.White)
+                  .backgroundColor("#3b82f6")
+                  .borderRadius(12)
+                  .enabled(this.canSendCode && !this.isSendingCode)
+                  .onClick(() => {
+                    this.handleSendCode();
+                  })
+              }
+              .width("100%")
+              .margin({ bottom: 14 })
+            }
+
+            Row({ space: 6 }) {
+              Checkbox({ name: 'rememberMe', group: 'loginOptions' })
+                .select(this.rememberMe)
+                .selectedColor('#3b82f6')
+                .width(20)
+                .height(20)
+                .onChange((value: boolean) => {
+                  this.rememberMe = value;
+                })
+              Text('记住我')
+                .fontSize(12)
+                .fontColor(this.themeManager.colors.secondaryTextColor)
+              Blank()
+              if (!this.registerMode) {
+                Text("忘记密码？")
+                  .fontSize(12)
+                  .fontColor("#3b82f6")
+                  .fontWeight(FontWeight.Medium)
+                  .onClick(() => {
+                    AlertDialog.show({
+                      title: "忘记密码",
+                      message: "请联系管理员重置密码，或使用华为账号登录后重新绑定。",
+                      primaryButton: { value: "知道了", action: () => {} },
+                      alignment: DialogAlignment.Center,
+                    });
+                  })
+              }
+            }
+            .width('100%')
+            .margin({ bottom: 24 })
 
             // 登录按钮（带缩放动画）
-            Button(this.isLoading ? "登录中..." : "登录")
+            Button(this.isLoading
+              ? this.registerMode ? "注册中..." : "登录中..."
+              : this.registerMode ? "注册并登录" : "登录")
               .onClick(() => {
                 this.loginBtnScale = 0.95;
                 setTimeout(() => {
                   this.loginBtnScale = 1.0;
                 }, 150);
-                this.handleLogin();
+                if (this.registerMode) {
+                  this.handleRegister();
+                } else {
+                  this.handleLogin();
+                }
               })
               .width("100%")
               .height(50)
@@ -309,12 +407,19 @@ struct Login {
               .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
               .animation({ duration: 120, curve: Curve.EaseInOut })
 
-            Text("注册新账号（手机号验证尚未开放）")
+            Text(this.registerMode ? "已有账号？返回登录" : "注册新账号")
               .fontSize(12)
               .fontColor("#3b82f6")
               .margin({ bottom: 12 })
               .onClick(() => {
-                this.showAlert("手机号验证尚未开放，当前仅支持已有云账号登录。");
+                this.registerMode = !this.registerMode;
+                this.inputMode = 0;
+                this.password = "";
+                this.confirmPassword = "";
+                this.verifyCode = "";
+                this.challengeId = "";
+                this.challengePhone = "";
+                this.usernameError = this.validateUsername();
               })
 
             /* 华为一键登录暂时不可用
@@ -421,7 +526,7 @@ struct Login {
     try {
       const db = DatabaseHelper.getInstance();
       const existing = await db.queryUserByIdentifier(uname);
-      const result = await CloudService.getInstance().login(uname, pwd);
+      const result = await CloudService.getInstance().login(uname, pwd, this.rememberMe);
       if (!result.success || !result.user) {
         if (existing && result.message === '账号不存在') {
           this.showAlert('检测到本机旧账号，不能再使用本地密码登录。请使用手机号完成账号迁移。');
@@ -431,35 +536,113 @@ struct Login {
         return;
       }
 
-      const cloudUser = result.user;
-      const displayName = cloudUser.nickname || cloudUser.username || uname;
-      if (existing && existing.id !== undefined) {
-        existing.username = displayName;
-        existing.phone = cloudUser.phone || (this.inputMode === 0 ? uname : '');
-        existing.email = cloudUser.email || (this.inputMode === 1 ? uname : '');
-        existing.avatarPath = cloudUser.avatarPath;
-        existing.address = cloudUser.address;
-        await db.updateUser(existing);
-        await db.updatePasswordHash(existing.id, '');
-      } else {
-        await db.insertUser({
-          username: displayName,
-          phone: cloudUser.phone || (this.inputMode === 0 ? uname : ''),
-          email: cloudUser.email || (this.inputMode === 1 ? uname : ''),
-          passwordHash: '',
-          avatarPath: cloudUser.avatarPath,
-          address: cloudUser.address,
-          createTime: cloudUser.createTime,
-        });
-      }
-      promptAction.showToast({ message: `欢迎回来，${displayName}`, duration: 1500 });
-      await this.saveLoginAndJump(uname, displayName);
+      await this.completeCloudLogin(uname, result.user, existing, "欢迎回来");
     } catch (_e) {
       CloudService.getInstance().clearSession();
       this.showAlert('登录失败，请重试');
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private async handleSendCode(): Promise<void> {
+    const phone = this.username.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      this.usernameError = "请输入正确的手机号";
+      this.showAlert(this.usernameError);
+      return;
+    }
+    this.isSendingCode = true;
+    try {
+      const result = await CloudService.getInstance().sendRegistrationCode(phone);
+      if (!result.success || !result.challengeId) {
+        this.showAlert(result.message || "验证码发送失败");
+        return;
+      }
+      this.challengeId = result.challengeId;
+      this.challengePhone = phone;
+      this.canSendCode = false;
+      promptAction.showToast({ message: "验证码已发送，5 分钟内有效", duration: 1800 });
+      setTimeout(() => {
+        this.canSendCode = true;
+      }, 60000);
+    } catch (_e) {
+      this.showAlert("验证码发送失败，请稍后重试");
+    } finally {
+      this.isSendingCode = false;
+    }
+  }
+
+  private async handleRegister(): Promise<void> {
+    const phone = this.username.trim();
+    const pwd = this.password.trim();
+    const code = this.verifyCode.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      this.usernameError = "请输入正确的手机号";
+      this.showAlert(this.usernameError);
+      return;
+    }
+    if (pwd.length < 8) {
+      this.showAlert("密码至少 8 位");
+      return;
+    }
+    if (pwd !== this.confirmPassword.trim()) {
+      this.showAlert("两次输入的密码不一致");
+      return;
+    }
+    if (!/^\d{4,8}$/.test(code)) {
+      this.showAlert("请输入正确的短信验证码");
+      return;
+    }
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.showAlert("请先获取当前手机号的验证码");
+      return;
+    }
+
+    this.isLoading = true;
+    try {
+      const result = await CloudService.getInstance().register(
+        phone, pwd, code, this.challengeId, this.rememberMe
+      );
+      if (!result.success || !result.user) {
+        this.showAlert(result.message || "注册失败");
+        return;
+      }
+      const existing = await DatabaseHelper.getInstance().queryUserByIdentifier(phone);
+      await this.completeCloudLogin(phone, result.user, existing, "注册成功");
+    } catch (_e) {
+      CloudService.getInstance().clearSession();
+      this.showAlert("注册失败，请重试");
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private async completeCloudLogin(loginId: string, cloudUser: CloudUser,
+    localUser: UserInfo | null, greeting: string): Promise<void> {
+    const db = DatabaseHelper.getInstance();
+    const displayName = cloudUser.nickname || cloudUser.username || loginId;
+    if (localUser && localUser.id !== undefined) {
+      localUser.username = displayName;
+      localUser.phone = cloudUser.phone || (this.inputMode === 0 ? loginId : "");
+      localUser.email = cloudUser.email || (this.inputMode === 1 ? loginId : "");
+      localUser.avatarPath = cloudUser.avatarPath;
+      localUser.address = cloudUser.address;
+      await db.updateUser(localUser);
+      await db.updatePasswordHash(localUser.id, "");
+    } else {
+      await db.insertUser({
+        username: displayName,
+        phone: cloudUser.phone || (this.inputMode === 0 ? loginId : ""),
+        email: cloudUser.email || (this.inputMode === 1 ? loginId : ""),
+        passwordHash: "",
+        avatarPath: cloudUser.avatarPath,
+        address: cloudUser.address,
+        createTime: cloudUser.createTime,
+      });
+    }
+    promptAction.showToast({ message: `${greeting}，${displayName}`, duration: 1500 });
+    await this.saveLoginAndJump(loginId, displayName);
   }
 
   private async saveLoginAndJump(loginId: string, displayName: string = ""): Promise<void> {
