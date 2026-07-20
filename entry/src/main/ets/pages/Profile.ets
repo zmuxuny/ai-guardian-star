@@ -1,14 +1,13 @@
 /**
  * Profile.ets — 个人资料编辑页
- * 支持修改：头像、名字、手机号、邮箱、密码（二次确认）
- * 修改先写本地 RDB，再异步同步云端（失败静默降级）
- * 注：验证码接口(/api/sendCode, /api/verifyCode)后端未实现，暂跳过验证直接保存
+ * 支持修改头像、名字和密码；手机号、邮箱待验证服务开放后再启用。
+ * 账号资料修改由云端 Bearer 会话授权，云端失败不写本地。
  */
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { GradientHeader } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
-import { STORE_KEY_PHONE, STORE_KEY_EMAIL, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { preferences } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
@@ -69,37 +68,8 @@ struct PhoneEditDialog {
           .linearGradient({ direction: GradientDirection.Right,
             colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
-          .onClick(async () => {
-            const newPhone = this.phone.trim();
-            if (!/^1[3-9]\d{9}$/.test(newPhone)) { this.errorMsg = '请输入正确的手机号'; return; }
-            if (newPhone === this.currentPhone) { this.errorMsg = '新手机号与当前一致'; return; }
-            const user = this.loadedUser;
-            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
-            this.saving = true;
-            try {
-              // 1) 先同步云端（用旧 lookup key 定位）。云端失败就不动本地，避免双端漂移。
-              const fields = new CloudUpdateFields();
-              fields.username = this.cloudLookupKey;
-              fields.phone = newPhone;
-              const cloudR = await CloudService.getInstance().updateUser(fields);
-              if (!cloudR.success) {
-                this.errorMsg = cloudR.message === '网络不可用'
-                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
-                this.saving = false;
-                return;
-              }
-              // 2) 云端成功，再写本地 + AppStorage
-              user.phone = newPhone;
-              await DatabaseHelper.getInstance().updateUser(user);
-              AppStorage.setOrCreate<string>(STORE_KEY_PHONE, newPhone);
-              promptAction.showToast({ message: '手机号修改成功' });
-              this.onSuccess(newPhone);
-              this.controller.close();
-            } catch (e) {
-              this.errorMsg = '保存失败，请重试';
-              console.error('[PhoneEditDialog]: ' + JSON.stringify(e));
-            }
-            this.saving = false;
+          .onClick(() => {
+            this.errorMsg = '手机号修改暂不可用，请等待验证码服务开放';
           })
       }.width('100%')
     }
@@ -165,37 +135,8 @@ struct EmailEditDialog {
           .linearGradient({ direction: GradientDirection.Right,
             colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
-          .onClick(async () => {
-            const newEmail = this.email.trim();
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) { this.errorMsg = '请输入正确的邮箱'; return; }
-            if (newEmail === this.currentEmail) { this.errorMsg = '新邮箱与当前一致'; return; }
-            const user = this.loadedUser;
-            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
-            this.saving = true;
-            try {
-              // 1) 先同步云端（用旧 lookup key 定位），失败不动本地
-              const fields = new CloudUpdateFields();
-              fields.username = this.cloudLookupKey;
-              fields.email = newEmail;
-              const cloudR = await CloudService.getInstance().updateUser(fields);
-              if (!cloudR.success) {
-                this.errorMsg = cloudR.message === '网络不可用'
-                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
-                this.saving = false;
-                return;
-              }
-              // 2) 云端成功，再写本地 + AppStorage
-              user.email = newEmail;
-              await DatabaseHelper.getInstance().updateUser(user);
-              AppStorage.setOrCreate<string>(STORE_KEY_EMAIL, newEmail);
-              promptAction.showToast({ message: '邮箱修改成功' });
-              this.onSuccess(newEmail);
-              this.controller.close();
-            } catch (e) {
-              this.errorMsg = '保存失败，请重试';
-              console.error('[EmailEditDialog]: ' + JSON.stringify(e));
-            }
-            this.saving = false;
+          .onClick(() => {
+            this.errorMsg = '邮箱修改暂不可用，请等待验证服务开放';
           })
       }.width('100%')
     }
@@ -258,25 +199,20 @@ struct PasswordEditDialog {
             if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
             this.changing = true;
             try {
-              const loginId = UserManager.getInstance().getCurrentUsername();
-              // 1) 先本地校验旧密码
-              if (user.passwordHash !== this.oldPwd) {
-                // 本地不匹配，尝试云端验证（兜底本地密码丢失的 edge case）
-                const fb = await CloudService.getInstance().login(loginId, this.oldPwd);
-                if (!fb.success) { this.errorMsg = '当前密码不正确'; this.changing = false; return; }
-              }
-              // 2) 先同步云端，云端确认后再改本地，确保两端一致
-              const cloudR = await CloudService.getInstance().changePassword(loginId, this.oldPwd, this.newPwd);
+              const cloudR = await CloudService.getInstance().changePassword(this.oldPwd, this.newPwd);
               if (!cloudR.success) {
                 this.errorMsg = cloudR.message === '网络不可用'
                   ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
                 this.changing = false;
                 return;
               }
-              // 3) 云端成功，再写本地
-              await DatabaseHelper.getInstance().updatePasswordHash(user.id!, this.newPwd);
-              user.passwordHash = this.newPwd;
-              promptAction.showToast({ message: '密码修改成功' });
+              try {
+                await DatabaseHelper.getInstance().updatePasswordHash(user.id!, '');
+              } catch (e) {
+                console.warn('[PasswordEditDialog]: 本地密码缓存清空失败 ' + JSON.stringify(e));
+              }
+              user.passwordHash = '';
+              promptAction.showToast({ message: '密码修改成功，请重新登录' });
               this.onSuccess();
               this.controller.close();
             } catch (e) {
@@ -454,7 +390,19 @@ export struct Profile {
     this.pwdDialogController = new CustomDialogController({
       builder: PasswordEditDialog({
         loadedUser: this.loadedUser,
-        onSuccess: () => {},
+        onSuccess: () => {
+          UserManager.getInstance().clearCurrentUsername();
+          AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
+          try {
+            const ctx = getContext(this) as common.UIAbilityContext;
+            const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+            pref.deleteSync(PREF_KEY_LAST_USERNAME);
+            pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+            pref.flush();
+          } catch (_e) {}
+          this.pathStack.clear();
+          this.pathStack.pushPathByName('Login', null);
+        },
       }),
       alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
     });
@@ -563,12 +511,8 @@ export struct Profile {
     if (!user || user.id === undefined) { promptAction.showToast({ message: '用户信息异常' }); return; }
     this.isSaving = true;
     try {
-      // 1) 先同步云端，失败不动本地。
-      //    同时更新 username(PK，newUsername) 和 nickname 两列：
-      //    nickname 列任何后端版本都支持，避免只依赖 PK 改名而旧后端静默忽略。
+      // 先同步云端昵称；服务端从 Bearer 会话识别当前用户。
       const fields = new CloudUpdateFields();
-      fields.username = this.currentUser;
-      fields.newUsername = newName;
       fields.nickname = newName;
       const cloudR = await CloudService.getInstance().updateUser(fields);
       if (!cloudR.success) {
@@ -605,7 +549,6 @@ export struct Profile {
       AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
       // 云端同步头像路径（不退页，请求可完整跑完；路径为设备本地，仅作信息留存）
       const fields = new CloudUpdateFields();
-      fields.username = this.currentUser;
       fields.avatarPath = this.avatarPath;
       CloudService.getInstance().updateUser(fields).then(r => {
         console.info('[Profile]: 头像云端同步', r.success ? '成功' : '失败:' + r.message);

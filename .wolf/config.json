@@ -4,12 +4,15 @@
     "enabled": true,
     "anatomy": {
       "auto_scan_on_init": true,
-      "rescan_interval_hours": 6,
+      "rescan_interval_hours": 24,
       "max_description_length": 100,
       "max_files": 500,
       "exclude_patterns": [
         "node_modules",
+        "oh_modules",
         ".git",
+        ".hvigor",
+        ".preview",
         "dist",
         "build",
         ".wolf",
@@ -30,14 +33,14 @@
       ]
     },
     "token_audit": {
-      "enabled": true,
+      "enabled": false,
       "report_frequency": "weekly",
       "waste_threshold_percent": 15,
       "chars_per_token_code": 3.5,
       "chars_per_token_prose": 4.0
     },
     "cron": {
-      "enabled": true,
+      "enabled": false,
       "max_retry_attempts": 3,
       "dead_letter_enabled": true,
       "heartbeat_interval_minutes": 30,
@@ -57,7 +60,7 @@
       "log_level": "info"
     },
     "dashboard": {
-      "enabled": true,
+      "enabled": false,
       "port": 18791
     },
     "designqc": {

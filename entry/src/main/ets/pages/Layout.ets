@@ -3,6 +3,7 @@ import { person } from "./person";
 import { record } from "./record";
 import { AiChat } from "./AiChat";
 import { ThemeManager } from "../common/ThemeManager";
+import { STORE_KEY_AI_ENABLED } from "../config";
 
 @Builder
 export function LayoutBuilder(): void {
@@ -12,6 +13,7 @@ export function LayoutBuilder(): void {
 export struct Layout {
   @State currentIndex: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
   pathStack: NavPathStack = new NavPathStack();
 
   private getTabIconResource(index: number): Resource {
@@ -74,8 +76,10 @@ export struct Layout {
             .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
           Column() { record() }.width('100%').height('100%')
             .visibility(this.currentIndex === 1 ? Visibility.Visible : Visibility.None)
-          Column() { AiChat() }.width('100%').height('100%')
-            .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+          if (this.aiEnabled) {
+            Column() { AiChat() }.width('100%').height('100%')
+              .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+          }
           Column() { person({ pathStack: this.pathStack }) }.width('100%').height('100%')
             .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
         }
@@ -84,7 +88,9 @@ export struct Layout {
         Row() {
           this.tabItem(0)
           this.tabItem(1)
-          this.tabItem(2)
+          if (this.aiEnabled) {
+            this.tabItem(2)
+          }
           this.tabItem(3)
         }
         .width('100%')

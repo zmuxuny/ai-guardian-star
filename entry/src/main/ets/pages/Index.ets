@@ -1,8 +1,9 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
+import { UserManager } from '../common/UserManager';
 import { DatabaseHelper } from '../database/DatabaseHelper';
-import { STORE_KEY_LOGGED_IN_USER, PREF_NAME_AUTH, PREF_KEY_LAST_USERNAME, PREF_KEY_LAST_NICKNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 
 @CustomDialog
 struct PrivacyDialog {
@@ -38,7 +39,11 @@ struct PrivacyDialog {
             .fontSize(13)
             .fontColor('#475569')
             .lineHeight(20)
-          Text('数据不会向任何第三方共享或出售。')
+          Text('• AI 健康助手：为回答您的提问，会将健康统计摘要（如近7天摔倒次数、久坐告警次数等聚合数据，不含姓名、人脸、位置等身份信息）发送至第三方智能对话服务（扣子 Coze，底层为豆包大模型）以生成回复')
+            .fontSize(13)
+            .fontColor('#475569')
+            .lineHeight(20)
+          Text('除上述 AI 问答场景外，数据不会向其他第三方共享或出售。')
             .fontSize(13)
             .fontColor('#475569')
             .lineHeight(20)
@@ -63,7 +68,7 @@ struct PrivacyDialog {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
       }
-      .height(200)
+      .height(260)
       .width('100%')
       .padding({ left: 20, right: 20 })
 
@@ -153,83 +158,33 @@ struct Index {
     .hideNavBar(true)
   }
 
-  /**
-   * 数据库已在 EntryAbility.onWindowStageCreate 初始化完毕，
-   * 这里只做登录态检测，直接读 Preferences 判断跳转。
-   * 跳转 Layout 后后台验证云端账号是否仍然存在。
-   */
-  private checkAutoLogin(): void {
-    try {
-      const ctx = getContext(this) as common.UIAbilityContext;
-      const options: preferences.Options = { name: PREF_NAME_AUTH };
-      const pref = preferences.getPreferencesSync(ctx, options);
-      const savedUser = pref.getSync(PREF_KEY_LAST_USERNAME, '') as string;
-
-      if (savedUser !== '') {
-        AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, savedUser);
-        this.pathStack.pushPathByName('Layout', null, false);
-        // 后台验证云端账号是否被删除
-        this.validateAccountOnCloud(savedUser);
-      } else {
-        this.pathStack.pushPathByName('Login', null, false);
-      }
-    } catch (e) {
-      console.warn('[Index]: Preferences 读取失败，跳登录页');
+  /** 仅内存中的服务端会话可进入应用；缓存账号名不是登录凭据。 */
+  private async checkAutoLogin(): Promise<void> {
+    const cloud = CloudService.getInstance();
+    if (!cloud.hasSession()) {
       this.pathStack.pushPathByName('Login', null, false);
+      return;
     }
-  }
 
-  /**
-   * 后台验证云端账号是否存在。
-   * 如果云端返回"账号不存在"→ 清除本地数据，踢回登录页。
-   * 网络错误时静默放行（离线可用）。
-   */
-  private async validateAccountOnCloud(loginId: string): Promise<void> {
-    const ctx = getContext(this) as common.UIAbilityContext;
-    try {
-      const db = DatabaseHelper.getInstance();
-      // loginId 可能是手机号/邮箱/用户名，用 identifier 查询
-      const user = await db.queryUserByIdentifier(loginId);
-      if (!user) {
-        return; // 本地无数据，无法验证，放行
-      }
-
-      const cloud = CloudService.getInstance();
-      const result = await cloud.login(loginId, user.passwordHash);
-
-      if (!result.success && result.message === '账号不存在') {
-        console.info('[Index]: 云端账号已被删除，清除本地数据:', loginId);
-
-        // 清除本地数据库（用实际用户名查删）
-        const dbUsername = user.username || loginId;
-        try {
-          await db.deleteUserByUsername(dbUsername);
-        } catch (dbErr) {
-          console.error('[Index]: 清除本地数据库失败:', dbErr);
-        }
-
-        // 清除 Preferences
-        try {
-          const options: preferences.Options = { name: PREF_NAME_AUTH };
-          const pref = preferences.getPreferencesSync(ctx, options);
-          pref.deleteSync(PREF_KEY_LAST_USERNAME);
-          pref.deleteSync(PREF_KEY_LAST_NICKNAME);
-          pref.flushSync();
-        } catch (prefErr) {
-          console.error('[Index]: 清除 Preferences 失败:', prefErr);
-        }
-
-        // 清除 AppStorage
-        AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
-
-        // 跳转登录页
-        this.pathStack.clear();
-        this.pathStack.pushPathByName('Login', null, false);
-      }
-    } catch (e) {
-      // 网络错误等，静默放行
-      console.info('[Index]: 云端验证失败（网络不可用），允许离线使用');
+    const result = await cloud.getMe();
+    const sessionUserKey = cloud.getSessionUserKey();
+    if (!result.success || !result.user || sessionUserKey === '') {
+      cloud.clearSession();
+      UserManager.getInstance().clearCurrentUsername();
+      AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
+      this.pathStack.pushPathByName('Login', null, false);
+      return;
     }
+
+    UserManager.getInstance().setCurrentUsername(sessionUserKey);
+    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
+    const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
+    const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
+    const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
+      ? savedAccessLevel : 'privacy';
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
+    AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
+    this.pathStack.pushPathByName('Layout', null, false);
   }
   
 }

@@ -6,27 +6,57 @@ wenxin_proxy.py — 智护星 AI 助手 · 扣子编程智能体中转服务
 后台运行：nohup python3 wenxin_proxy.py > /var/log/wenxin_proxy.log 2>&1 &
 """
 
-from flask import Flask, request, jsonify, session, redirect, url_for
+from flask import Flask, request, jsonify, session, redirect, url_for, g
 from flask_cors import CORS
+import hashlib
 import requests
+import secrets
 import time
 import json
 import sqlite3
 import os
 import functools
+import re
+
+from security_utils import hash_password, password_needs_rehash, verify_password
 
 app = Flask(__name__)
-CORS(app)
+
+
+def _env_true(name):
+    return os.environ.get(name, '').strip().lower() == 'true'
+
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if CORS_ALLOWED_ORIGINS:
+    CORS(app, origins=CORS_ALLOWED_ORIGINS)
 
 # ─── 管理后台配置 ──────────────────────────────────────────────
-ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']   # 未设置则启动报 KeyError，拒绝带默认密码上线
-app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24).hex()
+ADMIN_ENABLED = _env_true('ADMIN_ENABLED')
+if ADMIN_ENABLED:
+    ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
+    app.secret_key = os.environ['FLASK_SECRET_KEY']
+else:
+    ADMIN_PASSWORD = ''
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
 COZE_STREAM_URL = "https://yhgh6fywzc.coze.site/stream_run"
 COZE_PROJECT_ID = "7627479213733445658"
-COZE_API_TOKEN  = os.environ['COZE_API_TOKEN']  # 未设置则启动报 KeyError
+COZE_API_TOKEN = os.environ.get('COZE_API_TOKEN', '')
+AI_MAX_MESSAGE_LENGTH = int(os.environ.get('AI_MAX_MESSAGE_LENGTH', '2000'))
+AI_RISK_CONTROL_READY = _env_true('AI_RISK_CONTROL_READY')
+ALIYUN_MODERATION_ENABLED = _env_true('ALIYUN_MODERATION_ENABLED')
+ALIYUN_MODERATION_ENDPOINT = os.environ.get(
+    'ALIYUN_MODERATION_ENDPOINT', 'green-cip.cn-shanghai.aliyuncs.com'
+)
+ACCESS_TOKEN_TTL = 15 * 60
+REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -49,47 +79,106 @@ def get_db():
             create_time   INTEGER NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS t_session (
+            access_token_hash  TEXT PRIMARY KEY,
+            refresh_token_hash TEXT NOT NULL UNIQUE,
+            username           TEXT NOT NULL,
+            access_expires_at  INTEGER NOT NULL,
+            refresh_expires_at INTEGER NOT NULL,
+            create_time        INTEGER NOT NULL
+        )
+    """)
     conn.commit()
     return conn
+
+
+def _token_hash(token):
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def _new_session(conn, username, now=None):
+    now = int(time.time()) if now is None else now
+    access_token = secrets.token_urlsafe(32)
+    refresh_token = secrets.token_urlsafe(32)
+    conn.execute(
+        """
+        INSERT INTO t_session
+            (access_token_hash, refresh_token_hash, username,
+             access_expires_at, refresh_expires_at, create_time)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            _token_hash(access_token),
+            _token_hash(refresh_token),
+            username,
+            now + ACCESS_TOKEN_TTL,
+            now + REFRESH_TOKEN_TTL,
+            now,
+        ),
+    )
+    return {
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
+        "expiresIn": ACCESS_TOKEN_TTL,
+        "refreshExpiresIn": REFRESH_TOKEN_TTL,
+    }
+
+
+def _user_json(row):
+    return {
+        "username": row['username'],
+        "nickname": row['nickname'] or '',
+        "phone": row['phone'] or '',
+        "avatarPath": row['avatar_path'] or '',
+        "email": row['email'] or '',
+        "address": row['address'] or '',
+        "createTime": row['create_time'],
+    }
+
+
+def _internal_error(scope, error):
+    app.logger.error("[%s] internal error type=%s", scope, type(error).__name__)
+    return jsonify({"success": False, "message": "服务内部错误"}), 500
+
+
+def bearer_required(function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        authorization = request.headers.get('Authorization', '')
+        if not authorization.startswith('Bearer '):
+            return jsonify({"success": False, "message": "未认证"}), 401
+        token = authorization[7:].strip()
+        if not token:
+            return jsonify({"success": False, "message": "未认证"}), 401
+        try:
+            access_hash = _token_hash(token)
+            conn = get_db()
+            row = conn.execute(
+                """
+                SELECT session.username
+                FROM t_session AS session
+                JOIN t_user AS user ON user.username=session.username
+                WHERE session.access_token_hash=? AND session.access_expires_at>?
+                """,
+                (access_hash, int(time.time())),
+            ).fetchone()
+            conn.close()
+        except Exception as error:
+            return _internal_error('bearer_auth', error)
+        if not row:
+            return jsonify({"success": False, "message": "会话无效或已过期"}), 401
+        g.current_username = row['username']
+        g.current_access_hash = access_hash
+        return function(*args, **kwargs)
+    return wrapper
 
 
 # ─── 账号接口 ──────────────────────────────────────────────────
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
-    d = request.get_json(force=True) or {}
-    username = (d.get('username') or '').strip()
-    pwd_hash = (d.get('passwordHash') or '').strip()
-    if not username or not pwd_hash:
-        return jsonify({"success": False, "message": "参数缺失"}), 400
-    try:
-        conn = get_db()
-        existing = conn.execute(
-            "SELECT username FROM t_user WHERE username=?", (username,)
-        ).fetchone()
-        if existing:
-            # 已存在：返回成功（幂等，App 侧注册时可能重复调用）
-            conn.close()
-            return jsonify({"success": True, "message": "账号已存在"})
-        conn.execute("""
-            INSERT INTO t_user
-                (username, nickname, phone, password_hash, avatar_path, email, address, create_time)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            username,
-            d.get('nickname') or username,
-            d.get('phone') or '',
-            pwd_hash,
-            d.get('avatarPath') or '',
-            d.get('email') or '',
-            d.get('address') or '',
-            d.get('createTime') or int(time.time() * 1000),
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"success": True, "message": "注册成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"success": False, "message": "注册服务暂未开放"}), 503
 
 
 @app.route('/api/login', methods=['POST'])
@@ -104,83 +193,154 @@ def api_login():
         row = conn.execute(
             "SELECT * FROM t_user WHERE username=? OR phone=? OR email=?", (username, username, username)
         ).fetchone()
-        conn.close()
         if not row:
+            conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != pwd_hash:
+        if not verify_password(row['password_hash'], pwd_hash):
+            conn.close()
             return jsonify({"success": False, "message": "密码错误"})
-        return jsonify({
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            "SELECT * FROM t_user WHERE username=?", (row['username'],)
+        ).fetchone()
+        if not row or not verify_password(row['password_hash'], pwd_hash):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "账号或密码已变更"})
+        if password_needs_rehash(row['password_hash']):
+            conn.execute(
+                "UPDATE t_user SET password_hash=? WHERE username=?",
+                (hash_password(pwd_hash), row['username'])
+            )
+        tokens = _new_session(conn, row['username'])
+        conn.commit()
+        conn.close()
+        response = {
             "success": True,
             "message": "登录成功",
-            "user": {
-                "username":     row['username'],
-                "nickname":     row['nickname'] or '',
-                "phone":        row['phone'] or '',
-                "passwordHash": row['password_hash'],
-                "avatarPath":   row['avatar_path'] or '',
-                "email":        row['email'] or '',
-                "address":      row['address'] or '',
-                "createTime":   row['create_time'],
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+            "user": _user_json(row),
+        }
+        response.update(tokens)
+        return jsonify(response)
+    except Exception as error:
+        return _internal_error('api_login', error)
+
+
+@app.route('/api/refresh', methods=['POST'])
+def api_refresh():
+    refresh_token = ((request.get_json(silent=True) or {}).get('refreshToken') or '').strip()
+    if not refresh_token:
+        return jsonify({"success": False, "message": "refreshToken 缺失"}), 400
+    try:
+        now = int(time.time())
+        old_hash = _token_hash(refresh_token)
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute(
+            """
+            SELECT session.username
+            FROM t_session AS session
+            JOIN t_user AS user ON user.username=session.username
+            WHERE session.refresh_token_hash=? AND session.refresh_expires_at>?
+            """,
+            (old_hash, now),
+        ).fetchone()
+        if not row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "刷新会话无效或已过期"}), 401
+        conn.execute("DELETE FROM t_session WHERE refresh_token_hash=?", (old_hash,))
+        tokens = _new_session(conn, row['username'], now)
+        conn.commit()
+        conn.close()
+        response = {"success": True}
+        response.update(tokens)
+        return jsonify(response)
+    except Exception as error:
+        return _internal_error('api_refresh', error)
+
+
+@app.route('/api/me', methods=['GET'])
+@bearer_required
+def api_me():
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT * FROM t_user WHERE username=?", (g.current_username,)
+        ).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"success": False, "message": "账号不存在"}), 404
+        return jsonify({"success": True, "user": _user_json(row)})
+    except Exception as error:
+        return _internal_error('api_me', error)
+
+
+@app.route('/api/logout', methods=['POST'])
+@bearer_required
+def api_logout():
+    try:
+        conn = get_db()
+        conn.execute(
+            "DELETE FROM t_session WHERE access_token_hash=?",
+            (g.current_access_hash,),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "已退出登录"})
+    except Exception as error:
+        return _internal_error('api_logout', error)
 
 
 @app.route('/api/deleteUser', methods=['POST'])
+@bearer_required
 def api_delete_user():
     d = request.get_json(force=True) or {}
-    username = (d.get('username') or '').strip()
     pwd_hash = (d.get('passwordHash') or '').strip()
-    if not username or not pwd_hash:
+    if not pwd_hash:
         return jsonify({"success": False, "message": "参数缺失"}), 400
     try:
         conn = get_db()
         row = conn.execute(
-            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
-            (username, username, username)
+            "SELECT username, password_hash FROM t_user WHERE username=?",
+            (g.current_username,)
         ).fetchone()
         if not row:
             conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != pwd_hash:
+        if not verify_password(row['password_hash'], pwd_hash):
             conn.close()
             return jsonify({"success": False, "message": "密码错误"})
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
         conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
         conn.commit()
         conn.close()
         return jsonify({"success": True, "message": "账号已注销"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('api_delete_user', error)
 
 
 @app.route('/api/updateUser', methods=['POST'])
+@bearer_required
 def api_update_user():
-    """
-    更新用户资料。
-
-    查找规则：用客户端传来的 `username` 字段作为「柔性 lookup key」，
-      WHERE username=? OR phone=? OR email=?
-    这样无论 App 传的是注册时的昵称、当前的手机号、邮箱还是华为 HW_ ID，
-    都能唯一定位云端记录（这些字段彼此互不重叠）。
-
-    其它字段（nickname/phone/avatarPath/email/address/passwordHash）是要写入的新值。
-    若客户端希望修改 username（即昵称改名），可显式传 `newUsername`。
-    """
     d = request.get_json(force=True) or {}
-    lookup = (d.get('username') or '').strip()
-    if not lookup:
-        return jsonify({"success": False, "message": "lookup key 缺失"}), 400
-
     field_map = {
-        'nickname': 'nickname', 'phone': 'phone',
-        'avatarPath': 'avatar_path', 'email': 'email',
-        'address': 'address', 'passwordHash': 'password_hash',
-        'newUsername': 'username',
+        'nickname': 'nickname',
+        'avatarPath': 'avatar_path',
+        'address': 'address',
     }
+    ignored_fields = {'username'}
+    sensitive_fields = {'phone', 'email', 'passwordHash', 'newUsername'}
+    if any(key not in field_map.keys() | ignored_fields | sensitive_fields for key in d):
+        return jsonify({"success": False, "message": "包含不允许修改的字段"}), 400
+    if any(
+        key in d and d[key] is not None and str(d[key]).strip()
+        for key in sensitive_fields
+    ):
+        return jsonify({"success": False, "message": "请使用专用敏感资料修改接口"}), 400
     updates = {}
     for app_key, db_col in field_map.items():
-        if app_key in d and d[app_key] is not None and str(d[app_key]) != '':
+        if app_key in d and d[app_key] is not None:
             updates[db_col] = d[app_key]
 
     if not updates:
@@ -189,9 +349,9 @@ def api_update_user():
     try:
         conn = get_db()
         set_clause = ', '.join(f"{col}=?" for col in updates.keys())
-        values = list(updates.values()) + [lookup, lookup, lookup]
+        values = list(updates.values()) + [g.current_username]
         cursor = conn.execute(
-            f"UPDATE t_user SET {set_clause} WHERE username=? OR phone=? OR email=?",
+            f"UPDATE t_user SET {set_clause} WHERE username=?",
             values
         )
         affected = cursor.rowcount
@@ -200,43 +360,46 @@ def api_update_user():
         if affected == 0:
             return jsonify({"success": False, "message": "找不到对应账号"})
         return jsonify({"success": True, "message": "更新成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('api_update_user', error)
 
 
 @app.route('/api/changePassword', methods=['POST'])
+@bearer_required
 def api_change_password():
-    """
-    修改密码：必须验证旧密码哈希后才允许写新密码。
-    lookup 规则同 updateUser，username 字段允许传昵称/手机/邮箱/HW_ID。
-    """
     d = request.get_json(force=True) or {}
-    lookup = (d.get('username') or '').strip()
     old_hash = (d.get('oldPasswordHash') or '').strip()
     new_hash = (d.get('newPasswordHash') or '').strip()
-    if not lookup or not old_hash or not new_hash:
+    if not old_hash or not new_hash:
         return jsonify({"success": False, "message": "参数缺失"}), 400
+    conn = None
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         row = conn.execute(
-            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=? OR email=?",
-            (lookup, lookup, lookup)
+            "SELECT username, password_hash FROM t_user WHERE username=?",
+            (g.current_username,)
         ).fetchone()
         if not row:
-            conn.close()
+            conn.rollback()
             return jsonify({"success": False, "message": "账号不存在"})
-        if row['password_hash'] != old_hash:
-            conn.close()
+        if not verify_password(row['password_hash'], old_hash):
+            conn.rollback()
             return jsonify({"success": False, "message": "原密码不正确"})
         conn.execute(
             "UPDATE t_user SET password_hash=? WHERE username=?",
-            (new_hash, row['username'])
+            (hash_password(new_hash), row['username'])
         )
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
         conn.commit()
-        conn.close()
         return jsonify({"success": True, "message": "密码已更新"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('api_change_password', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/health', methods=['GET'])
@@ -244,17 +407,119 @@ def health_check():
     return jsonify({"status": "ok", "service": "coze-proxy", "time": int(time.time())})
 
 
-@app.route('/ai/chat', methods=['POST'])
-def ai_chat():
+class ModerationUnavailable(Exception):
+    pass
+
+
+def _local_crisis_response(text):
+    crisis_terms = (
+        '自杀', '自残', '不想活', '结束生命', '服药过量', '吞药', '中毒',
+        '昏迷', '胸痛', '呼吸困难', '严重出血', '严重过敏',
+    )
+    if not any(term in text for term in crisis_terms):
+        return ''
+    return (
+        '我很担心你现在的安全。若有立即危险、已经受伤或服药过量，请马上拨打 '
+        '120 或 110，并尽快联系身边可信任的人陪着你；心理援助也可拨打 12356。'
+        '这类紧急情况不要只依赖在线回复。'
+    )
+
+
+def _redact_sensitive_text(text):
+    text = re.sub(r'(?<!\d)1\d{10}(?!\d)', '[手机号已隐藏]', text)
+    text = re.sub(r'(?<!\w)[1-9]\d{16}[0-9Xx](?!\w)', '[身份证号已隐藏]', text)
+    return re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', '[邮箱已隐藏]', text)
+
+
+def _local_output_unsafe(text):
+    unsafe_terms = (
+        '自行停药', '立即停药', '保证治愈', '无需就医', '不用去医院',
+        '替代医生诊断', '增加剂量', '减少剂量',
+    )
+    return any(term in text for term in unsafe_terms)
+
+
+def _moderate_text(service, content):
+    access_key_id = os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_ID', '')
+    access_key_secret = os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_SECRET', '')
+    if not access_key_id or not access_key_secret:
+        raise ModerationUnavailable('missing credentials')
     try:
-        data = request.get_json(force=True)
+        from alibabacloud_green20220302.client import Client as GreenClient
+        from alibabacloud_green20220302 import models as green_models
+        from alibabacloud_tea_openapi import models as open_api_models
+        from alibabacloud_tea_util import models as util_models
+
+        config = open_api_models.Config(
+            access_key_id=access_key_id,
+            access_key_secret=access_key_secret,
+        )
+        config.endpoint = ALIYUN_MODERATION_ENDPOINT
+        client = GreenClient(config)
+        moderation_request = green_models.TextModerationPlusRequest(
+            service=service,
+            service_parameters=json.dumps({
+                'content': _redact_sensitive_text(content),
+                'dataId': secrets.token_hex(16),
+            }, ensure_ascii=False),
+        )
+        response = client.text_moderation_plus_with_options(
+            moderation_request,
+            util_models.RuntimeOptions(connect_timeout=1000, read_timeout=3000),
+        )
+        body = response.body
+        if getattr(body, 'code', None) != 200:
+            raise ModerationUnavailable('provider rejected request')
+        data = getattr(body, 'data', None)
+        risk_level = getattr(data, 'risk_level', None)
+        if risk_level not in ('high', 'medium', 'low', 'none'):
+            raise ModerationUnavailable('invalid provider response')
+        advice_items = getattr(data, 'advice', None) or []
+        advice = getattr(advice_items[0], 'answer', '') if advice_items else ''
+        return {'risk_level': risk_level, 'advice': advice}
+    except ModerationUnavailable:
+        raise
+    except Exception as error:
+        app.logger.error('[moderation] unavailable type=%s', type(error).__name__)
+        raise ModerationUnavailable('provider unavailable') from error
+
+
+@app.route('/ai/chat', methods=['POST'])
+@bearer_required
+def ai_chat():
+    if not AI_RISK_CONTROL_READY:
+        return jsonify({"error": "AI 风控尚未就绪"}), 503
+    if not ALIYUN_MODERATION_ENABLED:
+        return jsonify({"error": "内容安全检查尚未启用"}), 503
+    try:
+        data = request.get_json(force=True) or {}
         user_message = data.get('message', '').strip()
         context = data.get('context', {})
 
         if not user_message:
             return jsonify({"error": "message 不能为空"}), 400
+        if len(user_message) > AI_MAX_MESSAGE_LENGTH:
+            return jsonify({"error": "消息过长，请缩短后重试"}), 413
 
-        # ── 把监护上下文摘要拼到消息里（脱敏，仅统计数据）────────
+        crisis_reply = _local_crisis_response(user_message)
+        if crisis_reply:
+            return jsonify({
+                "reply": crisis_reply,
+                "model": "local-safety",
+                "timestamp": int(time.time())
+            })
+
+        input_result = _moderate_text('llm_query_moderation', user_message)
+        if input_result['advice']:
+            return jsonify({
+                "reply": input_result['advice'],
+                "model": "aliyun-safety",
+                "timestamp": int(time.time())
+            })
+        if input_result['risk_level'] in ('high', 'medium'):
+            return jsonify({"error": "该问题暂时无法由 AI 助手处理"}), 422
+
+        # ── 按用户选择的 AI 数据权限拼接监护上下文 ──────────────
         context_summary = _build_context_summary(context)
         if context_summary:
             full_text = f"[当前监护摘要]\n{context_summary}\n\n[家属提问]\n{user_message}"
@@ -295,26 +560,27 @@ def ai_chat():
 
         ai_reply = _parse_sse_response(resp)
 
+        output_result = _moderate_text('llm_response_moderation', ai_reply)
+        if output_result['risk_level'] in ('high', 'medium') or _local_output_unsafe(ai_reply):
+            return jsonify({"error": "AI 回复未通过安全检查"}), 422
+
         return jsonify({
             "reply": ai_reply,
             "model": "coze-doubao",
             "timestamp": int(time.time())
         })
 
+    except ModerationUnavailable:
+        return jsonify({"error": "内容安全检查暂时不可用，请稍后重试"}), 503
     except requests.exceptions.Timeout:
         return jsonify({"error": "AI 服务响应超时，请稍后重试"}), 504
     except requests.exceptions.HTTPError as e:
         coze_status = e.response.status_code
-        coze_body = ""
-        try:
-            coze_body = e.response.text[:500]
-        except Exception:
-            pass
-        app.logger.error(f"[ai_chat] Coze HTTP {coze_status}: {coze_body}")
-        return jsonify({"error": f"扣子 API 错误: {coze_status}", "detail": coze_body}), 502
+        app.logger.error("[ai_chat] upstream HTTP status=%s", coze_status)
+        return jsonify({"error": "AI 服务暂时不可用，请稍后重试"}), 502
     except Exception as e:
-        app.logger.error(f"[ai_chat] exception: {e}")
-        return jsonify({"error": "服务内部错误，请稍后重试", "detail": str(e)}), 500
+        app.logger.error("[ai_chat] internal error type=%s", type(e).__name__)
+        return jsonify({"error": "服务内部错误，请稍后重试"}), 500
 
 
 def _parse_sse_response(resp) -> str:
@@ -352,8 +618,9 @@ def _parse_sse_response(resp) -> str:
 
 
 def _build_context_summary(context: dict) -> str:
-    """将健康统计数据构建为自然语言摘要（只传聚合统计，不含任何PII）"""
-    if not context:
+    """按 AI 数据权限构建监护摘要。"""
+    access_level = context.get('accessLevel', 'privacy') if context else 'privacy'
+    if not context or access_level == 'basic':
         return ""
     parts = []
     fall      = context.get('fallCount7d', 0)
@@ -365,12 +632,29 @@ def _build_context_summary(context: dict) -> str:
     if last_fall >= 0:
         parts.append(f"最近一次摔倒：{last_fall}天前" if last_fall > 0 else "最近一次摔倒：今天")
     parts.append(f"近7天久坐告警：{sedentary}次")
+    if access_level == 'full':
+        parts.append(f"设备连接：{'已连接' if context.get('deviceConnected', False) else '未连接'}")
+        current_status = context.get('currentStatus', '')
+        latest_fall = context.get('latestFallRecord', '')
+        latest_sedentary = context.get('latestSedentaryRecord', '')
+        if current_status:
+            parts.append(f"当前监护状态：{current_status}")
+        if latest_fall:
+            parts.append(f"最近摔倒记录：{latest_fall}")
+        if latest_sedentary:
+            parts.append(f"最近久坐记录：{latest_sedentary}")
     return "\n".join(parts)
 
 
 # ═══════════════════════════════════════════════════════════════
 # 管理后台
 # ═══════════════════════════════════════════════════════════════
+
+@app.before_request
+def disable_admin_by_default():
+    if request.path.startswith('/admin') and not ADMIN_ENABLED:
+        return jsonify({"success": False, "message": "not found"}), 404
+
 
 def admin_required(f):
     @functools.wraps(f)
@@ -448,11 +732,15 @@ def admin_panel():
 def admin_list_users():
     try:
         conn = get_db()
-        rows = conn.execute("SELECT * FROM t_user ORDER BY create_time DESC").fetchall()
+        rows = conn.execute("""
+            SELECT username, nickname, phone, avatar_path, email, address, create_time
+            FROM t_user
+            ORDER BY create_time DESC
+        """).fetchall()
         conn.close()
         return jsonify({"success": True, "data": [dict(r) for r in rows]})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_list_users', error)
 
 
 @app.route('/admin/api/users', methods=['POST'])
@@ -460,8 +748,9 @@ def admin_list_users():
 def admin_create_user():
     d = request.get_json(force=True) or {}
     username = (d.get('username') or '').strip()
-    if not username:
-        return jsonify({"success": False, "message": "用户名不能为空"}), 400
+    password = (d.get('password') or '').strip()
+    if not username or not password:
+        return jsonify({"success": False, "message": "用户名和初始密码不能为空"}), 400
     try:
         conn = get_db()
         existing = conn.execute(
@@ -477,7 +766,7 @@ def admin_create_user():
             username,
             d.get('nickname') or '',
             d.get('phone') or '',
-            d.get('password_hash') or '',
+            hash_password(password),
             d.get('avatar_path') or '',
             d.get('email') or '',
             d.get('address') or '',
@@ -486,17 +775,19 @@ def admin_create_user():
         conn.commit()
         conn.close()
         return jsonify({"success": True, "message": "创建成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_create_user', error)
 
 
 @app.route('/admin/api/users/<username>', methods=['PUT'])
 @admin_required
 def admin_update_user(username):
     d = request.get_json(force=True) or {}
+    if 'password_hash' in d or 'password' in d:
+        return jsonify({"success": False, "message": "管理后台不能读取或直接改写密码"}), 400
     field_map = {
         'nickname': 'nickname', 'phone': 'phone',
-        'password_hash': 'password_hash', 'avatar_path': 'avatar_path',
+        'avatar_path': 'avatar_path',
         'email': 'email', 'address': 'address', 'newUsername': 'username',
     }
     updates = {}
@@ -507,18 +798,23 @@ def admin_update_user(username):
         return jsonify({"success": True, "message": "无需更新"})
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         set_clause = ', '.join(f"{col}=?" for col in updates.keys())
         values = list(updates.values()) + [username]
         cursor = conn.execute(
             f"UPDATE t_user SET {set_clause} WHERE username=?", values
         )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        if 'newUsername' in d and updates['username'] != username:
+            conn.execute("DELETE FROM t_session WHERE username=?", (username,))
         conn.commit()
         conn.close()
-        if cursor.rowcount == 0:
-            return jsonify({"success": False, "message": "用户不存在"}), 404
         return jsonify({"success": True, "message": "更新成功"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_update_user', error)
 
 
 @app.route('/admin/api/users/<username>', methods=['DELETE'])
@@ -526,14 +822,18 @@ def admin_update_user(username):
 def admin_delete_user(username):
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         cursor = conn.execute("DELETE FROM t_user WHERE username=?", (username,))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        conn.execute("DELETE FROM t_session WHERE username=?", (username,))
         conn.commit()
         conn.close()
-        if cursor.rowcount == 0:
-            return jsonify({"success": False, "message": "用户不存在"}), 404
         return jsonify({"success": True, "message": "已删除"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception as error:
+        return _internal_error('admin_delete_user', error)
 
 
 # ─── Admin Panel HTML (SPA) ───────────────────────────────────────
@@ -576,7 +876,6 @@ td { padding:10px 14px; border-bottom:1px solid #fafafa; color:#434343; }
 tr:last-child td { border-bottom:none; }
 tr:hover td { background:#fafafa; }
 .col-addr { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.col-hash { max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:monospace; font-size:11px; color:#8c8c8c; }
 .actions { display:flex; gap:6px; }
 .empty { text-align:center; padding:60px 20px; color:#8c8c8c; font-size:14px; }
 
@@ -637,7 +936,6 @@ tr:hover td { background:#fafafa; }
           <th>手机号</th>
           <th>邮箱</th>
           <th>地址</th>
-          <th>密码哈希</th>
           <th>注册时间</th>
           <th>操作</th>
         </tr>
@@ -676,10 +974,10 @@ tr:hover td { background:#fafafa; }
         <label>地址</label>
         <textarea id="editAddress" rows="2"></textarea>
       </div>
-      <div class="form-group">
-        <label>密码哈希</label>
-        <input type="text" id="editPasswordHash">
-        <div class="hint">⚠ 修改此项会导致用户无法登录，除非填入正确的哈希值</div>
+      <div class="form-group" id="passwordGroup">
+        <label>初始密码</label>
+        <input type="password" id="editPassword" autocomplete="new-password">
+        <div class="hint">仅创建账号时使用，后台不会显示或回传已存密码</div>
       </div>
       <div class="form-group">
         <label>头像路径</label>
@@ -737,7 +1035,7 @@ function renderTable() {
 
   const tbody = document.getElementById('tbody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">' + (q ? '无匹配结果' : '暂无数据，点击「添加用户」开始') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">' + (q ? '无匹配结果' : '暂无数据，点击「添加用户」开始') + '</td></tr>';
     return;
   }
 
@@ -749,7 +1047,6 @@ function renderTable() {
       <td>${esc(u.phone || '-')}</td>
       <td>${esc(u.email || '-')}</td>
       <td><div class="col-addr" title="${escAttr(u.address || '')}">${esc(u.address || '-')}</div></td>
-      <td><div class="col-hash" title="${escAttr(u.password_hash || '')}">${esc(u.password_hash ? u.password_hash.substring(0,16)+'...' : '-')}</div></td>
       <td>${time}</td>
       <td>
         <div class="actions">
@@ -787,7 +1084,8 @@ function openAdd() {
   document.getElementById('editPhone').value = '';
   document.getElementById('editEmail').value = '';
   document.getElementById('editAddress').value = '';
-  document.getElementById('editPasswordHash').value = '';
+  document.getElementById('editPassword').value = '';
+  document.getElementById('passwordGroup').style.display = '';
   document.getElementById('editAvatarPath').value = '';
   document.getElementById('editModal').classList.add('show');
 }
@@ -806,7 +1104,8 @@ function openEdit(username) {
   document.getElementById('editPhone').value = u.phone || '';
   document.getElementById('editEmail').value = u.email || '';
   document.getElementById('editAddress').value = u.address || '';
-  document.getElementById('editPasswordHash').value = u.password_hash || '';
+  document.getElementById('editPassword').value = '';
+  document.getElementById('passwordGroup').style.display = 'none';
   document.getElementById('editAvatarPath').value = u.avatar_path || '';
   document.getElementById('editModal').classList.add('show');
 }
@@ -821,13 +1120,14 @@ async function saveUser() {
     phone: document.getElementById('editPhone').value.trim(),
     email: document.getElementById('editEmail').value.trim(),
     address: document.getElementById('editAddress').value.trim(),
-    password_hash: document.getElementById('editPasswordHash').value.trim(),
     avatar_path: document.getElementById('editAvatarPath').value.trim(),
   };
 
   if (editMode === 'add') {
     body.username = document.getElementById('editUsername').value.trim();
+    body.password = document.getElementById('editPassword').value;
     if (!body.username) { showToast('用户名不能为空', 'error'); return; }
+    if (!body.password) { showToast('初始密码不能为空', 'error'); return; }
     try {
       const resp = await fetch('/admin/api/users', {
         method: 'POST',
@@ -907,4 +1207,4 @@ loadUsers();
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8899, debug=False)
+    app.run(host='127.0.0.1', port=8899, debug=False)

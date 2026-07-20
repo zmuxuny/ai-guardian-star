@@ -7,6 +7,7 @@ import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import { GradientHeader } from '../components/GradientHeader';
+import { STORE_KEY_AI_ACCESS_LEVEL } from '../config';
 
 const QUICK_QUESTIONS: string[] = [
   '老人最近状态怎么样？',
@@ -31,6 +32,7 @@ export struct AiChat {
   @State inputText: string = '';
   @State isRequesting: boolean = false;
   @State dotPhase: number = 0;
+  @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
   private scroller: Scroller = new Scroller();
@@ -38,9 +40,11 @@ export struct AiChat {
   private dotTimer: number = -1;
 
   aboutToAppear(): void {
+    const accessText = this.aiAccessLevel === 'full' ? '完整监护状态'
+      : this.aiAccessLevel === 'basic' ? '基础健康问答' : '脱敏统计摘要';
     this.pushAssistantMsg(
       '你好！我是智护星 AI 健康助手 👋\n\n' +
-      '我已接入监护数据（仅统计摘要），' +
+      `当前模式：${accessText}，` +
       '可以帮你分析健康风险、解答护理疑问。'
     );
   }
@@ -146,7 +150,10 @@ export struct AiChat {
         Blank()
         Row({ space: 6 }) {
           Circle({ width: 8, height: 8 }).fill('#4ade80')
-          Text('AI 在线').fontSize(12).fontColor('#E0F2FE')
+          Text(
+            `AI 在线 · ${this.aiAccessLevel === 'full' ? '深度照护'
+              : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
+          ).fontSize(12).fontColor('#E0F2FE')
         }
         .padding({ left: 10, right: 10, top: 6, bottom: 6 })
         .backgroundColor('#33FFFFFF').borderRadius(100)

@@ -1415,3 +1415,93 @@
 | 21:53 | fix: deleteUser 403→200，避免 HarmonyOS http ArrayBuffer 解析失败 | wenxin_proxy.py | 修复注销"服务器格式不正确"报错 | ~200 |
 | 21:53 | ui: 退出登录+注销账号移至 Scroll 外固定底栏，加背景色 | person.ets | 两按钮固定在页面底部，视觉分区 | ~800 |
 | 21:53 | feat: 注释掉华为一键登录（暂不可用） | Login.ets | 导入/按钮/方法全部注释，不影响其他登录 | ~400 |
+| 22:11 | Edited entry/src/main/ets/pages/person.ets | modified Column() | ~902 |
+| 22:11 | Edited entry/obfuscation-rules.txt | 5→5 lines | ~39 |
+| 22:12 | Session end: 2 writes across 2 files (person.ets, obfuscation-rules.txt) | 3 reads | ~10277 tok |
+| 22:20 | Session end: 2 writes across 2 files (person.ets, obfuscation-rules.txt) | 3 reads | ~10277 tok |
+
+## Session: 2026-06-13 08:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-13 08:36
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-15 07:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-25 08:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-25 12:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-27 08:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:42 | read-only launch readiness audit | README.md, PROJECT_HANDOFF.md, entry/src/main/ets, wenxin_proxy.py, build.log | no code changes; app surface mostly complete, launch risks remain in live E2E, secrets/config, tests, and docs consistency | ~26000 |
+
+## Session: 2026-06-27 12:48
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-27 12:55
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-28 23:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-02 11:06
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-02 11:06
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-10 09:58
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-11 00:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 02:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 06:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 11:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 12:38
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

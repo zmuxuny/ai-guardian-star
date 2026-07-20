@@ -5,6 +5,10 @@ yarn-error.log*
 package-lock.json
 pnpm-lock.yaml
 
+# Python
+__pycache__/
+*.py[cod]
+
 # HarmonyOS / ohos specific
 /oh_modules
 /*.hap
@@ -63,3 +67,4 @@ DEFENSE_TECH_BRIEF.md
 iCAN_*.txt
 iCAN_*.docx
 project-overview.html
+/repomix-output.xml
