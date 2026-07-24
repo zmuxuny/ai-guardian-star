@@ -3,602 +3,89 @@
   "bugs": [
     {
       "id": "bug-001",
-      "timestamp": "2026-05-01T12:07:29.186Z",
-      "error_message": "Significant refactor of ",
-      "file": "C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json",
-      "root_cause": "3 lines replaced/restructured",
-      "fix": "Rewrote 11→8 lines (3 removed)",
+      "timestamp": "2026-05-17T15:56:59.250Z",
+      "error_message": "Missing guard clause",
+      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
+      "root_cause": "No early return/throw for edge case: /^1[3-9]\\d{9}$/.test(id",
+      "fix": "Added guard clause: if (/^1[3-9]\\d{9}$/.test(id)",
       "tags": [
         "auto-detected",
-        "refactor",
-        "json"
+        "guard-clause",
+        "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-01T12:07:29.186Z"
+      "last_seen": "2026-05-17T15:56:59.250Z"
     },
     {
       "id": "bug-002",
-      "timestamp": "2026-05-01T15:25:33.339Z",
-      "error_message": "Incorrect value in code",
-      "file": "C:/Users/16228/.claude/channels/telegram/access.json",
-      "root_cause": "Had \"allowlist\"",
-      "fix": "Changed to \"disabled\"",
+      "timestamp": "2026-05-17T15:57:40.961Z",
+      "error_message": "Wrong reference: queryUserByUsername should be queryUserByIdentifier",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Used \"queryUserByUsername\" instead of \"queryUserByIdentifier\"",
+      "fix": "Changed queryUserByUsername → queryUserByIdentifier",
       "tags": [
         "auto-detected",
-        "wrong-value",
-        "json"
+        "wrong-reference",
+        "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-01T15:25:33.339Z"
+      "last_seen": "2026-05-17T15:57:40.961Z"
     },
     {
       "id": "bug-003",
-      "timestamp": "2026-05-01T16:09:17.100Z",
-      "error_message": "Incorrect value in code",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "Had '4%'",
-      "fix": "Changed to '-4%'",
+      "timestamp": "2026-05-17T16:31:02.624Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: const user = this.loadedUser;; if (!user || user.id === undefined) { this.errorMsg = '用户信息异",
       "tags": [
         "auto-detected",
-        "wrong-value",
+        "error-handling",
         "ets"
       ],
       "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:09:17.100Z"
+      "occurrences": 2,
+      "last_seen": "2026-05-17T16:31:19.868Z"
     },
     {
       "id": "bug-004",
-      "timestamp": "2026-05-01T16:10:41.082Z",
-      "error_message": "Wrong reference: BOTTOM should be TOP",
-      "file": "entry/src/main/ets/pages/AiChat.ets",
-      "root_cause": "Used \"BOTTOM\" instead of \"TOP\"",
-      "fix": "Changed BOTTOM → TOP",
+      "timestamp": "2026-05-17T17:17:57.938Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
       "tags": [
         "auto-detected",
-        "wrong-reference",
+        "async-fix",
         "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-01T16:10:41.082Z"
+      "last_seen": "2026-05-17T17:17:57.938Z"
     },
     {
       "id": "bug-005",
-      "timestamp": "2026-05-01T16:27:40.017Z",
-      "error_message": "Incorrect value in code",
-      "file": "entry/src/main/ets/common/CloudService.ets",
-      "root_cause": "Had 'http://117.78.9.144:8899'",
-      "fix": "Changed to '../config'",
+      "timestamp": "2026-05-17T17:18:05.210Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→4 lines (2 removed)",
       "tags": [
         "auto-detected",
-        "wrong-value",
+        "refactor",
         "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-01T16:27:40.018Z"
+      "last_seen": "2026-05-17T17:18:05.210Z"
     },
     {
       "id": "bug-006",
-      "timestamp": "2026-05-01T16:27:46.005Z",
-      "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/common/WenxinService.ets",
-      "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 7→3 lines (4 removed)",
-      "tags": [
-        "auto-detected",
-        "refactor",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:27:46.005Z"
-    },
-    {
-      "id": "bug-007",
-      "timestamp": "2026-05-01T16:27:57.288Z",
-      "error_message": "Incorrect value in code",
-      "file": "entry/src/main/ets/common/AudioTransferManager.ets",
-      "root_cause": "Had 'ws://192.168.137.100:5000/ws/intercom'",
-      "fix": "Changed to '../config'",
-      "tags": [
-        "auto-detected",
-        "wrong-value",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:27:57.288Z"
-    },
-    {
-      "id": "bug-008",
-      "timestamp": "2026-05-01T16:28:06.242Z",
-      "error_message": "Wrong reference: http should be HEALTH_CHECK_URL",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "Used \"http\" instead of \"HEALTH_CHECK_URL\"",
-      "fix": "Changed http → HEALTH_CHECK_URL",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:28:06.242Z"
-    },
-    {
-      "id": "bug-009",
-      "timestamp": "2026-05-01T16:29:29.134Z",
-      "error_message": "Wrong reference: ECS_BASE should be ECS_BASE_URL",
-      "file": "entry/src/main/ets/common/CloudService.ets",
-      "root_cause": "Used \"ECS_BASE\" instead of \"ECS_BASE_URL\"",
-      "fix": "Changed ECS_BASE → ECS_BASE_URL",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:29:29.134Z"
-    },
-    {
-      "id": "bug-010",
-      "timestamp": "2026-05-01T16:29:32.591Z",
-      "error_message": "Incorrect value in code",
-      "file": "entry/src/main/ets/common/WenxinService.ets",
-      "root_cause": "Had `${PROXY_BASE_URL}/ai/chat`",
-      "fix": "Changed to `${ECS_BASE_URL}/ai/chat`",
-      "tags": [
-        "auto-detected",
-        "wrong-value",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:29:32.591Z"
-    },
-    {
-      "id": "bug-011",
-      "timestamp": "2026-05-01T16:29:50.170Z",
-      "error_message": "Wrong reference: HarmonyOS_Client_sad should be MQTT_CLIENT_ID",
-      "file": "entry/src/main/ets/pages/MqttManager.ets",
-      "root_cause": "Used \"HarmonyOS_Client_sad\" instead of \"MQTT_CLIENT_ID\"",
-      "fix": "Changed HarmonyOS_Client_sad → MQTT_CLIENT_ID",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:29:50.170Z"
-    },
-    {
-      "id": "bug-012",
-      "timestamp": "2026-05-01T16:29:53.628Z",
-      "error_message": "Incorrect value in code",
-      "file": "entry/src/main/ets/pages/person.ets",
-      "root_cause": "Had \"@kit.CoreFileKit\"",
-      "fix": "Changed to '../config'",
-      "tags": [
-        "auto-detected",
-        "wrong-value",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:29:53.628Z"
-    },
-    {
-      "id": "bug-013",
-      "timestamp": "2026-05-01T16:40:14.109Z",
-      "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/record.ets",
-      "root_cause": "4 lines replaced/restructured",
-      "fix": "Rewrote 10→8 lines (4 removed)",
-      "tags": [
-        "auto-detected",
-        "refactor",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:40:14.109Z"
-    },
-    {
-      "id": "bug-014",
-      "timestamp": "2026-05-01T16:41:23.492Z",
-      "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/HealthHistory.ets",
-      "root_cause": "40 lines replaced/restructured",
-      "fix": "Rewrote 53→21 lines (40 removed)",
-      "tags": [
-        "auto-detected",
-        "refactor",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:41:23.492Z"
-    },
-    {
-      "id": "bug-015",
-      "timestamp": "2026-05-01T16:42:20.066Z",
-      "error_message": "Wrong reference: import should be Component",
-      "file": "entry/src/main/ets/components/GradientHeader.ets",
-      "root_cause": "Used \"import\" instead of \"Component\"",
-      "fix": "Changed import → Component",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:42:20.066Z"
-    },
-    {
-      "id": "bug-016",
-      "timestamp": "2026-05-01T16:57:11.220Z",
-      "error_message": "Missing guard clause",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "No early return/throw for edge case: !this.deviceOnline",
-      "fix": "Added guard clause: if (!this.deviceOnline)",
-      "tags": [
-        "auto-detected",
-        "guard-clause",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T16:57:11.220Z"
-    },
-    {
-      "id": "bug-017",
-      "timestamp": "2026-05-01T16:58:47.757Z",
-      "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "48 lines replaced/restructured",
-      "fix": "Rewrote 85→37 lines (48 removed) | Also: !this.deviceOnline; ? $r('app.media.ic_link_off_red')",
-      "tags": [
-        "auto-detected",
-        "refactor",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 2,
-      "last_seen": "2026-05-01T16:59:54.033Z"
-    },
-    {
-      "id": "bug-018",
-      "timestamp": "2026-05-01T17:03:36.267Z",
-      "error_message": "Wrong reference: PREF_NAME should be PREF_NAME_AUTH",
-      "file": "entry/src/main/ets/pages/Index.ets",
-      "root_cause": "Used \"PREF_NAME\" instead of \"PREF_NAME_AUTH\"",
-      "fix": "Changed PREF_NAME → PREF_NAME_AUTH",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 2,
-      "last_seen": "2026-05-01T17:03:39.398Z"
-    },
-    {
-      "id": "bug-019",
-      "timestamp": "2026-05-01T17:04:15.331Z",
-      "error_message": "Wrong reference: loggedInNickname should be STORE_KEY_NICKNAME",
-      "file": "entry/src/main/ets/pages/person.ets",
-      "root_cause": "Used \"loggedInNickname\" instead of \"STORE_KEY_NICKNAME\"",
-      "fix": "Changed loggedInNickname → STORE_KEY_NICKNAME",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 5,
-      "last_seen": "2026-05-01T17:04:27.491Z"
-    },
-    {
-      "id": "bug-020",
-      "timestamp": "2026-05-01T17:04:55.174Z",
-      "error_message": "Wrong reference: loggedInPhone should be STORE_KEY_PHONE",
-      "file": "entry/src/main/ets/pages/Profile.ets",
-      "root_cause": "Used \"loggedInPhone\" instead of \"STORE_KEY_PHONE\"",
-      "fix": "Changed loggedInPhone → STORE_KEY_PHONE",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 6,
-      "last_seen": "2026-05-01T17:05:23.544Z"
-    },
-    {
-      "id": "bug-021",
-      "timestamp": "2026-05-01T17:06:16.287Z",
-      "error_message": "Wrong reference: retentionDays should be STORE_KEY_RETENTION",
-      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
-      "root_cause": "Used \"retentionDays\" instead of \"STORE_KEY_RETENTION\"",
-      "fix": "Changed retentionDays → STORE_KEY_RETENTION",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:06:16.287Z"
-    },
-    {
-      "id": "bug-022",
-      "timestamp": "2026-05-01T17:09:11.011Z",
-      "error_message": "Wrong reference: PREF_NAME_AUTH_AUTH should be PREF_NAME_AUTH",
-      "file": "entry/src/main/ets/pages/Index.ets",
-      "root_cause": "Used \"PREF_NAME_AUTH_AUTH\" instead of \"PREF_NAME_AUTH\"",
-      "fix": "Changed PREF_NAME_AUTH_AUTH → PREF_NAME_AUTH",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:09:11.011Z"
-    },
-    {
-      "id": "bug-023",
-      "timestamp": "2026-05-01T17:18:26.832Z",
-      "error_message": "Wrong reference: private should be State",
-      "file": "entry/src/main/ets/components/StatDashboard.ets",
-      "root_cause": "Used \"private\" instead of \"State\"",
-      "fix": "Changed private → State",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:18:26.832Z"
-    },
-    {
-      "id": "bug-024",
-      "timestamp": "2026-05-01T17:19:51.831Z",
-      "error_message": "Wrong reference: private should be State",
-      "file": "entry/src/main/ets/components/MenuRow.ets",
-      "root_cause": "Used \"private\" instead of \"State\"",
-      "fix": "Changed private → State",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:19:51.831Z"
-    },
-    {
-      "id": "bug-025",
-      "timestamp": "2026-05-01T17:43:27.392Z",
-      "error_message": "Missing guard clause",
-      "file": "entry/src/main/ets/pages/MqttManager.ets",
-      "root_cause": "No early return/throw for edge case: topic.startsWith('guardian/'",
-      "fix": "Added guard clause: if (topic.startsWith('guardian/')",
-      "tags": [
-        "auto-detected",
-        "guard-clause",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:43:27.392Z"
-    },
-    {
-      "id": "bug-026",
-      "timestamp": "2026-05-01T17:50:47.246Z",
-      "error_message": "Wrong condition in logic",
-      "file": "entry/src/main/ets/pages/MqttManager.ets",
-      "root_cause": "Condition was: if (isSedentary)",
-      "fix": "Changed to: if (alert.type === EventType.SEDENTARY)",
-      "tags": [
-        "auto-detected",
-        "logic-fix",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T17:50:47.246Z"
-    },
-    {
-      "id": "bug-027",
-      "timestamp": "2026-05-01T18:12:09.800Z",
-      "error_message": "Significant refactor of ",
-      "file": "README.md",
-      "root_cause": "17 lines replaced/restructured",
-      "fix": "Rewrote 23→37 lines (17 removed)",
-      "tags": [
-        "auto-detected",
-        "refactor",
-        "md"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-01T18:12:09.800Z"
-    },
-    {
-      "id": "bug-028",
-      "timestamp": "2026-05-02T14:55:59.625-04:00",
-      "error_message": "四个tab页顶部安全区显示白色/黑色纯色，而非页面渐变背景",
-      "file": "entry/src/main/ets/pages/Layout.ets",
-      "root_cause": "Tabs组件同时设置了backgroundColor纯色背景和expandSafeArea(TOP)，纯色覆盖了各页面GradientHeader的渐变效果",
-      "fix": "移除Tabs的backgroundColor和expandSafeArea(TOP)，只保留BOTTOM安全区扩展给底部tab栏，让各页面GradientHeader自行处理顶部渐变",
-      "tags": [
-        "ui",
-        "safe-area",
-        "gradient",
-        "theme"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-02T14:55:59.625-04:00"
-    },
-    {
-      "id": "bug-029",
-      "timestamp": "2026-05-02T19:42:52.809Z",
-      "error_message": "Wrong reference: tertiaryTextColor should be secondaryTextColor",
-      "file": "entry/src/main/ets/pages/Layout.ets",
-      "root_cause": "Used \"tertiaryTextColor\" instead of \"secondaryTextColor\"",
-      "fix": "Changed tertiaryTextColor → secondaryTextColor",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-02T19:42:52.809Z"
-    },
-    {
-      "id": "bug-030",
-      "timestamp": "2026-05-02T19:55:54.723Z",
-      "error_message": "Wrong reference: TOP should be BOTTOM",
-      "file": "entry/src/main/ets/pages/Layout.ets",
-      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
-      "fix": "Changed TOP → BOTTOM",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 2,
-      "last_seen": "2026-05-02T19:58:55.066Z"
-    },
-    {
-      "id": "bug-031",
-      "timestamp": "2026-05-02T19:57:50.110Z",
-      "error_message": "Wrong reference: TOP should be BOTTOM",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
-      "fix": "Changed TOP → BOTTOM",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-02T19:57:50.110Z"
-    },
-    {
-      "id": "bug-032",
-      "timestamp": "2026-05-02T19:57:53.919Z",
-      "error_message": "Wrong reference: TOP should be BOTTOM",
-      "file": "entry/src/main/ets/pages/record.ets",
-      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
-      "fix": "Changed TOP → BOTTOM",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-02T19:57:53.919Z"
-    },
-    {
-      "id": "bug-033",
-      "timestamp": "2026-05-02T19:57:58.116Z",
-      "error_message": "Wrong reference: TOP should be BOTTOM",
-      "file": "entry/src/main/ets/pages/AiChat.ets",
-      "root_cause": "Used \"TOP\" instead of \"BOTTOM\"",
-      "fix": "Changed TOP → BOTTOM",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-02T19:57:58.116Z"
-    },
-    {
-      "id": "bug-034",
-      "timestamp": "2026-05-05T13:33:35.887Z",
-      "error_message": "Wrong reference: false should be true",
-      "file": "entry/build-profile.json5",
-      "root_cause": "Used \"false\" instead of \"true\"",
-      "fix": "Changed false → true",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "json5"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-05T13:33:35.887Z"
-    },
-    {
-      "id": "bug-035",
-      "timestamp": "2026-05-05T13:34:02.954Z",
-      "error_message": "Incorrect value in code",
-      "file": "AppScope/app.json5",
-      "root_cause": "Had \"com.example.caringsystem\"",
-      "fix": "Changed to \"com.jianyuanxi.guardianstar\"",
-      "tags": [
-        "auto-detected",
-        "wrong-value",
-        "json5"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-05T13:34:02.954Z"
-    },
-    {
-      "id": "bug-036",
-      "timestamp": "2026-05-05T13:36:29.853Z",
-      "error_message": "Incorrect value in code",
-      "file": "build-profile.json5",
-      "root_cause": "Had \"com.example.caringsystem\"",
-      "fix": "Changed to \"com.jianyuanxi.guardianstar\"",
-      "tags": [
-        "auto-detected",
-        "wrong-value",
-        "json5"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-05T13:36:29.853Z"
-    },
-    {
-      "id": "bug-037",
-      "timestamp": "2026-05-05T16:26:53.802Z",
-      "error_message": "Wrong reference: LIVE should be State",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "Used \"LIVE\" instead of \"State\"",
-      "fix": "Changed LIVE → State",
-      "tags": [
-        "auto-detected",
-        "wrong-reference",
-        "ets"
-      ],
-      "related_bugs": [],
-      "occurrences": 1,
-      "last_seen": "2026-05-05T16:26:53.802Z"
-    },
-    {
-      "id": "bug-038",
-      "timestamp": "2026-05-05T16:27:06.397Z",
+      "timestamp": "2026-05-17T17:19:27.421Z",
       "error_message": "Missing error handling in unknown",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
+      "file": "entry/src/main/ets/pages/Profile.ets",
       "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
       "fix": "Added try/catch block",
       "tags": [
@@ -608,15 +95,15 @@
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-05T16:27:06.397Z"
+      "last_seen": "2026-05-17T17:19:27.421Z"
     },
     {
-      "id": "bug-039",
-      "timestamp": "2026-05-05T16:30:47.172Z",
+      "id": "bug-007",
+      "timestamp": "2026-05-19T13:08:38.587Z",
       "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "12 lines replaced/restructured",
-      "fix": "Rewrote 119→198 lines (12 removed)",
+      "file": "entry/src/main/ets/pages/AiChat.ets",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 22→35 lines (3 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -624,31 +111,370 @@
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-05T16:30:47.172Z"
+      "last_seen": "2026-05-19T13:08:38.588Z"
     },
     {
-      "id": "bug-040",
-      "timestamp": "2026-05-06T02:30:24.545Z",
-      "error_message": "Wrong reference: this should be 3",
-      "file": "entry/src/main/ets/pages/mainpage.ets",
-      "root_cause": "Used \"this\" instead of \"3\"",
-      "fix": "Changed this → 3",
+      "id": "bug-008",
+      "timestamp": "2026-05-19T13:09:31.207Z",
+      "error_message": "Significant refactor of ",
+      "file": "wenxin_proxy.py",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 30→48 lines (9 removed)",
       "tags": [
         "auto-detected",
-        "wrong-reference",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T13:09:31.207Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-19T13:11:19.926Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 21→32 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
         "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-06T02:30:24.545Z"
+      "last_seen": "2026-05-19T13:11:19.926Z"
     },
     {
-      "id": "bug-041",
-      "timestamp": "2026-05-06T02:33:31.757Z",
-      "error_message": "Missing error handling in unknown",
-      "file": "entry/src/main/ets/pages/Login.ets",
+      "id": "bug-010",
+      "timestamp": "2026-05-20T01:46:16.475Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 21→32 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T01:46:16.475Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-20T01:48:55.820Z",
+      "error_message": "Null/undefined access in ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T01:48:55.820Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "修改手机号显示成功，但云端未更新；旧手机号仍能登录，资料回退为旧值",
+      "file": "wenxin_proxy.py / entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "云端 t_user.username 是主键且存昵称；App 改手机号时用 loginId 当 username 去 WHERE username=? UPDATE，匹配 0 行，云端 phone 列永不更新。旧手机重登时 cloud.login 凭旧 phone 列匹配成功，把旧记录塞回本地。",
+      "fix": "后端 /api/updateUser 改柔性 lookup WHERE username=? OR phone=? OR email=? + rowcount==0 返回失败 + 新增 newUsername 改名字段；Profile 三个 dialog 改为先 await 云端成功再写本地。",
+      "tags": [
+        "cloud-sync",
+        "login",
+        "primary-key",
+        "ets",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-002"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "审核员选择图片上传后显示「处理图片失败」",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "fs.copyFile 直接复制 PhotoViewPicker 返回的 file://media URI，真机严格不允许（需先取 fd）。",
+      "fix": "fs.openSync(uri,READ_ONLY) 取 fd → image.createImageSource(fd) 解码 → crop 居中裁方 → scale 512 → ImagePacker 编码 JPEG → 时间戳文件名写沙箱 + 删旧文件。",
+      "tags": [
+        "image",
+        "avatar",
+        "real-device",
+        "fs",
+        "ImageKit",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "修改密码云端同步失败（/api/changePassword 404）",
+      "file": "wenxin_proxy.py",
+      "root_cause": "App 调用 /api/changePassword，但后端从未实现该端点。",
+      "fix": "在 wenxin_proxy.py 新增 /api/changePassword：柔性 lookup + 校验旧密码哈希后再写新哈希。",
+      "tags": [
+        "cloud-sync",
+        "password",
+        "missing-endpoint",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-012"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-05-20T06:49:23.875Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 10→6 lines (4 removed) | Also: // ── 保存昵称/头像 ────────────────────────────────────; private async saveProfile(): Promise<void> { | Also: Text(\"保存\").fontSize(15).fontColor(\"#ffffff\"); .padding({ left: 14, right: 14, top: 6, bottom: 6  | Also: .onBackPressed(() => {; if (this.hasChanged) {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-20T06:50:59.976Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-05-20T06:50:25.765Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T06:50:25.765Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-05-20T06:50:00.000Z",
+      "error_message": "昵称改了之后云端的还是修改前的（手机/邮箱/密码正常）",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "saveProfile 云端 updateUser 用 .then() fire-and-forget 不等待，紧接 setTimeout(pop,1000) 1秒退页销毁组件，云端请求（10s超时）未完成就被丢弃。手机/邮箱/密码因 await 且不退页所以正常。",
+      "fix": "去掉全局保存按钮，改为全内联即时保存：saveNickname 云端优先 await 后再写本地；头像选完即 await saveAvatar。删除 hasChanged/updateChangedState/saveProfile 及 onBackPressed 未保存拦截。",
+      "tags": [
+        "cloud-sync",
+        "race-condition",
+        "fire-and-forget",
+        "nickname",
+        "ets"
+      ],
+      "related_bugs": [
+        "bug-012"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T06:50:00.000Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-05-20T07:14:07.453Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:14:07.453Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-05-20T07:16:53.307Z",
+      "error_message": "Null/undefined access in ",
+      "file": "entry/src/main/ets/pages/MyAddress.ets",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:16:53.307Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-05-20T07:17:17.993Z",
+      "error_message": "Wrong operator: || should be &&",
+      "file": "entry/src/main/ets/pages/MyAddress.ets",
+      "root_cause": "Used \"||\" instead of \"&&\"",
+      "fix": "Changed operator || → &&",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:17:17.993Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-05-20T07:15:00.000Z",
+      "error_message": "昵称改了显示保存成功，但云端 t_user 仍是旧值（手机/邮箱/密码正常）",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "改昵称只靠 newUsername 改云端 username(PK)；若部署后端无 newUsername 映射则 updates 为空→返回'无需更新'+success=true，App 误显示成功但云端没动。",
+      "fix": "saveNickname 同时写 nickname 列(fields.nickname，任何后端版本都支持) + newUsername；Login 跨设备登录优先读 cu.nickname。配合云端优先 await 彻底修复。",
+      "tags": [
+        "cloud-sync",
+        "nickname",
+        "robustness",
+        "ets",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-012",
+        "bug-017"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:15:00.000Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-05-22T10:03:28.153Z",
+      "error_message": "Missing error handling in admin_required",
+      "file": "wenxin_proxy.py",
       "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
-      "fix": "Added try/catch block | Also: console.info('[Login]: 华为账号凭证原始数据: ' + JSON.stringify(creden; // credential 可能是 { data: \"...\" } 也可能是直接展开的对象",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:03:28.153Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-05-22T10:16:05.153Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/Login.ets",
+      "root_cause": "Had \"名字至少2个字\"",
+      "fix": "Changed to \"名字不能为空\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:16:05.153Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-05-22T11:27:10.204Z",
+      "error_message": "Missing error handling in deleteUserByUsername",
+      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T11:27:10.204Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-05-22T11:27:38.412Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T11:27:38.412Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-06-03T06:24:06.180Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/module.json5",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 29→10 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json5"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-03T06:24:06.180Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-06-03T07:10:59.188Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/config.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→27 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-03T07:10:59.188Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-06-05T07:09:59.806Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/common/CloudService.ets",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 5→5 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:09:59.806Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-06-05T07:11:42.838Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: private privacyDialogController: CustomDialogController = ne; builder: PrivacyDialog({",
       "tags": [
         "auto-detected",
         "error-handling",
@@ -656,15 +482,63 @@
       ],
       "related_bugs": [],
       "occurrences": 2,
-      "last_seen": "2026-05-06T02:34:14.131Z"
+      "last_seen": "2026-06-05T07:11:56.239Z"
     },
     {
-      "id": "bug-042",
-      "timestamp": "2026-05-06T02:53:54.409Z",
+      "id": "bug-030",
+      "timestamp": "2026-06-05T07:22:38.866Z",
+      "error_message": "Missing error handling in executeDeleteAccount",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:22:38.866Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-06-05T07:22:48.338Z",
+      "error_message": "Wrong reference: lastUsername should be PREF_KEY_LAST_USERNAME",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Used \"lastUsername\" instead of \"PREF_KEY_LAST_USERNAME\"",
+      "fix": "Changed lastUsername → PREF_KEY_LAST_USERNAME",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:22:48.338Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-06-06T17:00:27.872Z",
+      "error_message": "Wrong reference: STORAGE_KEY_LOGGED_IN_USER should be STORE_KEY_LOGGED_IN_USER",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Used \"STORAGE_KEY_LOGGED_IN_USER\" instead of \"STORE_KEY_LOGGED_IN_USER\"",
+      "fix": "Changed STORAGE_KEY_LOGGED_IN_USER → STORE_KEY_LOGGED_IN_USER",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:00:27.872Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-06-06T17:00:35.916Z",
       "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/Login.ets",
+      "file": "entry/src/main/ets/pages/Index.ets",
       "root_cause": "2 lines replaced/restructured",
-      "fix": "Rewrote 3→3 lines (2 removed)",
+      "fix": "Rewrote 6→3 lines (2 removed)",
       "tags": [
         "auto-detected",
         "refactor",
@@ -672,23 +546,67 @@
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-06T02:53:54.409Z"
+      "last_seen": "2026-06-06T17:00:35.916Z"
     },
     {
-      "id": "bug-043",
-      "timestamp": "2026-05-06T03:17:16.934Z",
-      "error_message": "Significant refactor of ",
-      "file": "entry/src/main/ets/pages/Layout.ets",
-      "root_cause": "5 lines replaced/restructured",
-      "fix": "Rewrote 7→11 lines (5 removed)",
+      "id": "bug-034",
+      "timestamp": "2026-06-06T17:01:10.402Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Had \"./Login\"",
+      "fix": "Changed to \"@ohos.multimedia.cameraPicker\"",
       "tags": [
         "auto-detected",
-        "refactor",
+        "wrong-value",
         "ets"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-05-06T03:17:16.934Z"
+      "last_seen": "2026-06-06T17:01:10.402Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-06-06T17:01:31.781Z",
+      "error_message": "Wrong reference: STORAGE_KEY_LOGGED_IN_USER should be STORE_KEY_LOGGED_IN_USER",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Used \"STORAGE_KEY_LOGGED_IN_USER\" instead of \"STORE_KEY_LOGGED_IN_USER\"",
+      "fix": "Changed STORAGE_KEY_LOGGED_IN_USER → STORE_KEY_LOGGED_IN_USER",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:01:31.781Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-06-06T17:29:24.396Z",
+      "error_message": "Wrong return value",
+      "file": "wenxin_proxy.py",
+      "root_cause": "Was returning: jsonify({\"success\": False, \"message\": \"密码错误\"}), 40",
+      "fix": "Now returns: jsonify({\"success\": False, \"message\": \"密码错误\"})",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:29:24.396Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-06-07",
+      "error_message": "注销账号后显示'服务器格式不正确'，注销失败",
+      "file": "wenxin_proxy.py",
+      "root_cause": "api_delete_user 密码错误时返回 HTTP 403，HarmonyOS http 模块对非 2xx 响应返回 ArrayBuffer 而非 string，导致 CloudService postJson 中 JSON.parse 失败，返回 '服务器响应格式错误'",
+      "fix": "删除 return jsonify({...}), 403 中的 403 状态码，改为默认 200，确保 HarmonyOS http 返回 string 类型响应体",
+      "tags": ["cloud", "http", "harmonyos", "json-parse", "delete-account"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-07"
     }
   ]
 }

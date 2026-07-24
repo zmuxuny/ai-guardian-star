@@ -9,7 +9,7 @@ import {
 } from "@ohos/mqtt";
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
-import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID } from '../config';
+import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT } from '../config';
 import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
 
 export interface FallRecord {
@@ -110,14 +110,23 @@ export class MqttManager {
 
   public async testConnection(): Promise<boolean> {
     try {
+      if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+        console.error("[mqtt]:安全凭据未配置，拒绝使用安装包内共享密码");
+        return false;
+      }
       if (!this.mqttClient) return false;
       const connectOptions: MqttConnectOptions = {
         connectTimeout: 10,
         keepAliveInterval: 30,
         cleanSession: true,
-        userName: "",
-        password: "",
+        userName: MQTT_USERNAME,
+        password: MQTT_PASSWORD,
         MQTTVersion: 4,
+        sslOptions: {
+          enableServerCertAuth: true,
+          trustStoreContent: MQTT_CA_CERT,
+          verify: false, // IP地址无法做 hostname 校验，跳过
+        },
       };
       const result = await this.mqttClient.connect(connectOptions);
       if (result.code === 0) {
@@ -147,6 +156,11 @@ export class MqttManager {
   }
 
   public async connectAndSubscribe(topic: string = ALERT_TOPIC) {
+    if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+      this.latestMessage = "安全凭据未配置";
+      this.isConnected = false;
+      return;
+    }
     if (!this.mqttClient) {
       this.initClient();
       if (!this.mqttClient) {
@@ -158,9 +172,14 @@ export class MqttManager {
       connectTimeout: 30,
       keepAliveInterval: 60,
       cleanSession: true,
-      userName: "",
-      password: "",
+      userName: MQTT_USERNAME,
+      password: MQTT_PASSWORD,
       MQTTVersion: 4,
+      sslOptions: {
+        enableServerCertAuth: true,
+        trustStoreContent: MQTT_CA_CERT,
+        verify: false, // IP地址无法做 hostname 校验，跳过
+      },
     };
     try {
       this.latestMessage = "正在连接...";

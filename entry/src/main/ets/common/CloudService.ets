@@ -1,26 +1,14 @@
-/**
- * CloudService.ets — 云端账号 REST API 封装
- *
- * 对应 ECS Flask 接口：
- *   POST /api/register   注册
- *   POST /api/login      登录验证 + 拉取用户信息
- *   POST /api/updateUser 更新昵称/头像路径
- *
- * 设计原则：
- *   - 本地 RDB 是主库，云端是备份/跨设备恢复用
- *   - 所有接口失败时静默降级，不阻塞本地流程
- *   - App 侧永远先操作本地，再异步同步云端
- */
+/** 云端账号会话。Access Token 只驻留内存；勾选“记住我”时 Refresh Token 写入 Asset Store。 */
 import http from '@ohos.net.http';
+import { asset } from '@kit.AssetStoreKit';
+import { util } from '@kit.ArkTS';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { ECS_BASE_URL } from '../config';
-
-// ── 接口数据结构 ──────────────────────────────────────────────
 
 export interface CloudUser {
   username: string;
   nickname: string;
   phone: string;
-  passwordHash: string;
   avatarPath: string;
   email: string;
   address: string;
@@ -31,6 +19,15 @@ export interface CloudResult {
   success: boolean;
   message: string;
   user?: CloudUser;
+  accessToken?: string;
+  refreshToken?: string;
+  challengeId?: string;
+  expiresIn?: number;
+}
+
+export interface CloudHttpResponse {
+  responseCode: number;
+  result: string;
 }
 
 interface LoginRequest {
@@ -38,27 +35,48 @@ interface LoginRequest {
   passwordHash: string;
 }
 
-interface SendCodeRequest {
-  target: string;
-  type: string;
-  username: string;
+interface RefreshRequest {
+  refreshToken: string;
 }
 
-interface VerifyCodeRequest {
-  target: string;
-  code: string;
-  username: string;
+interface SendOtpRequest {
+  phone: string;
+}
+
+interface RegisterRequest {
+  phone: string;
+  passwordHash: string;
+  verifyCode: string;
+  challengeId: string;
+  nickname?: string;
 }
 
 interface ChangePasswordRequest {
-  username: string;
   oldPasswordHash: string;
   newPasswordHash: string;
 }
 
-/** 更新资料时传给云端的字段（全部可选，用显式 class 替代 Partial） */
+interface DeleteUserRequest {
+  passwordHash: string;
+}
+
+interface AllowedProfileUpdate {
+  nickname?: string;
+  avatarPath?: string;
+  address?: string;
+}
+
+interface RequestHeaders {
+  'Content-Type': string;
+  'Authorization'?: string;
+}
+
+class EmptyRequest {}
+
+/** 兼容现有调用方；CloudService 只发送后端允许的非敏感字段。 */
 export class CloudUpdateFields {
   username: string = '';
+  newUsername: string = '';
   nickname: string = '';
   avatarPath: string = '';
   phone: string = '';
@@ -67,44 +85,17 @@ export class CloudUpdateFields {
   passwordHash: string = '';
 }
 
-// ── 核心请求工具 ──────────────────────────────────────────────
-
-async function postJson(path: string, body: Object): Promise<CloudResult> {
-  const req = http.createHttp();
-  try {
-    const bodyStr = JSON.stringify(body);
-    console.info('[CloudService]: POST', path, 'body:', bodyStr);
-    const resp = await req.request(ECS_BASE_URL + path, {
-      method: http.RequestMethod.POST,
-      header: { 'Content-Type': 'application/json' },
-      extraData: bodyStr,
-      connectTimeout: 10000,
-      readTimeout: 10000,
-    });
-
-    const resultStr = resp.result as string;
-    console.info('[CloudService]: 响应', path, 'status:', resp.responseCode, 'body:', resultStr);
-
-    try {
-      const result = JSON.parse(resultStr) as CloudResult;
-      console.info('[CloudService]: 解析成功', path, 'success:', result.success);
-      return result;
-    } catch (parseError) {
-      console.error('[CloudService]: JSON解析失败', path, '响应内容:', resultStr.substring(0, 200));
-      return { success: false, message: '服务器响应格式错误' };
-    }
-  } catch (e) {
-    console.error('[CloudService]: 请求失败', path, '错误详情:', JSON.stringify(e));
-    return { success: false, message: '网络不可用' };
-  } finally {
-    req.destroy();
-  }
-}
-
-// ── 对外 API ──────────────────────────────────────────────────
-
 export class CloudService {
   private static instance: CloudService;
+  private static readonly SESSION_ASSET_ALIAS: Uint8Array =
+    new util.TextEncoder().encodeInto('guardian_cloud_session');
+  private accessToken: string = '';
+  private refreshToken: string = '';
+  private sessionUserKey: string = '';
+  private rememberSession: boolean = false;
+  private refreshPromise: Promise<boolean> | null = null;
+
+  private constructor() {}
 
   public static getInstance(): CloudService {
     if (!CloudService.instance) {
@@ -113,37 +104,271 @@ export class CloudService {
     return CloudService.instance;
   }
 
-  /** 注册新账号到云端，失败不影响本地 */
-  async register(user: CloudUser): Promise<CloudResult> {
-    return postJson('/api/register', user);
+  public hasSession(): boolean {
+    return this.accessToken !== '' && this.refreshToken !== '' && this.sessionUserKey !== '';
   }
 
-  /** 云端验证账号 + 拉取用户信息（换新手机时用） */
-  async login(username: string, passwordHash: string): Promise<CloudResult> {
+  public getSessionUserKey(): string {
+    return this.sessionUserKey;
+  }
+
+  public clearSession(): void {
+    this.accessToken = '';
+    this.refreshToken = '';
+    this.sessionUserKey = '';
+    this.rememberSession = false;
+  }
+
+  private async persistSession(): Promise<void> {
+    const attributes: asset.AssetMap = new Map();
+    attributes.set(asset.Tag.ALIAS, CloudService.SESSION_ASSET_ALIAS);
+    attributes.set(asset.Tag.SECRET,
+      new util.TextEncoder().encodeInto(JSON.stringify([this.sessionUserKey, this.refreshToken])));
+    attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED);
+    attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE);
+    await asset.add(attributes);
+  }
+
+  public async clearPersistedSession(): Promise<void> {
+    const query: asset.AssetMap = new Map();
+    query.set(asset.Tag.ALIAS, CloudService.SESSION_ASSET_ALIAS);
+    try {
+      await asset.remove(query);
+    } catch (e) {
+      const error = e as BusinessError;
+      if (error.code !== 24000002) {
+        throw new Error('Asset Store 清理失败 code=' + error.code);
+      }
+    }
+  }
+
+  public async restorePersistedSession(): Promise<boolean> {
+    this.clearSession();
+    const query: asset.AssetMap = new Map();
+    query.set(asset.Tag.ALIAS, CloudService.SESSION_ASSET_ALIAS);
+    query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL);
+    try {
+      const records = await asset.query(query);
+      if (records.length !== 1) return false;
+      const secret = records[0].get(asset.Tag.SECRET) as Uint8Array;
+      const saved = JSON.parse(new util.TextDecoder().decodeToString(secret)) as string[];
+      if (saved.length !== 2 || saved[0] === '' || saved[1] === '') {
+        await this.clearPersistedSession();
+        return false;
+      }
+      this.sessionUserKey = saved[0];
+      this.refreshToken = saved[1];
+      this.rememberSession = true;
+      return await this.performRefresh();
+    } catch (e) {
+      const error = e as BusinessError;
+      if (error.code !== 24000002) {
+        console.warn('[CloudService]: 恢复持久会话失败 code=' + error.code);
+      }
+      this.clearSession();
+      return false;
+    }
+  }
+
+  private async requestRaw(path: string, method: http.RequestMethod, body: Object,
+    authenticated: boolean, readTimeout: number, retryAfterRefresh: boolean): Promise<CloudHttpResponse> {
+    if (authenticated && this.accessToken === '') {
+      return { responseCode: 401, result: '{"success":false,"message":"未登录"}' };
+    }
+
+    const requestAccessToken = authenticated ? this.accessToken : '';
+    const req = http.createHttp();
+    let response: CloudHttpResponse;
+    try {
+      const headers: RequestHeaders = authenticated
+        ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + requestAccessToken }
+        : { 'Content-Type': 'application/json' };
+      const raw = await req.request(ECS_BASE_URL + path, {
+        method: method,
+        header: headers,
+        extraData: JSON.stringify(body),
+        connectTimeout: 10000,
+        readTimeout: readTimeout,
+        expectDataType: http.HttpDataType.STRING,
+      });
+      response = { responseCode: raw.responseCode, result: raw.result as string };
+    } catch (_e) {
+      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}' };
+    } finally {
+      req.destroy();
+    }
+
+    if (authenticated && response.responseCode === 401 && retryAfterRefresh) {
+      if (await this.refreshSession(requestAccessToken)) {
+        return this.requestRaw(path, method, body, true, readTimeout, false);
+      }
+    }
+    if (authenticated && response.responseCode === 401 && !retryAfterRefresh) {
+      await this.clearPersistedSession();
+      this.clearSession();
+    }
+    return response;
+  }
+
+  private async refreshSession(failedAccessToken: string): Promise<boolean> {
+    if (this.accessToken !== '' && this.accessToken !== failedAccessToken) {
+      return true;
+    }
+    if (this.refreshPromise !== null) {
+      return this.refreshPromise;
+    }
+    this.refreshPromise = this.performRefresh();
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async performRefresh(): Promise<boolean> {
+    if (this.refreshToken === '') {
+      await this.clearPersistedSession();
+      this.clearSession();
+      return false;
+    }
+    const body: RefreshRequest = { refreshToken: this.refreshToken };
+    const response = await this.requestRaw('/api/refresh', http.RequestMethod.POST, body, false, 10000, false);
+    try {
+      const result = JSON.parse(response.result) as CloudResult;
+      if (response.responseCode === 200 && result.success && result.accessToken && result.refreshToken) {
+        this.accessToken = result.accessToken;
+        this.refreshToken = result.refreshToken;
+        if (this.rememberSession) {
+          await this.persistSession();
+        }
+        return true;
+      }
+    } catch (_e) {}
+    if (response.responseCode === 400 || response.responseCode === 401) {
+      await this.clearPersistedSession();
+    }
+    this.clearSession();
+    return false;
+  }
+
+  private parseResult(response: CloudHttpResponse): CloudResult {
+    try {
+      return JSON.parse(response.result) as CloudResult;
+    } catch (_e) {
+      return { success: false, message: response.responseCode === 0 ? '网络不可用' : '服务器响应格式错误' };
+    }
+  }
+
+  public async authenticatedPost(path: string, body: Object, readTimeout: number = 10000): Promise<CloudHttpResponse> {
+    return this.requestRaw(path, http.RequestMethod.POST, body, true, readTimeout, true);
+  }
+
+  public async login(username: string, passwordHash: string, rememberMe: boolean = false): Promise<CloudResult> {
+    await this.clearPersistedSession();
+    this.clearSession();
     const body: LoginRequest = { username: username, passwordHash: passwordHash };
-    return postJson('/api/login', body);
+    const result = this.parseResult(
+      await this.requestRaw('/api/login', http.RequestMethod.POST, body, false, 10000, false)
+    );
+    if (result.success && result.accessToken && result.refreshToken) {
+      this.accessToken = result.accessToken;
+      this.refreshToken = result.refreshToken;
+      this.sessionUserKey = username;
+      this.rememberSession = rememberMe;
+      if (rememberMe) {
+        await this.persistSession();
+      }
+      return result;
+    }
+    if (result.success) {
+      return { success: false, message: '服务器未返回有效会话' };
+    }
+    return result;
   }
 
-  /** 更新云端用户资料，只传需要更新的字段 */
-  async updateUser(fields: CloudUpdateFields): Promise<CloudResult> {
-    return postJson('/api/updateUser', fields);
+  public async sendRegistrationCode(phone: string): Promise<CloudResult> {
+    const body: SendOtpRequest = { phone: phone };
+    return this.parseResult(
+      await this.requestRaw('/api/otp/send', http.RequestMethod.POST, body, false, 20000, false)
+    );
   }
 
-  /** 发送验证码到手机或邮箱 */
-  async sendVerificationCode(target: string, type: string, username: string): Promise<CloudResult> {
-    const body: SendCodeRequest = { target: target, type: type, username: username };
-    return postJson('/api/sendCode', body);
+  public async register(phone: string, passwordHash: string, verifyCode: string,
+    challengeId: string, rememberMe: boolean = false): Promise<CloudResult> {
+    await this.clearPersistedSession();
+    this.clearSession();
+    const body: RegisterRequest = {
+      phone: phone,
+      passwordHash: passwordHash,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    const result = this.parseResult(
+      await this.requestRaw('/api/register', http.RequestMethod.POST, body, false, 20000, false)
+    );
+    if (result.success && result.accessToken && result.refreshToken && result.user) {
+      this.accessToken = result.accessToken;
+      this.refreshToken = result.refreshToken;
+      this.sessionUserKey = result.user.username || phone;
+      this.rememberSession = rememberMe;
+      if (rememberMe) {
+        await this.persistSession();
+      }
+      return result;
+    }
+    if (result.success) {
+      return { success: false, message: '服务器未返回有效会话' };
+    }
+    return result;
   }
 
-  /** 验证验证码 */
-  async verifyCode(target: string, code: string, username: string): Promise<CloudResult> {
-    const body: VerifyCodeRequest = { target: target, code: code, username: username };
-    return postJson('/api/verifyCode', body);
+  public async getMe(): Promise<CloudResult> {
+    return this.parseResult(
+      await this.requestRaw('/api/me', http.RequestMethod.GET, new EmptyRequest(), true, 10000, true)
+    );
   }
 
-  /** 修改密码 */
-  async changePassword(username: string, oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {
-    const body: ChangePasswordRequest = { username: username, oldPasswordHash: oldPasswordHash, newPasswordHash: newPasswordHash };
-    return postJson('/api/changePassword', body);
+  public async logout(): Promise<CloudResult> {
+    let result: CloudResult = { success: false, message: '未登录' };
+    try {
+      if (this.hasSession()) {
+        result = this.parseResult(await this.authenticatedPost('/api/logout', new EmptyRequest()));
+      }
+      return result;
+    } finally {
+      this.clearSession();
+      await this.clearPersistedSession();
+    }
+  }
+
+  public async updateUser(fields: CloudUpdateFields): Promise<CloudResult> {
+    const body: AllowedProfileUpdate = {};
+    if (fields.nickname !== '') body.nickname = fields.nickname;
+    if (fields.avatarPath !== '') body.avatarPath = fields.avatarPath;
+    if (fields.address !== '') body.address = fields.address;
+    return this.parseResult(await this.authenticatedPost('/api/updateUser', body));
+  }
+
+  public async changePassword(oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {
+    const body: ChangePasswordRequest = {
+      oldPasswordHash: oldPasswordHash,
+      newPasswordHash: newPasswordHash,
+    };
+    const result = this.parseResult(await this.authenticatedPost('/api/changePassword', body));
+    if (result.success) {
+      this.clearSession();
+      await this.clearPersistedSession();
+    }
+    return result;
+  }
+
+  public async deleteUser(passwordHash: string): Promise<CloudResult> {
+    const body: DeleteUserRequest = { passwordHash: passwordHash };
+    const result = this.parseResult(await this.authenticatedPost('/api/deleteUser', body));
+    if (result.success) {
+      this.clearSession();
+      await this.clearPersistedSession();
+    }
+    return result;
   }
 }

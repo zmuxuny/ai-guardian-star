@@ -1,210 +1,198 @@
 <div align="center">
 
-# 🌟 AI 守护星
+# 智护星
 
-### 基于昇腾边缘计算与鸿蒙 OS 的智能居家老人看护系统
+面向居家照护场景的 HarmonyOS 原生应用与云端服务
 
-<br/>
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-6.1.0%20%7C%20API%2023-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![Backend](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB?style=flat-square)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/License-MIT-2EA44F?style=flat-square)](LICENSE)
 
-[![Powered by Ascend](https://img.shields.io/badge/Powered%20by-Ascend%20Atlas-red?style=for-the-badge&logo=huawei)](https://www.hiascend.com/)
-[![HarmonyOS](https://img.shields.io/badge/App-HarmonyOS%20NEXT-blue?style=for-the-badge)](https://developer.huawei.com/consumer/cn/harmonyos/)
-[![Edge Device](https://img.shields.io/badge/Edge-Atlas%20200I%20DK%20A2-green?style=for-the-badge)](https://www.hiascend.com/hardware/developer-kit)
-[![AI](https://img.shields.io/badge/AI-扣子%20Coze-orange?style=for-the-badge)](https://www.coze.cn/)
-[![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)](LICENSE)
-
-<br/>
-
-> **"让科技守护每一位独居老人，让家人安心每一个夜晚。"**
+> 让科技守护每一位独居老人，让家人安心每一个夜晚。
 
 </div>
 
----
+## 项目简介
 
-## 📖 项目简介
+智护星是一套面向居家老人看护场景的端云协同系统。本仓库包含 HarmonyOS 手机端、账号与 AI 网关服务，以及对应的安全配置和回归测试；边缘设备通过 MQTT、HTTP 和 WebSocket 接口对接，板端推理代码不在本仓库中。
 
-**AI 守护星**是一款面向居家养老场景的全栈智能看护系统。随着全球老龄化加剧，独居老人的安全监护已成为重要社会议题——传统人工看护成本高、响应慢，难以实现真正的 24 小时全覆盖。
+当前已完成 API 23 真机登录验证。账号接口统一通过 HTTPS 访问，服务端采用短时 Access Token 与可轮换 Refresh Token 管理会话；AI 对话在服务端依次经过输入审核、Coze 调用和输出审核。
 
-本项目以 **"非接触式感知 + 端云协同 + AI 智能解读"** 为核心理念，将昇腾边缘计算能力前置至家庭场景。基于华为昇腾 Atlas 200I DK A2 实现实时姿态分析与异常检测，通过鸿蒙 OS 原生应用实现秒级告警推送，并引入字节扣子智能体提供 AI 健康咨询，构建"**本地智能分析 → 云端安全中转 → 手机即时响应 → AI 辅助决策**"的完整闭环看护体系。
+## 当前状态
 
----
-
-## ✨ 核心功能
-
-### 🔍 实时行为检测（边缘端）
-
-| 功能 | 描述 | 指标 |
+| 模块 | 状态 | 说明 |
 |---|---|---|
-| **摔倒检测** | 基于骨骼点运动轨迹分析，精准识别老人摔倒动作 | 置信度 ≥ 92%，响应延迟 ≤ 1.5s |
-| **久坐提醒** | 实时监测静态姿态持续时长，超阈值触发健康提醒 | 自定义阈值（默认 60 分钟） |
-| **隐私保护** | 人脸特征提取后原图即时销毁，特征向量不离开开发板 | 零图像上云 |
+| HarmonyOS 登录与账号管理 | 已验证 | 支持登录、资料修改、改密、注销会话和删除账号 |
+| 服务端会话安全 | 已验证 | Access Token、Refresh Token 轮换及服务端撤销 |
+| 本地数据与主题 | 已实现 | ArkDB 健康记录、个人设置、深浅色主题 |
+| MQTT 告警 | 已接入 | 使用 TLS 连接，需结合实际设备继续联调 |
+| AI 健康助手 | 已接入 | Coze 对话、三档数据授权、阿里云输入/输出内容审核 |
+| 视频、人脸与语音 | 待联调 | App 接口已接入，依赖边缘设备和服务器端到端验证 |
+| 手机验证码注册 | 已验证 | 阿里云短信认证已启用，真机已完成真实发送、核验与注册验收 |
+| 记住登录 | 已验证 | 真机已验证安全恢复会话；主动退出仍会清除会话 |
+| 数据库管理后台 | 已安全开放 | 仅允许通过 SSH 隧道访问，不对公网暴露管理路由 |
+| openGauss | 已评估 | 服务器已安装并仅监听回环地址；生产数据当前仍使用 SQLite |
 
-### 📱 鸿蒙 App 端（手机）
+## 核心能力
 
-- **实时监控**：主页展示摄像头视频流（按需拉取），LIVE 状态动画，一键发起语音通话
-- **即时告警**：MQTT 订阅检测结果，摔倒 / 久坐事件秒级弹窗推送
-- **事件记录**：本次会话记录实时展示，历史记录持久化至 ArkDB，支持 7 天数据保留与导出
-- **人脸录入**：App 拍照 → 云端加密中转 → 开发板提取特征 → 原图销毁，全程隐私闭环
-- **AI 健康助手**：接入字节扣子智能体，支持多轮对话，自动注入监护统计摘要（脱敏），提供针对性健康建议
-- **个人中心**：用户信息管理、紧急联系人、常用地址、数据保留设置、深色/浅色/跟随系统主题切换
+- HarmonyOS 原生手机/平板界面，支持资料、地址、密码、主题和账号管理。
+- HTTPS 云账号服务，支持登录鉴权、令牌刷新与主动撤销。
+- 可选“记住我”，Refresh Token 存入 HarmonyOS Asset Store，Access Token 仅保存在内存。
+- 手机号验证码注册具备本地频控、每日费用上限和一次性挑战校验。
+- ArkDB 本地存储健康事件、视频记录、用户设置和基础资料。
+- MQTT TLS 接收跌倒、久坐等设备事件并生成健康记录。
+- AI 助手支持 `basic`、`privacy`、`full` 三档上下文授权。
+- 阿里云内容安全增强版审核用户输入与 AI 回复。
+- 视频流、人脸录入和 WebSocket 语音接口已在 App 侧预留。
 
-### ☁️ 云端服务（华为云 ECS）
+## 系统架构
 
-- **业务数据库**：OpenGauss 存储账号、健康事件、告警记录
-- **AI 代理服务**：Flask 中转服务，隔离扣子 API Key，App 不直接持有密钥
-- **人脸中转**：加密转发人脸图像至开发板，不落盘存储
-
----
-
-## 🏗️ 系统架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      华为云 ECS                              │
-│   ┌──────────────────┐    ┌────────────────────────────┐    │
-│   │  OpenGauss 数据库 │    │  信令服务 / AI 代理服务     │    │
-│   │  账号·健康·告警   │    │  视频中转 · 扣子 API 代理  │    │
-│   └──────────────────┘    └────────────────────────────┘    │
-└────────────────┬──────────────────────┬─────────────────────┘
-                 │ 账号/设置同步          │ 告警推送 / AI 对话
-    ┌────────────▼──────┐    ┌───────────▼──────────────────┐
-    │  开发板（本地端）   │    │      App 端（手机）           │
-    │  Atlas 200I DK A2  │    │   HarmonyOS NEXT · ArkDB    │
-    │                    │    │                              │
-    │  · 姿态估计推理     │◄───┤  · 实时视频流展示            │
-    │  · 摔倒/久坐检测    │    │  · MQTT 告警订阅             │
-    │  · 隐私数据库       │───►│  · AI 健康助手               │
-    │    人脸特征不上云    │    │  · 历史记录 / 人脸录入       │
-    │  · 断网缓冲补传     │    │  · 个人中心 / 主题切换       │
-    └────────────────────┘    └──────────────────────────────┘
-              ▲
-              │ MQTT 检测结果上传
-              │ （摔倒/久坐/正常）
-         USB 摄像头
+```text
+┌──────────────────── HarmonyOS App ────────────────────┐
+│ ArkUI 页面 · ArkDB 本地数据 · MQTT TLS · HTTPS API   │
+└───────────────┬───────────────────────┬───────────────┘
+                │ HTTPS                 │ MQTT / HTTP / WS
+                ▼                       ▼
+┌──────────────────── 云端服务 ─────────────────────────┐
+│ 反向代理（HTTPS） → Flask（127.0.0.1:8899）           │
+│ 账号与会话 · SQLite · 内容审核 → Coze → 内容审核      │
+└───────────────────────────────────────────────────────┘
+                                        ▲
+                                        │
+                          ┌─────────────┴─────────────┐
+                          │ 边缘设备（独立部署组件）  │
+                          │ 姿态检测 · 视频 · 人脸等  │
+                          └───────────────────────────┘
 ```
 
----
-
-## 🔒 隐私设计
-
-系统的隐私保护贯穿全链路：
-
-- **人脸特征不上云**：人脸图像仅用于在开发板本地提取 128 维特征向量，提取完成后原图即时销毁
-- **AI 上下文脱敏**：发送给扣子智能体的仅为聚合统计摘要（摔倒次数、久坐次数、距今天数），不含任何可识别个人身份的信息
-- **API Key 不入包**：扣子 API Key 仅存在于云端 Flask 服务，App 安装包内不包含任何密钥
-- **手机号加密显示**：App 内手机号显示采用中间段 `*` 遮蔽处理
-
----
-
-## 🛠️ 技术栈
+## 技术栈
 
 | 层级 | 技术 |
 |---|---|
-| 边缘计算 | Atlas 200I DK A2 · CANN · PyACL · OpenCV · paho-mqtt |
-| 鸿蒙应用 | HarmonyOS NEXT · ArkTS · ArkUI · ArkDB · ohos-mqtt |
-| 云端服务 | 华为云 ECS · OpenGauss · Python Flask |
-| AI 大模型 | 字节扣子 · Coze 智能体 |
-| 通信协议 | MQTT · WebSocket · HTTP/HTTPS |
+| HarmonyOS 应用 | HarmonyOS 6.1.0 / API 23、Stage 模型、ArkTS、ArkUI、ArkDB |
+| 云端服务 | Python、Flask、SQLite、systemd、HTTPS 反向代理 |
+| 通信 | HTTPS、MQTT TLS、WebSocket |
+| AI 与安全 | Coze、阿里云内容安全增强版 |
+| 目标设备 | HarmonyOS 手机、平板；边缘设备独立部署 |
 
----
+## 仓库结构
 
-## 📦 项目结构
-
-```
-ai-guardian-star/
-├── entry/src/main/ets/
-│   ├── config.ets                  # 全局配置（服务器地址/端口/存储Key）
-│   ├── components/                  # 共享 UI 组件
-│   │   ├── GradientHeader.ets       #   蓝色渐变头部（7个页面共用）
-│   │   ├── MenuRow.ets              #   通用菜单行（图标+标题/副标题+箭头）
-│   │   └── StatDashboard.ets       #   个人中心统计面板（天数+预警数）
-│   ├── common/                      # 服务层
-│   │   ├── CloudService.ets         #   云端账号 REST API（注册/登录/验证码/改密）
-│   │   ├── CloudSyncService.ets     #   云端数据同步服务
-│   │   ├── WenxinService.ets        #   扣子 AI 对话服务封装
-│   │   ├── MqttParser.ets           #   MQTT 消息解析（纯函数，可独立测试）
-│   │   ├── ThemeManager.ets         #   主题管理（深色/浅色/跟随系统）
-│   │   ├── UserManager.ets          #   用户登录态管理
-│   │   └── AudioTransferManager.ets #   音频通话（WebSocket 双向对讲）
-│   ├── database/
-│   │   └── DatabaseHelper.ets       #   ArkDB 数据库封装（用户/事件/视频/设置表）
-│   └── pages/                       # 页面
-│       ├── Index.ets                #   启动页（自动登录检测 → 跳转）
-│       ├── Layout.ets               #   底部 Tab 导航（主页/记录/AI/个人）
-│       ├── mainpage.ets             #   主页（视频流 + 设备状态 + 告警卡 + 通话）
-│       ├── record.ets               #   事件记录页（本次会话内存记录）
-│       ├── AiChat.ets               #   AI 健康助手（扣子智能体对话）
-│       ├── person.ets               #   个人中心（资料/人脸/地址/联系人/历史/主题）
-│       ├── Profile.ets              #   个人资料编辑（头像/名字/手机/邮箱/密码）
-│       ├── Login.ets                #   登录/注册（手机号+邮箱自动识别）
-│       ├── HealthHistory.ets        #   历史记录（数据库加载+导出）
-│       ├── MyAddress.ets            #   常用地址编辑
-│       ├── MqttManager.ets          #   MQTT 连接+订阅+告警状态管理
-│       └── DatabaseDiagnostic.ets   #   数据库诊断工具（长按Logo进入）
-├── wenxin_proxy.py                  # 云端扣子 AI 代理服务（部署至 ECS）
-└── PROJECT_STRUCTURE.md             # 详细项目结构文档
+```text
+caringSystem/
+├── AppScope/                         # 应用级配置与资源
+├── entry/                            # HarmonyOS 主模块
+│   └── src/main/ets/
+│       ├── common/                   # 云服务、AI、MQTT、主题、用户管理
+│       ├── components/               # 复用 UI 组件
+│       ├── database/                 # ArkDB 数据访问层
+│       └── pages/                    # 登录、主页、记录、AI、个人中心等页面
+├── deploy/                           # 服务端环境变量与 systemd 配置示例
+├── docs/                             # 部署、安全与数据库评估文档
+├── wenxin_proxy.py                   # 账号与 AI 网关服务
+├── security_utils.py                 # 密码哈希与校验工具
+├── test_wenxin_proxy.py              # 服务端回归测试
+└── test_client_auth_contract.py      # App 鉴权契约测试
 ```
 
----
-
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
 
-- **App 端**：DevEco Studio 6.0+，HarmonyOS SDK 20，鸿蒙 OS 5.0+ 真机
-- **边缘端**：CANN 7.0+，OpenEuler 22（ARM），Atlas 200I DK A2
-- **云端**：华为云 ECS（任意规格），Python 3.8+
+- DevEco Studio 6.0 或更新版本
+- HarmonyOS SDK 6.1.0 / API 23
+- Python 3.8 或更新版本（运行云端服务或回归测试时需要）
 
-### 部署步骤
+### 构建 HarmonyOS App
 
-**1. 部署云端 AI 代理服务**
+1. 使用 DevEco Studio 打开仓库并安装项目依赖。
+2. 为 `default` 产品配置自己的签名证书与 Profile。
+3. 检查 `entry/src/main/ets/config.ets` 中的公网 API 域名和边缘设备地址。
+4. 连接 HarmonyOS 真机，选择 `default` 产品后构建并安装。
+
+也可以使用 DevEco Studio 自带的 Hvigor：
+
+```powershell
+<DevEco-Studio>\tools\hvigor\bin\hvigorw.bat `
+  --mode module `
+  -p product=default `
+  -p module=entry@default `
+  -p buildMode=release `
+  assembleHap --no-daemon
+```
+
+签名密码、私钥、AccessKey 和个人绝对路径均不得提交到版本库。
+
+### 运行云端服务
 
 ```bash
-# 上传 wenxin_proxy.py 至 ECS，然后执行：
-pip3 install flask flask-cors requests
-nohup python3 /root/wenxin_proxy.py > /var/log/wenxin.log 2>&1 &
+python3 -m venv .venv
+. .venv/bin/activate
+pip install flask flask-cors requests
+pip install -r requirements-moderation.txt
+pip install -r requirements-sms.txt
+python wenxin_proxy.py
 ```
 
-在 `wenxin_proxy.py` 中填入扣子 API Key：
-```python
-COZE_API_KEY = "your_api_key_here"
+生产环境应使用 systemd 管理进程，让 Flask 仅监听 `127.0.0.1:8899`，再由 Nginx 或等价反向代理提供 HTTPS。不要把 8899 端口直接开放到公网。
+
+## 配置与安全
+
+App 当前通过 `https://api.aistar.asia` 访问公网接口。云端密钥只通过服务器环境变量注入，不得写入 App 或仓库：
+
+- `COZE_API_TOKEN`
+- `ALIBABA_CLOUD_ACCESS_KEY_ID`
+- `ALIBABA_CLOUD_ACCESS_KEY_SECRET`
+- `AI_RISK_CONTROL_READY`
+- `ALIYUN_MODERATION_ENABLED`
+- `ALIBABA_CLOUD_SMS_ACCESS_KEY_ID`
+- `ALIBABA_CLOUD_SMS_ACCESS_KEY_SECRET`
+- `ALIYUN_SMS_ENABLED`
+
+管理后台默认关闭。生产环境启用后仍应由 Nginx 对公网返回 404，只允许通过 SSH 隧道访问本机回环地址；同时必须配置 `ADMIN_PASSWORD` 与 `FLASK_SECRET_KEY`。
+
+更多说明见 [安全策略](SECURITY.md) 和 [安全整改记录](docs/security-remediation-2026-07-15.md)。
+
+## 测试
+
+服务端与客户端鉴权契约测试：
+
+```powershell
+D:\Anaconda\python.exe -m unittest discover -v
 ```
 
-在华为云安全组开放入站 TCP 端口 `8899`。
+提交前还应在 DevEco Studio 完成 Release 构建，并在真机验证登录、令牌刷新和核心页面跳转。
 
-**2. 配置 App 端**
+## 部署与运维文档
 
-编辑 `entry/src/main/ets/config.ets`，修改服务器地址：
-```typescript
-export const ECS_HOST = '你的ECS公网IP';       // 云端 API / MQTT / 视频流
-export const LAN_HOST = '192.168.xxx.xxx';      // 局域网开发板地址
-```
+- [阿里云内容审核配置](docs/aliyun-content-moderation-setup.md)
+- [阿里云短信验证码注册配置](docs/aliyun-sms-registration-setup.md)
+- [数据库管理后台安全访问](docs/database-admin-access.md)
+- [openGauss 迁移评估](docs/opengauss-migration-assessment.md)
+- [安全整改记录](docs/security-remediation-2026-07-15.md)
+- [贡献指南](CONTRIBUTING.md)
+- [变更记录](CHANGELOG.md)
 
-**3. 编译运行**
+## 路线图
 
-使用 DevEco Studio 连接真机，编译并安装。
+- [x] 完成阿里云短信认证配置与真实注册验收
+- [x] 完成“记住我”真机重启与令牌轮换验收
+- [x] 通过 SSH 隧道开放数据库管理后台
+- [ ] 完成 openGauss 生产迁移前置整改与备份演练
+- [ ] 完成边缘设备的视频、人脸和语音端到端联调
+- [ ] 增加自动化构建、部署和恢复验证
 
----
+## 团队成员
 
-## 👨‍💻 团队成员
-
-| 姓名 | 年级 | 角色 |
+| 姓名 | 年级 | 职责 |
 |---|:---:|---|
-| 曹泽阳 | 2022级 | 项目负责人 · 系统架构设计 · 全栈开发 |
-| 董庄泽 | 2024级 | 边缘 AI 算法开发 · 昇腾模型部署与优化 |
-| 何佳宝 | 2024级 | 边缘 AI 算法开发 · 昇腾模型部署与优化 |
-| 简沅晞 | 2024级 | 鸿蒙应用 UI 开发 · 通信功能开发 |
-| 闻静涵 | 2024级 | 鸿蒙应用 UI 开发 · 通信功能开发 |
+| 曹泽阳 | 2022 级 | 项目负责人、系统架构设计 |
+| 简沅晞 | 2024 级 | HarmonyOS 应用、通信、云端同步与数据库 |
+| 董庄泽 | 2024 级 | 边缘 AI 算法、模型部署与优化 |
+| 何佳宝 | 2024 级 | 边缘 AI 算法、数据集构建与标注 |
+| 闻静涵 | 2024 级 | 需求分析、产品设计与用户测试 |
 
----
-
-## 📄 许可证
+## 许可证
 
 本项目基于 [MIT License](LICENSE) 开源。
 
----
-
-<div align="center">
-
-如有技术问题或合作意向，欢迎提交 Issue 或发送邮件至 **z4t155664@163.com**
-
-</div>
+如有问题或合作意向，请提交 Issue，或联系 `z4t155664@163.com`。

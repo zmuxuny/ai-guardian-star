@@ -3,7 +3,7 @@
  *
  * 📦 数据库：GuardianStar.db（默认沙箱路径）
  * 📋 数据表：
- *   - t_user        用户账号信息（含密码哈希）
+ *   - t_user        用户账号资料（password_hash 仅保留兼容空列）
  *   - t_health_event 健康事件（摔倒 / 久坐）
  *   - t_video_record 监控视频元数据（路径 + 元信息，7天滚动覆盖）
  *
@@ -275,7 +275,7 @@ export class DatabaseHelper {
     const values: relationalStore.ValuesBucket = {
       username: user.username,
       phone: user.phone ?? null,
-      password_hash: user.passwordHash,
+      password_hash: '',
       avatar_path: user.avatarPath ?? null,
       email: user.email ?? null,
       address: user.address ?? null,
@@ -357,11 +357,13 @@ export class DatabaseHelper {
     }
   }
 
-  /** 按登录标识（手机号或邮箱）查询用户，自动识别格式 */
+  /** 按登录标识查询用户：优先匹配手机/邮箱格式，否则按 phone 列兜底（覆盖华为 HW_ 等非标 ID），最终按 username 列兜底 */
   public async queryUserByIdentifier(id: string): Promise<UserInfo | null> {
     if (/^1[3-9]\d{9}$/.test(id)) return this.queryUserByPhone(id);
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) return this.queryUserByEmail(id);
-    return null;
+    const byPhone = await this.queryUserByPhone(id);
+    if (byPhone) return byPhone;
+    return this.queryUserByUsername(id);
   }
 
   /** 按手机号查询用户 */
@@ -385,12 +387,26 @@ export class DatabaseHelper {
     return this._querySingleUser(predicates);
   }
 
+  /** 按用户名删除用户（云端账号已被删除时清理本地数据） */
+  public async deleteUserByUsername(username: string): Promise<void> {
+    const predicates = new relationalStore.RdbPredicates("t_user");
+    predicates.equalTo("username", username);
+    try {
+      await this.getStore().delete(predicates);
+      hilog.info(DOMAIN, TAG, `deleteUserByUsername 成功 username=${username}`);
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.error(DOMAIN, TAG, `deleteUserByUsername 失败 ${err.code} ${err.message}`);
+      throw new Error(err.code + ": " + err.message);
+    }
+  }
+
   /** 更新密码哈希 */
-  public async updatePasswordHash(userId: number, newHash: string): Promise<void> {
+  public async updatePasswordHash(userId: number, _newHash: string): Promise<void> {
     const predicates = new relationalStore.RdbPredicates("t_user");
     predicates.equalTo("id", userId);
     try {
-      await this.getStore().update({ password_hash: newHash }, predicates);
+      await this.getStore().update({ password_hash: '' }, predicates);
       hilog.info(DOMAIN, TAG, `updatePasswordHash 成功 userId=${userId}`);
     } catch (e) {
       const err = e as BusinessError;

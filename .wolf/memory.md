@@ -2,7 +2,15 @@
 
 > Chronological action log. Hooks and AI append to this file automatically.
 > Old sessions are consolidated by the daemon weekly.
+| 02:22 | 上架审查：全链路 HTTP 明文/MQTT 无鉴权/deep-link占位符/证书私钥/散落文件 5大问题识别 | config.ets, MqttManager.ets, module.json5 | 分析完成 | ~800 |
+| 03:11 | Task 4: 首次启动隐私协议弹窗 — PrivacyDialog + checkPrivacyThenLogin | Index.ets | committed 2ded53c | ~600 |
+| 03:08 | /api/deleteUser 加入 passwordHash 验证，密码错误返回 403 | wenxin_proxy.py:130-153 | 完成 | ~200 |
+| 03:07 | 新增 DeleteUserRequest 接口 + CloudService.deleteUser 方法 | CloudService.ets | 完成 | ~200 |
+| 03:06 | 新增 /api/deleteUser 端点（账号注销），插入 api_login 之后 | wenxin_proxy.py | 成功 | ~200 |
+| 02:28 | feat: 人脸录入升级 multipart+姓名字段 commit d15b58e | config.ets, person.ets | ✅ pushed | ~400 |
+| 02:30 | fix: 上架安全4项修复(#2/#4/#7/#8) commit e5ee27d | module.json5, .gitignore, config.ets, MqttManager.ets | ✅ pushed | ~300 |
 | 08:05 | Edited C:/Users/16228/.claude/plugins/cache/claude-plugins-official/telegram/0.0.6/.mcp.json | 8→11 lines | ~55 |
+| 11:55 | 修复"用户信息异常" — Profile.ets 3个弹窗改用 queryUserByIdentifier；DatabaseHelper.queryUserByIdentifier 增加 phone列+username列兜底 | DatabaseHelper.ets, Profile.ets | bug fixed | ~300 |
 | 22:35 | 🔴 主页手机比例修复：回退共享卡片(GradientHeader/VideoArea/StatusCards/音量卡/通话按钮)的padding/margin/borderRadius从rSize()像素改回百分比 | mainpage.ets | fixed | ~800 |
 | 22:35 | 🔴 华为登录按钮修复：移除错误的authentication类型强转 + 添加防御式凭证解析 + 添加本地DB写入与云端同步 | Login.ets | fixed | ~1200 |
 | 3:29p | Replaced Tabs with conditional rendering + iOS floating bottom bar in Layout.ets | Layout.ets | ⚠️待验证 | ~200 |
@@ -706,6 +714,794 @@
 | 02:34 | Session end: 3 writes across 1 files (Login.ets) | 1 reads | ~9521 tok |
 
 ## Session: 2026-05-07 07:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-08 12:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-08 12:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 23:07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:32
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-09 05:38
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-10 11:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-10 11:54
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:22 | Created project-overview.html | — | ~9459 |
+| 12:22 | 创建 project-overview.html 项目全景可视化 | project-overview.html | 单文件 HTML，涵盖三层架构、数据流、组件详解、技术亮点、答辩问答 | ~15000 tok |
+| 12:23 | Session end: 1 writes across 1 files (project-overview.html) | 4 reads | ~14825 tok |
+
+## Session: 2026-05-11 04:43
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-11 04:47
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-11 04:47
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-11 05:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-11 05:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 05:03 | Edited project-overview.html | inline fix | ~11 |
+| 05:03 | Edited project-overview.html | inline fix | ~14 |
+| 05:04 | Edited project-overview.html | inline fix | ~15 |
+| 05:04 | Edited project-overview.html | inline fix | ~8 |
+| 05:04 | Edited project-overview.html | inline fix | ~6 |
+| 05:04 | Edited project-overview.html | inline fix | ~14 |
+| 05:04 | Edited project-overview.html | inline fix | ~5 |
+| 05:04 | Edited project-overview.html | inline fix | ~2 |
+| 05:04 | Edited project-overview.html | inline fix | ~3 |
+| 05:04 | Edited project-overview.html | inline fix | ~3 |
+| 05:04 | Edited project-overview.html | inline fix | ~4 |
+| 05:04 | Edited project-overview.html | inline fix | ~7 |
+| 05:04 | Edited project-overview.html | inline fix | ~3 |
+| 05:04 | Edited project-overview.html | inline fix | ~3 |
+| 05:04 | Edited project-overview.html | inline fix | ~3 |
+| 05:05 | Edited project-overview.html | inline fix | ~7 |
+| 05:05 | Session end: 16 writes across 1 files (project-overview.html) | 2 reads | ~9574 tok |
+
+## Session: 2026-05-11 05:11
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-15 11:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-15 12:32
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-16 23:23
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 08:38
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 08:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 08:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 08:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 09:05
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:25 | Edited wenxin_proxy.py | expanded (+7 lines) | ~181 |
+| 09:25 | Session end: 1 writes across 1 files (wenxin_proxy.py) | 5 reads | ~7319 tok |
+| 09:27 | Session end: 1 writes across 1 files (wenxin_proxy.py) | 5 reads | ~7319 tok |
+| 09:31 | Session end: 1 writes across 1 files (wenxin_proxy.py) | 5 reads | ~7319 tok |
+
+## Session: 2026-05-17 11:08
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:56 | Edited entry/src/main/ets/database/DatabaseHelper.ets | added 1 condition(s) | ~116 |
+| 11:57 | Edited entry/src/main/ets/pages/Profile.ets | queryUserByUsername() → queryUserByIdentifier() | ~68 |
+| 11:57 | Edited entry/src/main/ets/pages/Profile.ets | queryUserByUsername() → queryUserByIdentifier() | ~68 |
+| 11:57 | Edited entry/src/main/ets/pages/Profile.ets | queryUserByUsername() → queryUserByIdentifier() | ~50 |
+| 11:58 | Session end: 4 writes across 2 files (DatabaseHelper.ets, Profile.ets) | 3 reads | ~16783 tok |
+| 12:02 | Session end: 4 writes across 2 files (DatabaseHelper.ets, Profile.ets) | 3 reads | ~16783 tok |
+| 12:09 | Session end: 4 writes across 2 files (DatabaseHelper.ets, Profile.ets) | 7 reads | ~27102 tok |
+| 12:30 | Edited entry/src/main/ets/pages/Profile.ets | 7→7 lines | ~70 |
+| 12:31 | Edited entry/src/main/ets/pages/Profile.ets | added error handling | ~263 |
+| 12:31 | Edited entry/src/main/ets/pages/Profile.ets | 6→6 lines | ~54 |
+| 12:31 | Edited entry/src/main/ets/pages/Profile.ets | added error handling | ~266 |
+| 12:31 | Edited entry/src/main/ets/pages/Profile.ets | 5→5 lines | ~47 |
+| 12:31 | Edited entry/src/main/ets/pages/Profile.ets | queryUserByIdentifier() → getCurrentUsername() | ~307 |
+| 12:32 | Edited entry/src/main/ets/pages/Profile.ets | 17→18 lines | ~232 |
+| 12:32 | Edited entry/src/main/ets/pages/Profile.ets | modified if() | ~128 |
+| 12:32 | Edited entry/src/main/ets/pages/Profile.ets | added 3 condition(s) | ~330 |
+| 12:32 | Edited entry/src/main/ets/pages/MyAddress.ets | modified aboutToAppear() | ~174 |
+| 12:32 | Edited entry/src/main/ets/pages/MyAddress.ets | modified saveAddress() | ~91 |
+| 12:33 | Session end: 15 writes across 3 files (DatabaseHelper.ets, Profile.ets, MyAddress.ets) | 9 reads | ~31279 tok |
+
+## Session: 2026-05-17 12:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 12:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-17 12:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:17 | Edited entry/src/main/ets/pages/Profile.ets | inline fix | ~44 |
+| 13:17 | Edited entry/src/main/ets/pages/Profile.ets | then() → queryUserByUsername() | ~270 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 5→4 lines | ~38 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 8→9 lines | ~86 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 3→4 lines | ~60 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 8→9 lines | ~86 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 3→4 lines | ~60 |
+| 13:18 | Edited entry/src/main/ets/pages/Profile.ets | 3→4 lines | ~46 |
+| 13:19 | Edited entry/src/main/ets/pages/Profile.ets | then() → onSuccess() | ~144 |
+| 13:19 | Edited entry/src/main/ets/pages/Profile.ets | added error handling | ~736 |
+| 13:19 | Edited entry/src/main/ets/pages/Login.ets | modified if() | ~88 |
+| 13:20 | Session end: 11 writes across 2 files (Profile.ets, Login.ets) | 2 reads | ~18849 tok |
+
+## Session: 2026-05-17 13:23
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:24 | Edited entry/src/main/ets/pages/Profile.ets | inline fix | ~16 |
+| 13:24 | Session end: 1 writes across 1 files (Profile.ets) | 1 reads | ~8935 tok |
+
+## Session: 2026-05-17 13:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 03:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 03:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 03:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 11:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 11:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-18 11:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-19 08:11
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-19 08:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-19 08:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-19 08:31
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:08 | Edited entry/src/main/ets/pages/AiChat.ets | 5→4 lines | ~38 |
+| 09:08 | Edited entry/src/main/ets/pages/AiChat.ets | 5→4 lines | ~20 |
+| 09:08 | Edited entry/src/main/ets/pages/AiChat.ets | modified QuickQuestions() | ~325 |
+| 09:08 | Edited entry/src/main/ets/pages/AiChat.ets | 3→4 lines | ~41 |
+| 09:09 | Edited wenxin_proxy.py | modified api_update_user() | ~488 |
+| 09:10 | Edited wenxin_proxy.py | modified api_change_password() | ~384 |
+| 09:11 | Edited entry/src/main/ets/pages/Profile.ets | 12→13 lines | ~132 |
+| 09:11 | Edited entry/src/main/ets/pages/Profile.ets | added 2 condition(s) | ~407 |
+
+## Session: 2026-05-20 21:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 21:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 21:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 21:45
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:46 | Edited entry/src/main/ets/pages/Profile.ets | 9→10 lines | ~104 |
+| 21:46 | Edited entry/src/main/ets/pages/Profile.ets | added 2 condition(s) | ~407 |
+| 21:46 | Edited entry/src/main/ets/pages/Profile.ets | added 1 condition(s) | ~499 |
+| 21:46 | Edited entry/src/main/ets/pages/Profile.ets | 4→5 lines | ~51 |
+| 21:46 | Edited entry/src/main/ets/pages/Profile.ets | 4→5 lines | ~51 |
+| 21:47 | Edited entry/src/main/ets/common/CloudService.ets | expanded (+6 lines) | ~112 |
+| 21:47 | Edited entry/src/main/ets/pages/Profile.ets | 6→7 lines | ~103 |
+| 21:48 | Edited entry/src/main/ets/pages/Profile.ets | added 1 import(s) | ~51 |
+| 21:48 | Edited entry/src/main/ets/pages/Profile.ets | added optional chaining | ~796 |
+
+## Session Summary: 2026-05-19 上架审核三连修
+
+修复审核员反馈的三个问题：
+1. **AI 声明 + 快捷提问常驻**（AiChat.ets）：输入框上方加常驻 AI 生成免责声明行；删除 showQuickQuestions 开关，快捷提问改为永久显示（请求中禁用点击）。
+2. **登录/资料云端同步**（Profile.ets + wenxin_proxy.py）：根因——云端 t_user.username 是主键存昵称，但 App 改手机号时用 loginId 当 username 去 UPDATE，WHERE 不匹配，云端永不更新→旧手机仍能登录。修复：① 后端 /api/updateUser 改为 WHERE username=? OR phone=? OR email=?（柔性 lookup），并补回 affected==0 判断 + 新增 newUsername 改名字段；② 后端补 /api/changePassword 端点（之前 404）；③ Profile 三个 dialog 改为「先 await 云端成功，再写本地」防双端漂移，失败弹错误不改本地。
+3. **头像处理失败**（Profile.ets）：根因——真机 fs.copyFile 不能直接吃 PhotoViewPicker 的 file://media URI。修复：fd 打开→ImageKit 解码任意尺寸→短边居中裁方→缩放512→JPEG 重编码→时间戳文件名写沙箱（绕过 Image 路径缓存）+ 删旧文件。
+| 21:53 | Session end: 9 writes across 2 files (Profile.ets, CloudService.ets) | 1 reads | ~12169 tok |
+| 21:59 | Session end: 9 writes across 2 files (Profile.ets, CloudService.ets) | 1 reads | ~12169 tok |
+
+## Session: 2026-05-20 00:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 00:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 00:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 01:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 01:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-20 02:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:49 | Edited entry/src/main/ets/pages/Profile.ets | 13→9 lines | ~102 |
+| 02:49 | Edited entry/src/main/ets/pages/Profile.ets | 10→6 lines | ~63 |
+| 02:49 | Edited entry/src/main/ets/pages/Profile.ets | removed 6 lines | ~10 |
+| 02:50 | Edited entry/src/main/ets/pages/Profile.ets | added 1 condition(s) | ~693 |
+| 02:50 | Edited entry/src/main/ets/pages/Profile.ets | updateChangedState() → saveAvatar() | ~68 |
+| 02:50 | Edited entry/src/main/ets/pages/Profile.ets | added 2 condition(s) | ~354 |
+| 02:50 | Edited entry/src/main/ets/pages/Profile.ets | reduced (-7 lines) | ~60 |
+| 02:50 | Edited entry/src/main/ets/pages/Profile.ets | reduced (-12 lines) | ~47 |
+| 02:51 | Edited entry/src/main/ets/pages/Profile.ets | 4→3 lines | ~38 |
+| 02:51 | Edited entry/src/main/ets/pages/Profile.ets | 4→3 lines | ~38 |
+| 02:54 | Session end: 10 writes across 1 files (Profile.ets) | 1 reads | ~11412 tok |
+| 03:13 | Edited entry/src/main/ets/pages/Profile.ets | 5→8 lines | ~98 |
+| 03:13 | Edited entry/src/main/ets/pages/Login.ets | 11→13 lines | ~184 |
+| 03:14 | Edited entry/src/main/ets/pages/Profile.ets | modified Column() | ~34 |
+| 03:14 | Edited entry/src/main/ets/pages/Profile.ets | removed 14 lines | ~16 |
+| 03:14 | Edited entry/src/main/ets/pages/person.ets | 15→16 lines | ~182 |
+| 03:15 | Edited entry/src/main/ets/pages/mainpage.ets | added 1 import(s) | ~37 |
+| 03:15 | Edited entry/src/main/ets/pages/mainpage.ets | added 1 condition(s) | ~153 |
+| 03:15 | Edited entry/src/main/ets/pages/MyAddress.ets | 8→8 lines | ~77 |
+| 03:16 | Edited entry/src/main/ets/pages/MyAddress.ets | added optional chaining | ~2258 |
+| 03:17 | Edited entry/src/main/ets/pages/MyAddress.ets | modified if() | ~128 |
+| 03:20 | Session end: 20 writes across 5 files (Profile.ets, Login.ets, person.ets, mainpage.ets, MyAddress.ets) | 6 reads | ~40181 tok |
+
+## Session: 2026-05-20 03:32
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 03:40 | 🟣 MyAddress.ets 地址卡片布局调整：地址文字移至顶部突出显示，标签居中，联系人/电话移到底部缩小 | MyAddress.ets | done | ~200 |
+| 03:41 | ✅ README.md 全面重写：AI守护星→智护星、开发板→OrangePi AIPro、团队职责去重、简沅晞贡献修正、内容更新 | README.md | done | ~800 |
+| 03:43 | Session end: 2 writes across 2 files (MyAddress.ets, README.md) | 2 reads | ~6302 tok |
+| 03:51 | Session end: 2 writes across 2 files (MyAddress.ets, README.md) | 2 reads | ~6302 tok |
+
+## Session: 2026-05-20 03:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-21 00:16
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-21 05:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-21 07:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-22 02:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-22 05:51
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-22 05:54
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:01 | Edited wenxin_proxy.py | added 1 import(s) | ~52 |
+| 06:01 | Edited wenxin_proxy.py | 4→9 lines | ~103 |
+| 06:03 | Edited wenxin_proxy.py | added error handling | ~5872 |
+| 06:04 | Session end: 3 writes across 1 files (wenxin_proxy.py) | 2 reads | ~23022 tok |
+| 06:13 | Session end: 3 writes across 1 files (wenxin_proxy.py) | 2 reads | ~23022 tok |
+| 06:16 | Edited entry/src/main/ets/pages/Login.ets | modified if() | ~20 |
+| 06:16 | Session end: 4 writes across 2 files (wenxin_proxy.py, Login.ets) | 3 reads | ~31764 tok |
+
+## Session: 2026-05-22 07:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-22 07:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 07:27 | Edited entry/src/main/ets/database/DatabaseHelper.ets | added error handling | ~177 |
+| 07:27 | Edited entry/src/main/ets/pages/Index.ets | added 2 condition(s) | ~844 |
+| 07:28 | Session end: 2 writes across 2 files (DatabaseHelper.ets, Index.ets) | 5 reads | ~20866 tok |
+| 07:42 | Edited entry/src/main/ets/pages/Index.ets | queryUserByUsername() → queryUserByIdentifier() | ~442 |
+| 07:43 | Session end: 3 writes across 2 files (DatabaseHelper.ets, Index.ets) | 6 reads | ~33340 tok |
+| 08:13 | Session end: 3 writes across 2 files (DatabaseHelper.ets, Index.ets) | 6 reads | ~33340 tok |
+
+## Session: 2026-05-23 11:38
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-23 11:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-23 11:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-23 11:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-26 11:29
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-27 11:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-27 11:33
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-29 23:04
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-29 00:08
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-05-29 08:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:07 | Created iCAN_开发日志.txt | — | ~4724 |
+| 09:07 | Session end: 1 writes across 1 files (iCAN_开发日志.txt) | 1 reads | ~5062 tok |
+
+## Session: 2026-06-01 22:41
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-02 11:36
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-02 12:26
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:49 | Edited C:/Users/16228/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs | removed 1 lines | ~2 |
+| 12:53 | Session end: 1 writes across 1 files (worker-service.cjs) | 5 reads | ~2 tok |
+
+## Session: 2026-06-03 00:05
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 01:55
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 02:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:24 | Edited entry/src/main/module.json5 | reduced (-19 lines) | ~55 |
+| 02:24 | Edited .gitignore | expanded (+11 lines) | ~93 |
+| 02:24 | Edited entry/src/main/ets/config.ets | 3→7 lines | ~91 |
+| 02:24 | Edited entry/src/main/ets/pages/MqttManager.ets | inline fix | ~27 |
+| 02:25 | Edited entry/src/main/ets/pages/MqttManager.ets | modified testConnection() | ~91 |
+| 02:25 | Edited entry/src/main/ets/pages/MqttManager.ets | 8→8 lines | ~59 |
+| 02:26 | Session end: 6 writes across 4 files (module.json5, .gitignore, config.ets, MqttManager.ets) | 3 reads | ~7765 tok |
+| 02:31 | Session end: 6 writes across 4 files (module.json5, .gitignore, config.ets, MqttManager.ets) | 3 reads | ~7765 tok |
+
+## Session: 2026-06-03 02:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 02:57
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 02:57
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 03:10 | Edited entry/src/main/ets/config.ets | expanded (+20 lines) | ~395 |
+| 03:11 | Edited entry/src/main/ets/pages/MqttManager.ets | inline fix | ~30 |
+| 03:11 | Edited entry/src/main/ets/pages/MqttManager.ets | 9→14 lines | ~126 |
+| 03:11 | Edited entry/src/main/ets/pages/MqttManager.ets | 8→13 lines | ~100 |
+| 03:12 | Session end: 4 writes across 2 files (config.ets, MqttManager.ets) | 3 reads | ~5971 tok |
+
+## Session: 2026-06-03 09:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 11:25
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 11:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 11:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-03 12:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:36 | Edited .claude/settings.local.json | 2→5 lines | ~21 |
+| 12:36 | Session end: 1 writes across 1 files (settings.local.json) | 3 reads | ~922 tok |
+| 12:37 | Session end: 1 writes across 1 files (settings.local.json) | 3 reads | ~922 tok |
+| 12:52 | Session end: 1 writes across 1 files (settings.local.json) | 3 reads | ~922 tok |
+
+## Session: 2026-06-04 22:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-05 02:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-05 02:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 02:42 | Edited wenxin_proxy.py | 9→9 lines | ~174 |
+| 02:42 | Edited wenxin_proxy.py | 8→8 lines | ~128 |
+| 02:43 | Session end: 2 writes across 1 files (wenxin_proxy.py) | 1 reads | ~12302 tok |
+| 02:51 | Session end: 2 writes across 1 files (wenxin_proxy.py) | 3 reads | ~19729 tok |
+| 02:54 | Session end: 2 writes across 1 files (wenxin_proxy.py) | 3 reads | ~19729 tok |
+| 02:56 | Created docs/superpowers/specs/2026-06-05-privacy-and-account-deletion-design.md | — | ~711 |
+| 02:56 | Session end: 3 writes across 2 files (wenxin_proxy.py, 2026-06-05-privacy-and-account-deletion-design.md) | 3 reads | ~20491 tok |
+| 03:00 | Edited docs/superpowers/specs/2026-06-05-privacy-and-account-deletion-design.md | 9→12 lines | ~151 |
+| 03:03 | Created docs/superpowers/plans/2026-06-05-privacy-and-account-deletion.md | — | ~4382 |
+| 03:03 | Session end: 5 writes across 3 files (wenxin_proxy.py, 2026-06-05-privacy-and-account-deletion-design.md, 2026-06-05-privacy-and-account-deletion.md) | 3 reads | ~25348 tok |
+| 03:06 | Edited entry/src/main/ets/config.ets | 2→5 lines | ~81 |
+| 03:07 | Edited wenxin_proxy.py | modified api_delete_user() | ~284 |
+| 03:08 | Edited entry/src/main/ets/common/CloudService.ets | 5→9 lines | ~44 |
+| 03:08 | Edited entry/src/main/ets/common/CloudService.ets | modified changePassword() | ~138 |
+| 03:09 | Edited wenxin_proxy.py | modified api_delete_user() | ~307 |
+| 03:09 | Edited entry/src/main/ets/common/CloudService.ets | 3→4 lines | ~20 |
+| 03:09 | Edited entry/src/main/ets/common/CloudService.ets | modified deleteUser() | ~69 |
+| 03:11 | Edited entry/src/main/ets/pages/Index.ets | 7→7 lines | ~124 |
+| 03:11 | Edited entry/src/main/ets/pages/Index.ets | added error handling | ~745 |
+| 03:11 | Edited entry/src/main/ets/pages/Index.ets | added error handling | ~426 |
+| 03:12 | Edited entry/src/main/ets/pages/Index.ets | checkAutoLogin() → checkPrivacyThenLogin() | ~27 |
+| 03:14 | Edited entry/src/main/ets/pages/person.ets | added 1 import(s) | ~68 |
+| 03:21 | Edited entry/src/main/ets/pages/person.ets | 4→6 lines | ~51 |
+| 03:22 | Edited entry/src/main/ets/pages/person.ets | modified build() | ~480 |
+| 03:22 | Edited entry/src/main/ets/pages/person.ets | added error handling | ~762 |
+| 03:22 | Edited entry/src/main/ets/pages/person.ets | inline fix | ~17 |
+| 03:23 | Edited entry/src/main/ets/pages/person.ets | added 1 condition(s) | ~245 |
+| 03:23 | Session end: 22 writes across 7 files (wenxin_proxy.py, 2026-06-05-privacy-and-account-deletion-design.md, 2026-06-05-privacy-and-account-deletion.md, config.ets, CloudService.ets) | 5 reads | ~30663 tok |
+
+## Session: 2026-06-05 04:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-05 12:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-05 12:21
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-05 12:22
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-06 12:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-06 12:24
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:39 | Edited entry/src/main/resources/base/profile/route_map.json | removed 9 lines | ~1 |
+| 12:40 | Edited entry/src/main/resources/base/profile/route_map.json | 5→4 lines | ~6 |
+| 12:49 | Session end: 2 writes across 1 files (route_map.json) | 8 reads | ~6866 tok |
+| 12:54 | Session end: 2 writes across 1 files (route_map.json) | 10 reads | ~9216 tok |
+| 13:00 | Edited entry/src/main/ets/pages/Login.ets | 5→3 lines | ~44 |
+| 13:00 | Edited entry/src/main/ets/pages/Index.ets | 5→3 lines | ~75 |
+| 13:00 | Edited entry/src/main/ets/pages/Index.ets | inline fix | ~7 |
+| 13:00 | Edited entry/src/main/ets/pages/Index.ets | modified checkAutoLogin() | ~29 |
+| 13:00 | Edited entry/src/main/ets/pages/Index.ets | removed 18 lines | ~1 |
+| 13:01 | Edited entry/src/main/ets/pages/person.ets | 3→2 lines | ~30 |
+| 13:01 | Edited entry/src/main/ets/pages/person.ets | inline fix | ~60 |
+| 13:01 | Edited entry/src/main/ets/pages/person.ets | inline fix | ~7 |
+| 13:01 | Edited entry/obfuscation-rules.txt | 4→5 lines | ~34 |
+| 13:02 | Session end: 11 writes across 5 files (route_map.json, Login.ets, Index.ets, person.ets, obfuscation-rules.txt) | 13 reads | ~27026 tok |
+
+## Session: 2026-06-06 13:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:29 | Edited wenxin_proxy.py | 3→3 lines | ~39 |
+| 13:29 | Edited entry/src/main/ets/pages/Login.ets | 2→2 lines | ~42 |
+| 13:29 | Edited entry/src/main/ets/pages/Login.ets | modified Row() | ~391 |
+| 13:30 | Edited entry/src/main/ets/pages/Login.ets | modified handleHuaweiLogin() | ~662 |
+| 13:30 | Edited entry/src/main/ets/pages/person.ets | modified Column() | ~919 |
+
+## Session: 2026-06-07 21:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-07 21:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:53 | fix: deleteUser 403→200，避免 HarmonyOS http ArrayBuffer 解析失败 | wenxin_proxy.py | 修复注销"服务器格式不正确"报错 | ~200 |
+| 21:53 | ui: 退出登录+注销账号移至 Scroll 外固定底栏，加背景色 | person.ets | 两按钮固定在页面底部，视觉分区 | ~800 |
+| 21:53 | feat: 注释掉华为一键登录（暂不可用） | Login.ets | 导入/按钮/方法全部注释，不影响其他登录 | ~400 |
+| 22:11 | Edited entry/src/main/ets/pages/person.ets | modified Column() | ~902 |
+| 22:11 | Edited entry/obfuscation-rules.txt | 5→5 lines | ~39 |
+| 22:12 | Session end: 2 writes across 2 files (person.ets, obfuscation-rules.txt) | 3 reads | ~10277 tok |
+| 22:20 | Session end: 2 writes across 2 files (person.ets, obfuscation-rules.txt) | 3 reads | ~10277 tok |
+
+## Session: 2026-06-13 08:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-13 08:36
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-15 07:42
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-25 08:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-25 12:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-27 08:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:42 | read-only launch readiness audit | README.md, PROJECT_HANDOFF.md, entry/src/main/ets, wenxin_proxy.py, build.log | no code changes; app surface mostly complete, launch risks remain in live E2E, secrets/config, tests, and docs consistency | ~26000 |
+
+## Session: 2026-06-27 12:48
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-27 12:55
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-06-28 23:39
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-02 11:06
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-02 11:06
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-10 09:58
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-11 00:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 02:20
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 06:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 11:30
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-12 12:38
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|

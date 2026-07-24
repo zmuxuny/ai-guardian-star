@@ -7,6 +7,7 @@ import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import { GradientHeader } from '../components/GradientHeader';
+import { STORE_KEY_AI_ACCESS_LEVEL } from '../config';
 
 const QUICK_QUESTIONS: string[] = [
   '老人最近状态怎么样？',
@@ -30,8 +31,8 @@ export struct AiChat {
   @State messages: BubbleMsg[] = [];
   @State inputText: string = '';
   @State isRequesting: boolean = false;
-  @State showQuickQuestions: boolean = true;
   @State dotPhase: number = 0;
+  @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
   private scroller: Scroller = new Scroller();
@@ -39,9 +40,11 @@ export struct AiChat {
   private dotTimer: number = -1;
 
   aboutToAppear(): void {
+    const accessText = this.aiAccessLevel === 'full' ? '完整监护状态'
+      : this.aiAccessLevel === 'basic' ? '基础健康问答' : '脱敏统计摘要';
     this.pushAssistantMsg(
       '你好！我是智护星 AI 健康助手 👋\n\n' +
-      '我已接入监护数据（仅统计摘要），' +
+      `当前模式：${accessText}，` +
       '可以帮你分析健康风险、解答护理疑问。'
     );
   }
@@ -107,7 +110,6 @@ export struct AiChat {
 
     this.inputText = '';
     this.isRequesting = true;
-    this.showQuickQuestions = false;
 
     this.pushMsg({
       id: this.nextId(), role: 'user',
@@ -148,7 +150,10 @@ export struct AiChat {
         Blank()
         Row({ space: 6 }) {
           Circle({ width: 8, height: 8 }).fill('#4ade80')
-          Text('AI 在线').fontSize(12).fontColor('#E0F2FE')
+          Text(
+            `AI 在线 · ${this.aiAccessLevel === 'full' ? '深度照护'
+              : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
+          ).fontSize(12).fontColor('#E0F2FE')
         }
         .padding({ left: 10, right: 10, top: 6, bottom: 6 })
         .backgroundColor('#33FFFFFF').borderRadius(100)
@@ -234,25 +239,38 @@ export struct AiChat {
 
   @Builder
   QuickQuestions(): void {
-    if (this.showQuickQuestions) {
-      Column() {
-        Text('快捷提问').fontSize(12)
-          .fontColor(this.themeManager.colors.secondaryTextColor)
-          .margin({ left: '5%', bottom: 8 }).alignSelf(ItemAlign.Start)
-        Scroll(new Scroller()) {
-          Row({ space: 10 }) {
-            ForEach(QUICK_QUESTIONS, (q: string) => {
-              Text(q)
-                .fontSize(13).fontColor('#2563eb')
-                .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-                .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-                .borderRadius(20).border({ width: 1, color: '#93c5fd' })
-                .onClick((): void => { this.sendMessage(q); })
-            })
-          }.padding({ left: '5%', right: '5%' })
-        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
-      }.margin({ bottom: 10 })
+    Column() {
+      Text('快捷提问').fontSize(12)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .margin({ left: '5%', bottom: 8 }).alignSelf(ItemAlign.Start)
+      Scroll(new Scroller()) {
+        Row({ space: 10 }) {
+          ForEach(QUICK_QUESTIONS, (q: string) => {
+            Text(q)
+              .fontSize(13).fontColor('#2563eb')
+              .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(20).border({ width: 1, color: '#93c5fd' })
+              .onClick((): void => {
+                if (!this.isRequesting) this.sendMessage(q);
+              })
+          })
+        }.padding({ left: '5%', right: '5%' })
+      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
+    }.margin({ bottom: 6 })
+  }
+
+  @Builder
+  AiDisclaimer(): void {
+    Row({ space: 4 }) {
+      Text('✨').fontSize(10)
+      Text('内容由 AI 生成，仅供参考，请勿替代专业建议')
+        .fontSize(10)
+        .fontColor(this.themeManager.colors.tertiaryTextColor)
     }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding({ top: 4, bottom: 6 })
   }
 
   @Builder
@@ -299,6 +317,7 @@ export struct AiChat {
       }
       .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
       this.QuickQuestions()
+      this.AiDisclaimer()
       this.InputBar()
     }
     .width('100%').height('100%')
