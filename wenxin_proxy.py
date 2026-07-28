@@ -17,6 +17,7 @@ import sqlite3
 import os
 import functools
 import re
+from datetime import datetime, timedelta, timezone
 
 from security_utils import hash_password, password_needs_rehash, verify_password
 
@@ -62,6 +63,7 @@ ALIYUN_SMS_SIGN_NAME = os.environ.get('ALIYUN_SMS_SIGN_NAME', '')
 ALIYUN_SMS_TEMPLATE_CODE = os.environ.get('ALIYUN_SMS_TEMPLATE_CODE', '100001')
 ALIYUN_SMS_SCHEME_NAME = os.environ.get('ALIYUN_SMS_SCHEME_NAME', 'guardian-register')
 ALIYUN_SMS_DAILY_LIMIT = int(os.environ.get('ALIYUN_SMS_DAILY_LIMIT', '100'))
+ALIYUN_SMS_MONTHLY_LIMIT = int(os.environ.get('ALIYUN_SMS_MONTHLY_LIMIT', '200'))
 ACCESS_TOKEN_TTL = 15 * 60
 REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 SMS_CODE_TTL = 5 * 60
@@ -315,14 +317,20 @@ def api_send_otp():
     try:
         conn = get_db()
         conn.execute('BEGIN IMMEDIATE')
-        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 7 * 24 * 60 * 60,))
+        month_start = int(
+            datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            .timestamp()
+        )
+        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 40 * 24 * 60 * 60,))
         recent = conn.execute(
             "SELECT "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_minute, "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
             "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
-            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day "
+            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day, "
+            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month "
             "FROM t_sms_challenge",
             (
                 phone, now - 60,
@@ -330,6 +338,7 @@ def api_send_otp():
                 phone, now - 24 * 60 * 60,
                 requester_ip, now - 60 * 60,
                 now - 24 * 60 * 60,
+                month_start,
             ),
         ).fetchone()
         if (
@@ -338,6 +347,7 @@ def api_send_otp():
             or (recent['phone_day'] or 0) >= 10
             or (recent['ip_hour'] or 0) >= 20
             or (recent['total_day'] or 0) >= ALIYUN_SMS_DAILY_LIMIT
+            or (recent['total_month'] or 0) >= ALIYUN_SMS_MONTHLY_LIMIT
         ):
             conn.rollback()
             conn.close()

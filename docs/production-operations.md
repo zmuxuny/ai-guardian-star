@@ -88,10 +88,17 @@ PY
 ## 监控与告警
 
 `wenxin-monitor.timer` 每五分钟检查 API/Nginx、磁盘、可用内存、TLS 剩余天数、
-备份新鲜度与完整性、24 小时短信发送量和可能产生费用的 AI 请求量。默认阈值：
-磁盘 85%、内存 90%、TLS 21 天、备份 36 小时、短信日上限 80%、AI 100 次。
-近 10 分钟出现 AI 上游 `401/403` 也会立即告警。阈值可放在 root-only
-`/etc/wenxin/monitor.env` 中调整。
+备份新鲜度与完整性、24 小时及自然月短信发送量，以及可能产生费用的 AI 请求量。
+默认阈值：磁盘 85%、内存 90%、TLS 21 天、备份 36 小时、短信日上限 100 条、
+短信月上限 200 条、AI 100 次/日；短信达到日/月上限的 80% 时告警，达到上限后
+应用直接拒绝继续发送。近 10 分钟出现 AI 上游 `401/403` 也会立即告警。阈值可放在
+root-only `/etc/wenxin/monitor.env` 中调整：
+
+```ini
+ALIYUN_SMS_DAILY_LIMIT=100
+ALIYUN_SMS_MONTHLY_LIMIT=200
+AI_DAILY_REQUEST_ALERT=100
+```
 
 检查失败时 `wenxin-monitor.service` 进入 failed，详细原因写入 journal：
 
@@ -101,7 +108,7 @@ journalctl -u wenxin-monitor.service --since today --no-pager
 ```
 
 Nginx 已由系统 logrotate 每日压缩、保留 10 份；journald 限制为 256 MiB、最长
-30 天。Certbot 每日检查续期。当前服务器未安装 CloudMonitor agent，也没有外发
-告警接收渠道；在阿里云控制台绑定手机号/邮件/Webhook 前，systemd failed 仅是
-本机告警，不能视为已送达通知。短信计数来自实际注册 challenge；AI 数量按
-Gunicorn 访问日志保守估算，不等同供应商账单，供应商预算告警仍须在各自控制台设置。
+30 天。Certbot 每日检查续期。当前服务器没有外发告警接收渠道；绑定邮件/Webhook
+前，systemd failed 仅是本机告警，不能视为已送达通知。短信计数来自实际注册
+challenge；AI 数量按 Gunicorn 访问日志保守估算，不等同供应商余额或账单。
+阿里云短信账单、Coze Token 余额等金额告警仍须在各自控制台绑定接收邮箱。

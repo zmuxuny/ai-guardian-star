@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -64,6 +64,11 @@ def evaluate_metrics(metrics):
             metrics["sms_count"] >= math.ceil(metrics["sms_limit"] * 0.8),
             "sms_usage",
             f'{metrics["sms_count"]}/{metrics["sms_limit"]} sends',
+        ),
+        (
+            metrics["sms_month_count"] >= math.ceil(metrics["sms_month_limit"] * 0.8),
+            "sms_month_usage",
+            f'{metrics["sms_month_count"]}/{metrics["sms_month_limit"]} sends',
         ),
         (
             metrics["ai_count"] >= int(os.environ.get("AI_DAILY_REQUEST_ALERT", "100")),
@@ -121,14 +126,22 @@ def _backup_metrics(backup_dir):
     return age, integrity
 
 
-def _sms_count(database):
+def _sms_counts(database):
+    now = int(time.time())
+    month_start = int(
+        datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+        .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
     conn = sqlite3.connect(f"{Path(database).resolve().as_uri()}?mode=ro", uri=True)
     try:
         return conn.execute(
-            "SELECT COUNT(1) FROM t_sms_challenge "
-            "WHERE purpose='register' AND sent_at>=?",
-            (int(time.time()) - 24 * 60 * 60,),
-        ).fetchone()[0]
+            "SELECT "
+            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) "
+            "FROM t_sms_challenge WHERE purpose='register'",
+            (now - 24 * 60 * 60, month_start),
+        ).fetchone()
     finally:
         conn.close()
 
@@ -157,6 +170,9 @@ def collect_metrics():
     backup_age, backup_integrity = _backup_metrics(
         os.environ.get("SQLITE_BACKUP_DIR", "/var/backups/wenxin")
     )
+    sms_count, sms_month_count = _sms_counts(
+        os.environ.get("SQLITE_DB_PATH", "/root/guardian_users.db")
+    )
     ai_logs = _journal_logs("24 hours ago")
     recent_ai_logs = _journal_logs("10 minutes ago")
     return {
@@ -177,10 +193,10 @@ def collect_metrics():
         ),
         "backup_age_hours": backup_age,
         "backup_integrity": backup_integrity,
-        "sms_count": _sms_count(
-            os.environ.get("SQLITE_DB_PATH", "/root/guardian_users.db")
-        ),
-        "sms_limit": int(os.environ.get("ALIYUN_SMS_DAILY_LIMIT", "20")),
+        "sms_count": sms_count or 0,
+        "sms_limit": int(os.environ.get("ALIYUN_SMS_DAILY_LIMIT", "100")),
+        "sms_month_count": sms_month_count or 0,
+        "sms_month_limit": int(os.environ.get("ALIYUN_SMS_MONTHLY_LIMIT", "200")),
         "ai_count": count_costly_ai_requests(ai_logs),
         "ai_auth_failures": count_ai_upstream_auth_failures(recent_ai_logs),
     }

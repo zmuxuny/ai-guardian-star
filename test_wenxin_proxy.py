@@ -766,6 +766,30 @@ class SmsRegistrationTest(unittest.TestCase):
         self.assertEqual(blocked.status_code, 429)
         self.assertEqual(send.call_count, 1)
 
+    def test_global_monthly_budget_stops_additional_send_cost(self):
+        now = 1785240000
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES ('older-send', '13340878619', 'register', '127.0.0.1', ?, ?)
+            """,
+            (now - 10 * 24 * 60 * 60, now),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "ALIYUN_SMS_MONTHLY_LIMIT", 1, create=True):
+            with mock.patch.object(proxy.time, "time", return_value=now):
+                with mock.patch.object(proxy, "_send_sms_verification") as send:
+                    blocked = self.client.post(
+                        "/api/otp/send", json={"phone": "13900000000"}
+                    )
+
+        self.assertEqual(blocked.status_code, 429)
+        send.assert_not_called()
+
     def test_registration_requires_matching_one_time_challenge(self):
         send_response, _ = self.send_code()
         challenge = send_response.get_json()["challengeId"]

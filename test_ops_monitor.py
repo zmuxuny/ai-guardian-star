@@ -20,6 +20,8 @@ class OpsMonitorTest(unittest.TestCase):
             "backup_integrity": "ok",
             "sms_count": 3,
             "sms_limit": 20,
+            "sms_month_count": 20,
+            "sms_month_limit": 200,
             "ai_count": 50,
             "ai_auth_failures": 0,
         }
@@ -38,6 +40,8 @@ class OpsMonitorTest(unittest.TestCase):
             "backup_integrity": "corrupt",
             "sms_count": 16,
             "sms_limit": 20,
+            "sms_month_count": 160,
+            "sms_month_limit": 200,
             "ai_count": 100,
             "ai_auth_failures": 1,
         }
@@ -56,9 +60,33 @@ class OpsMonitorTest(unittest.TestCase):
                 "backup_age",
                 "backup_integrity",
                 "sms_usage",
+                "sms_month_usage",
                 "ai_usage",
                 "ai_upstream_auth",
             },
+        )
+
+    def test_monthly_sms_budget_warns_at_eighty_percent(self):
+        metrics = {
+            "wenxin_active": True,
+            "nginx_active": True,
+            "health_ok": True,
+            "disk_used_percent": 40.0,
+            "memory_used_percent": 50.0,
+            "tls_days_remaining": 30.0,
+            "backup_age_hours": 2.0,
+            "backup_integrity": "ok",
+            "sms_count": 3,
+            "sms_limit": 100,
+            "sms_month_count": 160,
+            "sms_month_limit": 200,
+            "ai_count": 10,
+            "ai_auth_failures": 0,
+        }
+
+        self.assertIn(
+            "sms_month_usage: 160/200 sends",
+            evaluate_metrics(metrics),
         )
 
     def test_ai_cost_count_excludes_rejected_requests(self):
