@@ -64,3 +64,43 @@ PY
 真实灾难恢复前：停止 `wenxin.service`，把损坏数据库移到带 UTC 时间戳的隔离路径，
 恢复到 `/root/guardian_users.db`，确认权限 `600`，再启动服务并验证登录。不得删除
 原数据库或备份。
+
+## CI 与自动部署
+
+`.github/workflows/ci.yml` 默认在 `main`、`develop` 和 PR 上运行 Python 测试、
+语法检查和差异检查。HarmonyOS 构建需要标签为 `Windows`、`caring-system` 的
+自托管 runner；确认 runner 安全隔离后设置：
+
+- 仓库变量 `HARMONY_BUILD_ENABLED=true`
+- 仓库变量 `DEVECO_STUDIO_HOME` 为 DevEco Studio 绝对路径
+
+生产自动部署默认关闭。准备 GitHub `production` Environment 审批后，再设置：
+
+- 仓库变量 `PRODUCTION_DEPLOY_ENABLED=true`
+- 仓库变量 `PRODUCTION_SSH_HOST`
+- Actions secret `PRODUCTION_SSH_KEY`
+- Actions secret `PRODUCTION_SSH_KNOWN_HOSTS`
+
+部署脚本只接受 `ecs-f195` 上 `/root/wenxin-releases/` 内、root 所有的 release
+目录。每次部署保存 `/root/wenxin-rollbacks/<UTC时间>`；本机或公网健康检查失败时
+自动恢复应用、systemd、Nginx 和备份脚本。GitHub 密钥不得写入仓库或构建日志。
+
+## 监控与告警
+
+`wenxin-monitor.timer` 每五分钟检查 API/Nginx、磁盘、可用内存、TLS 剩余天数、
+备份新鲜度与完整性、24 小时短信发送量和可能产生费用的 AI 请求量。默认阈值：
+磁盘 85%、内存 90%、TLS 21 天、备份 36 小时、短信日上限 80%、AI 100 次。
+阈值可放在 root-only `/etc/wenxin/monitor.env` 中调整。
+
+检查失败时 `wenxin-monitor.service` 进入 failed，详细原因写入 journal：
+
+```sh
+systemctl --failed
+journalctl -u wenxin-monitor.service --since today --no-pager
+```
+
+Nginx 已由系统 logrotate 每日压缩、保留 10 份；journald 限制为 256 MiB、最长
+30 天。Certbot 每日检查续期。当前服务器未安装 CloudMonitor agent，也没有外发
+告警接收渠道；在阿里云控制台绑定手机号/邮件/Webhook 前，systemd failed 仅是
+本机告警，不能视为已送达通知。短信计数来自实际注册 challenge；AI 数量按
+Gunicorn 访问日志保守估算，不等同供应商账单，供应商预算告警仍须在各自控制台设置。

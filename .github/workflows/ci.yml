@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements-production.txt
+            requirements-moderation.txt
+            requirements-sms.txt
+      - run: python -m pip install --requirement requirements-production.txt
+      - run: python -m unittest discover -v
+      - run: python -m py_compile wenxin_proxy.py security_utils.py deploy/sqlite_maintenance.py deploy/ops_monitor.py
+      - run: git diff --check HEAD^ HEAD
+
+  hap-release:
+    if: vars.HARMONY_BUILD_ENABLED == 'true' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, Windows, caring-system]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装 HarmonyOS 依赖并构建 Release HAP
+        shell: powershell
+        env:
+          DEVECO_STUDIO_HOME: ${{ vars.DEVECO_STUDIO_HOME }}
+        run: |
+          $node = Join-Path $env:DEVECO_STUDIO_HOME 'tools\node\node.exe'
+          $ohpm = Join-Path $env:DEVECO_STUDIO_HOME 'tools\ohpm\bin\pm-cli.js'
+          $hvigor = Join-Path $env:DEVECO_STUDIO_HOME 'tools\hvigor\bin\hvigorw.bat'
+          foreach ($tool in @($node, $ohpm, $hvigor)) {
+            if (-not (Test-Path -LiteralPath $tool)) { throw "缺少构建工具: $tool" }
+          }
+          & $node $ohpm install --all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $hvigor --mode module -p product=default -p module=entry@default `
+            -p buildMode=release assembleHap --no-daemon
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caring-system-release-hap
+          path: entry/build/default/outputs/default/*.hap
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.PRODUCTION_DEPLOY_ENABLED == 'true'
+    needs: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配置 SSH
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_KEY"
+          test -n "$SSH_KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: 上传并部署
+        env:
+          SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
+          RELEASE: /root/wenxin-releases/${{ github.sha }}
+        run: |
+          test -n "$SSH_HOST"
+          ssh -i ~/.ssh/id_ed25519 -p 22 root@"$SSH_HOST" "install -d -m 700 '$RELEASE'"
+          scp -i ~/.ssh/id_ed25519 -P 22 \
+            wenxin_proxy.py security_utils.py requirements-production.txt \
+            requirements-moderation.txt requirements-sms.txt \
+            root@"$SSH_HOST":"$RELEASE/"
+          scp -i ~/.ssh/id_ed25519 -P 22 -r deploy \
+            root@"$SSH_HOST":"$RELEASE/"
+          ssh -i ~/.ssh/id_ed25519 -p 22 root@"$SSH_HOST" \
+            "bash '$RELEASE/deploy/deploy-production.sh' '$RELEASE'"
