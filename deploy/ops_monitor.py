@@ -23,6 +23,12 @@ def count_costly_ai_requests(logs):
     return count
 
 
+def count_ai_upstream_auth_failures(logs):
+    return len(
+        re.findall(r"\[ai_chat\] upstream HTTP status=(?:401|403)\b", logs)
+    )
+
+
 def evaluate_metrics(metrics):
     alerts = []
     checks = (
@@ -63,6 +69,11 @@ def evaluate_metrics(metrics):
             metrics["ai_count"] >= int(os.environ.get("AI_DAILY_REQUEST_ALERT", "100")),
             "ai_usage",
             f'{metrics["ai_count"]} potentially billable requests',
+        ),
+        (
+            metrics["ai_auth_failures"] > 0,
+            "ai_upstream_auth",
+            f'{metrics["ai_auth_failures"]} failures in 10 minutes',
         ),
     )
     for failed, name, detail in checks:
@@ -122,14 +133,14 @@ def _sms_count(database):
         conn.close()
 
 
-def _ai_count():
+def _journal_logs(since):
     result = subprocess.run(
         [
             "journalctl",
             "-u",
             "wenxin.service",
             "--since",
-            "24 hours ago",
+            since,
             "--no-pager",
             "-o",
             "cat",
@@ -138,7 +149,7 @@ def _ai_count():
         capture_output=True,
         text=True,
     )
-    return count_costly_ai_requests(result.stdout)
+    return result.stdout
 
 
 def collect_metrics():
@@ -146,6 +157,8 @@ def collect_metrics():
     backup_age, backup_integrity = _backup_metrics(
         os.environ.get("SQLITE_BACKUP_DIR", "/var/backups/wenxin")
     )
+    ai_logs = _journal_logs("24 hours ago")
+    recent_ai_logs = _journal_logs("10 minutes ago")
     return {
         "wenxin_active": _service_active("wenxin.service"),
         "nginx_active": _service_active("nginx.service"),
@@ -168,7 +181,8 @@ def collect_metrics():
             os.environ.get("SQLITE_DB_PATH", "/root/guardian_users.db")
         ),
         "sms_limit": int(os.environ.get("ALIYUN_SMS_DAILY_LIMIT", "20")),
-        "ai_count": _ai_count(),
+        "ai_count": count_costly_ai_requests(ai_logs),
+        "ai_auth_failures": count_ai_upstream_auth_failures(recent_ai_logs),
     }
 
 

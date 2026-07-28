@@ -90,7 +90,8 @@ PY
 `wenxin-monitor.timer` 每五分钟检查 API/Nginx、磁盘、可用内存、TLS 剩余天数、
 备份新鲜度与完整性、24 小时短信发送量和可能产生费用的 AI 请求量。默认阈值：
 磁盘 85%、内存 90%、TLS 21 天、备份 36 小时、短信日上限 80%、AI 100 次。
-阈值可放在 root-only `/etc/wenxin/monitor.env` 中调整。
+近 10 分钟出现 AI 上游 `401/403` 也会立即告警。阈值可放在 root-only
+`/etc/wenxin/monitor.env` 中调整。
 
 检查失败时 `wenxin-monitor.service` 进入 failed，详细原因写入 journal：
 

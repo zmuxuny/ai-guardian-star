@@ -1,6 +1,10 @@
 import unittest
 
-from deploy.ops_monitor import count_costly_ai_requests, evaluate_metrics
+from deploy.ops_monitor import (
+    count_ai_upstream_auth_failures,
+    count_costly_ai_requests,
+    evaluate_metrics,
+)
 
 
 class OpsMonitorTest(unittest.TestCase):
@@ -17,6 +21,7 @@ class OpsMonitorTest(unittest.TestCase):
             "sms_count": 3,
             "sms_limit": 20,
             "ai_count": 50,
+            "ai_auth_failures": 0,
         }
 
         self.assertEqual(evaluate_metrics(metrics), [])
@@ -34,6 +39,7 @@ class OpsMonitorTest(unittest.TestCase):
             "sms_count": 16,
             "sms_limit": 20,
             "ai_count": 100,
+            "ai_auth_failures": 1,
         }
 
         names = {alert.split(":", 1)[0] for alert in evaluate_metrics(metrics)}
@@ -51,6 +57,7 @@ class OpsMonitorTest(unittest.TestCase):
                 "backup_integrity",
                 "sms_usage",
                 "ai_usage",
+                "ai_upstream_auth",
             },
         )
 
@@ -66,6 +73,17 @@ class OpsMonitorTest(unittest.TestCase):
         )
 
         self.assertEqual(count_costly_ai_requests(logs), 2)
+
+    def test_ai_upstream_auth_failure_is_detected(self):
+        logs = "\n".join(
+            [
+                "[ai_chat] upstream HTTP status=401",
+                "[ai_chat] upstream HTTP status=403",
+                "[ai_chat] upstream HTTP status=429",
+            ]
+        )
+
+        self.assertEqual(count_ai_upstream_auth_failures(logs), 2)
 
 
 if __name__ == "__main__":
