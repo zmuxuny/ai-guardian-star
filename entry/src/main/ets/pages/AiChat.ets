@@ -220,6 +220,12 @@ export struct AiChat {
           if (msg.isLoading) {
             this.LoadingDots()
           } else {
+            Text('AI生成内容')
+              .fontSize(11)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .alignSelf(ItemAlign.Start)
+              .margin({ bottom: 4 })
             Text(msg.content)
               .fontSize(15)
               .fontColor(this.themeManager.colors.primaryTextColor)
@@ -263,10 +269,11 @@ export struct AiChat {
   @Builder
   AiDisclaimer(): void {
     Row({ space: 4 }) {
-      Text('✨').fontSize(10)
-      Text('内容由 AI 生成，仅供参考，请勿替代专业建议')
-        .fontSize(10)
-        .fontColor(this.themeManager.colors.tertiaryTextColor)
+      Text('AI').fontSize(10).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+      Text('内容由 AI 生成，仅供参考，不替代专业医疗诊断')
+        .fontSize(11)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)

@@ -10,6 +10,7 @@ export interface CloudUser {
   nickname: string;
   phone: string;
   avatarPath: string;
+  avatarVersion?: number;
   email: string;
   address: string;
   createTime: number;
@@ -23,6 +24,9 @@ export interface CloudResult {
   refreshToken?: string;
   challengeId?: string;
   expiresIn?: number;
+  imageBase64?: string;
+  mimeType?: string;
+  updatedAt?: number;
 }
 
 export interface CloudHttpResponse {
@@ -56,13 +60,27 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
+interface ContactOtpRequest {
+  kind: string;
+  value: string;
+}
+
+interface ContactUpdateRequest extends ContactOtpRequest {
+  verifyCode: string;
+  challengeId: string;
+}
+
+interface AvatarUploadRequest {
+  imageBase64: string;
+  mimeType: string;
+}
+
 interface DeleteUserRequest {
   passwordHash: string;
 }
 
 interface AllowedProfileUpdate {
   nickname?: string;
-  avatarPath?: string;
   address?: string;
 }
 
@@ -344,9 +362,43 @@ export class CloudService {
   public async updateUser(fields: CloudUpdateFields): Promise<CloudResult> {
     const body: AllowedProfileUpdate = {};
     if (fields.nickname !== '') body.nickname = fields.nickname;
-    if (fields.avatarPath !== '') body.avatarPath = fields.avatarPath;
     if (fields.address !== '') body.address = fields.address;
     return this.parseResult(await this.authenticatedPost('/api/updateUser', body));
+  }
+
+  public async sendContactCode(kind: string, value: string): Promise<CloudResult> {
+    const body: ContactOtpRequest = { kind: kind, value: value };
+    return this.parseResult(await this.authenticatedPost('/api/contact/otp/send', body, 20000));
+  }
+
+  public async updateContact(kind: string, value: string, verifyCode: string,
+    challengeId: string): Promise<CloudResult> {
+    const body: ContactUpdateRequest = {
+      kind: kind,
+      value: value,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    const result = this.parseResult(await this.authenticatedPost('/api/contact/update', body, 20000));
+    if (result.success && (
+      (kind === 'phone' && /^1[3-9]\d{9}$/.test(this.sessionUserKey))
+      || (kind === 'email' && this.sessionUserKey.indexOf('@') > 0)
+    )) {
+      this.sessionUserKey = value;
+      if (this.rememberSession) await this.persistSession();
+    }
+    return result;
+  }
+
+  public async uploadAvatar(imageBase64: string): Promise<CloudResult> {
+    const body: AvatarUploadRequest = { imageBase64: imageBase64, mimeType: 'image/jpeg' };
+    return this.parseResult(await this.authenticatedPost('/api/avatar', body, 20000));
+  }
+
+  public async downloadAvatar(): Promise<CloudResult> {
+    return this.parseResult(
+      await this.requestRaw('/api/avatar', http.RequestMethod.GET, new EmptyRequest(), true, 20000, true)
+    );
   }
 
   public async changePassword(oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {

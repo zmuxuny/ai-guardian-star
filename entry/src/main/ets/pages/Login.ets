@@ -7,7 +7,9 @@ import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { promptAction } from "@kit.ArkUI";
-import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import fs from '@ohos.file.fs';
+import { util } from '@kit.ArkTS';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
 
 @Builder
 export function LoginBuilder() {
@@ -626,7 +628,6 @@ struct Login {
       localUser.username = displayName;
       localUser.phone = cloudUser.phone || (this.inputMode === 0 ? loginId : "");
       localUser.email = cloudUser.email || (this.inputMode === 1 ? loginId : "");
-      localUser.avatarPath = cloudUser.avatarPath;
       localUser.address = cloudUser.address;
       await db.updateUser(localUser);
       await db.updatePasswordHash(localUser.id, "");
@@ -636,13 +637,45 @@ struct Login {
         phone: cloudUser.phone || (this.inputMode === 0 ? loginId : ""),
         email: cloudUser.email || (this.inputMode === 1 ? loginId : ""),
         passwordHash: "",
-        avatarPath: cloudUser.avatarPath,
+        avatarPath: '',
         address: cloudUser.address,
         createTime: cloudUser.createTime,
       });
     }
+    if ((cloudUser.avatarVersion || 0) > 0) {
+      const storedUser = await db.queryUserByIdentifier(loginId);
+      if (storedUser) await this.restoreCloudAvatar(storedUser);
+    }
     promptAction.showToast({ message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
+  }
+
+  private async restoreCloudAvatar(user: UserInfo): Promise<void> {
+    const result = await CloudService.getInstance().downloadAvatar();
+    if (!result.success || !result.imageBase64) return;
+    let file: fs.File | undefined;
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      const avatarDir = context.filesDir + '/avatars';
+      try { fs.mkdirSync(avatarDir); } catch (_e) {}
+      const bytes = new util.Base64Helper().decodeSync(result.imageBase64);
+      const path = avatarDir + '/cloud_avatar_' + Date.now() + '.jpg';
+      file = fs.openSync(path, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      fs.writeSync(file.fd, bytes.buffer);
+      fs.closeSync(file);
+      file = undefined;
+      const oldPath = user.avatarPath || '';
+      user.avatarPath = path;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, path);
+      if (oldPath.startsWith(avatarDir + '/') && oldPath !== path) {
+        try { fs.unlinkSync(oldPath); } catch (_e) {}
+      }
+    } catch (e) {
+      console.warn('[Login]: 云端头像恢复失败 ' + JSON.stringify(e));
+    } finally {
+      if (file !== undefined) { try { fs.closeSync(file); } catch (_e) {} }
+    }
   }
 
   private async saveLoginAndJump(loginId: string, displayName: string = ""): Promise<void> {

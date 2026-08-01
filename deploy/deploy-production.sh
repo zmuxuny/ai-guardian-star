@@ -61,7 +61,8 @@ cp -a /etc/systemd/journald.conf.d/wenxin-retention.conf "$rollback_dir/wenxin-r
 
 wait_local_health() {
     for _ in {1..10}; do
-        curl --fail --silent http://127.0.0.1:8899/health >/dev/null && return 0
+        python3 -c 'import sys, urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=3).status != 200)' \
+            http://127.0.0.1:8899/health && return 0
         sleep 1
     done
     return 1
@@ -86,7 +87,8 @@ rollback() {
     nginx -t && systemctl reload nginx
     systemctl restart systemd-journald
     if wait_local_health &&
-       curl --fail --silent https://api.aistar.asia/health >/dev/null; then
+       python3 -c 'import sys, urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=5).status != 200)' \
+           https://api.aistar.asia/health; then
         echo "deployment failed; rollback restored $rollback_dir; health ok" >&2
     else
         echo "deployment failed; rollback attempted from $rollback_dir; health failed" >&2
@@ -136,7 +138,8 @@ systemctl restart wenxin.service
 wait_local_health
 
 systemctl reload nginx
-curl --fail --silent https://api.aistar.asia/health >/dev/null
+python3 -c 'import sys, urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=5).status != 200)' \
+    https://api.aistar.asia/health
 systemctl enable --now wenxin-sqlite-backup.timer
 systemctl start wenxin-sqlite-backup.service
 systemctl enable --now wenxin-monitor.timer

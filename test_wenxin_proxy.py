@@ -1,4 +1,5 @@
 import ast
+import base64
 import hashlib
 import os
 import runpy
@@ -544,6 +545,181 @@ class AccountSessionSecurityTest(unittest.TestCase):
         conn.close()
         self.assertEqual(users, ["bob"])
         self.assertEqual(sessions, 0)
+
+    def test_contact_code_rejects_value_owned_by_another_account(self):
+        self.create_user("alice")
+        self.create_user("bob")
+        conn = proxy.get_db()
+        conn.execute("UPDATE t_user SET phone=? WHERE username='bob'", ("13340878619",))
+        conn.commit()
+        conn.close()
+        token = self.login().get_json()["accessToken"]
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(send_sms.called)
+
+    def test_phone_contact_code_shares_registration_sms_budget(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.ALIYUN_SMS_ENABLED = True
+        old_daily_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
+        proxy.ALIYUN_SMS_DAILY_LIMIT = 1
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_DAILY_LIMIT", old_daily_limit)
+        now = int(proxy.time.time())
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES ('existing-registration', '13300000000', 'register', '127.0.0.1', ?, ?)
+            """,
+            (now, now + proxy.SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(send_sms.called)
+
+    def test_registration_code_shares_contact_sms_budget(self):
+        proxy.ALIYUN_SMS_ENABLED = True
+        old_daily_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
+        proxy.ALIYUN_SMS_DAILY_LIMIT = 1
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_DAILY_LIMIT", old_daily_limit)
+        now = int(proxy.time.time())
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_contact_challenge
+                (challenge_hash, username, kind, value, requester_ip, sent_at, expires_at)
+            VALUES ('existing-contact', 'alice', 'phone', '13300000000',
+                    '127.0.0.1', ?, ?)
+            """,
+            (now, now + proxy.SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/otp/send",
+                json={"phone": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(send_sms.called)
+
+    def test_phone_contact_update_requires_matching_one_time_code(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            changed = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "phone",
+                    "value": "13340878619",
+                    "verifyCode": "123456",
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+            replay = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "phone",
+                    "value": "13340878619",
+                    "verifyCode": "123456",
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+
+        self.assertEqual(sent.status_code, 200)
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(replay.status_code, 400)
+        conn = proxy.get_db()
+        row = conn.execute("SELECT phone FROM t_user WHERE username='alice'").fetchone()
+        conn.close()
+        self.assertEqual(row["phone"], "13340878619")
+
+    def test_email_contact_update_verifies_server_generated_code(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.EMAIL_OTP_ENABLED = True
+        self.addCleanup(setattr, proxy, "EMAIL_OTP_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_email_verification", create=True) as send_email:
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "email", "value": "alice-new@example.com"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            code = send_email.call_args.args[1]
+            changed = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "email",
+                    "value": "alice-new@example.com",
+                    "verifyCode": code,
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+
+        self.assertEqual(changed.status_code, 200)
+        conn = proxy.get_db()
+        row = conn.execute("SELECT email FROM t_user WHERE username='alice'").fetchone()
+        conn.close()
+        self.assertEqual(row["email"], "alice-new@example.com")
+
+    def test_avatar_round_trips_across_independent_sessions(self):
+        self.create_user()
+        first_token = self.login().get_json()["accessToken"]
+        image_bytes = b"\xff\xd8\xff\xe0guardian-avatar\xff\xd9"
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+
+        uploaded = self.client.post(
+            "/api/avatar",
+            headers=self.bearer(first_token),
+            json={"imageBase64": encoded, "mimeType": "image/jpeg"},
+        )
+        second_token = self.login().get_json()["accessToken"]
+        downloaded = self.client.get(
+            "/api/avatar",
+            headers=self.bearer(second_token),
+        )
+
+        self.assertEqual(uploaded.status_code, 200)
+        self.assertEqual(downloaded.status_code, 200)
+        self.assertEqual(downloaded.get_json()["imageBase64"], encoded)
 
     def test_ai_is_fail_closed_before_any_upstream_call(self):
         self.create_user()

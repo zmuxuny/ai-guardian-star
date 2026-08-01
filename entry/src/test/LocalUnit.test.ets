@@ -1,4 +1,5 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { getWindowSizeClass } from '../main/ets/common/ResponsiveLayout';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -28,6 +29,13 @@ export default function localUnitTest() {
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
       expect(a).assertContain(b);
       expect(a).assertEqual(a);
+    });
+    it('classifies current window width instead of device model', 0, () => {
+      expect(getWindowSizeClass(360)).assertEqual('compact');
+      expect(getWindowSizeClass(599)).assertEqual('compact');
+      expect(getWindowSizeClass(600)).assertEqual('medium');
+      expect(getWindowSizeClass(839)).assertEqual('medium');
+      expect(getWindowSizeClass(840)).assertEqual('expanded');
     });
   });
 }
