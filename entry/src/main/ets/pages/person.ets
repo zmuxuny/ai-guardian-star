@@ -16,13 +16,13 @@ import {
   UserInfo,
 } from "../database/DatabaseHelper";
 import { preferences } from "@kit.ArkData";
-import { common, abilityAccessCtrl } from "@kit.AbilityKit";
+import { common, abilityAccessCtrl, Want } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
 import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
@@ -488,6 +488,27 @@ export struct person {
                 title: "历史记录",
                 subTitle: `查看并导出近 ${this.retentionDays} 天健康事件`,
                 onClickAction: (): void => this.safePush("HealthHistory"),
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              MenuRow({
+                imgRes: $r("app.media.ic_shield_blue"),
+                bgColorLight: "#eff6ff",
+                bgColorDark: "#1e3a5f",
+                title: "隐私政策",
+                subTitle: "查看个人信息收集与使用说明",
+                onClickAction: (): void => {
+                  const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                  const want: Want = {
+                    action: 'ohos.want.action.viewData',
+                    entities: ['entity.system.browsable'],
+                    uri: PRIVACY_POLICY_URL,
+                  };
+                  ctx.startAbility(want).catch((e: Error) => {
+                    console.warn('[person]: 打开隐私政策链接失败', e.message);
+                  });
+                },
               })
             }
             .width("92%")
