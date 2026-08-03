@@ -50,11 +50,21 @@ export default class EntryAbility extends UIAbility {
         });
       });
 
-    windowStage.getMainWindow().then((win) => {
-      const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
-      // 获取系统状态栏高度并存储
-      AppStorage.setOrCreate<number>('statusBarHeight', avoidArea.topRect.height);
-    });
+    try {
+      windowStage.getMainWindow().then((win) => {
+        try {
+          const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+          // 获取系统状态栏高度并存储
+          AppStorage.setOrCreate<number>('statusBarHeight', avoidArea.topRect.height);
+        } catch (error) {
+          hilog.warn(DOMAIN, 'testTag', 'Failed to read avoid area: %{public}s', JSON.stringify(error));
+        }
+      }).catch((error: Error) => {
+        hilog.warn(DOMAIN, 'testTag', 'Failed to get main window: %{public}s', error.message);
+      });
+    } catch (error) {
+      hilog.warn(DOMAIN, 'testTag', 'Failed to request main window: %{public}s', JSON.stringify(error));
+    }
   }
 
   onForeground(): void {

@@ -176,6 +176,31 @@ class ClientAuthContractTest(unittest.TestCase):
         refresh = cloud[refresh_start:refresh_end]
         self.assertIn("response.responseCode === 400 || response.responseCode === 401", refresh)
 
+    def test_client_uses_current_arkui_context_apis(self):
+        paths = (
+            "entry/src/main/ets/pages/HealthHistory.ets",
+            "entry/src/main/ets/pages/Index.ets",
+            "entry/src/main/ets/pages/Login.ets",
+            "entry/src/main/ets/pages/mainpage.ets",
+            "entry/src/main/ets/pages/MyAddress.ets",
+            "entry/src/main/ets/pages/person.ets",
+            "entry/src/main/ets/pages/Profile.ets",
+        )
+        text = "\n".join(source(path) for path in paths)
+        for deprecated in (
+            r"promptAction\.showToast\(",
+            r"promptAction\.showDialog\(",
+            r"AlertDialog\.show\(",
+            r"ActionSheet\.show\(",
+            r"\bgetContext\(this\)",
+            r"\.packing\(",
+        ):
+            self.assertNotRegex(text, deprecated)
+        self.assertNotRegex(
+            source("entry/src/main/ets/pages/mainpage.ets"),
+            r"@Entry\s+@Component\s+export struct mainPage",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

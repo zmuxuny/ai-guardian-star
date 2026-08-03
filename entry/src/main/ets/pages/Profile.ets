@@ -11,12 +11,12 @@ import { UserManager } from '../common/UserManager';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { preferences } from '@kit.ArkData';
-import { promptAction } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { image } from '@kit.ImageKit';
 import fs from '@ohos.file.fs';
+import { showToast } from '../common/UiFeedback';
 
 // ── 绑定/修改手机号或邮箱 ───────────────────────────────────
 @CustomDialog
@@ -64,7 +64,7 @@ struct ContactEditDialog {
       return;
     }
     this.challengeId = result.challengeId;
-    promptAction.showToast({ message: '验证码已发送，5 分钟内有效' });
+    showToast(this.getUIContext(), { message: '验证码已发送，5 分钟内有效' });
   }
 
   private async saveContact(): Promise<void> {
@@ -89,7 +89,7 @@ struct ContactEditDialog {
     await DatabaseHelper.getInstance().updateUser(user);
     this.onSuccess(value);
     this.saving = false;
-    promptAction.showToast({ message: `${this.label()}已更新` });
+    showToast(this.getUIContext(), { message: `${this.label()}已更新` });
     this.controller.close();
   }
 
@@ -218,7 +218,7 @@ struct PasswordEditDialog {
                 console.warn('[PasswordEditDialog]: 本地密码缓存清空失败 ' + JSON.stringify(e));
               }
               user.passwordHash = '';
-              promptAction.showToast({ message: '密码修改成功，请重新登录' });
+              showToast(this.getUIContext(), { message: '密码修改成功，请重新登录' });
               this.onSuccess();
               this.controller.close();
             } catch (e) {
@@ -337,7 +337,7 @@ export struct Profile {
 
   // ── 打开弹窗（每次重建 controller 以传入最新字段） ───────────
   private openPhoneDialog(): void {
-    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
     this.phoneDialogController = new CustomDialogController({
       builder: ContactEditDialog({
         kind: 'phone',
@@ -350,7 +350,7 @@ export struct Profile {
           if (/^1[3-9]\d{9}$/.test(this.currentUser)) {
             this.currentUser = newPhone;
             UserManager.getInstance().setCurrentUsername(newPhone);
-            const ctx = getContext(this) as common.UIAbilityContext;
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
             try {
               const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
               pref.putSync(PREF_KEY_LAST_USERNAME, newPhone);
@@ -365,7 +365,7 @@ export struct Profile {
   }
 
   private openEmailDialog(): void {
-    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
     this.emailDialogController = new CustomDialogController({
       builder: ContactEditDialog({
         kind: 'email',
@@ -378,7 +378,7 @@ export struct Profile {
           if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.currentUser)) {
             this.currentUser = newEmail;
             UserManager.getInstance().setCurrentUsername(newEmail);
-            const ctx = getContext(this) as common.UIAbilityContext;
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
             try {
               const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
               pref.putSync(PREF_KEY_LAST_USERNAME, newEmail);
@@ -393,7 +393,7 @@ export struct Profile {
   }
 
   private openPwdDialog(): void {
-    if (!this.loadedUser) { promptAction.showToast({ message: '用户信息未加载，请稍后再试' }); return; }
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
     this.pwdDialogController = new CustomDialogController({
       builder: PasswordEditDialog({
         loadedUser: this.loadedUser,
@@ -401,7 +401,7 @@ export struct Profile {
           UserManager.getInstance().clearCurrentUsername();
           AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
           try {
-            const ctx = getContext(this) as common.UIAbilityContext;
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
             const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
             pref.deleteSync(PREF_KEY_LAST_USERNAME);
             pref.deleteSync(PREF_KEY_LAST_NICKNAME);
@@ -418,7 +418,7 @@ export struct Profile {
 
   // ── 头像 ──────────────────────────────────────────────────
   private async pickAvatar(): Promise<void> {
-    const context = getContext(this) as common.UIAbilityContext;
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const picker = new photoAccessHelper.PhotoViewPicker();
     const selectOptions = new photoAccessHelper.PhotoSelectOptions();
     selectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE;
@@ -429,7 +429,7 @@ export struct Profile {
       await this.processAndSaveAvatar(context, pickerResult.photoUris[0]);
     } catch (e) {
       console.error('[Profile]: 选图失败', JSON.stringify(e));
-      promptAction.showToast({ message: '选取图片失败，请重试' });
+      showToast(this.getUIContext(), { message: '选取图片失败，请重试' });
     }
   }
 
@@ -473,7 +473,7 @@ export struct Profile {
 
       // 4) JPEG 重编码
       packer = image.createImagePacker();
-      const jpegBuffer = await packer.packing(pixelMap, { format: 'image/jpeg', quality: 90 });
+      const jpegBuffer = await packer.packToData(pixelMap, { format: 'image/jpeg', quality: 90 });
 
       // 5) 写入带时间戳的新文件，删除旧文件
       const destPath = avatarDir + '/avatar_' + this.currentUser + '_' + Date.now() + '.jpg';
@@ -490,7 +490,7 @@ export struct Profile {
       await this.saveAvatar(jpegBuffer);
     } catch (e) {
       console.error('[Profile]: 处理头像失败', JSON.stringify(e));
-      promptAction.showToast({ message: '处理图片失败，请重试' });
+      showToast(this.getUIContext(), { message: '处理图片失败，请重试' });
     } finally {
       pixelMap?.release();
       packer?.release();
@@ -507,7 +507,7 @@ export struct Profile {
     const newName = this.displayName.trim();
     if (newName === this.originalDisplayName) return; // 没改，不动
     const user = this.loadedUser;
-    if (!user || user.id === undefined) { promptAction.showToast({ message: '用户信息异常' }); return; }
+    if (!user || user.id === undefined) { showToast(this.getUIContext(), { message: '用户信息异常' }); return; }
     this.isSaving = true;
     try {
       // 先同步云端昵称；服务端从 Bearer 会话识别当前用户。
@@ -515,7 +515,7 @@ export struct Profile {
       fields.nickname = newName;
       const cloudR = await CloudService.getInstance().updateUser(fields);
       if (!cloudR.success) {
-        promptAction.showToast({ message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
+        showToast(this.getUIContext(), { message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
         this.isSaving = false;
         return;
       }
@@ -524,16 +524,16 @@ export struct Profile {
       await DatabaseHelper.getInstance().updateUser(user);
       AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, newName);
       try {
-        const ctx = getContext(this) as common.UIAbilityContext;
+        const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
         const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
         pref.putSync(PREF_KEY_LAST_NICKNAME, newName);
         pref.flush();
       } catch (_) {}
       this.originalDisplayName = newName;
-      promptAction.showToast({ message: '名字已更新', duration: 1500 });
+      showToast(this.getUIContext(), { message: '名字已更新', duration: 1500 });
     } catch (e) {
       console.error('[Profile]: 昵称保存失败', JSON.stringify(e));
-      promptAction.showToast({ message: '保存失败，请重试' });
+      showToast(this.getUIContext(), { message: '保存失败，请重试' });
     }
     this.isSaving = false;
   }
@@ -549,13 +549,13 @@ export struct Profile {
       const encoded = new util.Base64Helper().encodeToStringSync(new Uint8Array(jpegBuffer));
       const cloudResult = await CloudService.getInstance().uploadAvatar(encoded);
       if (!cloudResult.success) {
-        promptAction.showToast({ message: '头像已保存到本机，云端同步失败：' + cloudResult.message });
+        showToast(this.getUIContext(), { message: '头像已保存到本机，云端同步失败：' + cloudResult.message });
         return;
       }
-      promptAction.showToast({ message: '头像已更新', duration: 1500 });
+      showToast(this.getUIContext(), { message: '头像已更新', duration: 1500 });
     } catch (e) {
       console.error('[Profile]: 头像保存失败', JSON.stringify(e));
-      promptAction.showToast({ message: '头像保存失败，请重试' });
+      showToast(this.getUIContext(), { message: '头像保存失败，请重试' });
     }
   }
 

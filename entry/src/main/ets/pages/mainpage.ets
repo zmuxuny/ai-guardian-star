@@ -5,12 +5,11 @@ import display from '@ohos.display';
 import { AudioTransferManager } from '../common/AudioTransferManager';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { common } from '@kit.AbilityKit';
-import { promptAction } from '@kit.ArkUI';
 import http from '@ohos.net.http';
 import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
 import { GradientHeader } from '../components/GradientHeader';
+import { showToast } from '../common/UiFeedback';
 
-@Entry
 @Component
 export struct mainPage {
   @State videoUrl: string = VIDEO_FEED_URL;
@@ -37,7 +36,7 @@ export struct mainPage {
   private readonly healthCheckUrl: string = HEALTH_CHECK_URL;
   private webController: webview.WebviewController = new webview.WebviewController();
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
-  private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+  private context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
 
   aboutToAppear(): void {
     this.mqttManager.connectAndSubscribe();
@@ -358,7 +357,7 @@ export struct mainPage {
         } else {
           // 设备未连接时不允许发起通话，仅提示
           if (!this.deviceOnline) {
-            promptAction.showToast({ message: '设备未连接，无法发起通话' });
+            showToast(this.getUIContext(), { message: '设备未连接，无法发起通话' });
             return;
           }
           const atManager = abilityAccessCtrl.createAtManager();

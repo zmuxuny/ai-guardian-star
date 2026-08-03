@@ -144,7 +144,12 @@ export class CloudService {
       new util.TextEncoder().encodeInto(JSON.stringify([this.sessionUserKey, this.refreshToken])));
     attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED);
     attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE);
-    await asset.add(attributes);
+    try {
+      await asset.add(attributes);
+    } catch (e) {
+      const error = e as BusinessError;
+      throw new Error(`保存登录凭据失败: ${error.code} ${error.message}`);
+    }
   }
 
   public async clearPersistedSession(): Promise<void> {

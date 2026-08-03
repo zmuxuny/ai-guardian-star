@@ -6,10 +6,10 @@ import { UserManager } from "../common/UserManager";
 import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
-import { promptAction } from "@kit.ArkUI";
 import fs from '@ohos.file.fs';
 import { util } from '@kit.ArkTS';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import { showToast } from '../common/UiFeedback';
 
 @Builder
 export function LoginBuilder() {
@@ -92,7 +92,7 @@ struct Login {
             .gesture(
               LongPressGesture().onAction(() => {
                 // 长按 Logo 进入数据库诊断工具
-                promptAction.showToast({ message: "正在打开诊断工具...", duration: 1000 });
+                showToast(this.getUIContext(), { message: "正在打开诊断工具...", duration: 1000 });
                 this.pathStack.pushPathByName("DatabaseDiagnostic", null);
               }),
             )
@@ -359,7 +359,7 @@ struct Login {
                   .fontColor("#3b82f6")
                   .fontWeight(FontWeight.Medium)
                   .onClick(() => {
-                    AlertDialog.show({
+                    this.getUIContext().showAlertDialog({
                       title: "忘记密码",
                       message: "请联系管理员重置密码，或使用华为账号登录后重新绑定。",
                       primaryButton: { value: "知道了", action: () => {} },
@@ -564,7 +564,7 @@ struct Login {
       this.challengeId = result.challengeId;
       this.challengePhone = phone;
       this.canSendCode = false;
-      promptAction.showToast({ message: "验证码已发送，5 分钟内有效", duration: 1800 });
+      showToast(this.getUIContext(), { message: "验证码已发送，5 分钟内有效", duration: 1800 });
       setTimeout(() => {
         this.canSendCode = true;
       }, 60000);
@@ -646,7 +646,7 @@ struct Login {
       const storedUser = await db.queryUserByIdentifier(loginId);
       if (storedUser) await this.restoreCloudAvatar(storedUser);
     }
-    promptAction.showToast({ message: `${greeting}，${displayName}`, duration: 1500 });
+    showToast(this.getUIContext(), { message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
   }
 
@@ -655,7 +655,7 @@ struct Login {
     if (!result.success || !result.imageBase64) return;
     let file: fs.File | undefined;
     try {
-      const context = getContext(this) as common.UIAbilityContext;
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const avatarDir = context.filesDir + '/avatars';
       try { fs.mkdirSync(avatarDir); } catch (_e) {}
       const bytes = new util.Base64Helper().decodeSync(result.imageBase64);
@@ -683,7 +683,7 @@ struct Login {
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, loginId);
     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, displayName || loginId);
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       pref.putSync(PREF_KEY_LAST_NICKNAME, displayName || loginId);
@@ -701,7 +701,7 @@ struct Login {
   }
 
   private showAlert(message: string): void {
-    AlertDialog.show({
+    this.getUIContext().showAlertDialog({
       title: "提示",
       message: message,
       alignment: DialogAlignment.Center,
