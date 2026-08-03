@@ -474,7 +474,7 @@ struct Login {
           .width("100%")
           .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
-          .constraintSize({ minHeight: "62%" })
+          .constraintSize({ minHeight: "62%", maxWidth: 560 })
           .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring)
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])

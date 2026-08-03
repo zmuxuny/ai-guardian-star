@@ -184,7 +184,7 @@ export struct AiChat {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
     }
-    .width('92%').margin({ top: '-4%' })
+    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: '-4%' })
   }
 
   @Builder
@@ -320,7 +320,7 @@ export struct AiChat {
             this.MessageBubble(msg)
           }, (msg: BubbleMsg) => `${msg.id}_${msg.isLoading ? 'L' : msg.content.length}`)
           Column().height(16)
-        }.width('100%').padding({ top: 12 })
+        }.width('100%').constraintSize({ maxWidth: 640 }).padding({ top: 12 })
       }
       .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
       this.QuickQuestions()

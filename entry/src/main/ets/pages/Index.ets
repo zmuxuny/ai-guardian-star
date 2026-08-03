@@ -92,6 +92,7 @@ struct PrivacyDialog {
       .padding({ left: 20, right: 20, top: 16, bottom: 24 })
     }
     .width('100%')
+    .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
   }

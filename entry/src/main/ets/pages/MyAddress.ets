@@ -249,7 +249,7 @@ export struct MyAddress {
             }
             Column().height(40)
           }
-          .width('100%').alignItems(HorizontalAlign.Center)
+          .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
         }
         .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring).width('100%')
       }

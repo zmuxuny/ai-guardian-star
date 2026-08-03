@@ -316,10 +316,10 @@ export struct mainPage {
   build() {
     Column() {
       this.GradientHeader()
-      Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
+      Column() { this.VideoArea() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
       Scroll() {
         Column() {
-          Column() { this.StatusCards() }.width('100%').alignItems(HorizontalAlign.Center)
+          Column() { this.StatusCards() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
           Blank().height(24)
         }.width('100%')
       }
@@ -337,7 +337,7 @@ export struct mainPage {
             .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#ffffff')
         }.justifyContent(FlexAlign.Center)
       }
-      .width('88%').height('7%').constraintSize({ minHeight: 50 })
+      .width('88%').height('7%').constraintSize({ minHeight: 50, maxWidth: 560 })
       .linearGradient({
         direction: GradientDirection.Left,
         colors: this.isTalking

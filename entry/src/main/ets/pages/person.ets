@@ -84,6 +84,7 @@ struct DeleteAccountDialog {
       .padding({ left: 20, right: 20, bottom: 24 })
     }
     .width('100%')
+    .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
   }
@@ -926,6 +927,7 @@ export struct person {
             .margin({ bottom: "8%" })
         }
         .width("100%")
+        .constraintSize({ maxWidth: 640 })
         .alignItems(HorizontalAlign.Center)
       }
       .layoutWeight(1)

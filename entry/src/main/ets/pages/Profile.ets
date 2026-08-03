@@ -146,7 +146,7 @@ struct ContactEditDialog {
           .onClick(() => { this.saveContact(); })
       }.width('100%')
     }
-    .width('100%').padding({ left: 24, right: 24, top: 28, bottom: 24 })
+    .width('100%').constraintSize({ maxWidth: 480 }).padding({ left: 24, right: 24, top: 28, bottom: 24 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20)
   }
 }
@@ -229,7 +229,7 @@ struct PasswordEditDialog {
           })
       }.width('100%')
     }
-    .width('100%').padding({ left: 24, right: 24, top: 28, bottom: 24 })
+    .width('100%').constraintSize({ maxWidth: 480 }).padding({ left: 24, right: 24, top: 28, bottom: 24 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20)
   }
 

@@ -150,10 +150,11 @@ export struct Layout {
             Row() {
               Column() { this.pageStack() }
                 .width('100%').height('100%')
-                .constraintSize({ maxWidth: 1200 })
+                .constraintSize({ maxWidth: 840 })
             }
             .layoutWeight(1).height('100%')
             .justifyContent(FlexAlign.Center)
+            .backgroundColor(this.themeManager.colors.backgroundColor)
           }.width('100%').height('100%')
         }
       }

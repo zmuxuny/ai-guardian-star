@@ -32,6 +32,7 @@ export struct StatDashboard {
       }.layoutWeight(1)
     }
     .width("88%")
+    .constraintSize({ maxWidth: 640 })
     .padding({ top: 20, bottom: 20 })
     .margin({ top: 0 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
