@@ -147,14 +147,9 @@ export struct Layout {
         } else {
           Row() {
             this.sideNavigation()
-            Row() {
-              Column() { this.pageStack() }
-                .width('100%').height('100%')
-                .constraintSize({ maxWidth: 840 })
-            }
-            .layoutWeight(1).height('100%')
-            .justifyContent(FlexAlign.Center)
-            .backgroundColor(this.themeManager.colors.backgroundColor)
+            Column() { this.pageStack() }
+              .layoutWeight(1).height('100%')
+              .backgroundColor(this.themeManager.colors.backgroundColor)
           }.width('100%').height('100%')
         }
       }

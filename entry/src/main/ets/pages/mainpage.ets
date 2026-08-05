@@ -9,6 +9,7 @@ import http from '@ohos.net.http';
 import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
 import { GradientHeader } from '../components/GradientHeader';
 import { showToast } from '../common/UiFeedback';
+import { getWindowSizeClass } from '../common/ResponsiveLayout';
 
 @Component
 export struct mainPage {
@@ -30,6 +31,8 @@ export struct mainPage {
   @State btnScale: number = 1.0;
   // 顶部状态栏安全高度（由 EntryAbility 写入 AppStorage）
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
+  // 当前视口宽度，用于大屏左右分栏
+  @State viewportWidth: number = 360;
 
   private updateTimer: number = -1;
   private healthCheckTimer: number = -1;
@@ -313,21 +316,39 @@ export struct mainPage {
   }
 
 
+  /** 状态卡滚动区，手机竖排 / 大屏右栏共用 */
+  @Builder
+  CardsScroll(): void {
+    Scroll() {
+      Column() {
+        Column() { this.StatusCards() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
+        Blank().height(24)
+      }.width('100%')
+    }
+    .width('100%').height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+  }
+
   build() {
     Column() {
       this.GradientHeader()
-      Column() { this.VideoArea() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
-      Scroll() {
-        Column() {
-          Column() { this.StatusCards() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
-          Blank().height(24)
-        }.width('100%')
+      if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+        Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
+        Column() { this.CardsScroll() }
+          .layoutWeight(1).width('100%').margin({ top: '2%' })
+      } else {
+        // 大屏：视频与状态卡左右分栏，避免 4:3 画面把卡片挤出屏幕
+        Row() {
+          Column() { this.VideoArea() }
+            .layoutWeight(1).height('100%').alignItems(HorizontalAlign.Center)
+          Column() { this.CardsScroll() }
+            .layoutWeight(1).height('100%')
+        }
+        .layoutWeight(1).width('100%')
+        .constraintSize({ maxWidth: 1040 })
+        .alignItems(VerticalAlign.Top)
       }
-      .layoutWeight(1)
-      .width('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .margin({ top: '2%' })
 
       Button() {
         Row() {
@@ -369,5 +390,9 @@ export struct mainPage {
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
   }
 }

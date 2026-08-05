@@ -128,7 +128,7 @@ struct HealthHistory {
     }
     .width("100%")
     .constraintSize({ maxWidth: 640 })
-    .padding({ left: "8%", right: "8%", top: "4%", bottom: 0 });
+    .padding({ left: 29, right: 29, top: 14, bottom: 0 });
   }
 
   @Builder
@@ -249,7 +249,7 @@ struct HealthHistory {
           .layoutWeight(1)
           .width("92%")
           .constraintSize({ maxWidth: 640 })
-          .padding({ top: "3%" })
+          .padding({ top: 11 })
           .edgeEffect(EdgeEffect.Spring)
           .scrollBar(BarState.Off);
         }

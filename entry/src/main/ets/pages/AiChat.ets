@@ -184,7 +184,7 @@ export struct AiChat {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
     }
-    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: '-4%' })
+    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
   }
 
   @Builder
@@ -305,7 +305,8 @@ export struct AiChat {
       .borderRadius(23).animation({ duration: 200, curve: Curve.EaseOut })
       .onClick((): void => { this.sendMessage(this.inputText); })
     }
-    .width('100%').padding({ left: '5%', right: '5%', top: 10, bottom: 16 })
+    .width('100%').constraintSize({ maxWidth: 640 })
+    .padding({ left: 18, right: 18, top: 10, bottom: 16 })
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .shadow({ radius: 10, color: '#12000000', offsetY: -3 })
   }

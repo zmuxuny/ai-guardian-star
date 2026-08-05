@@ -108,7 +108,7 @@ export struct record {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
     }
-    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: '-4%' })
+    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
   }
 
   @Builder
@@ -199,7 +199,7 @@ export struct record {
           .border({ width: { bottom: this.currentTab === 1 ? 3 : 0 }, color: '#2563eb' })
           .onClick((): void => { this.currentTab = 1 })
       }
-      .width('100%').constraintSize({ maxWidth: 640 }).padding({ left: '8%', right: '8%', top: '5%', bottom: 0 })
+      .width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 29, right: 29, top: 18, bottom: 0 })
 
       Scroll() {
         Column() {
@@ -221,7 +221,7 @@ export struct record {
             }
           }
           Column().height(24)
-        }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: '4%', right: '4%', top: '3%' })
+        }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 14, right: 14, top: 11 })
       }
       .layoutWeight(1).width('100%')
       .edgeEffect(EdgeEffect.Spring).scrollBar(BarState.Off)
