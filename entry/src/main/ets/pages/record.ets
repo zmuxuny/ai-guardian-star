@@ -124,7 +124,7 @@ export struct record {
       Text(subTitle).fontSize(15).fontColor(this.themeManager.colors.secondaryTextColor)
         .margin({ top: 12 }).textAlign(TextAlign.Center).lineHeight(24)
     }
-    .width('100%').margin({ top: '18%' }).padding({ left: '12%', right: '12%' })
+    .width('100%').margin({ top: 64 }).padding({ left: 43, right: 43 })
   }
 
   /** 单条磁贴：isFall 直接传进来，避免 Builder 内声明 const */

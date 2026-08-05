@@ -119,7 +119,7 @@ export struct mainPage {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ contentMaxWidth: 840 }) {
       Row() {
         Column() {
           Text('智护星').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
@@ -192,7 +192,7 @@ export struct mainPage {
       color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
     })
     .borderRadius('4%')
-    .margin({ top: '-4%' })
+    .margin({ top: -14 })
   }
 
   @Builder
@@ -346,7 +346,7 @@ export struct mainPage {
             .layoutWeight(1).height('100%')
         }
         .layoutWeight(1).width('100%')
-        .constraintSize({ maxWidth: 1040 })
+        .constraintSize({ maxWidth: 840 })
         .alignItems(VerticalAlign.Top)
       }
 
@@ -369,7 +369,7 @@ export struct mainPage {
       .shadow({ radius: 16, color: this.isTalking ? '#ef444440' : '#3b82f640', offsetY: 8 })
       .scale({ x: this.btnScale, y: this.btnScale })
       .animation({ duration: 150, curve: Curve.EaseInOut })
-      .margin({ bottom: '4%', top: '2%' })
+      .margin({ bottom: 14, top: 7 })
       .onClick(async (): Promise<void> => {
         this.btnScale = 0.93;
         setTimeout(() => { this.btnScale = 1.0; }, 150);

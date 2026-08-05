@@ -26,6 +26,7 @@ import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STOR
 import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
+import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -103,6 +104,8 @@ export struct person {
   @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
+  // 当前视口宽度，用于按断点取尺寸档位
+  @State viewportWidth: number = 360;
   // 各菜单行按压状态
   @State pressedRow: string = "";
   // 退出登录按钮缩放
@@ -391,13 +394,18 @@ export struct person {
     this.pathStack.pushPathByName(pageName, null);
   }
 
+  /** 头像直径：手机 80vp，随断点小幅放大，不再用相对父容器的百分比 */
+  private avatarSize(): number {
+    return pick(getWindowSizeClass(this.viewportWidth), 80, 96, 112);
+  }
+
   @Builder
   GradientHeader(): void {
     GradientHeader() {
       Column() {
         if (this.userAvatarPath !== '') {
           Image(this.userAvatarPath)
-            .width("22%").aspectRatio(1).borderRadius(999)
+            .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
             .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
             .clip(true)
@@ -405,13 +413,13 @@ export struct person {
           Column() {
             Image($r("app.media.ic_user")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
           }
-          .width("22%").aspectRatio(1).borderRadius(999).clip(true)
+          .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
           .backgroundColor("rgba(255,255,255,0.2)")
           .border({ width: 2, color: "rgba(255,255,255,0.6)" })
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         }
         Text(this.userNickname || this.userName)
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: "4%" })
+          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: 14 })
       }
       .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
     }
@@ -920,11 +928,11 @@ export struct person {
           }
           .width("100%")
           .alignItems(HorizontalAlign.Center)
-          .margin({ top: "8%", bottom: "4%" })
+          .margin({ top: 29, bottom: 14 })
           Text("智护星 v1.0.0")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ bottom: "8%" })
+            .margin({ bottom: 29 })
         }
         .width("100%")
         .constraintSize({ maxWidth: 640 })
@@ -938,5 +946,9 @@ export struct person {
     .height("100%")
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
   }
 }

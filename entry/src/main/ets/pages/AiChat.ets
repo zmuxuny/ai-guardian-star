@@ -248,7 +248,7 @@ export struct AiChat {
     Column() {
       Text('快捷提问').fontSize(12)
         .fontColor(this.themeManager.colors.secondaryTextColor)
-        .margin({ left: '5%', bottom: 8 }).alignSelf(ItemAlign.Start)
+        .margin({ left: 18, bottom: 8 }).alignSelf(ItemAlign.Start)
       Scroll(new Scroller()) {
         Row({ space: 10 }) {
           ForEach(QUICK_QUESTIONS, (q: string) => {
@@ -261,9 +261,11 @@ export struct AiChat {
                 if (!this.isRequesting) this.sendMessage(q);
               })
           })
-        }.padding({ left: '5%', right: '5%' })
+        }.padding({ left: 18, right: 18 })
       }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
-    }.margin({ bottom: 6 })
+    }
+    .width('100%').constraintSize({ maxWidth: 640 })
+    .margin({ bottom: 6 })
   }
 
   @Builder
