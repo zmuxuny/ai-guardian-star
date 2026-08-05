@@ -312,7 +312,7 @@ export struct mainPage {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
     }
-    .width('92%').margin({ top: '3%' })
+    .width('92%').margin({ top: 12 })
   }
 
 
@@ -334,14 +334,29 @@ export struct mainPage {
     Column() {
       this.GradientHeader()
       if (getWindowSizeClass(this.viewportWidth) === 'compact') {
-        Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
-        Column() { this.CardsScroll() }
-          .layoutWeight(1).width('100%').margin({ top: '2%' })
+        // 手机：视频跟状态卡一起滚，不再钉在顶部把滚动区压成一条缝；通话按钮常驻底部
+        Scroll() {
+          Column() {
+            this.VideoArea()
+            Column() { this.StatusCards() }
+              .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
+            Blank().height(24)
+          }.width('100%')
+        }
+        .layoutWeight(1).width('100%')
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        this.CallButton()
       } else {
-        // 大屏：视频与状态卡左右分栏，避免 4:3 画面把卡片挤出屏幕
+        // 大屏：左栏是「画面 + 通话」一组并垂直居中，右栏状态卡独立滚动
         Row() {
-          Column() { this.VideoArea() }
-            .layoutWeight(1).height('100%').alignItems(HorizontalAlign.Center)
+          Column() {
+            this.VideoArea()
+            this.CallButton()
+          }
+          .layoutWeight(1).height('100%')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
           Column() { this.CardsScroll() }
             .layoutWeight(1).height('100%')
         }
@@ -349,8 +364,19 @@ export struct mainPage {
         .constraintSize({ maxWidth: 840 })
         .alignItems(VerticalAlign.Top)
       }
+    }
+    .width('100%').height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
+  }
 
-      Button() {
+  @Builder
+  CallButton(): void {
+    Button() {
         Row() {
           Image($r(this.isTalking ? 'app.media.ic_offcall' : 'app.media.ic_phone_white'))
             .width(22).height(22).objectFit(ImageFit.Contain).margin({ right: '3%' })
@@ -358,7 +384,7 @@ export struct mainPage {
             .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#ffffff')
         }.justifyContent(FlexAlign.Center)
       }
-      .width('88%').height('7%').constraintSize({ minHeight: 50, maxWidth: 560 })
+      .width('88%').height(52).constraintSize({ maxWidth: 560 })
       .linearGradient({
         direction: GradientDirection.Left,
         colors: this.isTalking
@@ -369,7 +395,7 @@ export struct mainPage {
       .shadow({ radius: 16, color: this.isTalking ? '#ef444440' : '#3b82f640', offsetY: 8 })
       .scale({ x: this.btnScale, y: this.btnScale })
       .animation({ duration: 150, curve: Curve.EaseInOut })
-      .margin({ bottom: 14, top: 7 })
+      .margin({ bottom: 14, top: 20 })
       .onClick(async (): Promise<void> => {
         this.btnScale = 0.93;
         setTimeout(() => { this.btnScale = 1.0; }, 150);
@@ -386,13 +412,5 @@ export struct mainPage {
           if (res.authResults[0] === 0) { await this.audioManager.startCall(); this.isTalking = true; }
         }
       })
-    }
-    .width('100%').height('100%')
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-    .onAreaChange((_oldValue: Area, newValue: Area): void => {
-      const width = Number(newValue.width);
-      if (width > 0) this.viewportWidth = width;
-    })
   }
 }

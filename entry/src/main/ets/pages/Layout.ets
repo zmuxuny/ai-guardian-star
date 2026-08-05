@@ -123,6 +123,8 @@ export struct Layout {
     .alignItems(HorizontalAlign.Center)
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
     .border({ width: { right: 0.5 }, color: this.themeManager.colors.borderColor })
+    // 侧栏需自行铺到状态栏下方，否则顶部会露出窗口默认底色（深色模式下是一块白）
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }
 
   build() {
