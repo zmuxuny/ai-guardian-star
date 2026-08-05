@@ -29,6 +29,8 @@ struct Login {
   @State usernameError: string = "";
   @State rememberMe: boolean = false;
   @State registerMode: boolean = false;
+  /** 忘记密码模式：手机号 + 短信验证码 + 新密码 */
+  @State resetMode: boolean = false;
   @State confirmPassword: string = "";
   @State verifyCode: string = "";
   @State challengeId: string = "";
@@ -114,22 +116,24 @@ struct Login {
           // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
           Scroll() {
             Column() {
-            Text(this.registerMode ? "注册账号" : "登录账号")
+            Text(this.resetMode ? "重置密码" : this.registerMode ? "注册账号" : "登录账号")
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.themeManager.colors.primaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
-            Text(this.registerMode
-              ? "使用手机号验证码创建账号"
-              : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
+            Text(this.resetMode
+              ? "验证注册手机号后设置新密码"
+              : this.registerMode
+                ? "使用手机号验证码创建账号"
+                : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
               .fontSize(12)
               .fontColor(this.themeManager.colors.secondaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 24 })
 
             // ── 手机号 / 邮箱 切换选项 ───────────────────────────
-            if (!this.registerMode) {
+            if (!this.registerMode && !this.resetMode) {
             Row() {
               // 手机号 Tab
               Column() {
@@ -251,7 +255,7 @@ struct Login {
             }
 
             // 密码输入框（无左图标，只右侧眼睛切换）
-            Text("密码")
+            Text(this.resetMode ? "新密码" : "密码")
               .fontSize(12)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.themeManager.colors.secondaryTextColor)
@@ -259,7 +263,7 @@ struct Login {
               .margin({ bottom: 6 })
             Row() {
               TextInput({
-                placeholder: this.registerMode ? "请输入密码（至少8位）" : "请输入密码（至少4位）",
+                placeholder: this.resetMode ? "请输入新密码（至少4位）" : "请输入密码（至少4位）",
                 text: this.password
               })
                 .onChange((v: string) => {
@@ -281,14 +285,17 @@ struct Login {
             .borderRadius(12)
             .margin({ bottom: 8 })
 
-            if (this.registerMode) {
-              Text("确认密码")
+            if (this.registerMode || this.resetMode) {
+              Text(this.resetMode ? "确认新密码" : "确认密码")
                 .fontSize(12)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.themeManager.colors.secondaryTextColor)
                 .alignSelf(ItemAlign.Start)
                 .margin({ bottom: 6, top: 6 })
-              TextInput({ placeholder: "请再次输入密码", text: this.confirmPassword })
+              TextInput({
+                placeholder: this.resetMode ? "请再次输入新密码" : "请再次输入密码",
+                text: this.confirmPassword,
+              })
                 .onChange((v: string) => {
                   this.confirmPassword = v;
                 })
@@ -340,47 +347,44 @@ struct Login {
               .margin({ bottom: 14 })
             }
 
-            Row({ space: 6 }) {
-              Checkbox({ name: 'rememberMe', group: 'loginOptions' })
-                .select(this.rememberMe)
-                .selectedColor('#3b82f6')
-                .width(20)
-                .height(20)
-                .onChange((value: boolean) => {
-                  this.rememberMe = value;
-                })
-              Text('记住我')
-                .fontSize(12)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
-              Blank()
-              if (!this.registerMode) {
-                Text("忘记密码？")
-                  .fontSize(12)
-                  .fontColor("#3b82f6")
-                  .fontWeight(FontWeight.Medium)
-                  .onClick(() => {
-                    this.getUIContext().showAlertDialog({
-                      title: "忘记密码",
-                      message: "请联系管理员重置密码，或使用华为账号登录后重新绑定。",
-                      primaryButton: { value: "知道了", action: () => {} },
-                      alignment: DialogAlignment.Center,
-                    });
+            if (!this.resetMode) {
+              Row({ space: 6 }) {
+                Checkbox({ name: 'rememberMe', group: 'loginOptions' })
+                  .select(this.rememberMe)
+                  .selectedColor('#3b82f6')
+                  .width(20)
+                  .height(20)
+                  .onChange((value: boolean) => {
+                    this.rememberMe = value;
                   })
+                Text('记住我')
+                  .fontSize(12)
+                  .fontColor(this.themeManager.colors.secondaryTextColor)
+                Blank()
+                if (!this.registerMode) {
+                  Text("忘记密码？")
+                    .fontSize(12)
+                    .fontColor("#3b82f6")
+                    .fontWeight(FontWeight.Medium)
+                    .onClick(() => { this.enterResetMode(); })
+                }
               }
+              .width('100%')
+              .margin({ bottom: 24 })
             }
-            .width('100%')
-            .margin({ bottom: 24 })
 
             // 登录按钮（带缩放动画）
             Button(this.isLoading
-              ? this.registerMode ? "注册中..." : "登录中..."
-              : this.registerMode ? "注册并登录" : "登录")
+              ? this.resetMode ? "提交中..." : this.registerMode ? "注册中..." : "登录中..."
+              : this.resetMode ? "重置密码" : this.registerMode ? "注册并登录" : "登录")
               .onClick(() => {
                 this.loginBtnScale = 0.95;
                 setTimeout(() => {
                   this.loginBtnScale = 1.0;
                 }, 150);
-                if (this.registerMode) {
+                if (this.resetMode) {
+                  this.handleResetPassword();
+                } else if (this.registerMode) {
                   this.handleRegister();
                 } else {
                   this.handleLogin();
@@ -409,19 +413,17 @@ struct Login {
               .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
               .animation({ duration: 120, curve: Curve.EaseInOut })
 
-            Text(this.registerMode ? "已有账号？返回登录" : "注册新账号")
+            Text(this.resetMode || this.registerMode ? "已有账号？返回登录" : "注册新账号")
               .fontSize(12)
               .fontColor("#3b82f6")
               .margin({ bottom: 12 })
               .onClick(() => {
-                this.registerMode = !this.registerMode;
-                this.inputMode = 0;
-                this.password = "";
-                this.confirmPassword = "";
-                this.verifyCode = "";
-                this.challengeId = "";
-                this.challengePhone = "";
-                this.usernameError = this.validateUsername();
+                if (this.resetMode) {
+                  this.resetMode = false;
+                } else {
+                  this.registerMode = !this.registerMode;
+                }
+                this.clearFormState();
               })
 
             /* 华为一键登录暂时不可用
@@ -547,6 +549,23 @@ struct Login {
     }
   }
 
+  /** 切换模式时清掉表单残留，避免验证码会话串到另一个流程 */
+  private clearFormState(): void {
+    this.inputMode = 0;
+    this.password = "";
+    this.confirmPassword = "";
+    this.verifyCode = "";
+    this.challengeId = "";
+    this.challengePhone = "";
+    this.usernameError = this.validateUsername();
+  }
+
+  private enterResetMode(): void {
+    this.resetMode = true;
+    this.registerMode = false;
+    this.clearFormState();
+  }
+
   private async handleSendCode(): Promise<void> {
     const phone = this.username.trim();
     if (!/^1[3-9]\d{9}$/.test(phone)) {
@@ -556,7 +575,11 @@ struct Login {
     }
     this.isSendingCode = true;
     try {
-      const result = await CloudService.getInstance().sendRegistrationCode(phone);
+      const cloud = CloudService.getInstance();
+      // 重置流程要求手机号已注册，注册流程要求未注册，服务端各自判重后返回提示
+      const result = this.resetMode
+        ? await cloud.sendPasswordResetCode(phone)
+        : await cloud.sendRegistrationCode(phone);
       if (!result.success || !result.challengeId) {
         this.showAlert(result.message || "验证码发送失败");
         return;
@@ -584,8 +607,8 @@ struct Login {
       this.showAlert(this.usernameError);
       return;
     }
-    if (pwd.length < 8) {
-      this.showAlert("密码至少 8 位");
+    if (pwd.length < 4) {
+      this.showAlert("密码至少 4 位");
       return;
     }
     if (pwd !== this.confirmPassword.trim()) {
@@ -615,6 +638,56 @@ struct Login {
     } catch (_e) {
       CloudService.getInstance().clearSession();
       this.showAlert("注册失败，请重试");
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /** 忘记密码：校验短信验证码后设置新密码，成功后回到登录页 */
+  private async handleResetPassword(): Promise<void> {
+    const phone = this.username.trim();
+    const pwd = this.password.trim();
+    const code = this.verifyCode.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      this.usernameError = "请输入正确的手机号";
+      this.showAlert(this.usernameError);
+      return;
+    }
+    if (pwd.length < 4) {
+      this.showAlert("新密码至少 4 位");
+      return;
+    }
+    if (pwd !== this.confirmPassword.trim()) {
+      this.showAlert("两次输入的密码不一致");
+      return;
+    }
+    if (!/^\d{4,8}$/.test(code)) {
+      this.showAlert("请输入正确的短信验证码");
+      return;
+    }
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.showAlert("请先获取当前手机号的验证码");
+      return;
+    }
+
+    this.isLoading = true;
+    try {
+      const result = await CloudService.getInstance()
+        .resetPassword(phone, pwd, code, this.challengeId);
+      if (!result.success) {
+        this.showAlert(result.message || "密码重置失败");
+        return;
+      }
+      // 服务端已清掉该账号全部会话，本地也要清干净，避免旧凭据残留
+      await CloudService.getInstance().clearPersistedSession();
+      CloudService.getInstance().clearSession();
+      this.resetMode = false;
+      this.clearFormState();
+      this.username = phone;
+      this.usernameError = "";
+      showToast(this.getUIContext(), { message: "密码已重置，请用新密码登录", duration: 2000 });
+    } catch (_e) {
+      this.showAlert("密码重置失败，请稍后重试");
     } finally {
       this.isLoading = false;
     }

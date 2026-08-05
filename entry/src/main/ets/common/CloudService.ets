@@ -60,6 +60,13 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
+interface ResetPasswordRequest {
+  phone: string;
+  passwordHash: string;
+  verifyCode: string;
+  challengeId: string;
+}
+
 interface ContactOtpRequest {
   kind: string;
   value: string;
@@ -343,6 +350,28 @@ export class CloudService {
       return { success: false, message: '服务器未返回有效会话' };
     }
     return result;
+  }
+
+  /** 忘记密码：向已注册手机号发送短信验证码 */
+  public async sendPasswordResetCode(phone: string): Promise<CloudResult> {
+    const body: SendOtpRequest = { phone: phone };
+    return this.parseResult(
+      await this.requestRaw('/api/password/otp/send', http.RequestMethod.POST, body, false, 20000, false)
+    );
+  }
+
+  /** 忘记密码：校验验证码并重置密码。成功后服务端会清掉该账号全部会话。 */
+  public async resetPassword(phone: string, passwordHash: string,
+    verifyCode: string, challengeId: string): Promise<CloudResult> {
+    const body: ResetPasswordRequest = {
+      phone: phone,
+      passwordHash: passwordHash,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    return this.parseResult(
+      await this.requestRaw('/api/password/reset', http.RequestMethod.POST, body, false, 20000, false)
+    );
   }
 
   public async getMe(): Promise<CloudResult> {
