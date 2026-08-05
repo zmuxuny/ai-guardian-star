@@ -177,7 +177,7 @@ struct HealthHistory {
         .margin({ top: 8 })
     }
     .width("100%")
-    .margin({ top: "20%" })
+    .margin({ top: 72 })
     .alignItems(HorizontalAlign.Center);
   }
 

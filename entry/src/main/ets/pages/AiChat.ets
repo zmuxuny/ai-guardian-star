@@ -8,6 +8,7 @@ import { ThemeManager } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
 import { GradientHeader } from '../components/GradientHeader';
 import { STORE_KEY_AI_ACCESS_LEVEL } from '../config';
+import { getWindowSizeClass } from '../common/ResponsiveLayout';
 
 const QUICK_QUESTIONS: string[] = [
   '老人最近状态怎么样？',
@@ -34,6 +35,8 @@ export struct AiChat {
   @State dotPhase: number = 0;
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
+  // 当前视口宽度，用于快捷提问在大屏折行铺开
+  @State viewportWidth: number = 360;
 
   private scroller: Scroller = new Scroller();
   private msgIdCounter: number = 0;
@@ -244,25 +247,40 @@ export struct AiChat {
   }
 
   @Builder
+  QuickChip(q: string): void {
+    Text(q)
+      .fontSize(13).fontColor('#2563eb')
+      .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+      .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+      .borderRadius(20).border({ width: 1, color: '#93c5fd' })
+      .onClick((): void => {
+        if (!this.isRequesting) this.sendMessage(q);
+      })
+  }
+
+  @Builder
   QuickQuestions(): void {
     Column() {
       Text('快捷提问').fontSize(12)
         .fontColor(this.themeManager.colors.secondaryTextColor)
         .margin({ left: 18, bottom: 8 }).alignSelf(ItemAlign.Start)
-      Scroll(new Scroller()) {
-        Row({ space: 10 }) {
+      if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+        // 手机宽度放不下，横向滑动
+        Scroll(new Scroller()) {
+          Row({ space: 10 }) {
+            ForEach(QUICK_QUESTIONS, (q: string) => {
+              this.QuickChip(q)
+            })
+          }.padding({ left: 18, right: 18 })
+        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
+      } else {
+        // 大屏直接折行铺开，不留半截被截断的提问
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
           ForEach(QUICK_QUESTIONS, (q: string) => {
-            Text(q)
-              .fontSize(13).fontColor('#2563eb')
-              .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-              .borderRadius(20).border({ width: 1, color: '#93c5fd' })
-              .onClick((): void => {
-                if (!this.isRequesting) this.sendMessage(q);
-              })
+            Row() { this.QuickChip(q) }.margin({ right: 10, bottom: 8 })
           })
-        }.padding({ left: 18, right: 18 })
-      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
+        }.width('100%').padding({ left: 18, right: 18 })
+      }
     }
     .width('100%').constraintSize({ maxWidth: 640 })
     .margin({ bottom: 6 })
@@ -333,5 +351,9 @@ export struct AiChat {
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
   }
 }
