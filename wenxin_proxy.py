@@ -48,6 +48,12 @@ if ADMIN_ENABLED:
 else:
     ADMIN_PASSWORD = ''
     app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Strict',
+    SESSION_COOKIE_SECURE=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+)
 # ──────────────────────────────────────────────────────────────
 
 # ─── 配置区 ────────────────────────────────────────────────────
@@ -1670,7 +1676,9 @@ def admin_required(f):
 def admin_login_page():
     if request.method == 'POST':
         pwd = (request.form.get('password') or '').strip()
-        if pwd == ADMIN_PASSWORD:
+        if secrets.compare_digest(pwd, ADMIN_PASSWORD):
+            session.clear()
+            session.permanent = True
             session['admin_logged_in'] = True
             return redirect(url_for('admin_panel'))
         return _admin_login_html('密码错误')

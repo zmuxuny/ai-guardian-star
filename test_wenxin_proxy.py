@@ -833,6 +833,24 @@ class AccountSessionSecurityTest(unittest.TestCase):
     def test_admin_routes_are_disabled_by_default(self):
         self.assertEqual(self.client.get("/admin").status_code, 404)
 
+    def test_admin_login_cookie_is_restricted_to_https_same_site_requests(self):
+        proxy.ADMIN_ENABLED = True
+        self.addCleanup(setattr, proxy, "ADMIN_ENABLED", False)
+        old_password = proxy.ADMIN_PASSWORD
+        proxy.ADMIN_PASSWORD = "test-admin-password"
+        self.addCleanup(setattr, proxy, "ADMIN_PASSWORD", old_password)
+
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "test-admin-password"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        cookie = response.headers["Set-Cookie"]
+        self.assertIn("Secure", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Strict", cookie)
+
 class SmsRegistrationTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()

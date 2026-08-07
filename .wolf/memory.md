@@ -1612,3 +1612,9 @@
 | — | 修窄屏横向溢出 | 远程: mu-plugins/zhx-frontend-tweaks.php | vw 含滚动条导致溢出 6px，改 width:100%+max-width px（bug-056） | ~4000 tok |
 | 06:21 | 隐私整改三件套：官网政策页(ID=30)补第三方点名/邮箱/头像/敏感信息提示并修正视频与加密表述；App改PRIVACY_POLICY_URL指向aistar.asia、voice_reason改为真实用途、person页新增隐私政策入口；AGC切自定义隐私政策URL并改录音理由后保存成功 | wenxin server, config.ets, string.json, person.ets, AGC后台 | Release构建通过 | ~2500 |
 | 08:23 | 平板/折叠屏适配：Layout画布1200→840vp并统一两侧背景；11个文件内容列/卡片/弹窗加constraintSize maxWidth(640/560/480)限宽居中，手机(<640vp)零影响 | Layout.ets, StatDashboard.ets, 全部页面 | Release构建通过 | ~1800 |
+
+## Session: 2026-08-07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 10:35 | 将现有 SQLite 用户管理后台安全开放到公网 HTTPS | wenxin_proxy.py, test_wenxin_proxy.py, deploy/nginx/api.aistar.asia.conf | 管理登录与页面实测 302/200；Secure/HttpOnly/SameSite=Strict、no-store、登录限速生效；数据库完整性 ok，备份成功 | ~12000 |
