@@ -187,5 +187,5 @@ struct Index {
     AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
     this.pathStack.pushPathByName('Layout', null, false);
   }
-  
+
 }

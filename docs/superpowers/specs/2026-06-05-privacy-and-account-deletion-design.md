@@ -1,6 +1,6 @@
 # 隐私协议弹窗 + 账号注销 设计文档
 
-Date: 2026-06-05  
+Date: 2026-06-05
 Scope: Index.ets, person.ets, wenxin_proxy.py
 
 ---
