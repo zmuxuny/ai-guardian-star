@@ -60,10 +60,15 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
+interface VerifyResetCodeRequest {
+  phone: string;
+  verifyCode: string;
+  challengeId: string;
+}
+
 interface ResetPasswordRequest {
   phone: string;
   passwordHash: string;
-  verifyCode: string;
   challengeId: string;
 }
 
@@ -360,13 +365,25 @@ export class CloudService {
     );
   }
 
-  /** 忘记密码：校验验证码并重置密码。成功后服务端会清掉该账号全部会话。 */
+  /** 忘记密码：校验短信验证码。通过后该会话才允许设置新密码。 */
+  public async verifyPasswordResetCode(phone: string, verifyCode: string,
+    challengeId: string): Promise<CloudResult> {
+    const body: VerifyResetCodeRequest = {
+      phone: phone,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    return this.parseResult(
+      await this.requestRaw('/api/password/otp/verify', http.RequestMethod.POST, body, false, 20000, false)
+    );
+  }
+
+  /** 忘记密码：凭已验证的会话设置新密码。成功后服务端会清掉该账号全部会话。 */
   public async resetPassword(phone: string, passwordHash: string,
-    verifyCode: string, challengeId: string): Promise<CloudResult> {
+    challengeId: string): Promise<CloudResult> {
     const body: ResetPasswordRequest = {
       phone: phone,
       passwordHash: passwordHash,
-      verifyCode: verifyCode,
       challengeId: challengeId,
     };
     return this.parseResult(

@@ -37,6 +37,10 @@ struct Login {
   @State challengePhone: string = "";
   @State canSendCode: boolean = true;
   @State isSendingCode: boolean = false;
+  /** 重置流程：验证码是否已通过服务端校验，未通过时新密码输入框保持禁用 */
+  @State codeVerified: boolean = false;
+  @State isVerifyingCode: boolean = false;
+  @State codeError: string = "";
   @State themeManager: ThemeManager = ThemeManager.getInstance();
 
   /** 校验当前输入格式，返回错误信息（空字符串=通过） */
@@ -49,6 +53,87 @@ struct Login {
     } else {
       // 邮箱：基本格式校验
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "" : "请输入正确的邮箱地址";
+    }
+  }
+
+  /** 重置流程未通过短信验证时，新密码相关输入框保持禁用 */
+  private passwordFieldEnabled(): boolean {
+    return !this.resetMode || this.codeVerified;
+  }
+
+  /** 验证码输入框边框色：与手机号输入框同一套正误反馈 */
+  private codeFieldBorderColor(): string {
+    const neutral = this.themeManager.isDarkMode ? "#334155" : "#e2e8f0";
+    if (!this.resetMode || this.verifyCode.trim() === "") return neutral;
+    if (this.codeVerified) return "#10b981";
+    if (this.codeError !== "") return "#ef4444";
+    return neutral;
+  }
+
+  @Builder
+  VerifyCodeField(): void {
+    Text("短信验证码")
+      .fontSize(12)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(this.themeManager.colors.secondaryTextColor)
+      .alignSelf(ItemAlign.Start)
+      .margin({ bottom: 6 })
+    Row({ space: 8 }) {
+      Row() {
+        TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
+          .onChange((v: string) => {
+            this.onVerifyCodeChange(v);
+          })
+          .layoutWeight(1)
+          .fontSize(14)
+          .type(InputType.Number)
+          .backgroundColor(Color.Transparent)
+          .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .border({ width: 0 })
+          .padding({ left: 12, right: 4 })
+        // 校验状态图标，与手机号输入框保持一致
+        if (this.resetMode && this.verifyCode.trim() !== "") {
+          if (this.isVerifyingCode) {
+            LoadingProgress().width(18).height(18).margin({ right: 12 })
+          } else if (this.codeVerified) {
+            Text("✓")
+              .fontSize(16).fontWeight(FontWeight.Bold)
+              .fontColor("#10b981").margin({ right: 12 })
+          } else if (this.codeError !== "") {
+            Text("✕")
+              .fontSize(16).fontWeight(FontWeight.Bold)
+              .fontColor("#ef4444").margin({ right: 12 })
+          }
+        }
+      }
+      .layoutWeight(1)
+      .height(48)
+      .alignItems(VerticalAlign.Center)
+      .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+      .border({ width: 1.5, color: this.codeFieldBorderColor() })
+      .borderRadius(12)
+
+      Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
+        .height(48)
+        .fontSize(12)
+        .fontColor(Color.White)
+        .backgroundColor("#3b82f6")
+        .borderRadius(12)
+        .enabled(this.canSendCode && !this.isSendingCode)
+        .onClick(() => {
+          this.handleSendCode();
+        })
+    }
+    .width("100%")
+    .margin({ bottom: this.codeError !== "" ? 4 : 14 })
+
+    if (this.codeError !== "") {
+      Text(this.codeError)
+        .fontSize(11)
+        .fontColor("#ef4444")
+        .alignSelf(ItemAlign.Start)
+        .margin({ bottom: 10 })
     }
   }
 
@@ -205,7 +290,10 @@ struct Login {
                   this.username = v;
                   this.usernameError = this.validateUsername();
                   if (v.trim() !== this.challengePhone) {
+                    // 换了号码，之前那条验证码会话作废
                     this.challengeId = "";
+                    this.codeVerified = false;
+                    this.codeError = "";
                   }
                 })
                 .layoutWeight(1)
@@ -254,16 +342,25 @@ struct Login {
                 .animation({ duration: 150, curve: Curve.EaseOut });
             }
 
+            // 重置流程先验手机号：验证码通过前，下面的新密码输入框保持禁用
+            if (this.resetMode) {
+              this.VerifyCodeField()
+            }
+
             // 密码输入框（无左图标，只右侧眼睛切换）
             Text(this.resetMode ? "新密码" : "密码")
               .fontSize(12)
               .fontWeight(FontWeight.Medium)
-              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .fontColor(this.passwordFieldEnabled()
+                ? this.themeManager.colors.secondaryTextColor
+                : this.themeManager.colors.tertiaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 6 })
             Row() {
               TextInput({
-                placeholder: this.resetMode ? "请输入新密码（至少4位）" : "请输入密码（至少4位）",
+                placeholder: this.resetMode
+                  ? (this.codeVerified ? "请输入新密码（至少4位）" : "请先通过短信验证")
+                  : "请输入密码（至少4位）",
                 text: this.password
               })
                 .onChange((v: string) => {
@@ -271,6 +368,7 @@ struct Login {
                 })
                 .layoutWeight(1)
                 .fontSize(14)
+                .enabled(this.passwordFieldEnabled())
                 .type(this.showPassword ? InputType.Normal : InputType.Password)
                 .backgroundColor(Color.Transparent)
                 .placeholderColor(this.themeManager.colors.tertiaryTextColor)
@@ -280,16 +378,21 @@ struct Login {
             }
             .width("100%")
             .alignItems(VerticalAlign.Center)
-            .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+            .backgroundColor(this.passwordFieldEnabled()
+              ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+              : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
             .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
             .borderRadius(12)
+            .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
             .margin({ bottom: 8 })
 
             if (this.registerMode || this.resetMode) {
               Text(this.resetMode ? "确认新密码" : "确认密码")
                 .fontSize(12)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
+                .fontColor(this.passwordFieldEnabled()
+                  ? this.themeManager.colors.secondaryTextColor
+                  : this.themeManager.colors.tertiaryTextColor)
                 .alignSelf(ItemAlign.Start)
                 .margin({ bottom: 6, top: 6 })
               TextInput({
@@ -302,49 +405,22 @@ struct Login {
                 .width("100%")
                 .height(48)
                 .fontSize(14)
+                .enabled(this.passwordFieldEnabled())
                 .type(this.showPassword ? InputType.Normal : InputType.Password)
-                .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                .backgroundColor(this.passwordFieldEnabled()
+                  ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                  : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
                 .placeholderColor(this.themeManager.colors.tertiaryTextColor)
                 .fontColor(this.themeManager.colors.primaryTextColor)
                 .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
                 .borderRadius(12)
+                .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
                 .padding({ left: 12, right: 12 })
                 .margin({ bottom: 14 })
+            }
 
-              Text("短信验证码")
-                .fontSize(12)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
-                .alignSelf(ItemAlign.Start)
-                .margin({ bottom: 6 })
-              Row({ space: 8 }) {
-                TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
-                  .onChange((v: string) => {
-                    this.verifyCode = v;
-                  })
-                  .layoutWeight(1)
-                  .height(48)
-                  .fontSize(14)
-                  .type(InputType.Number)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-                  .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-                  .fontColor(this.themeManager.colors.primaryTextColor)
-                  .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
-                  .borderRadius(12)
-                  .padding({ left: 12, right: 12 })
-                Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
-                  .height(48)
-                  .fontSize(12)
-                  .fontColor(Color.White)
-                  .backgroundColor("#3b82f6")
-                  .borderRadius(12)
-                  .enabled(this.canSendCode && !this.isSendingCode)
-                  .onClick(() => {
-                    this.handleSendCode();
-                  })
-              }
-              .width("100%")
-              .margin({ bottom: 14 })
+            if (this.registerMode) {
+              this.VerifyCodeField()
             }
 
             if (!this.resetMode) {
@@ -557,7 +633,46 @@ struct Login {
     this.verifyCode = "";
     this.challengeId = "";
     this.challengePhone = "";
+    this.codeVerified = false;
+    this.codeError = "";
     this.usernameError = this.validateUsername();
+  }
+
+  /** 重置流程下验证码填满 6 位就自动送去服务端校验 */
+  private onVerifyCodeChange(v: string): void {
+    this.verifyCode = v;
+    if (!this.resetMode) return;
+    this.codeVerified = false;
+    this.codeError = "";
+    const code = v.trim();
+    if (/^\d{6}$/.test(code) && !this.isVerifyingCode) {
+      this.verifyResetCode(code);
+    }
+  }
+
+  private async verifyResetCode(code: string): Promise<void> {
+    const phone = this.username.trim();
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.codeError = "请先获取当前手机号的验证码";
+      return;
+    }
+    this.isVerifyingCode = true;
+    try {
+      const result = await CloudService.getInstance()
+        .verifyPasswordResetCode(phone, code, this.challengeId);
+      if (result.success) {
+        this.codeVerified = true;
+        this.codeError = "";
+      } else {
+        this.codeVerified = false;
+        this.codeError = result.message || "验证码错误";
+      }
+    } catch (_e) {
+      this.codeVerified = false;
+      this.codeError = "验证失败，请稍后重试";
+    } finally {
+      this.isVerifyingCode = false;
+    }
   }
 
   private enterResetMode(): void {
@@ -586,6 +701,9 @@ struct Login {
       }
       this.challengeId = result.challengeId;
       this.challengePhone = phone;
+      this.verifyCode = "";
+      this.codeVerified = false;
+      this.codeError = "";
       this.canSendCode = false;
       showToast(this.getUIContext(), { message: "验证码已发送，5 分钟内有效", duration: 1800 });
       setTimeout(() => {
@@ -647,10 +765,17 @@ struct Login {
   private async handleResetPassword(): Promise<void> {
     const phone = this.username.trim();
     const pwd = this.password.trim();
-    const code = this.verifyCode.trim();
     if (!/^1[3-9]\d{9}$/.test(phone)) {
       this.usernameError = "请输入正确的手机号";
       this.showAlert(this.usernameError);
+      return;
+    }
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.showAlert("请先获取当前手机号的验证码");
+      return;
+    }
+    if (!this.codeVerified) {
+      this.showAlert("请先通过短信验证码验证手机号");
       return;
     }
     if (pwd.length < 4) {
@@ -661,19 +786,11 @@ struct Login {
       this.showAlert("两次输入的密码不一致");
       return;
     }
-    if (!/^\d{4,8}$/.test(code)) {
-      this.showAlert("请输入正确的短信验证码");
-      return;
-    }
-    if (this.challengeId === "" || this.challengePhone !== phone) {
-      this.showAlert("请先获取当前手机号的验证码");
-      return;
-    }
 
     this.isLoading = true;
     try {
       const result = await CloudService.getInstance()
-        .resetPassword(phone, pwd, code, this.challengeId);
+        .resetPassword(phone, pwd, this.challengeId);
       if (!result.success) {
         this.showAlert(result.message || "密码重置失败");
         return;
