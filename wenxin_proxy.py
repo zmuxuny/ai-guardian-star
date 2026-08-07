@@ -80,6 +80,8 @@ ACCESS_TOKEN_TTL = 15 * 60
 REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 SMS_CODE_TTL = 5 * 60
 SMS_MAX_ATTEMPTS = 5
+PASSWORD_MIN_LENGTH = 4
+PASSWORD_RESET_WINDOW = 10 * 60
 MAX_AVATAR_BYTES = 750 * 1024
 
 # 账号数据库路径（ECS 上持久存储）
@@ -405,8 +407,9 @@ def api_send_otp():
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
             "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
-            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day, "
-            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month "
+            # 全局预算只统计真正发出去的短信，blocked 行没有调用运营商
+            "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_day, "
+            "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_month "
             "FROM t_sms_challenge",
             (
                 phone, now - 60,
@@ -482,6 +485,275 @@ def api_send_otp():
         return _internal_error('api_send_otp', error)
 
 
+def _sms_send_blocked(conn, phone, requester_ip, now):
+    """短信频控与预算检查，返回 True 表示应拒绝本次发送。"""
+    month_start = int(
+        datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+        .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+    recent = conn.execute(
+        "SELECT "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_minute, "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
+        "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
+        # 全局预算只统计真正发出去的短信，blocked 行没有调用运营商
+        "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_day, "
+        "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_month "
+        "FROM t_sms_challenge",
+        (
+            phone, now - 60,
+            phone, now - 60 * 60,
+            phone, now - 24 * 60 * 60,
+            requester_ip, now - 60 * 60,
+            now - 24 * 60 * 60,
+            month_start,
+        ),
+    ).fetchone()
+    contact_sms = conn.execute(
+        """
+        SELECT
+          SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day,
+          SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month
+        FROM t_contact_challenge
+        WHERE kind='phone'
+        """,
+        (now - 24 * 60 * 60, month_start),
+    ).fetchone()
+    return (
+        (recent['phone_minute'] or 0) >= 1
+        or (recent['phone_hour'] or 0) >= 5
+        or (recent['phone_day'] or 0) >= 10
+        or (recent['ip_hour'] or 0) >= 20
+        or (recent['total_day'] or 0) + (contact_sms['total_day'] or 0) >= ALIYUN_SMS_DAILY_LIMIT
+        or (recent['total_month'] or 0) + (contact_sms['total_month'] or 0) >= ALIYUN_SMS_MONTHLY_LIMIT
+    )
+
+
+@app.route('/api/password/otp/send', methods=['POST'])
+def api_send_reset_otp():
+    """忘记密码：向已注册手机号发送短信验证码。"""
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "短信服务暂未开放"}), 503
+    phone = ((request.get_json(silent=True) or {}).get('phone') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    now = int(time.time())
+    requester_ip = _client_ip()
+    challenge_id = secrets.token_urlsafe(32)
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 40 * 24 * 60 * 60,))
+        if _sms_send_blocked(conn, phone, requester_ip, now):
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码发送过于频繁，请稍后再试"}), 429
+        registered = conn.execute(
+            "SELECT username FROM t_user WHERE username=? OR phone=?", (phone, phone)
+        ).fetchone()
+        if not registered:
+            # 记一条 blocked，让枚举未注册号码同样消耗频控额度
+            conn.execute(
+                """
+                INSERT INTO t_sms_challenge
+                    (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+                VALUES (?, ?, 'blocked', ?, ?, ?)
+                """,
+                (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "该手机号尚未注册"}), 404
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES (?, ?, 'reset', ?, ?, ?)
+            """,
+            (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        _send_sms_verification(phone, challenge_id)
+        return jsonify({
+            "success": True,
+            "message": "验证码已发送",
+            "challengeId": challenge_id,
+            "expiresIn": SMS_CODE_TTL,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_send_reset_otp', error)
+
+
+@app.route('/api/password/otp/verify', methods=['POST'])
+def api_verify_reset_otp():
+    """忘记密码第二步：校验短信验证码。通过后该 challenge 才允许用于设置新密码。"""
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "短信服务暂未开放"}), 503
+    d = request.get_json(silent=True) or {}
+    phone = (d.get('phone') or '').strip()
+    verify_code = (d.get('verifyCode') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    if not re.fullmatch(r'\d{4,8}', verify_code):
+        return jsonify({"success": False, "message": "验证码格式不正确"}), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash
+            FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND purpose='reset'
+              AND expires_at>? AND failed_attempts<?
+              AND (checking_at IS NULL OR checking_at<?) AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now, SMS_MAX_ATTEMPTS, now - 30),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "验证码会话无效或已过期"}), 400
+        conn.execute(
+            "UPDATE t_sms_challenge SET checking_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        verified = _check_sms_verification(phone, verify_code, challenge_id)
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        if not verified:
+            conn.execute(
+                """
+                UPDATE t_sms_challenge
+                SET failed_attempts=failed_attempts+1, checking_at=NULL
+                WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL
+                """,
+                (challenge_hash, now),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码错误"}), 400
+        # 验证通过：标记为已验证，并留出填写新密码的时间窗
+        cursor = conn.execute(
+            """
+            UPDATE t_sms_challenge
+            SET purpose='reset_verified', checking_at=NULL, expires_at=?
+            WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL
+            """,
+            (now + PASSWORD_RESET_WINDOW, challenge_hash, now),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码会话已被使用"}), 400
+        conn.commit()
+        conn.close()
+        conn = None
+        return jsonify({
+            "success": True,
+            "message": "验证通过",
+            "expiresIn": PASSWORD_RESET_WINDOW,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_verify_reset_otp', error)
+
+
+@app.route('/api/password/reset', methods=['POST'])
+def api_reset_password():
+    """忘记密码第三步：凭已验证的 challenge 设置新密码，并踢掉该账号全部会话。"""
+    d = request.get_json(silent=True) or {}
+    phone = (d.get('phone') or '').strip()
+    password = (d.get('passwordHash') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
+        return jsonify({
+            "success": False,
+            "message": f"密码长度应为 {PASSWORD_MIN_LENGTH} 到 128 位",
+        }), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND purpose='reset_verified'
+              AND expires_at>? AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "请先完成手机号验证"}), 400
+        row = conn.execute(
+            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=?",
+            (phone, phone),
+        ).fetchone()
+        if not row:
+            conn.execute(
+                "UPDATE t_sms_challenge SET consumed_at=? WHERE challenge_hash=?",
+                (now, challenge_hash),
+            )
+            conn.commit()
+            conn.close()
+            return jsonify({"success": False, "message": "该手机号尚未注册"}), 404
+        # 与原密码相同时不消耗验证会话，用户改个密码就能直接重试
+        if verify_password(row['password_hash'], password):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "新密码不能与原密码相同"}), 400
+        conn.execute(
+            "UPDATE t_user SET password_hash=? WHERE username=?",
+            (hash_password(password), row['username']),
+        )
+        # 重置后强制该账号在所有设备上重新登录
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
+        conn.execute(
+            "UPDATE t_sms_challenge SET consumed_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        return jsonify({"success": True, "message": "密码已重置，请用新密码登录"})
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_reset_password', error)
+
+
 @app.route('/api/contact/otp/send', methods=['POST'])
 @bearer_required
 def api_send_contact_otp():
@@ -490,8 +762,9 @@ def api_send_contact_otp():
     if not kind:
         return jsonify({"success": False, "message": "联系方式格式不正确"}), 400
     now = int(time.time())
+    # 与 /api/otp/send 的月度口径保持一致，都按 UTC+8 的自然月切分
     month_start = int(
-        datetime.now(timezone.utc)
+        datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
         .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         .timestamp()
     )
@@ -718,8 +991,11 @@ def api_register():
     nickname = (d.get('nickname') or '').strip()
     if not re.fullmatch(r'1[3-9]\d{9}', phone):
         return jsonify({"success": False, "message": "手机号格式不正确"}), 400
-    if len(password) < 8 or len(password) > 128:
-        return jsonify({"success": False, "message": "密码长度应为 8 到 128 位"}), 400
+    if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
+        return jsonify({
+            "success": False,
+            "message": f"密码长度应为 {PASSWORD_MIN_LENGTH} 到 128 位",
+        }), 400
     if not re.fullmatch(r'\d{4,8}', verify_code):
         return jsonify({"success": False, "message": "验证码格式不正确"}), 400
     if len(challenge_id) < 32 or len(challenge_id) > 128:
