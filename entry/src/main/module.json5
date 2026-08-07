@@ -2,7 +2,7 @@
   "module": {
     "requestPermissions": [
       {
-        "name": "ohos.permission.MICROPHONE",
+        "name": "ohos.permission.MICROPHONE", 
         "reason": "$string:voice_reason",
         "usedScene": {
           "abilities": ["EntryAbility"],
