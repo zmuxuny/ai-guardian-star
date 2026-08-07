@@ -10,8 +10,8 @@ export class ThemeColors {
   
   // 文字色
   primaryTextColor: string = '#1C1C1E';
-  secondaryTextColor: string = '#94A3B8';
-  tertiaryTextColor: string = '#C7C7CC';
+  secondaryTextColor: string = '#475569';
+  tertiaryTextColor: string = '#64748B';
   
   // 分割线色
   separatorColor: string = '#E5E5EA';
@@ -31,8 +31,8 @@ export class DarkThemeColors extends ThemeColors {
   cardBackgroundColor: string = '#1E293B';
   
   primaryTextColor: string = '#F8FAFC';
-  secondaryTextColor: string = '#94A3B8';
-  tertiaryTextColor: string = '#64748B';
+  secondaryTextColor: string = '#CBD5E1';
+  tertiaryTextColor: string = '#94A3B8';
   
   separatorColor: string = '#334155';
   

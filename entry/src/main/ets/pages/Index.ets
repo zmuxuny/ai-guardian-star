@@ -54,7 +54,7 @@ struct PrivacyDialog {
             .decoration({ type: TextDecorationType.Underline, color: '#3b82f6' })
             .margin({ top: 4 })
             .onClick(() => {
-              const ctx = getContext(this) as common.UIAbilityContext;
+              const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
               const want: Want = {
                 action: 'ohos.want.action.viewData',
                 entities: ['entity.system.browsable'],
@@ -92,6 +92,7 @@ struct PrivacyDialog {
       .padding({ left: 20, right: 20, top: 16, bottom: 24 })
     }
     .width('100%')
+    .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
   }
@@ -111,7 +112,7 @@ struct Index {
       },
       onDisagree: () => {
         this.privacyDialogController.close();
-        const ctx = getContext(this) as common.UIAbilityContext;
+        const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
         ctx.terminateSelf();
       },
     }),
@@ -124,7 +125,7 @@ struct Index {
 
   private savePrivacyAccepted(): void {
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       pref.putSync(PREF_KEY_PRIVACY_ACCEPTED, true);
@@ -136,7 +137,7 @@ struct Index {
 
   private checkPrivacyThenLogin(): void {
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       const accepted = pref.getSync(PREF_KEY_PRIVACY_ACCEPTED, false) as boolean;

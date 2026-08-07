@@ -8,6 +8,8 @@ wenxin_proxy.py — 智护星 AI 助手 · 扣子编程智能体中转服务
 
 from flask import Flask, request, jsonify, session, redirect, url_for, g
 from flask_cors import CORS
+import base64
+import hmac
 import hashlib
 import requests
 import secrets
@@ -17,6 +19,9 @@ import sqlite3
 import os
 import functools
 import re
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 
 from security_utils import hash_password, password_needs_rehash, verify_password
 
@@ -62,10 +67,22 @@ ALIYUN_SMS_SIGN_NAME = os.environ.get('ALIYUN_SMS_SIGN_NAME', '')
 ALIYUN_SMS_TEMPLATE_CODE = os.environ.get('ALIYUN_SMS_TEMPLATE_CODE', '100001')
 ALIYUN_SMS_SCHEME_NAME = os.environ.get('ALIYUN_SMS_SCHEME_NAME', 'guardian-register')
 ALIYUN_SMS_DAILY_LIMIT = int(os.environ.get('ALIYUN_SMS_DAILY_LIMIT', '100'))
+ALIYUN_SMS_MONTHLY_LIMIT = int(os.environ.get('ALIYUN_SMS_MONTHLY_LIMIT', '200'))
+EMAIL_OTP_ENABLED = _env_true('EMAIL_OTP_ENABLED')
+SMTP_HOST = os.environ.get('SMTP_HOST', '')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '465'))
+SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USERNAME)
+SMTP_USE_SSL = os.environ.get('SMTP_USE_SSL', 'true').strip().lower() != 'false'
+EMAIL_OTP_DAILY_LIMIT = int(os.environ.get('EMAIL_OTP_DAILY_LIMIT', '50'))
 ACCESS_TOKEN_TTL = 15 * 60
 REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
 SMS_CODE_TTL = 5 * 60
 SMS_MAX_ATTEMPTS = 5
+PASSWORD_MIN_LENGTH = 4
+PASSWORD_RESET_WINDOW = 10 * 60
+MAX_AVATAR_BYTES = 750 * 1024
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
@@ -88,6 +105,14 @@ def get_db():
             create_time   INTEGER NOT NULL
         )
     """)
+    user_columns = {row['name'] for row in conn.execute("PRAGMA table_info(t_user)")}
+    for column, definition in (
+        ('avatar_data', 'BLOB'),
+        ('avatar_mime', 'TEXT'),
+        ('avatar_updated_at', 'INTEGER'),
+    ):
+        if column not in user_columns:
+            conn.execute(f"ALTER TABLE t_user ADD COLUMN {column} {definition}")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS t_session (
             access_token_hash  TEXT PRIMARY KEY,
@@ -118,6 +143,29 @@ def get_db():
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_sms_challenge_ip_sent "
         "ON t_sms_challenge(requester_ip, sent_at)"
+    )
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS t_contact_challenge (
+            challenge_hash TEXT PRIMARY KEY,
+            username       TEXT NOT NULL,
+            kind           TEXT NOT NULL,
+            value          TEXT NOT NULL,
+            code_hash      TEXT,
+            requester_ip   TEXT NOT NULL,
+            sent_at        INTEGER NOT NULL,
+            expires_at     INTEGER NOT NULL,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            checking_at    INTEGER,
+            consumed_at    INTEGER
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_contact_value_sent "
+        "ON t_contact_challenge(kind, value, sent_at)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_contact_ip_sent "
+        "ON t_contact_challenge(requester_ip, sent_at)"
     )
     conn.commit()
     return conn
@@ -160,7 +208,8 @@ def _user_json(row):
         "username": row['username'],
         "nickname": row['nickname'] or '',
         "phone": row['phone'] or '',
-        "avatarPath": row['avatar_path'] or '',
+        "avatarPath": '',
+        "avatarVersion": row['avatar_updated_at'] or 0,
         "email": row['email'] or '',
         "address": row['address'] or '',
         "createTime": row['create_time'],
@@ -265,6 +314,37 @@ def _check_sms_verification(phone, verify_code, challenge_id):
     raise RuntimeError('SMS provider returned an unknown verification result')
 
 
+def _send_email_verification(recipient, verify_code):
+    if not SMTP_HOST or not SMTP_USERNAME or not SMTP_PASSWORD or not SMTP_FROM:
+        raise RuntimeError('SMTP is not configured')
+    message = EmailMessage()
+    message['Subject'] = '智护星账号安全验证码'
+    message['From'] = SMTP_FROM
+    message['To'] = recipient
+    message.set_content(
+        f'你的验证码是：{verify_code}\n\n验证码 5 分钟内有效。'
+        '如非本人操作，请忽略本邮件。'
+    )
+    smtp_class = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+    with smtp_class(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+        if not SMTP_USE_SSL:
+            smtp.starttls()
+        smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+        smtp.send_message(message)
+
+
+def _normalize_contact(kind, value):
+    kind = (kind or '').strip().lower()
+    value = (value or '').strip()
+    if kind == 'phone' and re.fullmatch(r'1[3-9]\d{9}', value):
+        return kind, value
+    if kind == 'email' and len(value) <= 254 and re.fullmatch(
+        r'[^\s@]+@[^\s@]+\.[^\s@]+', value
+    ):
+        return kind, value.lower()
+    return '', ''
+
+
 def bearer_required(function):
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
@@ -315,14 +395,21 @@ def api_send_otp():
     try:
         conn = get_db()
         conn.execute('BEGIN IMMEDIATE')
-        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 7 * 24 * 60 * 60,))
+        month_start = int(
+            datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+            .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            .timestamp()
+        )
+        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 40 * 24 * 60 * 60,))
         recent = conn.execute(
             "SELECT "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_minute, "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
             "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
             "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
-            "SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day "
+            # 全局预算只统计真正发出去的短信，blocked 行没有调用运营商
+            "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_day, "
+            "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_month "
             "FROM t_sms_challenge",
             (
                 phone, now - 60,
@@ -330,14 +417,28 @@ def api_send_otp():
                 phone, now - 24 * 60 * 60,
                 requester_ip, now - 60 * 60,
                 now - 24 * 60 * 60,
+                month_start,
             ),
+        ).fetchone()
+        contact_sms = conn.execute(
+            """
+            SELECT
+              SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day,
+              SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month
+            FROM t_contact_challenge
+            WHERE kind='phone'
+            """,
+            (now - 24 * 60 * 60, month_start),
         ).fetchone()
         if (
             (recent['phone_minute'] or 0) >= 1
             or (recent['phone_hour'] or 0) >= 5
             or (recent['phone_day'] or 0) >= 10
             or (recent['ip_hour'] or 0) >= 20
-            or (recent['total_day'] or 0) >= ALIYUN_SMS_DAILY_LIMIT
+            or (recent['total_day'] or 0) + (contact_sms['total_day'] or 0)
+            >= ALIYUN_SMS_DAILY_LIMIT
+            or (recent['total_month'] or 0) + (contact_sms['total_month'] or 0)
+            >= ALIYUN_SMS_MONTHLY_LIMIT
         ):
             conn.rollback()
             conn.close()
@@ -384,6 +485,500 @@ def api_send_otp():
         return _internal_error('api_send_otp', error)
 
 
+def _sms_send_blocked(conn, phone, requester_ip, now):
+    """短信频控与预算检查，返回 True 表示应拒绝本次发送。"""
+    month_start = int(
+        datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+        .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+    recent = conn.execute(
+        "SELECT "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_minute, "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_hour, "
+        "SUM(CASE WHEN phone=? AND sent_at>=? THEN 1 ELSE 0 END) AS phone_day, "
+        "SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour, "
+        # 全局预算只统计真正发出去的短信，blocked 行没有调用运营商
+        "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_day, "
+        "SUM(CASE WHEN sent_at>=? AND purpose<>'blocked' THEN 1 ELSE 0 END) AS total_month "
+        "FROM t_sms_challenge",
+        (
+            phone, now - 60,
+            phone, now - 60 * 60,
+            phone, now - 24 * 60 * 60,
+            requester_ip, now - 60 * 60,
+            now - 24 * 60 * 60,
+            month_start,
+        ),
+    ).fetchone()
+    contact_sms = conn.execute(
+        """
+        SELECT
+          SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day,
+          SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month
+        FROM t_contact_challenge
+        WHERE kind='phone'
+        """,
+        (now - 24 * 60 * 60, month_start),
+    ).fetchone()
+    return (
+        (recent['phone_minute'] or 0) >= 1
+        or (recent['phone_hour'] or 0) >= 5
+        or (recent['phone_day'] or 0) >= 10
+        or (recent['ip_hour'] or 0) >= 20
+        or (recent['total_day'] or 0) + (contact_sms['total_day'] or 0) >= ALIYUN_SMS_DAILY_LIMIT
+        or (recent['total_month'] or 0) + (contact_sms['total_month'] or 0) >= ALIYUN_SMS_MONTHLY_LIMIT
+    )
+
+
+@app.route('/api/password/otp/send', methods=['POST'])
+def api_send_reset_otp():
+    """忘记密码：向已注册手机号发送短信验证码。"""
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "短信服务暂未开放"}), 503
+    phone = ((request.get_json(silent=True) or {}).get('phone') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    now = int(time.time())
+    requester_ip = _client_ip()
+    challenge_id = secrets.token_urlsafe(32)
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        conn.execute("DELETE FROM t_sms_challenge WHERE sent_at<?", (now - 40 * 24 * 60 * 60,))
+        if _sms_send_blocked(conn, phone, requester_ip, now):
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码发送过于频繁，请稍后再试"}), 429
+        registered = conn.execute(
+            "SELECT username FROM t_user WHERE username=? OR phone=?", (phone, phone)
+        ).fetchone()
+        if not registered:
+            # 记一条 blocked，让枚举未注册号码同样消耗频控额度
+            conn.execute(
+                """
+                INSERT INTO t_sms_challenge
+                    (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+                VALUES (?, ?, 'blocked', ?, ?, ?)
+                """,
+                (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "该手机号尚未注册"}), 404
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES (?, ?, 'reset', ?, ?, ?)
+            """,
+            (challenge_hash, phone, requester_ip, now, now + SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        _send_sms_verification(phone, challenge_id)
+        return jsonify({
+            "success": True,
+            "message": "验证码已发送",
+            "challengeId": challenge_id,
+            "expiresIn": SMS_CODE_TTL,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_send_reset_otp', error)
+
+
+@app.route('/api/password/otp/verify', methods=['POST'])
+def api_verify_reset_otp():
+    """忘记密码第二步：校验短信验证码。通过后该 challenge 才允许用于设置新密码。"""
+    if not ALIYUN_SMS_ENABLED:
+        return jsonify({"success": False, "message": "短信服务暂未开放"}), 503
+    d = request.get_json(silent=True) or {}
+    phone = (d.get('phone') or '').strip()
+    verify_code = (d.get('verifyCode') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    if not re.fullmatch(r'\d{4,8}', verify_code):
+        return jsonify({"success": False, "message": "验证码格式不正确"}), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash
+            FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND purpose='reset'
+              AND expires_at>? AND failed_attempts<?
+              AND (checking_at IS NULL OR checking_at<?) AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now, SMS_MAX_ATTEMPTS, now - 30),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "验证码会话无效或已过期"}), 400
+        conn.execute(
+            "UPDATE t_sms_challenge SET checking_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        verified = _check_sms_verification(phone, verify_code, challenge_id)
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        if not verified:
+            conn.execute(
+                """
+                UPDATE t_sms_challenge
+                SET failed_attempts=failed_attempts+1, checking_at=NULL
+                WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL
+                """,
+                (challenge_hash, now),
+            )
+            conn.commit()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码错误"}), 400
+        # 验证通过：标记为已验证，并留出填写新密码的时间窗
+        cursor = conn.execute(
+            """
+            UPDATE t_sms_challenge
+            SET purpose='reset_verified', checking_at=NULL, expires_at=?
+            WHERE challenge_hash=? AND checking_at=? AND consumed_at IS NULL
+            """,
+            (now + PASSWORD_RESET_WINDOW, challenge_hash, now),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码会话已被使用"}), 400
+        conn.commit()
+        conn.close()
+        conn = None
+        return jsonify({
+            "success": True,
+            "message": "验证通过",
+            "expiresIn": PASSWORD_RESET_WINDOW,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_verify_reset_otp', error)
+
+
+@app.route('/api/password/reset', methods=['POST'])
+def api_reset_password():
+    """忘记密码第三步：凭已验证的 challenge 设置新密码，并踢掉该账号全部会话。"""
+    d = request.get_json(silent=True) or {}
+    phone = (d.get('phone') or '').strip()
+    password = (d.get('passwordHash') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not re.fullmatch(r'1[3-9]\d{9}', phone):
+        return jsonify({"success": False, "message": "手机号格式不正确"}), 400
+    if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
+        return jsonify({
+            "success": False,
+            "message": f"密码长度应为 {PASSWORD_MIN_LENGTH} 到 128 位",
+        }), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT challenge_hash FROM t_sms_challenge
+            WHERE challenge_hash=? AND phone=? AND purpose='reset_verified'
+              AND expires_at>? AND consumed_at IS NULL
+            """,
+            (challenge_hash, phone, now),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "请先完成手机号验证"}), 400
+        row = conn.execute(
+            "SELECT username, password_hash FROM t_user WHERE username=? OR phone=?",
+            (phone, phone),
+        ).fetchone()
+        if not row:
+            conn.execute(
+                "UPDATE t_sms_challenge SET consumed_at=? WHERE challenge_hash=?",
+                (now, challenge_hash),
+            )
+            conn.commit()
+            conn.close()
+            return jsonify({"success": False, "message": "该手机号尚未注册"}), 404
+        # 与原密码相同时不消耗验证会话，用户改个密码就能直接重试
+        if verify_password(row['password_hash'], password):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "新密码不能与原密码相同"}), 400
+        conn.execute(
+            "UPDATE t_user SET password_hash=? WHERE username=?",
+            (hash_password(password), row['username']),
+        )
+        # 重置后强制该账号在所有设备上重新登录
+        conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
+        conn.execute(
+            "UPDATE t_sms_challenge SET consumed_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+        return jsonify({"success": True, "message": "密码已重置，请用新密码登录"})
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_reset_password', error)
+
+
+@app.route('/api/contact/otp/send', methods=['POST'])
+@bearer_required
+def api_send_contact_otp():
+    d = request.get_json(silent=True) or {}
+    kind, value = _normalize_contact(d.get('kind'), d.get('value'))
+    if not kind:
+        return jsonify({"success": False, "message": "联系方式格式不正确"}), 400
+    now = int(time.time())
+    # 与 /api/otp/send 的月度口径保持一致，都按 UTC+8 的自然月切分
+    month_start = int(
+        datetime.fromtimestamp(now, timezone(timedelta(hours=8)))
+        .replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .timestamp()
+    )
+    requester_ip = _client_ip()
+    challenge_id = secrets.token_urlsafe(32)
+    challenge_hash = _token_hash(challenge_id)
+    verify_code = f'{secrets.randbelow(1000000):06d}' if kind == 'email' else ''
+    code_hash = _token_hash(challenge_id + ':' + verify_code) if verify_code else None
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        column = 'phone' if kind == 'phone' else 'email'
+        owner = conn.execute(
+            f"SELECT username FROM t_user WHERE {column}=? AND username<>?",
+            (value, g.current_username),
+        ).fetchone()
+        if owner:
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "该联系方式已被其他账号使用"}), 409
+        if kind == 'phone' and not ALIYUN_SMS_ENABLED:
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "短信验证码服务暂未开放"}), 503
+        if kind == 'email' and not EMAIL_OTP_ENABLED:
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "邮箱验证码服务暂未开放"}), 503
+
+        conn.execute(
+            "DELETE FROM t_contact_challenge WHERE sent_at<?",
+            (now - 40 * 24 * 60 * 60,),
+        )
+        recent = conn.execute(
+            """
+            SELECT
+              SUM(CASE WHEN kind=? AND value=? AND sent_at>=? THEN 1 ELSE 0 END) AS value_minute,
+              SUM(CASE WHEN kind=? AND value=? AND sent_at>=? THEN 1 ELSE 0 END) AS value_hour,
+              SUM(CASE WHEN requester_ip=? AND sent_at>=? THEN 1 ELSE 0 END) AS ip_hour,
+              SUM(CASE WHEN kind=? AND sent_at>=? THEN 1 ELSE 0 END) AS kind_day,
+              SUM(CASE WHEN kind=? AND sent_at>=? THEN 1 ELSE 0 END) AS kind_month
+            FROM t_contact_challenge
+            """,
+            (
+                kind, value, now - 60,
+                kind, value, now - 60 * 60,
+                requester_ip, now - 60 * 60,
+                kind, now - 24 * 60 * 60,
+                kind, month_start,
+            ),
+        ).fetchone()
+        registration_sms = conn.execute(
+            """
+            SELECT
+              SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_day,
+              SUM(CASE WHEN sent_at>=? THEN 1 ELSE 0 END) AS total_month
+            FROM t_sms_challenge
+            """,
+            (now - 24 * 60 * 60, month_start),
+        ).fetchone()
+        budget_exhausted = (
+            (recent['kind_day'] or 0) + (registration_sms['total_day'] or 0)
+            >= ALIYUN_SMS_DAILY_LIMIT
+            or (recent['kind_month'] or 0) + (registration_sms['total_month'] or 0)
+            >= ALIYUN_SMS_MONTHLY_LIMIT
+        ) if kind == 'phone' else (recent['kind_day'] or 0) >= EMAIL_OTP_DAILY_LIMIT
+        if (
+            (recent['value_minute'] or 0) >= 1
+            or (recent['value_hour'] or 0) >= 5
+            or (recent['ip_hour'] or 0) >= 20
+            or budget_exhausted
+        ):
+            conn.rollback()
+            conn.close()
+            conn = None
+            return jsonify({"success": False, "message": "验证码发送过于频繁，请稍后再试"}), 429
+
+        conn.execute(
+            """
+            INSERT INTO t_contact_challenge
+                (challenge_hash, username, kind, value, code_hash,
+                 requester_ip, sent_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                challenge_hash, g.current_username, kind, value, code_hash,
+                requester_ip, now, now + SMS_CODE_TTL,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+
+        if kind == 'phone':
+            _send_sms_verification(value, challenge_id)
+        else:
+            _send_email_verification(value, verify_code)
+        return jsonify({
+            "success": True,
+            "message": "验证码已发送",
+            "challengeId": challenge_id,
+            "expiresIn": SMS_CODE_TTL,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return _internal_error('api_send_contact_otp', error)
+
+
+@app.route('/api/contact/update', methods=['POST'])
+@bearer_required
+def api_update_contact():
+    d = request.get_json(silent=True) or {}
+    kind, value = _normalize_contact(d.get('kind'), d.get('value'))
+    verify_code = (d.get('verifyCode') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not kind:
+        return jsonify({"success": False, "message": "联系方式格式不正确"}), 400
+    if not re.fullmatch(r'\d{4,8}', verify_code):
+        return jsonify({"success": False, "message": "验证码格式不正确"}), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        challenge = conn.execute(
+            """
+            SELECT code_hash
+            FROM t_contact_challenge
+            WHERE challenge_hash=? AND username=? AND kind=? AND value=?
+              AND expires_at>? AND failed_attempts<?
+              AND (checking_at IS NULL OR checking_at<?) AND consumed_at IS NULL
+            """,
+            (
+                challenge_hash, g.current_username, kind, value,
+                now, SMS_MAX_ATTEMPTS, now - 30,
+            ),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            return jsonify({"success": False, "message": "验证码会话无效或已过期"}), 400
+        conn.execute(
+            "UPDATE t_contact_challenge SET checking_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+
+        if kind == 'phone':
+            verified = _check_sms_verification(value, verify_code, challenge_id)
+        else:
+            verified = hmac.compare_digest(
+                challenge['code_hash'] or '',
+                _token_hash(challenge_id + ':' + verify_code),
+            )
+
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        if not verified:
+            conn.execute(
+                """
+                UPDATE t_contact_challenge
+                SET failed_attempts=failed_attempts+1, checking_at=NULL
+                WHERE challenge_hash=? AND consumed_at IS NULL
+                """,
+                (challenge_hash,),
+            )
+            conn.commit()
+            return jsonify({"success": False, "message": "验证码不正确"}), 400
+
+        column = 'phone' if kind == 'phone' else 'email'
+        owner = conn.execute(
+            f"SELECT username FROM t_user WHERE {column}=? AND username<>?",
+            (value, g.current_username),
+        ).fetchone()
+        if owner:
+            conn.rollback()
+            return jsonify({"success": False, "message": "该联系方式已被其他账号使用"}), 409
+        cursor = conn.execute(
+            f"UPDATE t_user SET {column}=? WHERE username=?",
+            (value, g.current_username),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return jsonify({"success": False, "message": "账号不存在"}), 404
+        conn.execute(
+            "UPDATE t_contact_challenge SET consumed_at=?, checking_at=NULL WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.execute(
+            "DELETE FROM t_session WHERE username=? AND access_token_hash<>?",
+            (g.current_username, g.current_access_hash),
+        )
+        conn.commit()
+        return jsonify({"success": True, "message": "联系方式已更新"})
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('api_update_contact', error)
+    finally:
+        if conn:
+            conn.close()
+
+
 @app.route('/api/register', methods=['POST'])
 def api_register():
     if not ALIYUN_SMS_ENABLED:
@@ -396,8 +991,11 @@ def api_register():
     nickname = (d.get('nickname') or '').strip()
     if not re.fullmatch(r'1[3-9]\d{9}', phone):
         return jsonify({"success": False, "message": "手机号格式不正确"}), 400
-    if len(password) < 8 or len(password) > 128:
-        return jsonify({"success": False, "message": "密码长度应为 8 到 128 位"}), 400
+    if len(password) < PASSWORD_MIN_LENGTH or len(password) > 128:
+        return jsonify({
+            "success": False,
+            "message": f"密码长度应为 {PASSWORD_MIN_LENGTH} 到 128 位",
+        }), 400
     if not re.fullmatch(r'\d{4,8}', verify_code):
         return jsonify({"success": False, "message": "验证码格式不正确"}), 400
     if len(challenge_id) < 32 or len(challenge_id) > 128:
@@ -607,6 +1205,74 @@ def api_me():
         return jsonify({"success": True, "user": _user_json(row)})
     except Exception as error:
         return _internal_error('api_me', error)
+
+
+@app.route('/api/avatar', methods=['GET', 'POST'])
+@bearer_required
+def api_avatar():
+    conn = None
+    try:
+        conn = get_db()
+        if request.method == 'GET':
+            row = conn.execute(
+                "SELECT avatar_data, avatar_mime, avatar_updated_at FROM t_user WHERE username=?",
+                (g.current_username,),
+            ).fetchone()
+            conn.close()
+            if not row:
+                return jsonify({"success": False, "message": "账号不存在"}), 404
+            if not row['avatar_data']:
+                return jsonify({"success": False, "message": "未设置头像"}), 404
+            return jsonify({
+                "success": True,
+                "message": "头像读取成功",
+                "imageBase64": base64.b64encode(row['avatar_data']).decode('ascii'),
+                "mimeType": row['avatar_mime'] or 'image/jpeg',
+                "updatedAt": row['avatar_updated_at'] or 0,
+            })
+
+        d = request.get_json(silent=True) or {}
+        encoded = (d.get('imageBase64') or '').strip()
+        mime_type = (d.get('mimeType') or '').strip().lower()
+        if mime_type != 'image/jpeg' or not encoded:
+            conn.close()
+            return jsonify({"success": False, "message": "仅支持 JPEG 头像"}), 400
+        try:
+            image_data = base64.b64decode(encoded, validate=True)
+        except (ValueError, TypeError):
+            conn.close()
+            return jsonify({"success": False, "message": "头像数据无效"}), 400
+        if (
+            len(image_data) < 4
+            or len(image_data) > MAX_AVATAR_BYTES
+            or not image_data.startswith(b'\xff\xd8')
+            or not image_data.endswith(b'\xff\xd9')
+        ):
+            conn.close()
+            return jsonify({"success": False, "message": "头像文件无效或过大"}), 400
+        updated_at = int(time.time())
+        cursor = conn.execute(
+            """
+            UPDATE t_user
+            SET avatar_data=?, avatar_mime=?, avatar_updated_at=?, avatar_path=''
+            WHERE username=?
+            """,
+            (image_data, mime_type, updated_at, g.current_username),
+        )
+        conn.commit()
+        conn.close()
+        if cursor.rowcount != 1:
+            return jsonify({"success": False, "message": "账号不存在"}), 404
+        return jsonify({
+            "success": True,
+            "message": "头像已同步",
+            "updatedAt": updated_at,
+        })
+    except Exception as error:
+        return _internal_error('api_avatar', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/api/logout', methods=['POST'])

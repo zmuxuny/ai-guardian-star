@@ -7,7 +7,7 @@ import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
 import { GradientHeader } from '../components/GradientHeader';
-import { promptAction } from '@kit.ArkUI';
+import { showToast } from '../common/UiFeedback';
 
 @Builder
 export function MyAddressBuilder() {
@@ -67,10 +67,10 @@ export struct MyAddress {
   // 保存：云端优先（成功后再写本地），避免本地/云端分叉；不退页，停在卡片视图
   private async saveAddress(): Promise<void> {
     const newAddr = this.address.trim();
-    if (newAddr === '') { promptAction.showToast({ message: '请输入地址' }); return; }
+    if (newAddr === '') { showToast(this.getUIContext(), { message: '请输入地址' }); return; }
     const user = this.loadedUser;
     if (!user || user.id === undefined) {
-      promptAction.showToast({ message: '用户信息未加载，请返回重试' });
+      showToast(this.getUIContext(), { message: '用户信息未加载，请返回重试' });
       return;
     }
     this.isSaving = true;
@@ -81,7 +81,7 @@ export struct MyAddress {
       fields.address = newAddr;
       const cloudR = await CloudService.getInstance().updateUser(fields);
       if (!cloudR.success) {
-        promptAction.showToast({ message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
+        showToast(this.getUIContext(), { message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
         this.isSaving = false;
         return;
       }
@@ -90,10 +90,10 @@ export struct MyAddress {
       await DatabaseHelper.getInstance().updateUser(user);
       this.originalAddress = newAddr;
       this.isEditing = false;
-      promptAction.showToast({ message: '地址已保存', duration: 1500 });
+      showToast(this.getUIContext(), { message: '地址已保存', duration: 1500 });
     } catch (e) {
       console.error('[MyAddress]: 保存失败', JSON.stringify(e));
-      promptAction.showToast({ message: '保存失败，请重试' });
+      showToast(this.getUIContext(), { message: '保存失败，请重试' });
     }
     this.isSaving = false;
   }
@@ -249,7 +249,7 @@ export struct MyAddress {
             }
             Column().height(40)
           }
-          .width('100%').alignItems(HorizontalAlign.Center)
+          .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
         }
         .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring).width('100%')
       }

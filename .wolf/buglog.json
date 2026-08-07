@@ -603,10 +603,358 @@
       "file": "wenxin_proxy.py",
       "root_cause": "api_delete_user 密码错误时返回 HTTP 403，HarmonyOS http 模块对非 2xx 响应返回 ArrayBuffer 而非 string，导致 CloudService postJson 中 JSON.parse 失败，返回 '服务器响应格式错误'",
       "fix": "删除 return jsonify({...}), 403 中的 403 状态码，改为默认 200，确保 HarmonyOS http 返回 string 类型响应体",
-      "tags": ["cloud", "http", "harmonyos", "json-parse", "delete-account"],
+      "tags": [
+        "cloud",
+        "http",
+        "harmonyos",
+        "json-parse",
+        "delete-account"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-07"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk failed to run rg/cat and one nested PowerShell command lost quoting",
+      "file": "C:\\Users\\16228\\.codex\\RTK.md",
+      "root_cause": "The Windows RTK wrapper could not resolve cat, returned access denied for rg, and outer PowerShell expanded nested command syntax",
+      "fix": "Use rtk proxy powershell.exe with simple commands and literal paths; avoid nested variables and regex-heavy quoting",
+      "tags": [
+        "tooling",
+        "rtk",
+        "powershell",
+        "windows"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-07-14",
+      "error_message": "ModuleNotFoundError: No module named 'flask' while running test_wenxin_proxy.py",
+      "file": "test_wenxin_proxy.py",
+      "root_cause": "The available MSYS2 Python runtime does not have the Flask production dependency installed",
+      "fix": "Load the real target function from wenxin_proxy.py via Python AST so the unit test stays dependency-free",
+      "tags": [
+        "test",
+        "python",
+        "flask",
+        "dependency"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-07-14",
+      "error_message": "AI lastFallDaysAgo used the oldest fall record as the latest record",
+      "file": "entry/src/main/ets/common/WenxinService.ets",
+      "root_cause": "MqttManager prepends new records, but WenxinService read falls[falls.length - 1]",
+      "fix": "Read falls[0], matching the newest-first record order used by MqttManager and the UI",
+      "tags": [
+        "ai",
+        "mqtt",
+        "record-order",
+        "health-context"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-07-14",
+      "error_message": "00303217 Configuration Error: Invalid value of 'DEVECO_SDK_HOME' in the system environment path",
+      "file": "build environment",
+      "root_cause": "Hvigor was not on PATH and its process did not receive the installed DevEco SDK location",
+      "fix": "Run DevEco's bundled node/hvigorw.js with process-local DEVECO_SDK_HOME=E:\\DevEco Studio\\sdk",
+      "tags": [
+        "build",
+        "deveco",
+        "hvigor",
+        "sdk"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-07-14",
+      "error_message": "Connection to 117.78.9.144 port 6022 timed out",
+      "file": "local SSH configuration",
+      "root_cause": "The local SSH configuration rewrote the default port to 6022 when no explicit port was supplied",
+      "fix": "Pass -p 22 explicitly; root authentication then succeeded and returned hostname ecs-f195",
+      "tags": [
+        "ssh",
+        "ecs",
+        "port",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-07-14",
+      "error_message": "Permission denied, please try again while inspecting ECS process environment",
+      "file": "ECS SSH authentication",
+      "root_cause": "A later read-only SSH session rejected the supplied password twice after earlier sessions had authenticated successfully",
+      "fix": "Stopped retries to avoid account lockout; rely on the already confirmed process/path/port and require environment checks before restart",
+      "tags": [
+        "ssh",
+        "ecs",
+        "authentication",
+        "safety"
+      ],
+      "related_bugs": [
+        "bug-042"
+      ],
+      "occurrences": 2,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-07-14",
+      "error_message": "curl: (35) schannel: failed to receive handshake, SSL/TLS connection failed",
+      "file": "OpenAI developer manual fetch helper",
+      "root_cause": "The local Windows curl TLS handshake failed while fetching the Codex manual",
+      "fix": "Installed the official OpenAI Developer Docs MCP and used an official-domain web search for the bounded check",
+      "tags": [
+        "docs",
+        "curl",
+        "tls",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-07-14",
+      "error_message": "[mcporter] Unable to load tool metadata; name positional arguments explicitly",
+      "file": "agent-reach Exa search command",
+      "root_cause": "The mcporter invocation could not resolve the Exa tool metadata from the positional call syntax",
+      "fix": "Stopped using that invocation and queried official OpenAI domains through the available web search tool",
+      "tags": [
+        "search",
+        "mcporter",
+        "exa",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk: Failed to resolve 'Get-Content' via PATH",
+      "file": "RTK PowerShell invocation",
+      "root_cause": "Get-Content is a PowerShell cmdlet, not a standalone executable that RTK can resolve directly",
+      "fix": "Invoke powershell.exe through rtk proxy and run Get-Content inside PowerShell",
+      "tags": [
+        "rtk",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-07-14",
+      "error_message": "SyntaxError: Unexpected string",
+      "file": "functions.exec JavaScript wrapper",
+      "root_cause": "Nested PowerShell quoting broke the JavaScript string literal",
+      "fix": "Use a JavaScript template literal for commands containing nested quoted PowerShell paths",
+      "tags": [
+        "javascript",
+        "quoting",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-07-14",
+      "error_message": "The term '=' is not recognized as the name of a cmdlet",
+      "file": "nested PowerShell JSON verification command",
+      "root_cause": "The outer PowerShell expanded $null inside a double-quoted child command before powershell.exe received it",
+      "fix": "Avoid variables in nested double-quoted PowerShell commands and pipe directly to Out-Null",
+      "tags": [
+        "powershell",
+        "quoting",
+        "verification",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047"
+      ],
+      "occurrences": 2,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk: Failed to execute command: rg: Access is denied (os error 5)",
+      "file": "RTK ripgrep verification",
+      "root_cause": "The RTK wrapper could not execute the resolved rg binary in this Windows environment",
+      "fix": "Use git diff and PowerShell read-only verification commands instead of RTK-wrapped rg for this check",
+      "tags": [
+        "rtk",
+        "rg",
+        "windows",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 3,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-07-14",
+      "error_message": "ConvertFrom-Json: Invalid object passed in, ':' or '}' expected",
+      "file": ".wolf/buglog.json",
+      "root_cause": "The existing bug log already contains malformed legacy JSON before the newly appended entries",
+      "fix": "Kept the new entries structurally valid and left the unrelated legacy corruption untouched for a dedicated repair",
+      "tags": [
+        "openwolf",
+        "json",
+        "legacy-data",
+        "verification"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-07-15",
+      "error_message": "Missing type name after '[' in nested PowerShell slice command",
+      "file": "RTK PowerShell file inspection",
+      "root_cause": "The outer PowerShell expanded the child $lines variable before the nested command executed",
+      "fix": "Use variable-free Get-Content pipelines with Select-Object and single-quoted child commands",
+      "tags": [
+        "powershell",
+        "quoting",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-048"
+      ],
+      "occurrences": 7,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-07-15",
+      "error_message": "Select-String rejected a pattern with an illegal trailing backslash",
+      "file": "PowerShell source search",
+      "root_cause": "Nested quoting changed the intended regular expression before Select-String parsed it",
+      "fix": "Use rtk git grep for tracked source searches and avoid regex-heavy nested PowerShell quoting",
+      "tags": [
+        "powershell",
+        "regex",
+        "quoting",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047",
+        "bug-048"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-07-16",
+      "error_message": "Claude-mem inspection hit an incorrect skill path, RTK rg access denial, and nested PowerShell quoting errors",
+      "file": "Codex local runtime inspection commands",
+      "root_cause": "The first command assumed the wrong skill-root path, while later commands repeated known Windows RTK rg and nested PowerShell quoting limitations",
+      "fix": "Use the explicit plugin cache path, run file inspection through rtk proxy powershell, and pass variable-bearing child commands in single quotes",
+      "tags": [
+        "claude-mem",
+        "rtk",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047",
+        "bug-049",
+        "bug-051"
+      ],
+      "occurrences": 6,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-07-16",
+      "error_message": "GitHub CLI required authentication and Agent Reach curl fallback returned FAILED while reading the Repomix repository",
+      "file": "Repomix official-source research commands",
+      "root_cause": "The local gh client had no authenticated account and the RTK-wrapped curl route did not return page content",
+      "fix": "Opened the public official GitHub repository through the web fetch route and verified the README there",
+      "tags": [
+        "agent-reach",
+        "github",
+        "gh",
+        "curl",
+        "web-research"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-07-28",
+      "error_message": "aistar.asia 官网发信全部失败：wp-mail-smtp 的 from_email 是占位值 admin@exmaple.com，且 from_email_force=1",
+      "file": "WordPress option wp_mail_smtp (47.108.167.0)",
+      "root_cause": "安装向导留下的示例地址（还带拼写错误 exmaple）未改；QQ SMTP 要求 From 与认证账号一致，强制覆盖后每封信都被服务端拒绝",
+      "fix": "把 mail.from_email 改为 smtp.user（1622828551@qq.com），wp_mail() 自检返回 true",
+      "tags": [
+        "wordpress",
+        "smtp",
+        "wp-mail-smtp",
+        "aistar.asia",
+        "email"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-28"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-07-28",
+      "error_message": "aistar.asia 窄屏下整页横向溢出 6px（document.scrollWidth 381 > clientWidth 375）",
+      "file": "wp-content/mu-plugins/zhx-frontend-tweaks.php（.zhx-photo img / .zhx-shot img）",
+      "root_cause": "图片宽度用了 max-width:min(560px,90vw)。vw 单位按含滚动条的视口宽度计算（viewport 390，clientWidth 只有 375），90vw=351px 超出内容区，撑出横向滚动条",
+      "fix": "图片尺寸改用 width:100% + max-width:<px>，容器负责约束，彻底不用 vw",
+      "tags": [
+        "css",
+        "responsive",
+        "overflow",
+        "vw",
+        "wordpress",
+        "aistar.asia"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-28"
     }
   ]
 }

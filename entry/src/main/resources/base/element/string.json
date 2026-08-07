@@ -18,7 +18,7 @@
     },
     {
       "name": "voice_reason",
-      "value": "音频未初始化"
+      "value": "用于与老人端设备进行实时语音对讲"
     },
     {
       "name": "camera_reason",

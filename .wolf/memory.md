@@ -1505,3 +1505,110 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+
+## Session: 2026-07-14 03:48
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-14 03:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-14 03:56
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-14 03:57
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 04:10 | Read project rules and traced AI settings, tab, MQTT, Flask, and Coze flows | .wolf/*, Layout.ets, person.ets, AiChat.ets, WenxinService.ets, MqttManager.ets, wenxin_proxy.py | Found AI tab fixed, settings in person, and current backend only receives aggregate health context | ~9000 |
+| 04:18 | Checked current Coze integration docs and local data model | code.coze.cn, Coze API references, DatabaseHelper.ets | Confirmed prompt/context input path; project has no elder age or elder profile source | ~2500 |
+| 04:25 | Added failing access-level regression test, then minimal server-side permission gate | test_wenxin_proxy.py, wenxin_proxy.py | Basic blocks context, privacy whitelists aggregates, full adds exact current/latest status | ~1800 |
+| 04:34 | Added per-account AI switch, access selector, tab visibility, and client context shaping | config.ets, Index.ets, Login.ets, Layout.ets, person.ets, AiChat.ets, WenxinService.ets | UI and Coze request path now share enabled/access state; default remains enabled with privacy mode | ~3500 |
+| 04:43 | Built signed debug HAP using DevEco bundled Hvigor | entry module | BUILD SUCCESSFUL; only pre-existing/deprecation warnings remain | ~1800 |
+| 04:49 | Final verification, commit, and push | feature/jyx-home a90a3b7 | Unit test, JSON, diff check, and HAP build passed; pushed to origin | ~1200 |
+| 05:03 | Tested read-only ECS SSH access | 117.78.9.144:22 | Explicit port 22 authenticated as root; hostname ecs-f195; no files uploaded or changed | ~500 |
+| 05:18 | Inspected Git authorship and ECS AI proxy runtime | git history, ECS process table | Claude commits use Co-Authored-By trailers; current proxy runs /root/wenxin_proxy.py on 8899; no server changes made | ~1200 |
+| 13:57 | Recorded future Git commit convention | .wolf/cerebrum.md, Codex ad-hoc memory | Use detailed Chinese subject/body with changed areas and verification, plus Codex co-author trailer; do not rewrite pushed history by default | ~500 |
+| 14:25 | Recorded command presentation preference | .wolf/cerebrum.md, Codex ad-hoc memory | Every command must say literal vs replaceable, one-line vs whole-block copy, expected result, and stop condition | ~300 |
+
+## Session: 2026-07-15 00:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-15 06:06
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-15 06:17
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:30 | 调研 HarmonyOS Account Kit 一键登录、手机号授权与实名边界 | 华为官方文档、HarmonyOS_Samples、国家网信办/工信部法规 | 核实 ArkTS API、服务端换票、权限审核、合规边界与回退方案 | ~22000 |
+| 06:35 | 审计注册、密码、云端资料、AI 网关、凭据与现网传输 | Login.ets, Profile.ets, CloudService.ets, DatabaseHelper.ets, wenxin_proxy.py, config.ets, ECS /health | 确认明文 HTTP、未鉴权资料更新、全链明文密码、伪手机号注册、匿名共享 AI 与仓库凭据为 P0 | ~9000 |
+| 06:42 | 先写失败测试再完成首批安全止血 | security_utils.py, test_wenxin_proxy.py, wenxin_proxy.py, CloudService.ets, Login.ets, MqttManager.ets, config.ets | 12 项回归转绿；密码入库改 scrypt、旧值渐进升级、响应/日志脱敏、邮箱停止自动注册、共享 MQTT 密码移除 | ~7000 |
+| 06:50 | 汇总公安评估整改、官方平台调研与 Claude 独立复核 | docs/security-remediation-2026-07-15.md | 形成实名边界、四平台矩阵、数据/密钥、账号处置、AI 双向风控、迁移回滚和验收方案，并明确剩余上线阻断项 | ~8000 |
+| 06:55 | 独立执行安全回归、文档检查、HarmonyOS 单测与签名 debug HAP 构建 | test_wenxin_proxy.py, docs/security-remediation-2026-07-15.md, entry module | Python 12/12 通过；Hvigor test 与 assembleHap 均 BUILD SUCCESSFUL；仅有既有弃用/资源冲突警告 | ~2500 |
+
+## Session: 2026-07-15 07:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-15 07:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-15 07:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-16 01:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-16 01:28
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 01:29 | Created .claude/launch.json | — | ~56 |
+| 01:29 | Session end: 1 writes across 1 files (launch.json) | 1 reads | ~9524 tok |
+| 08:46 | Verified claude-mem Codex plugin flow, MCP context injection, local worker health, and storage separation | C:\Users\16228\.codex\config.toml; claude-mem 13.11.0; C:\Users\16228\.claude-mem | worker healthy, initialized, mcpReady; caringSystem observations live | ~7000 tok |
+| 09:12 | Verified Claude Code and Codex cross-platform memory sharing for caringSystem | C:\Users\16228\.claude-mem\claude-mem.db | shared DB confirmed; sessions separated by platform_source; Codex retrieved Claude history | ~3000 tok |
+| 09:25 | Evaluated OpenWolf utility and reconstructed Repomix deletion history | .wolf; .gitignore; git commit 90e904b; Repomix official repository | recommend slim OpenWolf; Repomix CLI still installed; unsafe generated XML was deleted | ~6500 tok |
+
+## Session: 2026-07-28 01:35
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 00:45 | 勘察阿里云 47.108.167.0 官网服务器 | 远程: 宝塔/nginx/MariaDB/WordPress | 发现 aistar.asia 已配好但内容为空，siteurl 指向 IP | ~8000 tok |
+| 01:15 | 服务器加固：删 mosquitto、MariaDB 绑 127.0.0.1、加 2G swap、nginx 恢复 Cloudflare 真实 IP | 远程: /etc/my.cnf, nginx.conf, cloudflare-realip.conf | 全部生效，nginx -t 通过 | ~6000 tok |
+| 01:25 | 用 php + wp-load.php 种子脚本建 9 个页面并设首页/固定链接 | 远程: /root/seed.php | 页面全部 200，需 flush_rules(true) 硬刷新伪静态 | ~12000 tok |
+| 01:32 | 修正页脚：主题模板 ID 8 替换 TT5 占位链接，保留备案 shortcode | 远程: wp_template_part ID 8 | 备案号不重复，法律链接就位 | ~5000 tok |
+| 02:20 | 定位面板 404：宝塔 9.x 强制 安全入口，缺 admin_path.pl 则全路径伪装 nginx 返回 404 | 远程: /www/server/panel/data/admin_path.pl | 设入口后面板恢复 | ~9000 tok |
+| 02:33 | certbot 签发 Let's Encrypt 证书替换 Cloudflare Origin CA，加续期部署钩子 | 远程: /etc/letsencrypt, zhx-deploy.sh | 直连源站 ssl_verify=0，灰云前置条件满足 | ~7000 tok |
+| 02:40 | 首页视觉改版 + 下载页改指 GitHub；滚动淡入加无 JS 与超时兜底 | 远程: mu-plugins/zhx-frontend-tweaks.php, wp_posts 24/27 | Playwright 验收通过 | ~15000 tok |
+
+## Session: 2026-07-28 (灰云后收尾)
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| — | 复核灰云切换结果 | — | 全部页面直连 200，TLS 校验 0，首字节 0.2s；http/www 均 301 归一 | ~4000 tok |
+| — | 补 SEO/社交分享 meta（description、og:*、twitter:card） | 远程: mu-plugins/zhx-frontend-tweaks.php | 逐页生成，canonical 交给 WP 核心避免重复 | ~6000 tok |
+| — | 修 wp-mail-smtp 发件人占位值 admin@exmaple.com | 远程: option wp_mail_smtp | 改为 SMTP 账号本身，wp_mail 自检 true（见 bug-055） | ~3000 tok |
+| — | 权威 DNS 迁回阿里云云解析 | 注册局 NS: dns31/dns32.hichina.com | 3 条 A 记录解析正常，证书走 webroot 不受影响 | ~3000 tok |
+| — | 清理闲置插件 wpforms-lite / akismet / hello.php | 远程: wp-content/plugins, option active_plugins | 全站 9 页 200，备案号页脚完好；备份 /root/backup-20260728/plugins/removed.tar.gz | ~5000 tok |
+| — | 按 DESIGN.md（Apple 设计语言）重写站点视觉 | 远程: mu-plugins/zhx-frontend-tweaks.php（全量重写 CSS）、wp_posts ID 24 | 明暗全幅色块交替、单一 #0066cc 强调、黑色 44px 导航条、parchment 页脚；9 页 200，无 console error | ~28000 tok |
+| — | 接入真实素材：3 张 App 截图 + 边缘设备实拍 + 架构图 SVG | 远程: wp media 39-42, uploads/architecture.svg, wp_posts 24/26 | 首页加 hero 机型图与「在手机上看到什么」三图色块；技术页加设备实拍与全幅深色架构图色块 | ~22000 tok |
+| — | 修窄屏横向溢出 | 远程: mu-plugins/zhx-frontend-tweaks.php | vw 含滚动条导致溢出 6px，改 width:100%+max-width px（bug-056） | ~4000 tok |
+| 06:21 | 隐私整改三件套：官网政策页(ID=30)补第三方点名/邮箱/头像/敏感信息提示并修正视频与加密表述；App改PRIVACY_POLICY_URL指向aistar.asia、voice_reason改为真实用途、person页新增隐私政策入口；AGC切自定义隐私政策URL并改录音理由后保存成功 | wenxin server, config.ets, string.json, person.ets, AGC后台 | Release构建通过 | ~2500 |
+| 08:23 | 平板/折叠屏适配：Layout画布1200→840vp并统一两侧背景；11个文件内容列/卡片/弹窗加constraintSize maxWidth(640/560/480)限宽居中，手机(<640vp)零影响 | Layout.ets, StatDashboard.ets, 全部页面 | Release构建通过 | ~1800 |

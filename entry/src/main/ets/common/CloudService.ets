@@ -10,6 +10,7 @@ export interface CloudUser {
   nickname: string;
   phone: string;
   avatarPath: string;
+  avatarVersion?: number;
   email: string;
   address: string;
   createTime: number;
@@ -23,6 +24,9 @@ export interface CloudResult {
   refreshToken?: string;
   challengeId?: string;
   expiresIn?: number;
+  imageBase64?: string;
+  mimeType?: string;
+  updatedAt?: number;
 }
 
 export interface CloudHttpResponse {
@@ -56,13 +60,39 @@ interface ChangePasswordRequest {
   newPasswordHash: string;
 }
 
+interface VerifyResetCodeRequest {
+  phone: string;
+  verifyCode: string;
+  challengeId: string;
+}
+
+interface ResetPasswordRequest {
+  phone: string;
+  passwordHash: string;
+  challengeId: string;
+}
+
+interface ContactOtpRequest {
+  kind: string;
+  value: string;
+}
+
+interface ContactUpdateRequest extends ContactOtpRequest {
+  verifyCode: string;
+  challengeId: string;
+}
+
+interface AvatarUploadRequest {
+  imageBase64: string;
+  mimeType: string;
+}
+
 interface DeleteUserRequest {
   passwordHash: string;
 }
 
 interface AllowedProfileUpdate {
   nickname?: string;
-  avatarPath?: string;
   address?: string;
 }
 
@@ -126,7 +156,12 @@ export class CloudService {
       new util.TextEncoder().encodeInto(JSON.stringify([this.sessionUserKey, this.refreshToken])));
     attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED);
     attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE);
-    await asset.add(attributes);
+    try {
+      await asset.add(attributes);
+    } catch (e) {
+      const error = e as BusinessError;
+      throw new Error(`保存登录凭据失败: ${error.code} ${error.message}`);
+    }
   }
 
   public async clearPersistedSession(): Promise<void> {
@@ -322,6 +357,40 @@ export class CloudService {
     return result;
   }
 
+  /** 忘记密码：向已注册手机号发送短信验证码 */
+  public async sendPasswordResetCode(phone: string): Promise<CloudResult> {
+    const body: SendOtpRequest = { phone: phone };
+    return this.parseResult(
+      await this.requestRaw('/api/password/otp/send', http.RequestMethod.POST, body, false, 20000, false)
+    );
+  }
+
+  /** 忘记密码：校验短信验证码。通过后该会话才允许设置新密码。 */
+  public async verifyPasswordResetCode(phone: string, verifyCode: string,
+    challengeId: string): Promise<CloudResult> {
+    const body: VerifyResetCodeRequest = {
+      phone: phone,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    return this.parseResult(
+      await this.requestRaw('/api/password/otp/verify', http.RequestMethod.POST, body, false, 20000, false)
+    );
+  }
+
+  /** 忘记密码：凭已验证的会话设置新密码。成功后服务端会清掉该账号全部会话。 */
+  public async resetPassword(phone: string, passwordHash: string,
+    challengeId: string): Promise<CloudResult> {
+    const body: ResetPasswordRequest = {
+      phone: phone,
+      passwordHash: passwordHash,
+      challengeId: challengeId,
+    };
+    return this.parseResult(
+      await this.requestRaw('/api/password/reset', http.RequestMethod.POST, body, false, 20000, false)
+    );
+  }
+
   public async getMe(): Promise<CloudResult> {
     return this.parseResult(
       await this.requestRaw('/api/me', http.RequestMethod.GET, new EmptyRequest(), true, 10000, true)
@@ -344,9 +413,43 @@ export class CloudService {
   public async updateUser(fields: CloudUpdateFields): Promise<CloudResult> {
     const body: AllowedProfileUpdate = {};
     if (fields.nickname !== '') body.nickname = fields.nickname;
-    if (fields.avatarPath !== '') body.avatarPath = fields.avatarPath;
     if (fields.address !== '') body.address = fields.address;
     return this.parseResult(await this.authenticatedPost('/api/updateUser', body));
+  }
+
+  public async sendContactCode(kind: string, value: string): Promise<CloudResult> {
+    const body: ContactOtpRequest = { kind: kind, value: value };
+    return this.parseResult(await this.authenticatedPost('/api/contact/otp/send', body, 20000));
+  }
+
+  public async updateContact(kind: string, value: string, verifyCode: string,
+    challengeId: string): Promise<CloudResult> {
+    const body: ContactUpdateRequest = {
+      kind: kind,
+      value: value,
+      verifyCode: verifyCode,
+      challengeId: challengeId,
+    };
+    const result = this.parseResult(await this.authenticatedPost('/api/contact/update', body, 20000));
+    if (result.success && (
+      (kind === 'phone' && /^1[3-9]\d{9}$/.test(this.sessionUserKey))
+      || (kind === 'email' && this.sessionUserKey.indexOf('@') > 0)
+    )) {
+      this.sessionUserKey = value;
+      if (this.rememberSession) await this.persistSession();
+    }
+    return result;
+  }
+
+  public async uploadAvatar(imageBase64: string): Promise<CloudResult> {
+    const body: AvatarUploadRequest = { imageBase64: imageBase64, mimeType: 'image/jpeg' };
+    return this.parseResult(await this.authenticatedPost('/api/avatar', body, 20000));
+  }
+
+  public async downloadAvatar(): Promise<CloudResult> {
+    return this.parseResult(
+      await this.requestRaw('/api/avatar', http.RequestMethod.GET, new EmptyRequest(), true, 20000, true)
+    );
   }
 
   public async changePassword(oldPasswordHash: string, newPasswordHash: string): Promise<CloudResult> {

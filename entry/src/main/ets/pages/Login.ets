@@ -6,8 +6,10 @@ import { UserManager } from "../common/UserManager";
 import { CloudService, CloudUser } from "../common/CloudService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
-import { promptAction } from "@kit.ArkUI";
-import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import fs from '@ohos.file.fs';
+import { util } from '@kit.ArkTS';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
+import { showToast } from '../common/UiFeedback';
 
 @Builder
 export function LoginBuilder() {
@@ -27,12 +29,18 @@ struct Login {
   @State usernameError: string = "";
   @State rememberMe: boolean = false;
   @State registerMode: boolean = false;
+  /** 忘记密码模式：手机号 + 短信验证码 + 新密码 */
+  @State resetMode: boolean = false;
   @State confirmPassword: string = "";
   @State verifyCode: string = "";
   @State challengeId: string = "";
   @State challengePhone: string = "";
   @State canSendCode: boolean = true;
   @State isSendingCode: boolean = false;
+  /** 重置流程：验证码是否已通过服务端校验，未通过时新密码输入框保持禁用 */
+  @State codeVerified: boolean = false;
+  @State isVerifyingCode: boolean = false;
+  @State codeError: string = "";
   @State themeManager: ThemeManager = ThemeManager.getInstance();
 
   /** 校验当前输入格式，返回错误信息（空字符串=通过） */
@@ -45,6 +53,87 @@ struct Login {
     } else {
       // 邮箱：基本格式校验
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "" : "请输入正确的邮箱地址";
+    }
+  }
+
+  /** 重置流程未通过短信验证时，新密码相关输入框保持禁用 */
+  private passwordFieldEnabled(): boolean {
+    return !this.resetMode || this.codeVerified;
+  }
+
+  /** 验证码输入框边框色：与手机号输入框同一套正误反馈 */
+  private codeFieldBorderColor(): string {
+    const neutral = this.themeManager.isDarkMode ? "#334155" : "#e2e8f0";
+    if (!this.resetMode || this.verifyCode.trim() === "") return neutral;
+    if (this.codeVerified) return "#10b981";
+    if (this.codeError !== "") return "#ef4444";
+    return neutral;
+  }
+
+  @Builder
+  VerifyCodeField(): void {
+    Text("短信验证码")
+      .fontSize(12)
+      .fontWeight(FontWeight.Medium)
+      .fontColor(this.themeManager.colors.secondaryTextColor)
+      .alignSelf(ItemAlign.Start)
+      .margin({ bottom: 6 })
+    Row({ space: 8 }) {
+      Row() {
+        TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
+          .onChange((v: string) => {
+            this.onVerifyCodeChange(v);
+          })
+          .layoutWeight(1)
+          .fontSize(14)
+          .type(InputType.Number)
+          .backgroundColor(Color.Transparent)
+          .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .border({ width: 0 })
+          .padding({ left: 12, right: 4 })
+        // 校验状态图标，与手机号输入框保持一致
+        if (this.resetMode && this.verifyCode.trim() !== "") {
+          if (this.isVerifyingCode) {
+            LoadingProgress().width(18).height(18).margin({ right: 12 })
+          } else if (this.codeVerified) {
+            Text("✓")
+              .fontSize(16).fontWeight(FontWeight.Bold)
+              .fontColor("#10b981").margin({ right: 12 })
+          } else if (this.codeError !== "") {
+            Text("✕")
+              .fontSize(16).fontWeight(FontWeight.Bold)
+              .fontColor("#ef4444").margin({ right: 12 })
+          }
+        }
+      }
+      .layoutWeight(1)
+      .height(48)
+      .alignItems(VerticalAlign.Center)
+      .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+      .border({ width: 1.5, color: this.codeFieldBorderColor() })
+      .borderRadius(12)
+
+      Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
+        .height(48)
+        .fontSize(12)
+        .fontColor(Color.White)
+        .backgroundColor("#3b82f6")
+        .borderRadius(12)
+        .enabled(this.canSendCode && !this.isSendingCode)
+        .onClick(() => {
+          this.handleSendCode();
+        })
+    }
+    .width("100%")
+    .margin({ bottom: this.codeError !== "" ? 4 : 14 })
+
+    if (this.codeError !== "") {
+      Text(this.codeError)
+        .fontSize(11)
+        .fontColor("#ef4444")
+        .alignSelf(ItemAlign.Start)
+        .margin({ bottom: 10 })
     }
   }
 
@@ -90,7 +179,7 @@ struct Login {
             .gesture(
               LongPressGesture().onAction(() => {
                 // 长按 Logo 进入数据库诊断工具
-                promptAction.showToast({ message: "正在打开诊断工具...", duration: 1000 });
+                showToast(this.getUIContext(), { message: "正在打开诊断工具...", duration: 1000 });
                 this.pathStack.pushPathByName("DatabaseDiagnostic", null);
               }),
             )
@@ -112,22 +201,24 @@ struct Login {
           // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
           Scroll() {
             Column() {
-            Text(this.registerMode ? "注册账号" : "登录账号")
+            Text(this.resetMode ? "重置密码" : this.registerMode ? "注册账号" : "登录账号")
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.themeManager.colors.primaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
-            Text(this.registerMode
-              ? "使用手机号验证码创建账号"
-              : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
+            Text(this.resetMode
+              ? "验证注册手机号后设置新密码"
+              : this.registerMode
+                ? "使用手机号验证码创建账号"
+                : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
               .fontSize(12)
               .fontColor(this.themeManager.colors.secondaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 24 })
 
             // ── 手机号 / 邮箱 切换选项 ───────────────────────────
-            if (!this.registerMode) {
+            if (!this.registerMode && !this.resetMode) {
             Row() {
               // 手机号 Tab
               Column() {
@@ -199,7 +290,10 @@ struct Login {
                   this.username = v;
                   this.usernameError = this.validateUsername();
                   if (v.trim() !== this.challengePhone) {
+                    // 换了号码，之前那条验证码会话作废
                     this.challengeId = "";
+                    this.codeVerified = false;
+                    this.codeError = "";
                   }
                 })
                 .layoutWeight(1)
@@ -248,16 +342,25 @@ struct Login {
                 .animation({ duration: 150, curve: Curve.EaseOut });
             }
 
+            // 重置流程先验手机号：验证码通过前，下面的新密码输入框保持禁用
+            if (this.resetMode) {
+              this.VerifyCodeField()
+            }
+
             // 密码输入框（无左图标，只右侧眼睛切换）
-            Text("密码")
+            Text(this.resetMode ? "新密码" : "密码")
               .fontSize(12)
               .fontWeight(FontWeight.Medium)
-              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .fontColor(this.passwordFieldEnabled()
+                ? this.themeManager.colors.secondaryTextColor
+                : this.themeManager.colors.tertiaryTextColor)
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 6 })
             Row() {
               TextInput({
-                placeholder: this.registerMode ? "请输入密码（至少8位）" : "请输入密码（至少4位）",
+                placeholder: this.resetMode
+                  ? (this.codeVerified ? "请输入新密码（至少4位）" : "请先通过短信验证")
+                  : "请输入密码（至少4位）",
                 text: this.password
               })
                 .onChange((v: string) => {
@@ -265,6 +368,7 @@ struct Login {
                 })
                 .layoutWeight(1)
                 .fontSize(14)
+                .enabled(this.passwordFieldEnabled())
                 .type(this.showPassword ? InputType.Normal : InputType.Password)
                 .backgroundColor(Color.Transparent)
                 .placeholderColor(this.themeManager.colors.tertiaryTextColor)
@@ -274,111 +378,89 @@ struct Login {
             }
             .width("100%")
             .alignItems(VerticalAlign.Center)
-            .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+            .backgroundColor(this.passwordFieldEnabled()
+              ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+              : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
             .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
             .borderRadius(12)
+            .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
             .margin({ bottom: 8 })
 
-            if (this.registerMode) {
-              Text("确认密码")
+            if (this.registerMode || this.resetMode) {
+              Text(this.resetMode ? "确认新密码" : "确认密码")
                 .fontSize(12)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
+                .fontColor(this.passwordFieldEnabled()
+                  ? this.themeManager.colors.secondaryTextColor
+                  : this.themeManager.colors.tertiaryTextColor)
                 .alignSelf(ItemAlign.Start)
                 .margin({ bottom: 6, top: 6 })
-              TextInput({ placeholder: "请再次输入密码", text: this.confirmPassword })
+              TextInput({
+                placeholder: this.resetMode ? "请再次输入新密码" : "请再次输入密码",
+                text: this.confirmPassword,
+              })
                 .onChange((v: string) => {
                   this.confirmPassword = v;
                 })
                 .width("100%")
                 .height(48)
                 .fontSize(14)
+                .enabled(this.passwordFieldEnabled())
                 .type(this.showPassword ? InputType.Normal : InputType.Password)
-                .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                .backgroundColor(this.passwordFieldEnabled()
+                  ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
+                  : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
                 .placeholderColor(this.themeManager.colors.tertiaryTextColor)
                 .fontColor(this.themeManager.colors.primaryTextColor)
                 .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
                 .borderRadius(12)
+                .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
                 .padding({ left: 12, right: 12 })
                 .margin({ bottom: 14 })
-
-              Text("短信验证码")
-                .fontSize(12)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
-                .alignSelf(ItemAlign.Start)
-                .margin({ bottom: 6 })
-              Row({ space: 8 }) {
-                TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
-                  .onChange((v: string) => {
-                    this.verifyCode = v;
-                  })
-                  .layoutWeight(1)
-                  .height(48)
-                  .fontSize(14)
-                  .type(InputType.Number)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-                  .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-                  .fontColor(this.themeManager.colors.primaryTextColor)
-                  .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
-                  .borderRadius(12)
-                  .padding({ left: 12, right: 12 })
-                Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
-                  .height(48)
-                  .fontSize(12)
-                  .fontColor(Color.White)
-                  .backgroundColor("#3b82f6")
-                  .borderRadius(12)
-                  .enabled(this.canSendCode && !this.isSendingCode)
-                  .onClick(() => {
-                    this.handleSendCode();
-                  })
-              }
-              .width("100%")
-              .margin({ bottom: 14 })
             }
 
-            Row({ space: 6 }) {
-              Checkbox({ name: 'rememberMe', group: 'loginOptions' })
-                .select(this.rememberMe)
-                .selectedColor('#3b82f6')
-                .width(20)
-                .height(20)
-                .onChange((value: boolean) => {
-                  this.rememberMe = value;
-                })
-              Text('记住我')
-                .fontSize(12)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
-              Blank()
-              if (!this.registerMode) {
-                Text("忘记密码？")
-                  .fontSize(12)
-                  .fontColor("#3b82f6")
-                  .fontWeight(FontWeight.Medium)
-                  .onClick(() => {
-                    AlertDialog.show({
-                      title: "忘记密码",
-                      message: "请联系管理员重置密码，或使用华为账号登录后重新绑定。",
-                      primaryButton: { value: "知道了", action: () => {} },
-                      alignment: DialogAlignment.Center,
-                    });
-                  })
-              }
+            if (this.registerMode) {
+              this.VerifyCodeField()
             }
-            .width('100%')
-            .margin({ bottom: 24 })
+
+            if (!this.resetMode) {
+              Row({ space: 6 }) {
+                Checkbox({ name: 'rememberMe', group: 'loginOptions' })
+                  .select(this.rememberMe)
+                  .selectedColor('#3b82f6')
+                  .width(20)
+                  .height(20)
+                  .onChange((value: boolean) => {
+                    this.rememberMe = value;
+                  })
+                Text('记住我')
+                  .fontSize(12)
+                  .fontColor(this.themeManager.colors.secondaryTextColor)
+                Blank()
+                if (!this.registerMode) {
+                  Text("忘记密码？")
+                    .fontSize(12)
+                    .fontColor("#3b82f6")
+                    .fontWeight(FontWeight.Medium)
+                    .onClick(() => { this.enterResetMode(); })
+                }
+              }
+              .width('100%')
+              .margin({ bottom: 24 })
+            }
 
             // 登录按钮（带缩放动画）
             Button(this.isLoading
-              ? this.registerMode ? "注册中..." : "登录中..."
-              : this.registerMode ? "注册并登录" : "登录")
+              ? this.resetMode ? "提交中..." : this.registerMode ? "注册中..." : "登录中..."
+              : this.resetMode ? "重置密码" : this.registerMode ? "注册并登录" : "登录")
               .onClick(() => {
                 this.loginBtnScale = 0.95;
                 setTimeout(() => {
                   this.loginBtnScale = 1.0;
                 }, 150);
-                if (this.registerMode) {
+                if (this.resetMode) {
+                  this.handleResetPassword();
+                } else if (this.registerMode) {
                   this.handleRegister();
                 } else {
                   this.handleLogin();
@@ -407,19 +489,17 @@ struct Login {
               .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
               .animation({ duration: 120, curve: Curve.EaseInOut })
 
-            Text(this.registerMode ? "已有账号？返回登录" : "注册新账号")
+            Text(this.resetMode || this.registerMode ? "已有账号？返回登录" : "注册新账号")
               .fontSize(12)
               .fontColor("#3b82f6")
               .margin({ bottom: 12 })
               .onClick(() => {
-                this.registerMode = !this.registerMode;
-                this.inputMode = 0;
-                this.password = "";
-                this.confirmPassword = "";
-                this.verifyCode = "";
-                this.challengeId = "";
-                this.challengePhone = "";
-                this.usernameError = this.validateUsername();
+                if (this.resetMode) {
+                  this.resetMode = false;
+                } else {
+                  this.registerMode = !this.registerMode;
+                }
+                this.clearFormState();
               })
 
             /* 华为一键登录暂时不可用
@@ -472,7 +552,7 @@ struct Login {
           .width("100%")
           .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
-          .constraintSize({ minHeight: "62%" })
+          .constraintSize({ minHeight: "62%", maxWidth: 560 })
           .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring)
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
@@ -545,6 +625,62 @@ struct Login {
     }
   }
 
+  /** 切换模式时清掉表单残留，避免验证码会话串到另一个流程 */
+  private clearFormState(): void {
+    this.inputMode = 0;
+    this.password = "";
+    this.confirmPassword = "";
+    this.verifyCode = "";
+    this.challengeId = "";
+    this.challengePhone = "";
+    this.codeVerified = false;
+    this.codeError = "";
+    this.usernameError = this.validateUsername();
+  }
+
+  /** 重置流程下验证码填满 6 位就自动送去服务端校验 */
+  private onVerifyCodeChange(v: string): void {
+    this.verifyCode = v;
+    if (!this.resetMode) return;
+    this.codeVerified = false;
+    this.codeError = "";
+    const code = v.trim();
+    if (/^\d{6}$/.test(code) && !this.isVerifyingCode) {
+      this.verifyResetCode(code);
+    }
+  }
+
+  private async verifyResetCode(code: string): Promise<void> {
+    const phone = this.username.trim();
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.codeError = "请先获取当前手机号的验证码";
+      return;
+    }
+    this.isVerifyingCode = true;
+    try {
+      const result = await CloudService.getInstance()
+        .verifyPasswordResetCode(phone, code, this.challengeId);
+      if (result.success) {
+        this.codeVerified = true;
+        this.codeError = "";
+      } else {
+        this.codeVerified = false;
+        this.codeError = result.message || "验证码错误";
+      }
+    } catch (_e) {
+      this.codeVerified = false;
+      this.codeError = "验证失败，请稍后重试";
+    } finally {
+      this.isVerifyingCode = false;
+    }
+  }
+
+  private enterResetMode(): void {
+    this.resetMode = true;
+    this.registerMode = false;
+    this.clearFormState();
+  }
+
   private async handleSendCode(): Promise<void> {
     const phone = this.username.trim();
     if (!/^1[3-9]\d{9}$/.test(phone)) {
@@ -554,15 +690,22 @@ struct Login {
     }
     this.isSendingCode = true;
     try {
-      const result = await CloudService.getInstance().sendRegistrationCode(phone);
+      const cloud = CloudService.getInstance();
+      // 重置流程要求手机号已注册，注册流程要求未注册，服务端各自判重后返回提示
+      const result = this.resetMode
+        ? await cloud.sendPasswordResetCode(phone)
+        : await cloud.sendRegistrationCode(phone);
       if (!result.success || !result.challengeId) {
         this.showAlert(result.message || "验证码发送失败");
         return;
       }
       this.challengeId = result.challengeId;
       this.challengePhone = phone;
+      this.verifyCode = "";
+      this.codeVerified = false;
+      this.codeError = "";
       this.canSendCode = false;
-      promptAction.showToast({ message: "验证码已发送，5 分钟内有效", duration: 1800 });
+      showToast(this.getUIContext(), { message: "验证码已发送，5 分钟内有效", duration: 1800 });
       setTimeout(() => {
         this.canSendCode = true;
       }, 60000);
@@ -582,8 +725,8 @@ struct Login {
       this.showAlert(this.usernameError);
       return;
     }
-    if (pwd.length < 8) {
-      this.showAlert("密码至少 8 位");
+    if (pwd.length < 4) {
+      this.showAlert("密码至少 4 位");
       return;
     }
     if (pwd !== this.confirmPassword.trim()) {
@@ -618,6 +761,55 @@ struct Login {
     }
   }
 
+  /** 忘记密码：校验短信验证码后设置新密码，成功后回到登录页 */
+  private async handleResetPassword(): Promise<void> {
+    const phone = this.username.trim();
+    const pwd = this.password.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      this.usernameError = "请输入正确的手机号";
+      this.showAlert(this.usernameError);
+      return;
+    }
+    if (this.challengeId === "" || this.challengePhone !== phone) {
+      this.showAlert("请先获取当前手机号的验证码");
+      return;
+    }
+    if (!this.codeVerified) {
+      this.showAlert("请先通过短信验证码验证手机号");
+      return;
+    }
+    if (pwd.length < 4) {
+      this.showAlert("新密码至少 4 位");
+      return;
+    }
+    if (pwd !== this.confirmPassword.trim()) {
+      this.showAlert("两次输入的密码不一致");
+      return;
+    }
+
+    this.isLoading = true;
+    try {
+      const result = await CloudService.getInstance()
+        .resetPassword(phone, pwd, this.challengeId);
+      if (!result.success) {
+        this.showAlert(result.message || "密码重置失败");
+        return;
+      }
+      // 服务端已清掉该账号全部会话，本地也要清干净，避免旧凭据残留
+      await CloudService.getInstance().clearPersistedSession();
+      CloudService.getInstance().clearSession();
+      this.resetMode = false;
+      this.clearFormState();
+      this.username = phone;
+      this.usernameError = "";
+      showToast(this.getUIContext(), { message: "密码已重置，请用新密码登录", duration: 2000 });
+    } catch (_e) {
+      this.showAlert("密码重置失败，请稍后重试");
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   private async completeCloudLogin(loginId: string, cloudUser: CloudUser,
     localUser: UserInfo | null, greeting: string): Promise<void> {
     const db = DatabaseHelper.getInstance();
@@ -626,7 +818,6 @@ struct Login {
       localUser.username = displayName;
       localUser.phone = cloudUser.phone || (this.inputMode === 0 ? loginId : "");
       localUser.email = cloudUser.email || (this.inputMode === 1 ? loginId : "");
-      localUser.avatarPath = cloudUser.avatarPath;
       localUser.address = cloudUser.address;
       await db.updateUser(localUser);
       await db.updatePasswordHash(localUser.id, "");
@@ -636,13 +827,45 @@ struct Login {
         phone: cloudUser.phone || (this.inputMode === 0 ? loginId : ""),
         email: cloudUser.email || (this.inputMode === 1 ? loginId : ""),
         passwordHash: "",
-        avatarPath: cloudUser.avatarPath,
+        avatarPath: '',
         address: cloudUser.address,
         createTime: cloudUser.createTime,
       });
     }
-    promptAction.showToast({ message: `${greeting}，${displayName}`, duration: 1500 });
+    if ((cloudUser.avatarVersion || 0) > 0) {
+      const storedUser = await db.queryUserByIdentifier(loginId);
+      if (storedUser) await this.restoreCloudAvatar(storedUser);
+    }
+    showToast(this.getUIContext(), { message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
+  }
+
+  private async restoreCloudAvatar(user: UserInfo): Promise<void> {
+    const result = await CloudService.getInstance().downloadAvatar();
+    if (!result.success || !result.imageBase64) return;
+    let file: fs.File | undefined;
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const avatarDir = context.filesDir + '/avatars';
+      try { fs.mkdirSync(avatarDir); } catch (_e) {}
+      const bytes = new util.Base64Helper().decodeSync(result.imageBase64);
+      const path = avatarDir + '/cloud_avatar_' + Date.now() + '.jpg';
+      file = fs.openSync(path, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      fs.writeSync(file.fd, bytes.buffer);
+      fs.closeSync(file);
+      file = undefined;
+      const oldPath = user.avatarPath || '';
+      user.avatarPath = path;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, path);
+      if (oldPath.startsWith(avatarDir + '/') && oldPath !== path) {
+        try { fs.unlinkSync(oldPath); } catch (_e) {}
+      }
+    } catch (e) {
+      console.warn('[Login]: 云端头像恢复失败 ' + JSON.stringify(e));
+    } finally {
+      if (file !== undefined) { try { fs.closeSync(file); } catch (_e) {} }
+    }
   }
 
   private async saveLoginAndJump(loginId: string, displayName: string = ""): Promise<void> {
@@ -650,7 +873,7 @@ struct Login {
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, loginId);
     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, displayName || loginId);
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       pref.putSync(PREF_KEY_LAST_NICKNAME, displayName || loginId);
@@ -668,7 +891,7 @@ struct Login {
   }
 
   private showAlert(message: string): void {
-    AlertDialog.show({
+    this.getUIContext().showAlertDialog({
       title: "提示",
       message: message,
       alignment: DialogAlignment.Center,

@@ -8,7 +8,6 @@ import { ThemeManager } from "../common/ThemeManager";
 import { UserManager } from "../common/UserManager";
 import { GradientHeader } from '../components/GradientHeader';
 import { FallRecord, SedentaryRecord } from "./MqttManager";
-import { promptAction } from "@kit.ArkUI";
 @Builder
 export function HealthHistoryBuilder(): void {
   HealthHistory();
@@ -128,7 +127,8 @@ struct HealthHistory {
         })
     }
     .width("100%")
-    .padding({ left: "8%", right: "8%", top: "4%", bottom: 0 });
+    .constraintSize({ maxWidth: 640 })
+    .padding({ left: 29, right: 29, top: 14, bottom: 0 });
   }
 
   @Builder
@@ -177,7 +177,7 @@ struct HealthHistory {
         .margin({ top: 8 })
     }
     .width("100%")
-    .margin({ top: "20%" })
+    .margin({ top: 72 })
     .alignItems(HorizontalAlign.Center);
   }
 
@@ -195,7 +195,7 @@ struct HealthHistory {
     this.sedentaryRecords.forEach((r) => lines.push(`  ${r.date}  ${r.time}  久坐提醒`));
 
     // 弹窗展示（可替换为 fs.writeFile 写到沙箱文件）
-    AlertDialog.show({
+    this.getUIContext().showAlertDialog({
       title: "历史记录导出",
       message: lines.slice(0, 20).join("\n") + (lines.length > 20 ? "\n..." : ""),
       primaryButton: { value: "关闭", action: () => {} },
@@ -248,7 +248,8 @@ struct HealthHistory {
           }
           .layoutWeight(1)
           .width("92%")
-          .padding({ top: "3%" })
+          .constraintSize({ maxWidth: 640 })
+          .padding({ top: 11 })
           .edgeEffect(EdgeEffect.Spring)
           .scrollBar(BarState.Off);
         }
