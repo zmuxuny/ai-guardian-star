@@ -201,14 +201,6 @@ export class DatabaseHelper {
     await this.migrateDatabase();
   }
 
-  /** 【公开方法】获取 RdbStore 实例（用于诊断工具等高级操作） */
-  public getRdbStore(): relationalStore.RdbStore {
-    if (!this.store) {
-      throw new Error("DatabaseHelper 未初始化，请先调用 init(context)");
-    }
-    return this.store;
-  }
-
   // ── 数据库版本迁移 ────────────────────────────
   private async migrateDatabase(): Promise<void> {
     if (!this.store) return;
@@ -613,48 +605,6 @@ export class DatabaseHelper {
       const err = e as BusinessError;
       hilog.error(DOMAIN, TAG, `clearAllHealthEvents 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
-    }
-  }
-
-  /** 【诊断方法】查询所有健康事件（不带任何过滤，用于调试） */
-  public async queryAllHealthEventsForDebug(): Promise<HealthEvent[]> {
-    const predicates = new relationalStore.RdbPredicates("t_health_event");
-    predicates.orderByDesc("event_time");
-    let resultSet: relationalStore.ResultSet | undefined;
-    try {
-      resultSet = await this.getStore().query(predicates, [
-        "id",
-        "event_type",
-        "event_time",
-        "date_str",
-        "time_str",
-        "severity",
-        "is_handled",
-        "remark",
-        "username",
-      ]);
-      const list: HealthEvent[] = [];
-      while (resultSet.goToNextRow()) {
-        list.push({
-          id: resultSet.getLong(resultSet.getColumnIndex("id")),
-          eventType: resultSet.getString(resultSet.getColumnIndex("event_type")),
-          eventTime: resultSet.getLong(resultSet.getColumnIndex("event_time")),
-          dateStr: resultSet.getString(resultSet.getColumnIndex("date_str")),
-          timeStr: resultSet.getString(resultSet.getColumnIndex("time_str")),
-          severity: resultSet.getLong(resultSet.getColumnIndex("severity")),
-          isHandled: resultSet.getLong(resultSet.getColumnIndex("is_handled")),
-          remark: resultSet.getString(resultSet.getColumnIndex("remark")),
-          username: resultSet.getString(resultSet.getColumnIndex("username")),
-        });
-      }
-      hilog.info(DOMAIN, TAG, `queryAllHealthEventsForDebug 返回 ${list.length} 条`);
-      return list;
-    } catch (e) {
-      const err = e as BusinessError;
-      hilog.error(DOMAIN, TAG, `queryAllHealthEventsForDebug 失败 ${err.code} ${err.message}`);
-      throw new Error(err.code + ": " + err.message);
-    } finally {
-      this.closeResultSet(resultSet);
     }
   }
 

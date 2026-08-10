@@ -27,7 +27,6 @@
 | 事件记录（本会话） | [pages/record.ets](entry/src/main/ets/pages/record.ets) |
 | 历史记录 + 导出 | [pages/HealthHistory.ets](entry/src/main/ets/pages/HealthHistory.ets) |
 | 地址编辑 | [pages/MyAddress.ets](entry/src/main/ets/pages/MyAddress.ets) |
-| 数据库诊断工具 | [pages/DatabaseDiagnostic.ets](entry/src/main/ets/pages/DatabaseDiagnostic.ets) |
 | 全局常量（AppStorage Key 等） | [config.ets](entry/src/main/ets/config.ets) |
 
 ---
@@ -62,8 +61,7 @@ entry/src/main/ets/
     ├── Login.ets                     844 行    登录/注册
     ├── HealthHistory.ets             267 行    历史记录
     ├── MyAddress.ets                 157 行    地址编辑
-    ├── MqttManager.ets               513 行    MQTT 管理
-    └── DatabaseDiagnostic.ets        349 行    数据库诊断
+    └── MqttManager.ets               513 行    MQTT 管理
 ```
 
 ---
@@ -218,9 +216,6 @@ AI 健康助手。顶部 GradientHeader + 健康概览卡片（摔倒/久坐次�
 - 设备健康检查：每 5 秒检查最近消息时间戳，20 秒无消息判定离线
 - 状态暴露：`isFallDetected`、`isSedentaryDetected`、`isStrangerDetected`、`deviceOnline`、`latestMessage`（全部 `@Track` 装饰）
 - 恢复定时器：摔倒 3 秒/久坐 3 秒/陌生人 5 秒后自动清除告警状态
-
-#### DatabaseDiagnostic.ets（349 行）
-数据库诊断工具。长按 Login 页 Logo 进入。可查看表结构、记录数、执行 SQL。
 
 ---
 

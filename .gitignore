@@ -68,3 +68,6 @@ iCAN_*.txt
 iCAN_*.docx
 project-overview.html
 /repomix-output.xml
+
+# Scratch
+/.tmp/
