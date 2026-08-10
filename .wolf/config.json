@@ -11,6 +11,8 @@
         "node_modules",
         "oh_modules",
         ".git",
+        "worktrees",
+        ".tmp",
         ".hvigor",
         ".preview",
         "dist",

@@ -1625,3 +1625,5 @@
 |------|--------|---------|---------|--------|
 | 08:05 | 管理后台增加云端头像预览、上传和删除，并让手动登录与记住登录设备同步头像删除 | admin_panel.html, wenxin_proxy.py, AvatarSyncService.ets, Login.ets, Index.ets | 头像只存云端图片数据与版本；设备仅保留本机缓存；接口测试和 HarmonyOS debug 构建通过 | ~15000 |
 | 10:28 | 修复管理后台头像上传 413/HTML 误解析，改为拖动缩放后手动裁剪，并让登录及自动登录始终向云端核对头像 | admin_panel.html, nginx config, Login.ets, Index.ets | 管理入口放宽到 2 MB，后端仍限制 750 KB；84 项测试、JS 解析和 HarmonyOS debug 构建通过 | ~9000 |
+| 11:35 | 账号注销由密码改为绑定手机号/邮箱的一次性验证码；语义文字色收敛到 ThemeManager 并达无障碍对比度；Login/Index/注销弹窗平板布局修正；清理诊断页残留死代码与文档条目 | wenxin_proxy.py, CloudService.ets, person.ets, ThemeManager.ets, 7 个页面, DatabaseHelper.ets, PROJECT_STRUCTURE.md, tools/check_contrast.py | 86 项测试 + 26 项对比度自检通过；合并 main 并打 tag v0.2.0 推送 | ~30000 |
+| 11:40 | anatomy 索引把 .claude/worktrees 下的整份仓库副本与 .tmp 一起收进来，555 文件降到 138 | .wolf/config.json | exclude_patterns 加 worktrees / .tmp；openwolf 的模式按路径段匹配，写 `.claude/worktrees` 不生效 | ~2000 |
