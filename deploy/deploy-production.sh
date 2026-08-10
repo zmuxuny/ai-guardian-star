@@ -17,6 +17,7 @@ fi
 
 required=(
     wenxin_proxy.py
+    admin_panel.html
     security_utils.py
     requirements-production.txt
     requirements-moderation.txt
@@ -48,6 +49,11 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 rollback_dir="/root/wenxin-rollbacks/$stamp"
 install -d -m 700 "$rollback_dir"
 cp -a /root/wenxin_proxy.py "$rollback_dir/wenxin_proxy.py"
+if [[ -f /root/admin_panel.html ]]; then
+    cp -a /root/admin_panel.html "$rollback_dir/admin_panel.html"
+else
+    touch "$rollback_dir/admin_panel.html.missing"
+fi
 cp -a /root/security_utils.py "$rollback_dir/security_utils.py"
 cp -a /etc/systemd/system/wenxin.service "$rollback_dir/wenxin.service"
 cp -a /etc/systemd/system/wenxin-sqlite-backup.service "$rollback_dir/wenxin-sqlite-backup.service"
@@ -72,6 +78,11 @@ rollback() {
     trap - ERR
     set +e
     cp -a "$rollback_dir/wenxin_proxy.py" /root/wenxin_proxy.py
+    if [[ -f "$rollback_dir/admin_panel.html.missing" ]]; then
+        rm -f /root/admin_panel.html
+    else
+        cp -a "$rollback_dir/admin_panel.html" /root/admin_panel.html
+    fi
     cp -a "$rollback_dir/security_utils.py" /root/security_utils.py
     cp -a "$rollback_dir/wenxin.service" /etc/systemd/system/wenxin.service
     cp -a "$rollback_dir/wenxin-sqlite-backup.service" /etc/systemd/system/wenxin-sqlite-backup.service
@@ -103,6 +114,7 @@ python3 -m pip install --disable-pip-version-check \
     --requirement "$release_dir/requirements-production.txt"
 
 install -m 644 "$release_dir/wenxin_proxy.py" /root/wenxin_proxy.py
+install -m 644 "$release_dir/admin_panel.html" /root/admin_panel.html
 install -m 644 "$release_dir/security_utils.py" /root/security_utils.py
 install -d -m 755 /usr/local/lib/wenxin
 install -m 755 "$release_dir/deploy/sqlite_maintenance.py" \

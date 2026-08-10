@@ -443,6 +443,97 @@ class AccountSessionSecurityTest(unittest.TestCase):
             conn.close()
             self.assertEqual(sessions, 0)
 
+    def _enable_admin_session(self):
+        proxy.ADMIN_ENABLED = True
+        self.addCleanup(setattr, proxy, "ADMIN_ENABLED", False)
+        with self.client.session_transaction() as admin_session:
+            admin_session["admin_logged_in"] = True
+
+    def test_admin_list_returns_status_metadata_without_password_or_avatar_path(self):
+        self.create_user()
+        self.login()
+        conn = proxy.get_db()
+        conn.execute(
+            "UPDATE t_user SET avatar_data=?, avatar_mime=?, avatar_updated_at=? "
+            "WHERE username='alice'",
+            (b"avatar", "image/jpeg", 123),
+        )
+        conn.commit()
+        conn.close()
+        self._enable_admin_session()
+
+        response = self.client.get("/admin/api/users")
+
+        self.assertEqual(response.status_code, 200)
+        user = response.get_json()["data"][0]
+        self.assertEqual(user["password_scheme"], "scrypt")
+        self.assertTrue(user["avatar_synced"])
+        self.assertEqual(user["session_count"], 1)
+        self.assertFalse(user["is_frozen"])
+        self.assertNotIn("password_hash", user)
+        self.assertNotIn("avatar_path", user)
+
+    def test_admin_password_reset_hashes_new_password_and_revokes_sessions(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        self._enable_admin_session()
+
+        response = self.client.post(
+            "/admin/api/users/alice/reset-password",
+            json={"newPassword": "replacement-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("password", response.get_data(as_text=True).lower())
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT password_hash FROM t_user WHERE username='alice'"
+        ).fetchone()
+        sessions = conn.execute(
+            "SELECT COUNT(*) FROM t_session WHERE username='alice'"
+        ).fetchone()[0]
+        conn.close()
+        self.assertTrue(verify_password(row["password_hash"], "replacement-password"))
+        self.assertFalse(verify_password(row["password_hash"], "old-password"))
+        self.assertEqual(sessions, 0)
+        self.assertEqual(
+            self.client.post(
+                "/api/refresh", json={"refreshToken": tokens["refreshToken"]}
+            ).status_code,
+            401,
+        )
+
+    def test_admin_freeze_revokes_sessions_and_blocks_login_until_unfrozen(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        self._enable_admin_session()
+
+        frozen = self.client.post(
+            "/admin/api/users/alice/freeze", json={"frozen": True}
+        )
+
+        self.assertEqual(frozen.status_code, 200)
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(tokens["accessToken"])
+            ).status_code,
+            401,
+        )
+        self.assertEqual(self.login().status_code, 403)
+
+        unfrozen = self.client.post(
+            "/admin/api/users/alice/freeze", json={"frozen": False}
+        )
+        self.assertEqual(unfrozen.status_code, 200)
+        self.assertTrue(self.login().get_json()["success"])
+
+    def test_admin_page_uses_click_opened_drawer_and_has_no_avatar_path_field(self):
+        self.assertIn('id="detailDrawer"', proxy._ADMIN_HTML)
+        self.assertIn("translateX(100%)", proxy._ADMIN_HTML)
+        self.assertIn("openDetails", proxy._ADMIN_HTML)
+        self.assertIn("重置密码", proxy._ADMIN_HTML)
+        self.assertNotIn("avatar_path", proxy._ADMIN_HTML)
+
     def test_protected_endpoints_reject_missing_bearer_token(self):
         cases = [
             ("get", "/api/me", None),

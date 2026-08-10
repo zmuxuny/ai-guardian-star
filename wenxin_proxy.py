@@ -116,6 +116,7 @@ def get_db():
         ('avatar_data', 'BLOB'),
         ('avatar_mime', 'TEXT'),
         ('avatar_updated_at', 'INTEGER'),
+        ('is_frozen', 'INTEGER NOT NULL DEFAULT 0'),
     ):
         if column not in user_columns:
             conn.execute(f"ALTER TABLE t_user ADD COLUMN {column} {definition}")
@@ -369,6 +370,7 @@ def bearer_required(function):
                 FROM t_session AS session
                 JOIN t_user AS user ON user.username=session.username
                 WHERE session.access_token_hash=? AND session.access_expires_at>?
+                  AND COALESCE(user.is_frozen, 0)=0
                 """,
                 (access_hash, int(time.time())),
             ).fetchone()
@@ -1133,6 +1135,9 @@ def api_login():
         if not row:
             conn.close()
             return jsonify({"success": False, "message": "账号不存在"})
+        if row['is_frozen']:
+            conn.close()
+            return jsonify({"success": False, "message": "账号已冻结，请联系管理员"}), 403
         if not verify_password(row['password_hash'], pwd_hash):
             conn.close()
             return jsonify({"success": False, "message": "密码错误"})
@@ -1144,6 +1149,10 @@ def api_login():
             conn.rollback()
             conn.close()
             return jsonify({"success": False, "message": "账号或密码已变更"})
+        if row['is_frozen']:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "message": "账号已冻结，请联系管理员"}), 403
         if password_needs_rehash(row['password_hash']):
             conn.execute(
                 "UPDATE t_user SET password_hash=? WHERE username=?",
@@ -1179,6 +1188,7 @@ def api_refresh():
             FROM t_session AS session
             JOIN t_user AS user ON user.username=session.username
             WHERE session.refresh_token_hash=? AND session.refresh_expires_at>?
+              AND COALESCE(user.is_frozen, 0)=0
             """,
             (old_hash, now),
         ).fetchone()
@@ -1410,6 +1420,11 @@ def api_change_password():
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok", "service": "coze-proxy", "time": int(time.time())})
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 
 class ModerationUnavailable(Exception):
@@ -1700,6 +1715,7 @@ def _admin_login_html(error=''):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>管理后台 · 登录</title>
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -1740,9 +1756,30 @@ def admin_list_users():
     try:
         conn = get_db()
         rows = conn.execute("""
-            SELECT username, nickname, phone, avatar_path, email, address, create_time
-            FROM t_user
-            ORDER BY create_time DESC
+            SELECT
+                user.username,
+                user.nickname,
+                user.phone,
+                user.email,
+                user.address,
+                user.create_time,
+                CASE
+                    WHEN user.password_hash LIKE 'scrypt$%' THEN 'scrypt'
+                    ELSE 'legacy'
+                END AS password_scheme,
+                CASE
+                    WHEN user.avatar_data IS NOT NULL AND length(user.avatar_data)>0 THEN 1
+                    ELSE 0
+                END AS avatar_synced,
+                user.avatar_mime,
+                user.avatar_updated_at,
+                COALESCE(user.is_frozen, 0) AS is_frozen,
+                COUNT(user_session.access_token_hash) AS session_count,
+                MAX(user_session.create_time) AS last_login
+            FROM t_user AS user
+            LEFT JOIN t_session AS user_session ON user_session.username=user.username
+            GROUP BY user.username
+            ORDER BY user.create_time DESC
         """).fetchall()
         conn.close()
         return jsonify({"success": True, "data": [dict(r) for r in rows]})
@@ -1774,7 +1811,7 @@ def admin_create_user():
             d.get('nickname') or '',
             d.get('phone') or '',
             hash_password(password),
-            d.get('avatar_path') or '',
+            '',
             d.get('email') or '',
             d.get('address') or '',
             d.get('create_time') or int(time.time() * 1000),
@@ -1794,7 +1831,6 @@ def admin_update_user(username):
         return jsonify({"success": False, "message": "管理后台不能读取或直接改写密码"}), 400
     field_map = {
         'nickname': 'nickname', 'phone': 'phone',
-        'avatar_path': 'avatar_path',
         'email': 'email', 'address': 'address', 'newUsername': 'username',
     }
     updates = {}
@@ -1822,6 +1858,73 @@ def admin_update_user(username):
         return jsonify({"success": True, "message": "更新成功"})
     except Exception as error:
         return _internal_error('admin_update_user', error)
+
+
+@app.route('/admin/api/users/<username>/reset-password', methods=['POST'])
+@admin_required
+def admin_reset_password(username):
+    d = request.get_json(force=True) or {}
+    new_password = d.get('newPassword') or ''
+    if not isinstance(new_password, str):
+        return jsonify({"success": False, "message": "新密码格式不正确"}), 400
+    if len(new_password) < PASSWORD_MIN_LENGTH or len(new_password) > 128:
+        return jsonify({
+            "success": False,
+            "message": f"新密码长度须为 {PASSWORD_MIN_LENGTH} 至 128 位",
+        }), 400
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        cursor = conn.execute(
+            "UPDATE t_user SET password_hash=? WHERE username=?",
+            (hash_password(new_password), username),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        conn.execute("DELETE FROM t_session WHERE username=?", (username,))
+        conn.commit()
+        return jsonify({"success": True, "message": "密码已重置，全部设备已退出"})
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('admin_reset_password', error)
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/admin/api/users/<username>/freeze', methods=['POST'])
+@admin_required
+def admin_set_frozen(username):
+    d = request.get_json(force=True) or {}
+    frozen = d.get('frozen')
+    if not isinstance(frozen, bool):
+        return jsonify({"success": False, "message": "冻结状态格式不正确"}), 400
+    conn = None
+    try:
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        cursor = conn.execute(
+            "UPDATE t_user SET is_frozen=? WHERE username=?",
+            (1 if frozen else 0, username),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+        if frozen:
+            conn.execute("DELETE FROM t_session WHERE username=?", (username,))
+        conn.commit()
+        action = "冻结" if frozen else "解冻"
+        return jsonify({"success": True, "message": f"账号已{action}"})
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('admin_set_frozen', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/admin/api/users/<username>', methods=['DELETE'])
@@ -2211,6 +2314,10 @@ loadUsers();
 </script>
 </body>
 </html>'''
+
+_ADMIN_HTML_PATH = os.path.join(os.path.dirname(__file__), 'admin_panel.html')
+with open(_ADMIN_HTML_PATH, encoding='utf-8') as admin_html_file:
+    _ADMIN_HTML = admin_html_file.read()
 
 
 if __name__ == '__main__':
