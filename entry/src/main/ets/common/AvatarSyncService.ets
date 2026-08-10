@@ -2,13 +2,14 @@ import { common } from '@kit.AbilityKit';
 import fs from '@ohos.file.fs';
 import { util } from '@kit.ArkTS';
 import { STORE_KEY_AVATAR } from '../config';
-import { DatabaseHelper } from '../database/DatabaseHelper';
+import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { CloudService } from './CloudService';
 
 /** 将云端头像版本落到当前设备的私有缓存。 */
 export class AvatarSyncService {
-  static async sync(context: common.UIAbilityContext, identifier: string): Promise<void> {
-    const user = await DatabaseHelper.getInstance().queryUserByIdentifier(identifier);
+  static async sync(context: common.UIAbilityContext, identifier: string,
+    localUser?: UserInfo): Promise<void> {
+    const user = localUser ?? await DatabaseHelper.getInstance().queryUserByIdentifier(identifier);
     if (!user) return;
 
     const result = await CloudService.getInstance().downloadAvatar();

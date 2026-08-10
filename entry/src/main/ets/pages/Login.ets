@@ -813,6 +813,7 @@ struct Login {
     localUser: UserInfo | null, greeting: string): Promise<void> {
     const db = DatabaseHelper.getInstance();
     const displayName = cloudUser.nickname || cloudUser.username || loginId;
+    let syncedUser: UserInfo;
     if (localUser && localUser.id !== undefined) {
       localUser.username = displayName;
       localUser.phone = cloudUser.phone || (this.inputMode === 0 ? loginId : "");
@@ -820,8 +821,9 @@ struct Login {
       localUser.address = cloudUser.address;
       await db.updateUser(localUser);
       await db.updatePasswordHash(localUser.id, "");
+      syncedUser = localUser;
     } else {
-      await db.insertUser({
+      syncedUser = {
         username: displayName,
         phone: cloudUser.phone || (this.inputMode === 0 ? loginId : ""),
         email: cloudUser.email || (this.inputMode === 1 ? loginId : ""),
@@ -829,10 +831,11 @@ struct Login {
         avatarPath: '',
         address: cloudUser.address,
         createTime: cloudUser.createTime,
-      });
+      };
+      syncedUser.id = await db.insertUser(syncedUser);
     }
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    await AvatarSyncService.sync(context, loginId);
+    await AvatarSyncService.sync(context, loginId, syncedUser);
     showToast(this.getUIContext(), { message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
   }

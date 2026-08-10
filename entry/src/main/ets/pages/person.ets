@@ -404,7 +404,7 @@ export struct person {
     GradientHeader() {
       Column() {
         if (this.userAvatarPath !== '') {
-          Image(this.userAvatarPath)
+          Image(fileUri.getUriFromPath(this.userAvatarPath))
             .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
             .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })

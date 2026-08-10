@@ -99,6 +99,21 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertNotIn("avatarVersion", login_sync)
         self.assertNotIn("avatarVersion", index_sync)
 
+    def test_manual_login_reuses_the_upserted_user_for_avatar_sync(self):
+        login = source("entry/src/main/ets/pages/Login.ets")
+        sync_block = login[
+            login.index("private async completeCloudLogin"):
+            login.index("private async saveLoginAndJump")
+        ]
+        self.assertIn("syncedUser", sync_block)
+        self.assertIn("AvatarSyncService.sync(context, loginId, syncedUser)", sync_block)
+
+    def test_avatar_views_render_sandbox_files_with_file_uris(self):
+        person = source("entry/src/main/ets/pages/person.ets")
+        profile = source("entry/src/main/ets/pages/Profile.ets")
+        self.assertIn("fileUri.getUriFromPath(this.userAvatarPath)", person)
+        self.assertIn("fileUri.getUriFromPath(this.avatarPath)", profile)
+
     def test_server_session_fields_survive_release_property_obfuscation(self):
         rules = source("entry/obfuscation-rules.txt")
         for field in ("accessToken", "refreshToken"):

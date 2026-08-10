@@ -14,6 +14,7 @@ import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import { fileUri } from '@kit.CoreFileKit';
 import { image } from '@kit.ImageKit';
 import fs from '@ohos.file.fs';
 import { showToast } from '../common/UiFeedback';
@@ -565,7 +566,7 @@ export struct Profile {
     Column() {
       Stack({ alignContent: Alignment.BottomEnd }) {
         if (this.avatarPath !== '') {
-          Image(this.avatarPath).width(100).height(100).borderRadius(50)
+          Image(fileUri.getUriFromPath(this.avatarPath)).width(100).height(100).borderRadius(50)
             .objectFit(ImageFit.Cover)
             .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
         } else {
