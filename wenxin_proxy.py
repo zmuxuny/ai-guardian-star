@@ -1938,29 +1938,20 @@ def admin_update_user(username):
 @app.route('/admin/api/users/<username>/reset-password', methods=['POST'])
 @admin_required
 def admin_reset_password(username):
-    d = request.get_json(force=True) or {}
-    new_password = d.get('newPassword') or ''
-    if not isinstance(new_password, str):
-        return jsonify({"success": False, "message": "新密码格式不正确"}), 400
-    if len(new_password) < PASSWORD_MIN_LENGTH or len(new_password) > 128:
-        return jsonify({
-            "success": False,
-            "message": f"新密码长度须为 {PASSWORD_MIN_LENGTH} 至 128 位",
-        }), 400
     conn = None
     try:
         conn = get_db()
         conn.execute('BEGIN IMMEDIATE')
         cursor = conn.execute(
             "UPDATE t_user SET password_hash=? WHERE username=?",
-            (hash_password(new_password), username),
+            (hash_password("1234"), username),
         )
         if cursor.rowcount == 0:
             conn.rollback()
             return jsonify({"success": False, "message": "用户不存在"}), 404
         conn.execute("DELETE FROM t_session WHERE username=?", (username,))
         conn.commit()
-        return jsonify({"success": True, "message": "密码已重置，全部设备已退出"})
+        return jsonify({"success": True, "message": "密码已重置为 1234，全部设备已退出"})
     except Exception as error:
         if conn:
             conn.rollback()

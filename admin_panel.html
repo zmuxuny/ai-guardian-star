@@ -154,9 +154,7 @@ tbody tr:last-child td { border-bottom:0; }
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
     <div class="modal-head"><h3 id="resetTitle">重置密码</h3><button class="close" onclick="closeModal('resetModal')">×</button></div>
     <div class="modal-body">
-      <p class="muted">无法查看原密码。重置后，该账号全部设备立即退出。</p>
-      <div class="field"><label>新密码</label><input type="password" id="newPassword" autocomplete="new-password" maxlength="128"></div>
-      <div class="field"><label>确认新密码</label><input type="password" id="confirmPassword" autocomplete="new-password" maxlength="128"></div>
+      <p class="muted">确认将该账号密码统一重置为 <strong>1234</strong>？重置后，该账号全部设备立即退出。</p>
     </div>
     <div class="modal-foot"><button class="btn" onclick="closeModal('resetModal')">取消</button><button class="btn btn-primary" onclick="confirmResetPassword()">确认重置</button></div>
   </div>
@@ -317,19 +315,14 @@ async function saveUser() {
 }
 
 function openResetPassword() {
-  $('newPassword').value = '';
-  $('confirmPassword').value = '';
   openModal('resetModal');
 }
 
 async function confirmResetPassword() {
-  const password = $('newPassword').value;
-  if (password.length < 4 || password.length > 128) return showToast('新密码长度须为 4 至 128 位', 'error');
-  if (password !== $('confirmPassword').value) return showToast('两次输入的密码不一致', 'error');
   try {
-    await requestJson('/admin/api/users/' + encodeURIComponent(selectedUsername) + '/reset-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({newPassword:password})});
+    await requestJson('/admin/api/users/' + encodeURIComponent(selectedUsername) + '/reset-password', {method:'POST'});
     closeModal('resetModal');
-    showToast('密码已重置，全部设备已退出', 'success');
+    showToast('密码已重置为 1234，全部设备已退出', 'success');
     await loadUsers();
   } catch (error) { showToast(error.message, 'error'); }
 }

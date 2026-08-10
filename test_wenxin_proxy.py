@@ -522,7 +522,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
         self.assertIsNone(avatar["avatar_mime"])
         self.assertEqual(avatar["avatar_path"], "")
 
-    def test_admin_password_reset_hashes_new_password_and_revokes_sessions(self):
+    def test_admin_password_reset_uses_1234_and_revokes_sessions(self):
         self.create_user()
         tokens = self.login().get_json()
         self._enable_admin_session()
@@ -542,7 +542,8 @@ class AccountSessionSecurityTest(unittest.TestCase):
             "SELECT COUNT(*) FROM t_session WHERE username='alice'"
         ).fetchone()[0]
         conn.close()
-        self.assertTrue(verify_password(row["password_hash"], "replacement-password"))
+        self.assertTrue(verify_password(row["password_hash"], "1234"))
+        self.assertFalse(verify_password(row["password_hash"], "replacement-password"))
         self.assertFalse(verify_password(row["password_hash"], "old-password"))
         self.assertEqual(sessions, 0)
         self.assertEqual(
@@ -1076,10 +1077,10 @@ class SmsRegistrationTest(unittest.TestCase):
         self.assertEqual(repeated.status_code, 429)
         send.assert_not_called()
 
-    def test_registration_requires_at_least_eight_character_password(self):
+    def test_registration_accepts_four_character_password(self):
         send_response, _ = self.send_code()
         body = send_response.get_json()
-        with mock.patch.object(proxy, "_check_sms_verification") as check:
+        with mock.patch.object(proxy, "_check_sms_verification", return_value=True) as check:
             response = self.client.post(
                 "/api/register",
                 json={
@@ -1090,8 +1091,8 @@ class SmsRegistrationTest(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(response.status_code, 400)
-        check.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        check.assert_called_once()
 
     def test_global_daily_budget_stops_additional_send_cost(self):
         old_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
