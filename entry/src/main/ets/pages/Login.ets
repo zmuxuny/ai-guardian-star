@@ -4,10 +4,9 @@ import { ThemeManager } from "../common/ThemeManager";
 import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
 import { CloudService, CloudUser } from "../common/CloudService";
+import { AvatarSyncService } from "../common/AvatarSyncService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
-import fs from '@ohos.file.fs';
-import { util } from '@kit.ArkTS';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
 import { showToast } from '../common/UiFeedback';
 
@@ -833,39 +832,11 @@ struct Login {
       });
     }
     if ((cloudUser.avatarVersion || 0) > 0) {
-      const storedUser = await db.queryUserByIdentifier(loginId);
-      if (storedUser) await this.restoreCloudAvatar(storedUser);
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      await AvatarSyncService.sync(context, loginId);
     }
     showToast(this.getUIContext(), { message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
-  }
-
-  private async restoreCloudAvatar(user: UserInfo): Promise<void> {
-    const result = await CloudService.getInstance().downloadAvatar();
-    if (!result.success || !result.imageBase64) return;
-    let file: fs.File | undefined;
-    try {
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      const avatarDir = context.filesDir + '/avatars';
-      try { fs.mkdirSync(avatarDir); } catch (_e) {}
-      const bytes = new util.Base64Helper().decodeSync(result.imageBase64);
-      const path = avatarDir + '/cloud_avatar_' + Date.now() + '.jpg';
-      file = fs.openSync(path, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
-      fs.writeSync(file.fd, bytes.buffer);
-      fs.closeSync(file);
-      file = undefined;
-      const oldPath = user.avatarPath || '';
-      user.avatarPath = path;
-      await DatabaseHelper.getInstance().updateUser(user);
-      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, path);
-      if (oldPath.startsWith(avatarDir + '/') && oldPath !== path) {
-        try { fs.unlinkSync(oldPath); } catch (_e) {}
-      }
-    } catch (e) {
-      console.warn('[Login]: 云端头像恢复失败 ' + JSON.stringify(e));
-    } finally {
-      if (file !== undefined) { try { fs.closeSync(file); } catch (_e) {} }
-    }
   }
 
   private async saveLoginAndJump(loginId: string, displayName: string = ""): Promise<void> {

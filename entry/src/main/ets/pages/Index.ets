@@ -1,6 +1,7 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
+import { AvatarSyncService } from '../common/AvatarSyncService';
 import { UserManager } from '../common/UserManager';
 import { DatabaseHelper } from '../database/DatabaseHelper';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
@@ -179,6 +180,10 @@ struct Index {
 
     UserManager.getInstance().setCurrentUsername(sessionUserKey);
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
+    if ((result.user.avatarVersion || 0) > 0) {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      await AvatarSyncService.sync(context, sessionUserKey);
+    }
     const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
     const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
     const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'

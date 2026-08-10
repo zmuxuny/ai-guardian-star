@@ -24,6 +24,7 @@ export interface CloudResult {
   refreshToken?: string;
   challengeId?: string;
   expiresIn?: number;
+  hasAvatar?: boolean;
   imageBase64?: string;
   mimeType?: string;
   updatedAt?: number;

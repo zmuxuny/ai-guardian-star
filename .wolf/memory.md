@@ -1618,3 +1618,9 @@
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
 | 10:35 | 将现有 SQLite 用户管理后台安全开放到公网 HTTPS | wenxin_proxy.py, test_wenxin_proxy.py, deploy/nginx/api.aistar.asia.conf | 管理登录与页面实测 302/200；Secure/HttpOnly/SameSite=Strict、no-store、登录限速生效；数据库完整性 ok，备份成功 | ~12000 |
+
+## Session: 2026-08-10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 08:05 | 管理后台增加云端头像预览、上传和删除，并让手动登录与记住登录设备同步头像删除 | admin_panel.html, wenxin_proxy.py, AvatarSyncService.ets, Login.ets, Index.ets | 头像只存云端图片数据与版本；设备仅保留本机缓存；接口测试和 HarmonyOS debug 构建通过 | ~15000 |

@@ -473,6 +473,55 @@ class AccountSessionSecurityTest(unittest.TestCase):
         self.assertNotIn("password_hash", user)
         self.assertNotIn("avatar_path", user)
 
+    def test_admin_avatar_upload_and_delete_syncs_to_device_api(self):
+        self.create_user()
+        access_token = self.login().get_json()["accessToken"]
+        self._enable_admin_session()
+        image_bytes = b"\xff\xd8\xff\xe0admin-avatar\xff\xd9"
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+
+        uploaded = self.client.post(
+            "/admin/api/users/alice/avatar",
+            json={"imageBase64": encoded, "mimeType": "image/jpeg"},
+        )
+        admin_copy = self.client.get("/admin/api/users/alice/avatar")
+        device_copy = self.client.get(
+            "/api/avatar", headers=self.bearer(access_token)
+        )
+
+        self.assertEqual(uploaded.status_code, 200)
+        uploaded_at = uploaded.get_json()["updatedAt"]
+        self.assertGreater(uploaded_at, 0)
+        self.assertEqual(admin_copy.status_code, 200)
+        self.assertEqual(admin_copy.data, image_bytes)
+        self.assertEqual(admin_copy.content_type, "image/jpeg")
+        self.assertEqual(device_copy.status_code, 200)
+        self.assertTrue(device_copy.get_json()["hasAvatar"])
+        self.assertEqual(device_copy.get_json()["imageBase64"], encoded)
+
+        deleted = self.client.delete("/admin/api/users/alice/avatar")
+        deleted_for_device = self.client.get(
+            "/api/avatar", headers=self.bearer(access_token)
+        )
+
+        self.assertEqual(deleted.status_code, 200)
+        self.assertGreaterEqual(deleted.get_json()["updatedAt"], uploaded_at)
+        self.assertEqual(
+            self.client.get("/admin/api/users/alice/avatar").status_code, 404
+        )
+        self.assertEqual(deleted_for_device.status_code, 200)
+        self.assertTrue(deleted_for_device.get_json()["success"])
+        self.assertFalse(deleted_for_device.get_json()["hasAvatar"])
+        self.assertNotIn("imageBase64", deleted_for_device.get_json())
+        conn = proxy.get_db()
+        avatar = conn.execute(
+            "SELECT avatar_data, avatar_mime, avatar_path FROM t_user WHERE username='alice'"
+        ).fetchone()
+        conn.close()
+        self.assertIsNone(avatar["avatar_data"])
+        self.assertIsNone(avatar["avatar_mime"])
+        self.assertEqual(avatar["avatar_path"], "")
+
     def test_admin_password_reset_hashes_new_password_and_revokes_sessions(self):
         self.create_user()
         tokens = self.login().get_json()
@@ -533,6 +582,11 @@ class AccountSessionSecurityTest(unittest.TestCase):
         self.assertIn("openDetails", proxy._ADMIN_HTML)
         self.assertIn("重置密码", proxy._ADMIN_HTML)
         self.assertNotIn("avatar_path", proxy._ADMIN_HTML)
+
+    def test_admin_page_offers_avatar_upload_and_delete_controls(self):
+        self.assertIn('id="avatarFile"', proxy._ADMIN_HTML)
+        self.assertIn("uploadSelectedAvatar", proxy._ADMIN_HTML)
+        self.assertIn("confirmDeleteAvatar", proxy._ADMIN_HTML)
 
     def test_protected_endpoints_reject_missing_bearer_token(self):
         cases = [

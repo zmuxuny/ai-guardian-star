@@ -27,6 +27,7 @@ button { cursor:pointer; }
 .search:focus,input:focus,textarea:focus,select:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(22,119,255,.16); }
 .select,.btn { min-height:40px; padding:0 15px; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--text); }
 .btn:hover { border-color:#456079; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
 .btn-primary { background:var(--blue); border-color:var(--blue); color:white; }
 .btn-primary:hover { background:var(--blue-2); }
 .btn-danger { color:#ff8d92; border-color:rgba(255,93,100,.42); background:rgba(255,93,100,.08); }
@@ -46,6 +47,7 @@ tbody tr { cursor:pointer; }
 tbody tr:last-child td { border-bottom:0; }
 .identity { display:flex; align-items:center; gap:11px; min-width:180px; }
 .avatar { width:38px; height:38px; flex:none; display:grid; place-items:center; border-radius:50%; color:white; font-weight:650; background:#1765c7; border:1px solid rgba(255,255,255,.16); }
+.avatar-image { object-fit:cover; overflow:hidden; }
 .identity strong,.identity small { display:block; }
 .identity small { color:var(--muted); margin-top:2px; }
 .status { display:inline-flex; align-items:center; gap:6px; }
@@ -62,6 +64,9 @@ tbody tr:last-child td { border-bottom:0; }
 .profile .avatar { width:64px; height:64px; font-size:22px; }
 .profile h2 { margin:0 0 5px; font-size:21px; }
 .drawer-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px; }
+.avatar-actions { display:flex; gap:10px; margin-top:14px; }
+.avatar-actions .btn { flex:1; }
+.file-input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 .section { padding:20px 0; border-top:1px solid var(--line); }
 .section h3 { margin:0 0 15px; font-size:15px; }
 .detail-row { display:grid; grid-template-columns:88px 1fr; gap:12px; margin:10px 0; }
@@ -178,6 +183,9 @@ const escapeHtml = value => {
 };
 const formatTime = value => value ? new Date(value < 100000000000 ? value * 1000 : value).toLocaleString('zh-CN', {hour12:false}) : '-';
 const initials = user => (user.nickname || user.username || '?').trim().slice(0, 2).toUpperCase();
+const avatarMarkup = user => user.avatar_synced
+  ? `<img class="avatar avatar-image" src="/admin/api/users/${encodeURIComponent(user.username)}/avatar?v=${user.avatar_updated_at || 0}" alt="${escapeHtml(user.nickname || user.username)}的头像">`
+  : `<div class="avatar">${escapeHtml(initials(user))}</div>`;
 const maskPhone = value => value && value.length >= 7 ? value.slice(0,3) + '****' + value.slice(-4) : (value || '-');
 const maskEmail = value => {
   if (!value || !value.includes('@')) return value || '-';
@@ -230,7 +238,7 @@ function renderTable() {
   $('resultCount').textContent = '共 ' + users.length + ' 条记录';
   if (!users.length) { $('tbody').innerHTML = '<tr><td class="empty" colspan="5">没有匹配的用户</td></tr>'; return; }
   $('tbody').innerHTML = users.map(user => `<tr class="${selectedUsername === user.username ? 'selected' : ''}" onclick="openDetails('${encodeURIComponent(user.username)}')">
-    <td><div class="identity"><div class="avatar">${escapeHtml(initials(user))}</div><div><strong>${escapeHtml(user.nickname || user.username)}</strong><small>${escapeHtml(user.username)} · ${user.is_frozen ? '已冻结' : '正常'}</small></div></div></td>
+    <td><div class="identity">${avatarMarkup(user)}<div><strong>${escapeHtml(user.nickname || user.username)}</strong><small>${escapeHtml(user.username)} · ${user.is_frozen ? '已冻结' : '正常'}</small></div></div></td>
     <td>${escapeHtml(maskPhone(user.phone))}</td><td>${escapeHtml(maskEmail(user.email))}</td><td>${escapeHtml(formatTime(user.create_time))}</td>
     <td>${escapeHtml(formatTime(user.last_login))}</td></tr>`).join('');
 }
@@ -257,10 +265,10 @@ function closeDetails() {
 function renderDrawer(user) {
   if (!user) return;
   const passwordState = user.password_scheme === 'scrypt' ? '已加密' : '待升级';
-  $('drawerContent').innerHTML = `<div class="profile"><div class="avatar">${escapeHtml(initials(user))}</div><div><h2>${escapeHtml(user.nickname || user.username)}</h2><div class="muted">${escapeHtml(user.username)} · ${user.is_frozen ? '已冻结' : '正常'}</div></div></div>
+  $('drawerContent').innerHTML = `<div class="profile">${avatarMarkup(user)}<div><h2>${escapeHtml(user.nickname || user.username)}</h2><div class="muted">${escapeHtml(user.username)} · ${user.is_frozen ? '已冻结' : '正常'}</div></div></div>
     <div class="drawer-actions"><button class="btn btn-primary" onclick="openEdit()">编辑资料</button><button class="btn" onclick="openResetPassword()">重置密码</button></div>
     <section class="section"><h3>基本信息</h3><dl><div class="detail-row"><dt>手机号</dt><dd>${escapeHtml(user.phone || '未设置')}</dd></div><div class="detail-row"><dt>邮箱</dt><dd>${escapeHtml(user.email || '未设置')}</dd></div><div class="detail-row"><dt>地址</dt><dd>${escapeHtml(user.address || '未设置')}</dd></div><div class="detail-row"><dt>注册时间</dt><dd>${escapeHtml(formatTime(user.create_time))}</dd></div></dl></section>
-    <section class="section"><h3>头像同步</h3><div class="detail-row"><dt>云端头像</dt><dd>${user.avatar_synced ? '已同步' : '未设置'}</dd></div><div class="detail-row"><dt>更新时间</dt><dd>${escapeHtml(formatTime(user.avatar_updated_at))}</dd></div><p class="muted">设备路径只保存在本机，后台不再显示。</p></section>
+    <section class="section"><h3>头像同步</h3><div class="detail-row"><dt>云端头像</dt><dd>${user.avatar_synced ? '已同步' : '未设置'}</dd></div><div class="detail-row"><dt>更新时间</dt><dd>${escapeHtml(formatTime(user.avatar_updated_at))}</dd></div><p class="muted">上传后保存为统一 JPEG，设备下次同步资料时更新本机缓存。</p><div class="avatar-actions"><input class="file-input" id="avatarFile" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadSelectedAvatar(this)"><button class="btn btn-primary" onclick="selectAvatarFile()">${user.avatar_synced ? '更换头像' : '上传头像'}</button><button class="btn btn-danger" onclick="confirmDeleteAvatar()" ${user.avatar_synced ? '' : 'disabled'}>删除头像</button></div></section>
     <section class="section"><h3>账号安全</h3><div class="detail-row"><dt>密码状态</dt><dd><span class="pill">${passwordState}</span></dd></div><div class="detail-row"><dt>加密方式</dt><dd>${user.password_scheme === 'scrypt' ? 'scrypt' : '旧格式'}</dd></div><div class="detail-row"><dt>密码内容</dt><dd>不可查看</dd></div><div class="detail-row"><dt>活跃会话</dt><dd>${user.session_count || 0} 个</dd></div><div class="detail-row"><dt>最近登录</dt><dd>${escapeHtml(formatTime(user.last_login))}</dd></div></section>
     <section class="section"><div class="danger-zone"><button class="btn btn-warning" onclick="confirmFreeze()">${user.is_frozen ? '解冻账号' : '冻结账号'}</button><button class="btn btn-danger" onclick="confirmDelete()">删除账号</button></div></section>`;
 }
@@ -324,6 +332,57 @@ async function confirmResetPassword() {
     showToast('密码已重置，全部设备已退出', 'success');
     await loadUsers();
   } catch (error) { showToast(error.message, 'error'); }
+}
+
+function selectAvatarFile() { $('avatarFile').click(); }
+
+function readImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('无法读取该图片'));
+      image.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('无法读取该文件'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadSelectedAvatar(input) {
+  const file = input.files && input.files[0];
+  if (!file || !selectedUsername) return;
+  try {
+    if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
+    if (file.size > 12 * 1024 * 1024) throw new Error('原图片不能超过 12 MB');
+    const image = await readImage(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 512;
+    const side = Math.min(image.naturalWidth, image.naturalHeight);
+    const sx = (image.naturalWidth - side) / 2;
+    const sy = (image.naturalHeight - side) / 2;
+    canvas.getContext('2d').drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
+    const imageBase64 = canvas.toDataURL('image/jpeg', .88).split(',')[1];
+    if (Math.ceil(imageBase64.length * 3 / 4) > 750 * 1024) throw new Error('处理后的头像仍然过大');
+    await requestJson('/admin/api/users/' + encodeURIComponent(selectedUsername) + '/avatar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({imageBase64, mimeType:'image/jpeg'})
+    });
+    showToast('头像已上传，其他设备将在下次同步时更新', 'success');
+    await loadUsers();
+  } catch (error) { showToast(error.message, 'error'); }
+  finally { input.value = ''; }
+}
+
+function confirmDeleteAvatar() {
+  const user = findUser(selectedUsername);
+  if (!user || !user.avatar_synced) return;
+  openConfirm('删除头像', `确认删除“${escapeHtml(user.nickname || user.username)}”的云端头像吗？其他设备将在下次同步时清除本机缓存。`, async () => {
+    await requestJson('/admin/api/users/' + encodeURIComponent(user.username) + '/avatar', {method:'DELETE'});
+    showToast('头像已删除', 'success');
+    await loadUsers();
+  });
 }
 
 function confirmFreeze() {

@@ -223,6 +223,25 @@ def _user_json(row):
     }
 
 
+def _decode_avatar(payload):
+    encoded = (payload.get('imageBase64') or '').strip()
+    mime_type = (payload.get('mimeType') or '').strip().lower()
+    if mime_type != 'image/jpeg' or not encoded:
+        return None, None, "仅支持 JPEG 头像"
+    try:
+        image_data = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError):
+        return None, None, "头像数据无效"
+    if (
+        len(image_data) < 4
+        or len(image_data) > MAX_AVATAR_BYTES
+        or not image_data.startswith(b'\xff\xd8')
+        or not image_data.endswith(b'\xff\xd9')
+    ):
+        return None, None, "头像文件无效或过大"
+    return image_data, mime_type, None
+
+
 def _internal_error(scope, error):
     app.logger.error("[%s] internal error type=%s", scope, type(error).__name__)
     return jsonify({"success": False, "message": "服务内部错误"}), 500
@@ -1238,35 +1257,28 @@ def api_avatar():
             if not row:
                 return jsonify({"success": False, "message": "账号不存在"}), 404
             if not row['avatar_data']:
-                return jsonify({"success": False, "message": "未设置头像"}), 404
+                return jsonify({
+                    "success": True,
+                    "message": "未设置头像",
+                    "hasAvatar": False,
+                    "updatedAt": row['avatar_updated_at'] or 0,
+                })
             return jsonify({
                 "success": True,
                 "message": "头像读取成功",
+                "hasAvatar": True,
                 "imageBase64": base64.b64encode(row['avatar_data']).decode('ascii'),
                 "mimeType": row['avatar_mime'] or 'image/jpeg',
                 "updatedAt": row['avatar_updated_at'] or 0,
             })
 
-        d = request.get_json(silent=True) or {}
-        encoded = (d.get('imageBase64') or '').strip()
-        mime_type = (d.get('mimeType') or '').strip().lower()
-        if mime_type != 'image/jpeg' or not encoded:
+        image_data, mime_type, validation_error = _decode_avatar(
+            request.get_json(silent=True) or {}
+        )
+        if validation_error:
             conn.close()
-            return jsonify({"success": False, "message": "仅支持 JPEG 头像"}), 400
-        try:
-            image_data = base64.b64decode(encoded, validate=True)
-        except (ValueError, TypeError):
-            conn.close()
-            return jsonify({"success": False, "message": "头像数据无效"}), 400
-        if (
-            len(image_data) < 4
-            or len(image_data) > MAX_AVATAR_BYTES
-            or not image_data.startswith(b'\xff\xd8')
-            or not image_data.endswith(b'\xff\xd9')
-        ):
-            conn.close()
-            return jsonify({"success": False, "message": "头像文件无效或过大"}), 400
-        updated_at = int(time.time())
+            return jsonify({"success": False, "message": validation_error}), 400
+        updated_at = int(time.time() * 1000)
         cursor = conn.execute(
             """
             UPDATE t_user
@@ -1785,6 +1797,69 @@ def admin_list_users():
         return jsonify({"success": True, "data": [dict(r) for r in rows]})
     except Exception as error:
         return _internal_error('admin_list_users', error)
+
+
+@app.route('/admin/api/users/<username>/avatar', methods=['GET', 'POST', 'DELETE'])
+@admin_required
+def admin_user_avatar(username):
+    conn = None
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT avatar_data, avatar_mime, avatar_updated_at FROM t_user WHERE username=?",
+            (username,),
+        ).fetchone()
+        if not row:
+            return jsonify({"success": False, "message": "用户不存在"}), 404
+
+        if request.method == 'GET':
+            if not row['avatar_data']:
+                return jsonify({"success": False, "message": "未设置头像"}), 404
+            response = app.response_class(
+                row['avatar_data'], mimetype=row['avatar_mime'] or 'image/jpeg'
+            )
+            response.headers['Cache-Control'] = 'private, no-store'
+            return response
+
+        updated_at = max(
+            int(time.time() * 1000), (row['avatar_updated_at'] or 0) + 1
+        )
+        if request.method == 'DELETE':
+            conn.execute(
+                "UPDATE t_user SET avatar_data=NULL, avatar_mime=NULL, "
+                "avatar_updated_at=?, avatar_path='' WHERE username=?",
+                (updated_at, username),
+            )
+            conn.commit()
+            return jsonify({
+                "success": True,
+                "message": "头像已删除并同步",
+                "updatedAt": updated_at,
+            })
+
+        image_data, mime_type, validation_error = _decode_avatar(
+            request.get_json(silent=True) or {}
+        )
+        if validation_error:
+            return jsonify({"success": False, "message": validation_error}), 400
+        conn.execute(
+            "UPDATE t_user SET avatar_data=?, avatar_mime=?, avatar_updated_at=?, "
+            "avatar_path='' WHERE username=?",
+            (image_data, mime_type, updated_at, username),
+        )
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "message": "头像已上传并同步",
+            "updatedAt": updated_at,
+        })
+    except Exception as error:
+        if conn:
+            conn.rollback()
+        return _internal_error('admin_user_avatar', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/admin/api/users', methods=['POST'])

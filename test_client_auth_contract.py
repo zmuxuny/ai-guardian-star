@@ -81,6 +81,20 @@ class ClientAuthContractTest(unittest.TestCase):
         text = source("entry/src/main/ets/common/CloudService.ets")
         self.assertIn("expectDataType: http.HttpDataType.STRING", text)
 
+    def test_cloud_avatar_deletion_clears_the_device_cache_on_login(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        avatar_sync = source("entry/src/main/ets/common/AvatarSyncService.ets")
+        self.assertIn("hasAvatar?: boolean", cloud)
+        self.assertIn("result.hasAvatar === false", avatar_sync)
+        self.assertRegex(avatar_sync, r"user\.avatarPath\s*=\s*['\"]{2}")
+        self.assertIn("STORE_KEY_AVATAR, ''", avatar_sync)
+
+    def test_cloud_avatar_sync_runs_for_manual_and_remembered_sessions(self):
+        login = source("entry/src/main/ets/pages/Login.ets")
+        index = source("entry/src/main/ets/pages/Index.ets")
+        self.assertIn("AvatarSyncService.sync", login)
+        self.assertIn("AvatarSyncService.sync", index)
+
     def test_server_session_fields_survive_release_property_obfuscation(self):
         rules = source("entry/obfuscation-rules.txt")
         for field in ("accessToken", "refreshToken"):
