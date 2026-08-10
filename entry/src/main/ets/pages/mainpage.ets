@@ -5,12 +5,12 @@ import display from '@ohos.display';
 import { AudioTransferManager } from '../common/AudioTransferManager';
 import { abilityAccessCtrl } from '@kit.AbilityKit';
 import { common } from '@kit.AbilityKit';
-import { promptAction } from '@kit.ArkUI';
 import http from '@ohos.net.http';
 import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
 import { GradientHeader } from '../components/GradientHeader';
+import { showToast } from '../common/UiFeedback';
+import { getWindowSizeClass } from '../common/ResponsiveLayout';
 
-@Entry
 @Component
 export struct mainPage {
   @State videoUrl: string = VIDEO_FEED_URL;
@@ -31,13 +31,15 @@ export struct mainPage {
   @State btnScale: number = 1.0;
   // 顶部状态栏安全高度（由 EntryAbility 写入 AppStorage）
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
+  // 当前视口宽度，用于大屏左右分栏
+  @State viewportWidth: number = 360;
 
   private updateTimer: number = -1;
   private healthCheckTimer: number = -1;
   private readonly healthCheckUrl: string = HEALTH_CHECK_URL;
   private webController: webview.WebviewController = new webview.WebviewController();
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
-  private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+  private context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
 
   aboutToAppear(): void {
     this.mqttManager.connectAndSubscribe();
@@ -91,10 +93,10 @@ export struct mainPage {
     return 'normal';
   }
   private statusFillColor(s: string): string {
-    if (s === 'offline') return '#94a3b8';
-    if (s === 'danger') return '#ef4444';
-    if (s === 'warning') return '#f59e0b';
-    return '#10b981';
+    if (s === 'offline') return this.themeManager.colors.tertiaryTextColor;
+    if (s === 'danger') return this.themeManager.colors.dangerTextColor;
+    if (s === 'warning') return this.themeManager.colors.warningTextColor;
+    return this.themeManager.colors.successTextColor;
   }
   private statusBgColor(s: string): string {
     const d = this.themeManager.isDarkMode;
@@ -117,7 +119,7 @@ export struct mainPage {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ contentMaxWidth: 840 }) {
       Row() {
         Column() {
           Text('智护星').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
@@ -179,7 +181,7 @@ export struct mainPage {
           Text('设备离线').fontSize(11).fontColor('#ffffff').margin({ left: 4 })
         }
         .padding({ left: '2.5%', right: '2.5%', top: '1%', bottom: '1%' })
-        .backgroundColor('#ef4444').borderRadius(100)
+        .backgroundColor('#dc2626').borderRadius(100)
         .margin({ right: '3%', bottom: '3%' })
       }
     }
@@ -190,7 +192,7 @@ export struct mainPage {
       color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
     })
     .borderRadius('4%')
-    .margin({ top: '-4%' })
+    .margin({ top: -14 })
   }
 
   @Builder
@@ -201,7 +203,7 @@ export struct mainPage {
         Column() {
           Text('设备状态').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
           Text(this.deviceOnline ? '在线' : '离线').fontSize(20).fontWeight(FontWeight.Bold)
-            .fontColor(this.deviceOnline ? '#10b981' : '#ef4444').margin({ top: '2%' })
+            .fontColor(this.deviceOnline ? this.themeManager.colors.successTextColor : this.themeManager.colors.dangerTextColor).margin({ top: '2%' })
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Image(this.deviceOnline ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
@@ -310,27 +312,71 @@ export struct mainPage {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
     }
-    .width('92%').margin({ top: '3%' })
+    .width('92%').margin({ top: 12 })
   }
 
+
+  /** 状态卡滚动区，手机竖排 / 大屏右栏共用 */
+  @Builder
+  CardsScroll(): void {
+    Scroll() {
+      Column() {
+        Column() { this.StatusCards() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
+        Blank().height(24)
+      }.width('100%')
+    }
+    .width('100%').height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+  }
 
   build() {
     Column() {
       this.GradientHeader()
-      Column() { this.VideoArea() }.width('100%').alignItems(HorizontalAlign.Center)
-      Scroll() {
-        Column() {
-          Column() { this.StatusCards() }.width('100%').alignItems(HorizontalAlign.Center)
-          Blank().height(24)
-        }.width('100%')
+      if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+        // 手机：视频跟状态卡一起滚，不再钉在顶部把滚动区压成一条缝；通话按钮常驻底部
+        Scroll() {
+          Column() {
+            this.VideoArea()
+            Column() { this.StatusCards() }
+              .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
+            Blank().height(24)
+          }.width('100%')
+        }
+        .layoutWeight(1).width('100%')
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        this.CallButton()
+      } else {
+        // 大屏：左栏是「画面 + 通话」一组并垂直居中，右栏状态卡独立滚动
+        Row() {
+          Column() {
+            this.VideoArea()
+            this.CallButton()
+          }
+          .layoutWeight(1).height('100%')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+          Column() { this.CardsScroll() }
+            .layoutWeight(1).height('100%')
+        }
+        .layoutWeight(1).width('100%')
+        .constraintSize({ maxWidth: 840 })
+        .alignItems(VerticalAlign.Top)
       }
-      .layoutWeight(1)
-      .width('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .margin({ top: '2%' })
+    }
+    .width('100%').height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
+  }
 
-      Button() {
+  @Builder
+  CallButton(): void {
+    Button() {
         Row() {
           Image($r(this.isTalking ? 'app.media.ic_offcall' : 'app.media.ic_phone_white'))
             .width(22).height(22).objectFit(ImageFit.Contain).margin({ right: '3%' })
@@ -338,18 +384,18 @@ export struct mainPage {
             .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#ffffff')
         }.justifyContent(FlexAlign.Center)
       }
-      .width('88%').height('7%').constraintSize({ minHeight: 50 })
+      .width('88%').height(52).constraintSize({ maxWidth: 560 })
       .linearGradient({
         direction: GradientDirection.Left,
         colors: this.isTalking
-          ? [['#dc2626', 0.0], ['#ef4444', 1.0]]
-          : [['#1e40af', 0.0], ['#3b82f6', 1.0]]
+          ? [['#991b1b', 0.0], ['#dc2626', 1.0]]
+          : [['#1e3a8a', 0.0], ['#2563eb', 1.0]]
       })
       .borderRadius(100)
       .shadow({ radius: 16, color: this.isTalking ? '#ef444440' : '#3b82f640', offsetY: 8 })
       .scale({ x: this.btnScale, y: this.btnScale })
       .animation({ duration: 150, curve: Curve.EaseInOut })
-      .margin({ bottom: '4%', top: '2%' })
+      .margin({ bottom: 14, top: 20 })
       .onClick(async (): Promise<void> => {
         this.btnScale = 0.93;
         setTimeout(() => { this.btnScale = 1.0; }, 150);
@@ -358,7 +404,7 @@ export struct mainPage {
         } else {
           // 设备未连接时不允许发起通话，仅提示
           if (!this.deviceOnline) {
-            promptAction.showToast({ message: '设备未连接，无法发起通话' });
+            showToast(this.getUIContext(), { message: '设备未连接，无法发起通话' });
             return;
           }
           const atManager = abilityAccessCtrl.createAtManager();
@@ -366,9 +412,5 @@ export struct mainPage {
           if (res.authResults[0] === 0) { await this.audioManager.startCall(); this.isTalking = true; }
         }
       })
-    }
-    .width('100%').height('100%')
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 }

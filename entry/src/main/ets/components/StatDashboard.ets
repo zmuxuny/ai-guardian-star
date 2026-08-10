@@ -13,7 +13,8 @@ export struct StatDashboard {
     Row() {
       Column() {
         Text(`${this.useDays}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).fontColor("#1e40af")
+          .fontSize(28).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.isDarkMode ? '#60A5FA' : '#1E40AF')
         Text("天·已监护")
           .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
           .margin({ top: 6 })
@@ -23,13 +24,15 @@ export struct StatDashboard {
         .backgroundColor(this.themeManager.colors.separatorColor)
       Column() {
         Text(`${this.totalAlertCount}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).fontColor("#1e40af")
+          .fontSize(28).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.isDarkMode ? '#60A5FA' : '#1E40AF')
         Text("次·已预警")
           .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
           .margin({ top: 6 })
       }.layoutWeight(1)
     }
     .width("88%")
+    .constraintSize({ maxWidth: 640 })
     .padding({ top: 20, bottom: 20 })
     .margin({ top: 0 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)

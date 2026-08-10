@@ -3,6 +3,7 @@ import { person } from "./person";
 import { record } from "./record";
 import { AiChat } from "./AiChat";
 import { ThemeManager } from "../common/ThemeManager";
+import { getWindowSizeClass } from "../common/ResponsiveLayout";
 import { STORE_KEY_AI_ENABLED } from "../config";
 
 @Builder
@@ -14,6 +15,7 @@ export struct Layout {
   @State currentIndex: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
+  @State viewportWidth: number = 360;
   pathStack: NavPathStack = new NavPathStack();
 
   private getTabIconResource(index: number): Resource {
@@ -52,7 +54,7 @@ export struct Layout {
         .margin({ top: 4 })
         .fontColor(this.currentIndex === index ? "#2563eb" : this.themeManager.colors.secondaryTextColor)
         .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
-        .opacity(this.currentIndex === index ? 1.0 : 0.7)
+        .opacity(1.0)
         .animation({ duration: 220, curve: Curve.EaseOut })
       Circle({ width: 4, height: 4 }).fill("#2563eb")
         .margin({ top: 3 })
@@ -68,42 +70,98 @@ export struct Layout {
     .onClick(() => { this.currentIndex = index; })
   }
 
+  @Builder
+  pageStack(): void {
+    Stack() {
+      Column() { mainPage() }.width('100%').height('100%')
+        .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
+      Column() { record() }.width('100%').height('100%')
+        .visibility(this.currentIndex === 1 ? Visibility.Visible : Visibility.None)
+      if (this.aiEnabled) {
+        Column() { AiChat() }.width('100%').height('100%')
+          .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+      }
+      Column() { person({ pathStack: this.pathStack }) }.width('100%').height('100%')
+        .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
+    }
+  }
+
+  @Builder
+  railItem(index: number): void {
+    Column({ space: 6 }) {
+      Image(this.getTabIconResource(index))
+        .width(28).height(28)
+        .objectFit(ImageFit.Contain)
+        .opacity(this.currentIndex === index ? 1.0 : 0.7)
+      Text(this.getTabText(index))
+        .fontSize(12)
+        .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
+        .fontColor(this.currentIndex === index ? '#2563EB' : this.themeManager.colors.secondaryTextColor)
+    }
+    .width(80).height(64)
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor(this.currentIndex === index
+      ? (this.themeManager.isDarkMode ? '#1E3A5F' : '#EFF6FF')
+      : Color.Transparent)
+    .borderRadius(16)
+    .onClick(() => { this.currentIndex = index; })
+  }
+
+  @Builder
+  sideNavigation(): void {
+    Column({ space: 10 }) {
+      Blank()
+      this.railItem(0)
+      this.railItem(1)
+      if (this.aiEnabled) {
+        this.railItem(2)
+      }
+      this.railItem(3)
+      Blank()
+    }
+    .width(96).height('100%')
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+    .border({ width: { right: 0.5 }, color: this.themeManager.colors.borderColor })
+    // 侧栏需自行铺到状态栏下方，否则顶部会露出窗口默认底色（深色模式下是一块白）
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+  }
+
   build() {
     NavDestination() {
       Column() {
-        Stack() {
-          Column() { mainPage() }.width('100%').height('100%')
-            .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
-          Column() { record() }.width('100%').height('100%')
-            .visibility(this.currentIndex === 1 ? Visibility.Visible : Visibility.None)
-          if (this.aiEnabled) {
-            Column() { AiChat() }.width('100%').height('100%')
-              .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+        if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+          Column() {
+            this.pageStack()
+          }.layoutWeight(1).width('100%')
+          Row() {
+            this.tabItem(0)
+            this.tabItem(1)
+            if (this.aiEnabled) {
+              this.tabItem(2)
+            }
+            this.tabItem(3)
           }
-          Column() { person({ pathStack: this.pathStack }) }.width('100%').height('100%')
-            .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
+          .width('100%')
+          .height(56)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .border({ width: { top: 0.5 }, color: this.themeManager.colors.borderColor })
+        } else {
+          Row() {
+            this.sideNavigation()
+            Column() { this.pageStack() }
+              .layoutWeight(1).height('100%')
+              .backgroundColor(this.themeManager.colors.backgroundColor)
+          }.width('100%').height('100%')
         }
-        .layoutWeight(1)
-
-        Row() {
-          this.tabItem(0)
-          this.tabItem(1)
-          if (this.aiEnabled) {
-            this.tabItem(2)
-          }
-          this.tabItem(3)
-        }
-        .width('100%')
-        .height(56)
-        .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-        .border({
-          width: { top: 0.5 },
-          color: this.themeManager.colors.borderColor
-        })
       }
       .width('100%').height('100%')
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      .onAreaChange((_oldValue: Area, newValue: Area): void => {
+        const width = Number(newValue.width);
+        if (width > 0) this.viewportWidth = width;
+      })
     }
     .hideTitleBar(true)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])

@@ -1,6 +1,7 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
+import { AvatarSyncService } from '../common/AvatarSyncService';
 import { UserManager } from '../common/UserManager';
 import { DatabaseHelper } from '../database/DatabaseHelper';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
@@ -50,11 +51,11 @@ struct PrivacyDialog {
             .margin({ top: 4 })
           Text('查看完整隐私政策 →')
             .fontSize(13)
-            .fontColor('#3b82f6')
-            .decoration({ type: TextDecorationType.Underline, color: '#3b82f6' })
+            .fontColor('#1d4ed8')
+            .decoration({ type: TextDecorationType.Underline, color: '#1d4ed8' })
             .margin({ top: 4 })
             .onClick(() => {
-              const ctx = getContext(this) as common.UIAbilityContext;
+              const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
               const want: Want = {
                 action: 'ohos.want.action.viewData',
                 entities: ['entity.system.browsable'],
@@ -83,7 +84,7 @@ struct PrivacyDialog {
         Button('同意并继续', { type: ButtonType.Normal })
           .layoutWeight(1)
           .height(44)
-          .backgroundColor('#3b82f6')
+          .backgroundColor('#2563eb')
           .fontColor('#ffffff')
           .borderRadius(10)
           .onClick(() => { this.onAgree(); })
@@ -91,7 +92,8 @@ struct PrivacyDialog {
       .width('100%')
       .padding({ left: 20, right: 20, top: 16, bottom: 24 })
     }
-    .width('100%')
+    .width('90%')
+    .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
   }
@@ -111,20 +113,19 @@ struct Index {
       },
       onDisagree: () => {
         this.privacyDialogController.close();
-        const ctx = getContext(this) as common.UIAbilityContext;
+        const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
         ctx.terminateSelf();
       },
     }),
     autoCancel: false,
     alignment: DialogAlignment.Center,
-    customStyle: false,
-    cornerRadius: 16,
-    width: '88%',
+    // customStyle 让弹窗宽度完全由内容决定，否则百分比宽度在平板上会撑成一条空壳
+    customStyle: true,
   });
 
   private savePrivacyAccepted(): void {
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       pref.putSync(PREF_KEY_PRIVACY_ACCEPTED, true);
@@ -136,7 +137,7 @@ struct Index {
 
   private checkPrivacyThenLogin(): void {
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, options);
       const accepted = pref.getSync(PREF_KEY_PRIVACY_ACCEPTED, false) as boolean;
@@ -178,6 +179,8 @@ struct Index {
 
     UserManager.getInstance().setCurrentUsername(sessionUserKey);
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    await AvatarSyncService.sync(context, sessionUserKey);
     const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
     const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
     const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'

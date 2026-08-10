@@ -7,7 +7,7 @@ import { MqttManager } from "./MqttManager";
 import { GradientHeader } from '../components/GradientHeader';
 import { StatDashboard } from '../components/StatDashboard';
 import { MenuRow } from '../components/MenuRow';
-import { promptAction } from "@kit.ArkUI";
+import { showDialog, showToast } from '../common/UiFeedback';
 import {
   DatabaseHelper,
   HealthEvent,
@@ -16,16 +16,17 @@ import {
   UserInfo,
 } from "../database/DatabaseHelper";
 import { preferences } from "@kit.ArkData";
-import { common, abilityAccessCtrl } from "@kit.AbilityKit";
+import { common, abilityAccessCtrl, Want } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
 import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED } from '../config';
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
+import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -35,11 +36,37 @@ export function personBuilder(): void {
 @CustomDialog
 struct DeleteAccountDialog {
   controller: CustomDialogController;
-  inputPassword: string = '';
-  isDeleting: boolean = false;
-  onPasswordChange: (v: string) => void = () => {};
-  onConfirm: () => void = () => {};
+  /** 已脱敏的联系方式，仅用于展示 */
+  maskedContact: string = '';
+  contactKind: string = 'phone';
+  @State code: string = '';
+  @State countdown: number = 0;
+  @State isSending: boolean = false;
+  @State isDeleting: boolean = false;
+  private timerId: number = -1;
+  /** 返回 true 表示验证码已发出 */
+  onSendCode: () => Promise<boolean> = async () => false;
+  /** 返回 true 表示注销成功，由父组件负责关闭弹窗与跳转 */
+  onConfirm: (code: string) => Promise<boolean> = async () => false;
   onCancel: () => void = () => {};
+
+  aboutToDisappear(): void {
+    if (this.timerId !== -1) {
+      clearInterval(this.timerId);
+      this.timerId = -1;
+    }
+  }
+
+  private startCountdown(): void {
+    this.countdown = 60;
+    this.timerId = setInterval(() => {
+      this.countdown -= 1;
+      if (this.countdown <= 0) {
+        clearInterval(this.timerId);
+        this.timerId = -1;
+      }
+    }, 1000);
+  }
 
   build() {
     Column({ space: 0 }) {
@@ -50,18 +77,42 @@ struct DeleteAccountDialog {
         .margin({ top: 24, bottom: 8 })
         .textAlign(TextAlign.Center)
         .width('100%')
-      Text('注销账号将永久删除所有数据，请输入当前密码确认')
+      Text(this.maskedContact === ''
+        ? '当前账号未绑定手机号或邮箱，无法完成注销验证'
+        : `注销账号将永久删除所有数据。验证码将发送至${this.contactKind === 'phone' ? '手机号' : '邮箱'} ${this.maskedContact}`)
         .fontSize(13)
         .fontColor('#64748b')
         .textAlign(TextAlign.Center)
         .padding({ left: 20, right: 20 })
         .margin({ bottom: 16 })
-      TextInput({ placeholder: '请输入当前密码', text: this.inputPassword })
-        .type(InputType.Password)
-        .width('100%')
-        .padding({ left: 20, right: 20 })
-        .margin({ bottom: 20 })
-        .onChange((v: string) => { this.onPasswordChange(v); })
+      Row({ space: 8 }) {
+        TextInput({ placeholder: '请输入验证码', text: this.code })
+          .type(InputType.Number)
+          .maxLength(8)
+          .layoutWeight(1)
+          .height(44)
+          .enabled(!this.isDeleting)
+          .onChange((v: string) => { this.code = v; })
+        Button(this.isSending ? '发送中' : this.countdown > 0 ? `${this.countdown}s` : '获取验证码',
+          { type: ButtonType.Normal })
+          .height(44)
+          .fontSize(13)
+          .backgroundColor('#2563eb')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .enabled(this.maskedContact !== '' && !this.isSending && this.countdown === 0 && !this.isDeleting)
+          .onClick(async () => {
+            this.isSending = true;
+            const sent = await this.onSendCode();
+            this.isSending = false;
+            if (sent) {
+              this.startCountdown();
+            }
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20 })
+      .margin({ bottom: 20 })
       Row({ space: 12 }) {
         Button('取消', { type: ButtonType.Normal })
           .layoutWeight(1)
@@ -74,16 +125,24 @@ struct DeleteAccountDialog {
         Button(this.isDeleting ? '注销中...' : '确认注销', { type: ButtonType.Normal })
           .layoutWeight(1)
           .height(44)
-          .backgroundColor('#ef4444')
+          .backgroundColor('#dc2626')
           .fontColor('#ffffff')
           .borderRadius(10)
           .enabled(!this.isDeleting)
-          .onClick(() => { this.onConfirm(); })
+          .onClick(async () => {
+            this.isDeleting = true;
+            const done = await this.onConfirm(this.code.trim());
+            this.isDeleting = false;
+            if (done) {
+              this.code = '';
+            }
+          })
       }
       .width('100%')
       .padding({ left: 20, right: 20, bottom: 24 })
     }
-    .width('100%')
+    .width('90%')
+    .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
   }
@@ -102,55 +161,83 @@ export struct person {
   @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
+  // 当前视口宽度，用于按断点取尺寸档位
+  @State viewportWidth: number = 360;
   // 各菜单行按压状态
   @State pressedRow: string = "";
   // 退出登录按钮缩放
   @State logoutScale: number = 1.0;
-  @State deleteInputPassword: string = '';
-  @State isDeleting: boolean = false;
+  // 注销验证用的联系方式，来自本地用户表
+  @State bindPhone: string = '';
+  @State bindEmail: string = '';
+  private deleteChallengeId: string = '';
   // 导航路径栈
   pathStack: NavPathStack = new NavPathStack();
 
   private deleteAccountDialogController: CustomDialogController = new CustomDialogController({
     builder: DeleteAccountDialog({
-      inputPassword: this.deleteInputPassword,
-      isDeleting: this.isDeleting,
-      onPasswordChange: (v: string) => { this.deleteInputPassword = v; },
-      onConfirm: () => { this.executeDeleteAccount(); },
+      maskedContact: this.bindPhone !== ''
+        ? this.encryptPhone(this.bindPhone)
+        : this.maskEmail(this.bindEmail),
+      contactKind: this.bindPhone !== '' ? 'phone' : 'email',
+      onSendCode: () => this.sendDeleteAccountCode(),
+      onConfirm: (code: string) => this.executeDeleteAccount(code),
       onCancel: () => {
-        this.deleteInputPassword = '';
+        this.deleteChallengeId = '';
         this.deleteAccountDialogController.close();
       },
     }),
     autoCancel: false,
     alignment: DialogAlignment.Center,
-    customStyle: false,
-    cornerRadius: 16,
-    width: '88%',
+    // customStyle 让弹窗宽度完全由内容决定，否则百分比宽度在平板上会撑成一条空壳
+    customStyle: true,
   });
 
-  private async executeDeleteAccount(): Promise<void> {
+  /** 向账号绑定的手机号（无则邮箱）发送注销验证码 */
+  private async sendDeleteAccountCode(): Promise<boolean> {
+    const kind = this.bindPhone !== '' ? 'phone' : 'email';
+    const value = this.bindPhone !== '' ? this.bindPhone : this.bindEmail;
+    if (value === '') {
+      showToast(this.getUIContext(), { message: '账号未绑定手机号或邮箱，无法注销' });
+      return false;
+    }
+    try {
+      const result = await CloudService.getInstance().sendContactCode(kind, value);
+      if (!result.success || !result.challengeId) {
+        showToast(this.getUIContext(), { message: result.message || '验证码发送失败，请稍后重试' });
+        return false;
+      }
+      this.deleteChallengeId = result.challengeId;
+      showToast(this.getUIContext(), { message: '验证码已发送' });
+      return true;
+    } catch (e) {
+      showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
+      return false;
+    }
+  }
+
+  private async executeDeleteAccount(verifyCode: string): Promise<boolean> {
     const currentUser = UserManager.getInstance().getCurrentUsername();
     const db = DatabaseHelper.getInstance();
-    const password = this.deleteInputPassword.trim();
-    if (password === '') {
-      promptAction.showToast({ message: '请输入当前密码' });
-      return;
+    if (this.deleteChallengeId === '') {
+      showToast(this.getUIContext(), { message: '请先获取验证码' });
+      return false;
+    }
+    if (verifyCode === '') {
+      showToast(this.getUIContext(), { message: '请输入验证码' });
+      return false;
     }
 
-    this.isDeleting = true;
     try {
       const cloud = CloudService.getInstance();
-      const result = await cloud.deleteUser(password);
+      const result = await cloud.deleteUser(verifyCode, this.deleteChallengeId);
       if (!result.success) {
-        this.isDeleting = false;
-        promptAction.showToast({ message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
-        return;
+        showToast(this.getUIContext(), { message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
+        return false;
       }
     } catch (e) {
-      this.isDeleting = false;
-      promptAction.showToast({ message: '网络不可用，请检查网络后重试' });
-      return;
+      showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
+      return false;
     }
 
     try {
@@ -161,7 +248,7 @@ export struct person {
     }
 
     try {
-      const ctx = getContext(this) as common.UIAbilityContext;
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const opts: preferences.Options = { name: PREF_NAME_AUTH };
       const pref = preferences.getPreferencesSync(ctx, opts);
       pref.deleteSync(PREF_KEY_LAST_USERNAME);
@@ -177,21 +264,21 @@ export struct person {
     AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, '');
     UserManager.getInstance().clearCurrentUsername();
 
-    this.isDeleting = false;
-    this.deleteInputPassword = '';
+    this.deleteChallengeId = '';
     this.deleteAccountDialogController.close();
 
     if (this.pathStack) {
       this.pathStack.clear();
       this.pathStack.pushPathByName('Login', null);
     }
+    return true;
   }
 
   private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
     // Step 0: 弹窗让用户输入老人姓名
     let enrollName = '';
     try {
-      const nameDialog = await promptAction.showDialog({
+      const nameDialog = await showDialog(this.getUIContext(), {
         title: '录入人脸',
         message: '请输入被监护人姓名（用于识别显示）',
         buttons: [
@@ -199,7 +286,7 @@ export struct person {
           { text: '去拍照', color: '#2563eb' },
         ],
       });
-      if (nameDialog.index !== 1) {
+      if (nameDialog?.index !== 1) {
         return;
       }
       // ArkTS 无法弹 TextInput，用当前登录昵称作为默认姓名，后续可扩展
@@ -212,12 +299,18 @@ export struct person {
     }
 
     // Step 1: 申请相机权限
-    const atManager = abilityAccessCtrl.createAtManager();
-    const grantResult = await atManager.requestPermissionsFromUser(
-      context, ['ohos.permission.CAMERA']
-    );
-    if (grantResult.authResults[0] !== 0) {
-      promptAction.showToast({ message: '需要相机权限才能录入人脸，请在系统设置中开启' });
+    try {
+      const atManager = abilityAccessCtrl.createAtManager();
+      const grantResult = await atManager.requestPermissionsFromUser(
+        context, ['ohos.permission.CAMERA']
+      );
+      if (grantResult.authResults[0] !== 0) {
+        showToast(this.getUIContext(), { message: '需要相机权限才能录入人脸，请在系统设置中开启' });
+        return;
+      }
+    } catch (error) {
+      console.error(`[Person] request camera permission failed: ${JSON.stringify(error)}`);
+      showToast(this.getUIContext(), { message: '相机权限申请失败，请稍后重试' });
       return;
     }
 
@@ -256,7 +349,7 @@ export struct person {
       fs.readSync(file.fd, buffer);
       fs.closeSync(file);
 
-      promptAction.showToast({ message: '正在上传人脸信息...' });
+      showToast(this.getUIContext(), { message: '正在上传人脸信息...' });
 
       // Step 5: 构造 multipart/form-data 手动拼装
       // ArkTS http 模块不支持 FormData，手动拼 boundary
@@ -298,15 +391,15 @@ export struct person {
       });
 
       if (response.responseCode === 200) {
-        promptAction.showToast({ message: '人脸录入成功！开发板已更新识别库' });
+        showToast(this.getUIContext(), { message: '人脸录入成功！开发板已更新识别库' });
         console.log('[person]: 人脸录入成功 name=' + enrollName);
       } else {
-        promptAction.showToast({ message: '上传失败，状态码: ' + response.responseCode });
+        showToast(this.getUIContext(), { message: '上传失败，状态码: ' + response.responseCode });
         console.warn('[person]: 人脸上传失败 code=' + response.responseCode + ' body=' + response.result);
       }
     } catch (error) {
       console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
-      promptAction.showToast({ message: '操作失败，请重试' });
+      showToast(this.getUIContext(), { message: '操作失败，请重试' });
     } finally {
       httpRequest.destroy();
       try {
@@ -338,6 +431,15 @@ export struct person {
     return prefix + mask + suffix;
   }
 
+  /** 邮箱脱敏：保留首字符和域名 */
+  private maskEmail(email: string): string {
+    const at = email.indexOf("@");
+    if (at <= 0) {
+      return email;
+    }
+    return email.substring(0, 1) + "***" + email.substring(at);
+  }
+
   /** 加载用户信息 */
   private loadUserInfo(): void {
     const currentUser = UserManager.getInstance().getCurrentUsername();
@@ -351,6 +453,8 @@ export struct person {
         if (user) {
           this.userName = user.username;
           this.userNickname = user.username;
+          this.bindPhone = user.phone ?? "";
+          this.bindEmail = user.email ?? "";
           AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.userNickname);
           // 头像路径
           this.userAvatarPath = user.avatarPath ?? "";
@@ -384,13 +488,18 @@ export struct person {
     this.pathStack.pushPathByName(pageName, null);
   }
 
+  /** 头像直径：手机 80vp，随断点小幅放大，不再用相对父容器的百分比 */
+  private avatarSize(): number {
+    return pick(getWindowSizeClass(this.viewportWidth), 80, 96, 112);
+  }
+
   @Builder
   GradientHeader(): void {
     GradientHeader() {
       Column() {
         if (this.userAvatarPath !== '') {
-          Image(this.userAvatarPath)
-            .width("22%").aspectRatio(1).borderRadius(999)
+          Image(fileUri.getUriFromPath(this.userAvatarPath))
+            .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
             .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
             .clip(true)
@@ -398,13 +507,13 @@ export struct person {
           Column() {
             Image($r("app.media.ic_user")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
           }
-          .width("22%").aspectRatio(1).borderRadius(999).clip(true)
+          .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
           .backgroundColor("rgba(255,255,255,0.2)")
           .border({ width: 2, color: "rgba(255,255,255,0.6)" })
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         }
         Text(this.userNickname || this.userName)
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: "4%" })
+          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: 14 })
       }
       .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
     }
@@ -445,7 +554,7 @@ export struct person {
                 title: "人脸信息",
                 subTitle: "录入人脸用于开发板识别 (阅后即焚)",
                 onClickAction: (): void => {
-                  this.takePhotoAndSendToBoard(getContext(this) as common.UIAbilityContext);
+                  this.takePhotoAndSendToBoard(this.getUIContext().getHostContext() as common.UIAbilityContext);
                 },
               })
               Divider()
@@ -470,7 +579,6 @@ export struct person {
               //   title: "紧急联系人",
               //   subTitle: "危急时刻一键呼叫通知",
               //   onClickAction: (): void => {
-              //     promptAction.showToast({ message: "功能开发中" });
               //   },
               // })
               // Divider()
@@ -483,6 +591,27 @@ export struct person {
                 title: "历史记录",
                 subTitle: `查看并导出近 ${this.retentionDays} 天健康事件`,
                 onClickAction: (): void => this.safePush("HealthHistory"),
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              MenuRow({
+                imgRes: $r("app.media.ic_shield_blue"),
+                bgColorLight: "#eff6ff",
+                bgColorDark: "#1e3a5f",
+                title: "隐私政策",
+                subTitle: "查看个人信息收集与使用说明",
+                onClickAction: (): void => {
+                  const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                  const want: Want = {
+                    action: 'ohos.want.action.viewData',
+                    entities: ['entity.system.browsable'],
+                    uri: PRIVACY_POLICY_URL,
+                  };
+                  ctx.startAbility(want).catch((e: Error) => {
+                    console.warn('[person]: 打开隐私政策链接失败', e.message);
+                  });
+                },
               })
             }
             .width("92%")
@@ -590,7 +719,7 @@ export struct person {
                       STORE_KEY_AI_ENABLED,
                       enabled ? 'true' : 'false',
                     );
-                    promptAction.showToast({ message: enabled ? "AI 助手已开启" : "AI 助手已关闭" });
+                    showToast(this.getUIContext(), { message: enabled ? "AI 助手已开启" : "AI 助手已关闭" });
                   })
               }
               .width("100%")
@@ -641,7 +770,7 @@ export struct person {
               .opacity(this.aiEnabled ? 1 : 0.5)
               .enabled(this.aiEnabled)
               .onClick((): void => {
-                promptAction.showDialog({
+                showDialog(this.getUIContext(), {
                   title: "AI 分析权限",
                   message: "深度照护：完整监护状态与精确记录\n隐私保护：仅脱敏统计摘要（默认）\n基础问答：不读取任何监护状态",
                   buttons: [
@@ -650,6 +779,7 @@ export struct person {
                     { text: "基础问答", color: "#64748b" },
                   ],
                 }).then((result) => {
+                  if (result === undefined) return;
                   const levels: string[] = ['full', 'privacy', 'basic'];
                   const selected = levels[result.index];
                   if (selected === undefined) return;
@@ -659,7 +789,7 @@ export struct person {
                     STORE_KEY_AI_ACCESS_LEVEL,
                     selected,
                   );
-                  promptAction.showToast({ message: "AI 分析权限已更新" });
+                  showToast(this.getUIContext(), { message: "AI 分析权限已更新" });
                 });
               })
               Divider()
@@ -717,7 +847,7 @@ export struct person {
               })
               .onClick((): void => {
                 this.mqttManager.clearAllCache();
-                promptAction.showToast({ message: "清理完成" });
+                showToast(this.getUIContext(), { message: "清理完成" });
               })
               Divider()
                 .margin({ left: "15%", right: "4%" })
@@ -761,41 +891,39 @@ export struct person {
                 .onClick((): void => {
                   // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
                   // 改用 showDialog 实现天数选择
-                  promptAction
-                    .showDialog({
-                      title: "数据保留时长",
-                      message: "选择视频与健康记录的保存天数\n（更长时间需要开通会员）",
-                      buttons: [
-                        { text: "7天（免费）", color: "#2563eb" },
-                        { text: "14天 👑", color: "#64748b" },
-                        { text: "30天 👑", color: "#64748b" },
-                        { text: "90天 👑", color: "#64748b" },
-                      ],
-                    })
-                    .then((result) => {
-                      const options = [7, 14, 30, 90];
-                      const selected = options[result.index];
-                      if (selected > FREE_RETENTION_DAYS) {
-                        promptAction
-                          .showDialog({
-                            title: "👑 开通守护星会员",
-                            message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
-                            buttons: [
-                              { text: "稍后再说", color: "#64748b" },
-                              { text: "立即开通", color: "#2563eb" },
-                            ],
-                          })
-                          .then((dialog) => {
-                            if (dialog.index === 1) {
-                              promptAction.showToast({ message: "会员功能即将上线，敬请期待！" });
-                            }
-                          });
-                      } else {
-                        DatabaseHelper.getInstance().setRetentionDays(selected);
-                        this.retentionDays = selected;
-                        promptAction.showToast({ message: `已设置保留 ${selected} 天` });
-                      }
-                    });
+                  showDialog(this.getUIContext(), {
+                    title: "数据保留时长",
+                    message: "选择视频与健康记录的保存天数\n（更长时间需要开通会员）",
+                    buttons: [
+                      { text: "7天（免费）", color: "#2563eb" },
+                      { text: "14天 👑", color: "#64748b" },
+                      { text: "30天 👑", color: "#64748b" },
+                      { text: "90天 👑", color: "#64748b" },
+                    ],
+                  }).then((result) => {
+                    if (result === undefined) return;
+                    const options = [7, 14, 30, 90];
+                    const selected = options[result.index];
+                    if (selected === undefined) return;
+                    if (selected > FREE_RETENTION_DAYS) {
+                      showDialog(this.getUIContext(), {
+                        title: "👑 开通守护星会员",
+                        message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
+                        buttons: [
+                          { text: "稍后再说", color: "#64748b" },
+                          { text: "立即开通", color: "#2563eb" },
+                        ],
+                      }).then((dialog) => {
+                        if (dialog?.index === 1) {
+                          showToast(this.getUIContext(), { message: "会员功能即将上线，敬请期待！" });
+                        }
+                      });
+                    } else {
+                      DatabaseHelper.getInstance().setRetentionDays(selected);
+                      this.retentionDays = selected;
+                      showToast(this.getUIContext(), { message: `已设置保留 ${selected} 天` });
+                    }
+                  });
                 })
               }
               .width("100%")
@@ -830,7 +958,7 @@ export struct person {
               .width("88%")
               .height(50)
               .backgroundColor("#fee2e2")
-              .fontColor("#ef4444")
+              .fontColor("#b91c1c")
               .fontWeight(FontWeight.Medium)
               .fontSize(16)
               .scale({ x: this.logoutScale, y: this.logoutScale })
@@ -840,35 +968,33 @@ export struct person {
                 setTimeout(() => {
                   this.logoutScale = 1.0;
                 }, 150);
-                promptAction
-                  .showDialog({
-                    title: "退出确认",
-                    message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
-                    buttons: [
-                      { text: "取消", color: "#64748b" },
-                      { text: "退出", color: "#ef4444" },
-                    ],
-                  })
-                  .then(async (data) => {
-                    if (data.index === 1 && this.pathStack) {
-                      await CloudService.getInstance().logout();
-                      try {
-                        const ctx = getContext(this) as common.UIAbilityContext;
-                        const opts: preferences.Options = { name: PREF_NAME_AUTH };
-                        const pref = preferences.getPreferencesSync(ctx, opts);
-                        pref.deleteSync(PREF_KEY_LAST_USERNAME);
-                        pref.deleteSync(PREF_KEY_LAST_NICKNAME);
-                        pref.flush();
-                      } catch (e) {
-                        console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
-                      }
-                      AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
-                      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
-                      UserManager.getInstance().clearCurrentUsername();
-                      this.pathStack.clear();
-                      this.pathStack.pushPathByName("Login", null);
+                showDialog(this.getUIContext(), {
+                  title: "退出确认",
+                  message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
+                  buttons: [
+                    { text: "取消", color: "#64748b" },
+                    { text: "退出", color: "#dc2626" },
+                  ],
+                }).then(async (data) => {
+                  if (data?.index === 1 && this.pathStack) {
+                    await CloudService.getInstance().logout();
+                    try {
+                      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                      const opts: preferences.Options = { name: PREF_NAME_AUTH };
+                      const pref = preferences.getPreferencesSync(ctx, opts);
+                      pref.deleteSync(PREF_KEY_LAST_USERNAME);
+                      pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+                      pref.flush();
+                    } catch (e) {
+                      console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
                     }
-                  });
+                    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
+                    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
+                    UserManager.getInstance().clearCurrentUsername();
+                    this.pathStack.clear();
+                    this.pathStack.pushPathByName("Login", null);
+                  }
+                });
               })
             Button('注销账号', { type: ButtonType.Normal })
               .width("88%")
@@ -879,16 +1005,16 @@ export struct person {
               .fontSize(16)
               .borderRadius(100)
               .onClick(() => {
-                promptAction.showDialog({
+                showDialog(this.getUIContext(), {
                   title: '注销账号',
                   message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
                   buttons: [
                     { text: '取消', color: '#64748b' },
-                    { text: '继续注销', color: '#ef4444' },
+                    { text: '继续注销', color: '#dc2626' },
                   ],
                 }).then((res) => {
-                  if (res.index === 1) {
-                    this.deleteInputPassword = '';
+                  if (res?.index === 1) {
+                    this.deleteChallengeId = '';
                     this.deleteAccountDialogController.open();
                   }
                 });
@@ -896,13 +1022,14 @@ export struct person {
           }
           .width("100%")
           .alignItems(HorizontalAlign.Center)
-          .margin({ top: "8%", bottom: "4%" })
+          .margin({ top: 29, bottom: 14 })
           Text("智护星 v1.0.0")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ bottom: "8%" })
+            .margin({ bottom: 29 })
         }
         .width("100%")
+        .constraintSize({ maxWidth: 640 })
         .alignItems(HorizontalAlign.Center)
       }
       .layoutWeight(1)
@@ -913,5 +1040,9 @@ export struct person {
     .height("100%")
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
   }
 }

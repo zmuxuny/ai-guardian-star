@@ -152,6 +152,15 @@ export class DatabaseHelper {
 
   private constructor() {}
 
+  private closeResultSet(resultSet?: relationalStore.ResultSet): void {
+    if (resultSet === undefined) return;
+    try {
+      resultSet.close();
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, `ResultSet 关闭失败: ${JSON.stringify(error)}`);
+    }
+  }
+
   /** 获取当前保留天数（从 AppStorage 读，默认7天） */
   public getRetentionDays(): number {
     const v = AppStorage.get<number>(STORAGE_KEY_RETENTION);
@@ -190,14 +199,6 @@ export class DatabaseHelper {
       throw new Error(err.code + ": " + err.message);
     }
     await this.migrateDatabase();
-  }
-
-  /** 【公开方法】获取 RdbStore 实例（用于诊断工具等高级操作） */
-  public getRdbStore(): relationalStore.RdbStore {
-    if (!this.store) {
-      throw new Error("DatabaseHelper 未初始化，请先调用 init(context)");
-    }
-    return this.store;
   }
 
   // ── 数据库版本迁移 ────────────────────────────
@@ -330,7 +331,7 @@ export class DatabaseHelper {
       hilog.error(DOMAIN, TAG, `_querySingleUser 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
     } finally {
-      resultSet?.close(); // ⚠️ 必须关闭 ResultSet，释放内存
+      this.closeResultSet(resultSet);
     }
   }
 
@@ -434,7 +435,7 @@ export class DatabaseHelper {
       predicates.equalTo("username", username).and().equalTo("setting_key", key);
       const resultSet = await this.getStore().query(predicates, ["id"]);
       const hasExist = resultSet.goToNextRow();
-      resultSet.close();
+      this.closeResultSet(resultSet);
 
       if (hasExist) {
         await this.getStore().update(values, predicates);
@@ -465,7 +466,7 @@ export class DatabaseHelper {
       return null;
     } finally {
       if (resultSet !== undefined) {
-        resultSet.close();
+        this.closeResultSet(resultSet);
       }
     }
   }
@@ -575,7 +576,7 @@ export class DatabaseHelper {
       hilog.error(DOMAIN, TAG, `queryHealthEvents 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
     } finally {
-      resultSet?.close();
+      this.closeResultSet(resultSet);
     }
   }
 
@@ -604,48 +605,6 @@ export class DatabaseHelper {
       const err = e as BusinessError;
       hilog.error(DOMAIN, TAG, `clearAllHealthEvents 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
-    }
-  }
-
-  /** 【诊断方法】查询所有健康事件（不带任何过滤，用于调试） */
-  public async queryAllHealthEventsForDebug(): Promise<HealthEvent[]> {
-    const predicates = new relationalStore.RdbPredicates("t_health_event");
-    predicates.orderByDesc("event_time");
-    let resultSet: relationalStore.ResultSet | undefined;
-    try {
-      resultSet = await this.getStore().query(predicates, [
-        "id",
-        "event_type",
-        "event_time",
-        "date_str",
-        "time_str",
-        "severity",
-        "is_handled",
-        "remark",
-        "username",
-      ]);
-      const list: HealthEvent[] = [];
-      while (resultSet.goToNextRow()) {
-        list.push({
-          id: resultSet.getLong(resultSet.getColumnIndex("id")),
-          eventType: resultSet.getString(resultSet.getColumnIndex("event_type")),
-          eventTime: resultSet.getLong(resultSet.getColumnIndex("event_time")),
-          dateStr: resultSet.getString(resultSet.getColumnIndex("date_str")),
-          timeStr: resultSet.getString(resultSet.getColumnIndex("time_str")),
-          severity: resultSet.getLong(resultSet.getColumnIndex("severity")),
-          isHandled: resultSet.getLong(resultSet.getColumnIndex("is_handled")),
-          remark: resultSet.getString(resultSet.getColumnIndex("remark")),
-          username: resultSet.getString(resultSet.getColumnIndex("username")),
-        });
-      }
-      hilog.info(DOMAIN, TAG, `queryAllHealthEventsForDebug 返回 ${list.length} 条`);
-      return list;
-    } catch (e) {
-      const err = e as BusinessError;
-      hilog.error(DOMAIN, TAG, `queryAllHealthEventsForDebug 失败 ${err.code} ${err.message}`);
-      throw new Error(err.code + ": " + err.message);
-    } finally {
-      resultSet?.close();
     }
   }
 
@@ -722,7 +681,7 @@ export class DatabaseHelper {
     } catch (e) {
       return 0;
     } finally {
-      resultSet?.close();
+      this.closeResultSet(resultSet);
     }
   }
 
@@ -765,7 +724,7 @@ export class DatabaseHelper {
       hilog.error(DOMAIN, TAG, `queryVideoRecords 失败 ${err.code} ${err.message}`);
       throw new Error(err.code + ": " + err.message);
     } finally {
-      resultSet?.close();
+      this.closeResultSet(resultSet);
     }
   }
 
@@ -828,7 +787,11 @@ export class DatabaseHelper {
   /** 彻底关闭 RdbStore（应用退出时调用） */
   public close(): void {
     if (this.store) {
-      this.store.close();
+      try {
+        this.store.close();
+      } catch (error) {
+        hilog.warn(DOMAIN, TAG, `RdbStore 关闭失败: ${JSON.stringify(error)}`);
+      }
       this.store = undefined;
       this.initPromise = undefined;
       hilog.info(DOMAIN, TAG, "RdbStore 已关闭");

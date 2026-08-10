@@ -93,7 +93,7 @@ export struct record {
       Column() {
         Text('累计摔倒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.fallRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.dangerTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
@@ -102,13 +102,13 @@ export struct record {
       Column() {
         Text('累计久坐').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.sedentaryRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#f59e0b')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.warningTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
       .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
     }
-    .width('92%').margin({ top: '-4%' })
+    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
   }
 
   @Builder
@@ -124,7 +124,7 @@ export struct record {
       Text(subTitle).fontSize(15).fontColor(this.themeManager.colors.secondaryTextColor)
         .margin({ top: 12 }).textAlign(TextAlign.Center).lineHeight(24)
     }
-    .width('100%').margin({ top: '18%' }).padding({ left: '12%', right: '12%' })
+    .width('100%').padding({ left: 43, right: 43 })
   }
 
   /** 单条磁贴：isFall 直接传进来，避免 Builder 内声明 const */
@@ -199,32 +199,33 @@ export struct record {
           .border({ width: { bottom: this.currentTab === 1 ? 3 : 0 }, color: '#2563eb' })
           .onClick((): void => { this.currentTab = 1 })
       }
-      .width('100%').padding({ left: '8%', right: '8%', top: '5%', bottom: 0 })
+      .width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 29, right: 29, top: 18, bottom: 0 })
 
-      Scroll() {
-        Column() {
-          if (this.currentTab === 0) {
-            if (this.fallRecords.length === 0) {
-              this.EmptyState('暂无摔倒告警', '一切正常，老人安全受到监护')
-            } else {
+      // 空态占满剩余高度并垂直居中，避免横屏大屏上整块内容堆在上半部分
+      if (this.currentTab === 0 && this.fallRecords.length === 0) {
+        Column() { this.EmptyState('暂无摔倒告警', '一切正常，老人安全受到监护') }
+          .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
+      } else if (this.currentTab === 1 && this.sedentaryRecords.length === 0) {
+        Column() { this.EmptyState('健康状态良好', '近日未检测到长时间久坐行为') }
+          .layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
+      } else {
+        Scroll() {
+          Column() {
+            if (this.currentTab === 0) {
               ForEach(this.fallGroups, (group: DayGroupData) => {
                 this.DayGroup(group, true)
               })
-            }
-          } else {
-            if (this.sedentaryRecords.length === 0) {
-              this.EmptyState('健康状态良好', '近日未检测到长时间久坐行为')
             } else {
               ForEach(this.sedGroups, (group: DayGroupData) => {
                 this.DayGroup(group, false)
               })
             }
-          }
-          Column().height(24)
-        }.width('100%').padding({ left: '4%', right: '4%', top: '3%' })
+            Column().height(24)
+          }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 14, right: 14, top: 11 })
+        }
+        .layoutWeight(1).width('100%')
+        .edgeEffect(EdgeEffect.Spring).scrollBar(BarState.Off)
       }
-      .layoutWeight(1).width('100%')
-      .edgeEffect(EdgeEffect.Spring).scrollBar(BarState.Off)
     }
     .width('100%').height('100%')
     .backgroundColor(this.themeManager.colors.backgroundColor)

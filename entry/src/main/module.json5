@@ -2,7 +2,7 @@
   "module": {
     "requestPermissions": [
       {
-        "name": "ohos.permission.MICROPHONE",
+        "name": "ohos.permission.MICROPHONE", 
         "reason": "$string:voice_reason",
         "usedScene": {
           "abilities": ["EntryAbility"],
@@ -15,14 +15,6 @@
       {
         "name": "ohos.permission.CAMERA",
         "reason": "$string:camera_reason",
-        "usedScene": {
-          "abilities": ["EntryAbility"],
-          "when": "inuse"
-        }
-      },
-      {
-        "name": "ohos.permission.READ_IMAGEVIDEO",
-        "reason": "$string:media_reason",
         "usedScene": {
           "abilities": ["EntryAbility"],
           "when": "inuse"

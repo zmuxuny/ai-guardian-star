@@ -1,0 +1,15 @@
+[Unit]
+Description=智护星 SQLite 在线备份和完整性检查
+After=wenxin.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/wenxin/sqlite_maintenance.py backup --database /root/guardian_users.db --backup-dir /var/backups/wenxin --retention-days 14
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/backups/wenxin

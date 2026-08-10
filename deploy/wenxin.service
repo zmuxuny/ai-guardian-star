@@ -1,0 +1,26 @@
+[Unit]
+Description=智护星 Flask API（Gunicorn）
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/wenxin/admin.env
+EnvironmentFile=-/etc/wenxin/aliyun-moderation.env
+EnvironmentFile=-/etc/wenxin/aliyun-sms.env
+EnvironmentFile=-/etc/wenxin/email.env
+ExecStart=/usr/local/bin/gunicorn --bind 127.0.0.1:8899 --workers 2 --worker-class gthread --threads 4 --timeout 120 --graceful-timeout 30 --access-logfile - --error-logfile - --capture-output wenxin_proxy:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillSignal=SIGTERM
+TimeoutStopSec=35
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

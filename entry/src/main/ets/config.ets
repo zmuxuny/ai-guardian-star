@@ -68,5 +68,4 @@ export const PREF_NAME_AUTH = "guardian_auth";
 export const PREF_KEY_LAST_USERNAME = "lastUsername";
 export const PREF_KEY_LAST_NICKNAME = "lastNickname";
 export const PREF_KEY_PRIVACY_ACCEPTED = 'privacyAccepted';
-export const PRIVACY_POLICY_URL =
-  'https://agreement-drcn.hispace.dbankcloud.cn/index.html?lang=zh&agreementId=1944894729334323712';
+export const PRIVACY_POLICY_URL = 'https://aistar.asia/legal/privacy/';

@@ -1,4 +1,5 @@
 import ast
+import base64
 import hashlib
 import os
 import runpy
@@ -442,6 +443,158 @@ class AccountSessionSecurityTest(unittest.TestCase):
             conn.close()
             self.assertEqual(sessions, 0)
 
+    def _enable_admin_session(self):
+        proxy.ADMIN_ENABLED = True
+        self.addCleanup(setattr, proxy, "ADMIN_ENABLED", False)
+        with self.client.session_transaction() as admin_session:
+            admin_session["admin_logged_in"] = True
+
+    def test_admin_list_returns_status_metadata_without_password_or_avatar_path(self):
+        self.create_user()
+        self.login()
+        conn = proxy.get_db()
+        conn.execute(
+            "UPDATE t_user SET avatar_data=?, avatar_mime=?, avatar_updated_at=? "
+            "WHERE username='alice'",
+            (b"avatar", "image/jpeg", 123),
+        )
+        conn.commit()
+        conn.close()
+        self._enable_admin_session()
+
+        response = self.client.get("/admin/api/users")
+
+        self.assertEqual(response.status_code, 200)
+        user = response.get_json()["data"][0]
+        self.assertEqual(user["password_scheme"], "scrypt")
+        self.assertTrue(user["avatar_synced"])
+        self.assertEqual(user["session_count"], 1)
+        self.assertFalse(user["is_frozen"])
+        self.assertNotIn("password_hash", user)
+        self.assertNotIn("avatar_path", user)
+
+    def test_admin_avatar_upload_and_delete_syncs_to_device_api(self):
+        self.create_user()
+        access_token = self.login().get_json()["accessToken"]
+        self._enable_admin_session()
+        image_bytes = b"\xff\xd8\xff\xe0admin-avatar\xff\xd9"
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+
+        uploaded = self.client.post(
+            "/admin/api/users/alice/avatar",
+            json={"imageBase64": encoded, "mimeType": "image/jpeg"},
+        )
+        admin_copy = self.client.get("/admin/api/users/alice/avatar")
+        device_copy = self.client.get(
+            "/api/avatar", headers=self.bearer(access_token)
+        )
+
+        self.assertEqual(uploaded.status_code, 200)
+        uploaded_at = uploaded.get_json()["updatedAt"]
+        self.assertGreater(uploaded_at, 0)
+        self.assertEqual(admin_copy.status_code, 200)
+        self.assertEqual(admin_copy.data, image_bytes)
+        self.assertEqual(admin_copy.content_type, "image/jpeg")
+        self.assertEqual(device_copy.status_code, 200)
+        self.assertTrue(device_copy.get_json()["hasAvatar"])
+        self.assertEqual(device_copy.get_json()["imageBase64"], encoded)
+
+        deleted = self.client.delete("/admin/api/users/alice/avatar")
+        deleted_for_device = self.client.get(
+            "/api/avatar", headers=self.bearer(access_token)
+        )
+
+        self.assertEqual(deleted.status_code, 200)
+        self.assertGreaterEqual(deleted.get_json()["updatedAt"], uploaded_at)
+        self.assertEqual(
+            self.client.get("/admin/api/users/alice/avatar").status_code, 404
+        )
+        self.assertEqual(deleted_for_device.status_code, 200)
+        self.assertTrue(deleted_for_device.get_json()["success"])
+        self.assertFalse(deleted_for_device.get_json()["hasAvatar"])
+        self.assertNotIn("imageBase64", deleted_for_device.get_json())
+        conn = proxy.get_db()
+        avatar = conn.execute(
+            "SELECT avatar_data, avatar_mime, avatar_path FROM t_user WHERE username='alice'"
+        ).fetchone()
+        conn.close()
+        self.assertIsNone(avatar["avatar_data"])
+        self.assertIsNone(avatar["avatar_mime"])
+        self.assertEqual(avatar["avatar_path"], "")
+
+    def test_admin_password_reset_uses_1234_and_revokes_sessions(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        self._enable_admin_session()
+
+        response = self.client.post(
+            "/admin/api/users/alice/reset-password",
+            json={"newPassword": "replacement-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("password", response.get_data(as_text=True).lower())
+        conn = proxy.get_db()
+        row = conn.execute(
+            "SELECT password_hash FROM t_user WHERE username='alice'"
+        ).fetchone()
+        sessions = conn.execute(
+            "SELECT COUNT(*) FROM t_session WHERE username='alice'"
+        ).fetchone()[0]
+        conn.close()
+        self.assertTrue(verify_password(row["password_hash"], "1234"))
+        self.assertFalse(verify_password(row["password_hash"], "replacement-password"))
+        self.assertFalse(verify_password(row["password_hash"], "old-password"))
+        self.assertEqual(sessions, 0)
+        self.assertEqual(
+            self.client.post(
+                "/api/refresh", json={"refreshToken": tokens["refreshToken"]}
+            ).status_code,
+            401,
+        )
+
+    def test_admin_freeze_revokes_sessions_and_blocks_login_until_unfrozen(self):
+        self.create_user()
+        tokens = self.login().get_json()
+        self._enable_admin_session()
+
+        frozen = self.client.post(
+            "/admin/api/users/alice/freeze", json={"frozen": True}
+        )
+
+        self.assertEqual(frozen.status_code, 200)
+        self.assertEqual(
+            self.client.get(
+                "/api/me", headers=self.bearer(tokens["accessToken"])
+            ).status_code,
+            401,
+        )
+        self.assertEqual(self.login().status_code, 403)
+
+        unfrozen = self.client.post(
+            "/admin/api/users/alice/freeze", json={"frozen": False}
+        )
+        self.assertEqual(unfrozen.status_code, 200)
+        self.assertTrue(self.login().get_json()["success"])
+
+    def test_admin_page_uses_click_opened_drawer_and_has_no_avatar_path_field(self):
+        self.assertIn('id="detailDrawer"', proxy._ADMIN_HTML)
+        self.assertIn("translateX(100%)", proxy._ADMIN_HTML)
+        self.assertIn("openDetails", proxy._ADMIN_HTML)
+        self.assertIn("重置密码", proxy._ADMIN_HTML)
+        self.assertNotIn("avatar_path", proxy._ADMIN_HTML)
+
+    def test_admin_page_offers_avatar_upload_and_delete_controls(self):
+        self.assertIn('id="avatarFile"', proxy._ADMIN_HTML)
+        self.assertIn("uploadSelectedAvatar", proxy._ADMIN_HTML)
+        self.assertIn("confirmDeleteAvatar", proxy._ADMIN_HTML)
+        self.assertIn('id="cropCanvas"', proxy._ADMIN_HTML)
+        self.assertIn('id="cropZoom"', proxy._ADMIN_HTML)
+        self.assertIn("confirmCropAndUpload", proxy._ADMIN_HTML)
+        self.assertNotIn("const sx = (image.naturalWidth - side) / 2", proxy._ADMIN_HTML)
+        self.assertIn("response.text()", proxy._ADMIN_HTML)
+        self.assertIn("response.status === 413", proxy._ADMIN_HTML)
+
     def test_protected_endpoints_reject_missing_bearer_token(self):
         cases = [
             ("get", "/api/me", None),
@@ -452,7 +605,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
                 "/api/changePassword",
                 {"oldPasswordHash": "old", "newPasswordHash": "new"},
             ),
-            ("post", "/api/deleteUser", {"passwordHash": "old"}),
+            ("post", "/api/deleteUser", {"verifyCode": "123456", "challengeId": "x" * 40}),
             ("post", "/ai/chat", {"message": "hello"}),
         ]
         for method, path, body in cases:
@@ -524,17 +677,47 @@ class AccountSessionSecurityTest(unittest.TestCase):
             sum(bool(response.get_json()["success"]) for response in responses), 1
         )
 
-    def test_delete_ignores_spoofed_username_and_revokes_sessions(self):
+    def _bind_phone(self, username, phone="13340878619"):
+        conn = proxy.get_db()
+        conn.execute("UPDATE t_user SET phone=? WHERE username=?", (phone, username))
+        conn.commit()
+        conn.close()
+
+    def test_delete_requires_one_time_code_and_revokes_sessions(self):
         self.create_user("alice")
         self.create_user("bob")
+        self._bind_phone("alice")
         tokens = self.login("alice").get_json()
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
 
-        response = self.client.post(
-            "/api/deleteUser",
-            headers=self.bearer(tokens["accessToken"]),
-            json={"username": "bob", "passwordHash": "old-password"},
-        )
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            challenge_id = sent.get_json()["challengeId"]
+            without_code = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"challengeId": challenge_id},
+            )
+            # username 是伪造字段，服务端只认 token 里的身份
+            response = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={
+                    "username": "bob",
+                    "verifyCode": "123456",
+                    "challengeId": challenge_id,
+                },
+            )
 
+        self.assertEqual(without_code.status_code, 400)
         self.assertEqual(response.status_code, 200)
         conn = proxy.get_db()
         users = [row["username"] for row in conn.execute("SELECT username FROM t_user")]
@@ -544,6 +727,210 @@ class AccountSessionSecurityTest(unittest.TestCase):
         conn.close()
         self.assertEqual(users, ["bob"])
         self.assertEqual(sessions, 0)
+
+    def test_delete_rejects_challenge_for_unbound_contact(self):
+        self.create_user("alice")
+        self._bind_phone("alice")
+        tokens = self.login("alice").get_json()
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            # 发码后账号换绑了别的号码，旧挑战不得再用于注销
+            self._bind_phone("alice", "13500000001")
+            response = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"verifyCode": "123456", "challengeId": sent.get_json()["challengeId"]},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        conn = proxy.get_db()
+        remaining = conn.execute("SELECT COUNT(*) AS count FROM t_user").fetchone()["count"]
+        conn.close()
+        self.assertEqual(remaining, 1)
+
+    def test_contact_code_rejects_value_owned_by_another_account(self):
+        self.create_user("alice")
+        self.create_user("bob")
+        conn = proxy.get_db()
+        conn.execute("UPDATE t_user SET phone=? WHERE username='bob'", ("13340878619",))
+        conn.commit()
+        conn.close()
+        token = self.login().get_json()["accessToken"]
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(send_sms.called)
+
+    def test_phone_contact_code_shares_registration_sms_budget(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.ALIYUN_SMS_ENABLED = True
+        old_daily_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
+        proxy.ALIYUN_SMS_DAILY_LIMIT = 1
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_DAILY_LIMIT", old_daily_limit)
+        now = int(proxy.time.time())
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES ('existing-registration', '13300000000', 'register', '127.0.0.1', ?, ?)
+            """,
+            (now, now + proxy.SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(send_sms.called)
+
+    def test_registration_code_shares_contact_sms_budget(self):
+        proxy.ALIYUN_SMS_ENABLED = True
+        old_daily_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
+        proxy.ALIYUN_SMS_DAILY_LIMIT = 1
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_DAILY_LIMIT", old_daily_limit)
+        now = int(proxy.time.time())
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_contact_challenge
+                (challenge_hash, username, kind, value, requester_ip, sent_at, expires_at)
+            VALUES ('existing-contact', 'alice', 'phone', '13300000000',
+                    '127.0.0.1', ?, ?)
+            """,
+            (now, now + proxy.SMS_CODE_TTL),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "_send_sms_verification") as send_sms:
+            response = self.client.post(
+                "/api/otp/send",
+                json={"phone": "13340878619"},
+            )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(send_sms.called)
+
+    def test_phone_contact_update_requires_matching_one_time_code(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            changed = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "phone",
+                    "value": "13340878619",
+                    "verifyCode": "123456",
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+            replay = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "phone",
+                    "value": "13340878619",
+                    "verifyCode": "123456",
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+
+        self.assertEqual(sent.status_code, 200)
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(replay.status_code, 400)
+        conn = proxy.get_db()
+        row = conn.execute("SELECT phone FROM t_user WHERE username='alice'").fetchone()
+        conn.close()
+        self.assertEqual(row["phone"], "13340878619")
+
+    def test_email_contact_update_verifies_server_generated_code(self):
+        self.create_user()
+        token = self.login().get_json()["accessToken"]
+        proxy.EMAIL_OTP_ENABLED = True
+        self.addCleanup(setattr, proxy, "EMAIL_OTP_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_email_verification", create=True) as send_email:
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(token),
+                json={"kind": "email", "value": "alice-new@example.com"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            code = send_email.call_args.args[1]
+            changed = self.client.post(
+                "/api/contact/update",
+                headers=self.bearer(token),
+                json={
+                    "kind": "email",
+                    "value": "alice-new@example.com",
+                    "verifyCode": code,
+                    "challengeId": sent.get_json()["challengeId"],
+                },
+            )
+
+        self.assertEqual(changed.status_code, 200)
+        conn = proxy.get_db()
+        row = conn.execute("SELECT email FROM t_user WHERE username='alice'").fetchone()
+        conn.close()
+        self.assertEqual(row["email"], "alice-new@example.com")
+
+    def test_avatar_round_trips_across_independent_sessions(self):
+        self.create_user()
+        first_token = self.login().get_json()["accessToken"]
+        image_bytes = b"\xff\xd8\xff\xe0guardian-avatar\xff\xd9"
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+
+        uploaded = self.client.post(
+            "/api/avatar",
+            headers=self.bearer(first_token),
+            json={"imageBase64": encoded, "mimeType": "image/jpeg"},
+        )
+        second_token = self.login().get_json()["accessToken"]
+        downloaded = self.client.get(
+            "/api/avatar",
+            headers=self.bearer(second_token),
+        )
+
+        self.assertEqual(uploaded.status_code, 200)
+        self.assertEqual(downloaded.status_code, 200)
+        self.assertEqual(downloaded.get_json()["imageBase64"], encoded)
 
     def test_ai_is_fail_closed_before_any_upstream_call(self):
         self.create_user()
@@ -657,6 +1044,24 @@ class AccountSessionSecurityTest(unittest.TestCase):
     def test_admin_routes_are_disabled_by_default(self):
         self.assertEqual(self.client.get("/admin").status_code, 404)
 
+    def test_admin_login_cookie_is_restricted_to_https_same_site_requests(self):
+        proxy.ADMIN_ENABLED = True
+        self.addCleanup(setattr, proxy, "ADMIN_ENABLED", False)
+        old_password = proxy.ADMIN_PASSWORD
+        proxy.ADMIN_PASSWORD = "test-admin-password"
+        self.addCleanup(setattr, proxy, "ADMIN_PASSWORD", old_password)
+
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "test-admin-password"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        cookie = response.headers["Set-Cookie"]
+        self.assertIn("Secure", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Strict", cookie)
+
 class SmsRegistrationTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -737,10 +1142,10 @@ class SmsRegistrationTest(unittest.TestCase):
         self.assertEqual(repeated.status_code, 429)
         send.assert_not_called()
 
-    def test_registration_requires_at_least_eight_character_password(self):
+    def test_registration_accepts_four_character_password(self):
         send_response, _ = self.send_code()
         body = send_response.get_json()
-        with mock.patch.object(proxy, "_check_sms_verification") as check:
+        with mock.patch.object(proxy, "_check_sms_verification", return_value=True) as check:
             response = self.client.post(
                 "/api/register",
                 json={
@@ -751,8 +1156,8 @@ class SmsRegistrationTest(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(response.status_code, 400)
-        check.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        check.assert_called_once()
 
     def test_global_daily_budget_stops_additional_send_cost(self):
         old_limit = proxy.ALIYUN_SMS_DAILY_LIMIT
@@ -765,6 +1170,30 @@ class SmsRegistrationTest(unittest.TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(blocked.status_code, 429)
         self.assertEqual(send.call_count, 1)
+
+    def test_global_monthly_budget_stops_additional_send_cost(self):
+        now = 1785240000
+        conn = proxy.get_db()
+        conn.execute(
+            """
+            INSERT INTO t_sms_challenge
+                (challenge_hash, phone, purpose, requester_ip, sent_at, expires_at)
+            VALUES ('older-send', '13340878619', 'register', '127.0.0.1', ?, ?)
+            """,
+            (now - 10 * 24 * 60 * 60, now),
+        )
+        conn.commit()
+        conn.close()
+
+        with mock.patch.object(proxy, "ALIYUN_SMS_MONTHLY_LIMIT", 1, create=True):
+            with mock.patch.object(proxy.time, "time", return_value=now):
+                with mock.patch.object(proxy, "_send_sms_verification") as send:
+                    blocked = self.client.post(
+                        "/api/otp/send", json={"phone": "13900000000"}
+                    )
+
+        self.assertEqual(blocked.status_code, 429)
+        send.assert_not_called()
 
     def test_registration_requires_matching_one_time_challenge(self):
         send_response, _ = self.send_code()

@@ -81,6 +81,39 @@ class ClientAuthContractTest(unittest.TestCase):
         text = source("entry/src/main/ets/common/CloudService.ets")
         self.assertIn("expectDataType: http.HttpDataType.STRING", text)
 
+    def test_cloud_avatar_deletion_clears_the_device_cache_on_login(self):
+        cloud = source("entry/src/main/ets/common/CloudService.ets")
+        avatar_sync = source("entry/src/main/ets/common/AvatarSyncService.ets")
+        self.assertIn("hasAvatar?: boolean", cloud)
+        self.assertIn("result.hasAvatar === false", avatar_sync)
+        self.assertRegex(avatar_sync, r"user\.avatarPath\s*=\s*['\"]{2}")
+        self.assertIn("STORE_KEY_AVATAR, ''", avatar_sync)
+
+    def test_cloud_avatar_sync_runs_for_manual_and_remembered_sessions(self):
+        login = source("entry/src/main/ets/pages/Login.ets")
+        index = source("entry/src/main/ets/pages/Index.ets")
+        self.assertIn("AvatarSyncService.sync", login)
+        self.assertIn("AvatarSyncService.sync", index)
+        login_sync = login[login.index("private async completeCloudLogin"):login.index("private async saveLoginAndJump")]
+        index_sync = index[index.index("private async checkAutoLogin"):]
+        self.assertNotIn("avatarVersion", login_sync)
+        self.assertNotIn("avatarVersion", index_sync)
+
+    def test_manual_login_reuses_the_upserted_user_for_avatar_sync(self):
+        login = source("entry/src/main/ets/pages/Login.ets")
+        sync_block = login[
+            login.index("private async completeCloudLogin"):
+            login.index("private async saveLoginAndJump")
+        ]
+        self.assertIn("syncedUser", sync_block)
+        self.assertIn("AvatarSyncService.sync(context, loginId, syncedUser)", sync_block)
+
+    def test_avatar_views_render_sandbox_files_with_file_uris(self):
+        person = source("entry/src/main/ets/pages/person.ets")
+        profile = source("entry/src/main/ets/pages/Profile.ets")
+        self.assertIn("fileUri.getUriFromPath(this.userAvatarPath)", person)
+        self.assertIn("fileUri.getUriFromPath(this.avatarPath)", profile)
+
     def test_server_session_fields_survive_release_property_obfuscation(self):
         rules = source("entry/obfuscation-rules.txt")
         for field in ("accessToken", "refreshToken"):
@@ -105,7 +138,12 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertIn("CloudService.getInstance().logout", person)
         self.assertNotRegex(person, r"deleteInputPassword\.trim\(\)\s*!==\s*user\.passwordHash")
         self.assertNotRegex(person, r"deleteUser\([^\n]*currentUser")
-        self.assertGreaterEqual(profile.count("暂不可用"), 2)
+        # 注销身份验证走一次性验证码，不再收集密码
+        self.assertIn("sendContactCode", person)
+        self.assertNotIn("passwordHash", person)
+        self.assertIn("sendContactCode", profile)
+        self.assertIn("updateContact", profile)
+        self.assertIn("challengeId", profile)
         self.assertNotIn("fields.phone", profile)
         self.assertNotIn("fields.email", profile)
         self.assertNotRegex(profile, r"changePassword\([^\n]*loginId")
@@ -173,6 +211,31 @@ class ClientAuthContractTest(unittest.TestCase):
         refresh_end = cloud.index("private parseResult", refresh_start)
         refresh = cloud[refresh_start:refresh_end]
         self.assertIn("response.responseCode === 400 || response.responseCode === 401", refresh)
+
+    def test_client_uses_current_arkui_context_apis(self):
+        paths = (
+            "entry/src/main/ets/pages/HealthHistory.ets",
+            "entry/src/main/ets/pages/Index.ets",
+            "entry/src/main/ets/pages/Login.ets",
+            "entry/src/main/ets/pages/mainpage.ets",
+            "entry/src/main/ets/pages/MyAddress.ets",
+            "entry/src/main/ets/pages/person.ets",
+            "entry/src/main/ets/pages/Profile.ets",
+        )
+        text = "\n".join(source(path) for path in paths)
+        for deprecated in (
+            r"promptAction\.showToast\(",
+            r"promptAction\.showDialog\(",
+            r"AlertDialog\.show\(",
+            r"ActionSheet\.show\(",
+            r"\bgetContext\(this\)",
+            r"\.packing\(",
+        ):
+            self.assertNotRegex(text, deprecated)
+        self.assertNotRegex(
+            source("entry/src/main/ets/pages/mainpage.ets"),
+            r"@Entry\s+@Component\s+export struct mainPage",
+        )
 
 
 if __name__ == "__main__":
