@@ -87,6 +87,14 @@ tbody tr:last-child td { border-bottom:0; }
 .field input,.field textarea { width:100%; padding:10px 11px; border:1px solid var(--line); border-radius:7px; background:#0f161f; color:var(--text); outline:none; }
 .field textarea { min-height:72px; resize:vertical; }
 .hint { color:var(--muted); font-size:12px; margin-top:6px; }
+.crop-modal { width:min(560px,100%); }
+.crop-stage { width:min(360px,100%); margin:0 auto 18px; aspect-ratio:1; overflow:hidden; border-radius:12px; background:#080d13; }
+.crop-stage canvas { display:block; width:100%; height:100%; cursor:grab; touch-action:none; }
+.crop-stage canvas.dragging { cursor:grabbing; }
+.crop-controls { display:flex; align-items:center; gap:12px; }
+.crop-controls label { color:#c7d0db; white-space:nowrap; }
+.crop-controls input { flex:1; accent-color:var(--blue); }
+.crop-note { margin:12px 0 0; color:var(--muted); font-size:12px; }
 .toast { position:fixed; z-index:100; top:18px; left:50%; transform:translateX(-50%); padding:10px 18px; border:1px solid var(--line); border-radius:8px; background:#182230; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 .toast.success { border-color:rgba(45,212,163,.45); color:#8de7ca; }
 .toast.error { border-color:rgba(255,93,100,.5); color:#ff9ba0; }
@@ -160,6 +168,18 @@ tbody tr:last-child td { border-bottom:0; }
   </div>
 </div>
 
+<div class="modal-overlay" id="cropModal">
+  <div class="modal crop-modal" role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+    <div class="modal-head"><h3 id="cropTitle">裁剪头像</h3><button class="close" onclick="closeAvatarCrop()" aria-label="关闭">×</button></div>
+    <div class="modal-body">
+      <div class="crop-stage"><canvas id="cropCanvas" width="360" height="360" aria-label="拖动图片选择头像区域"></canvas></div>
+      <div class="crop-controls"><label for="cropZoom">缩放</label><input id="cropZoom" type="range" min="1" max="3" value="1" step="0.01" oninput="updateCropZoom()"></div>
+      <p class="crop-note">拖动图片调整位置，圆形区域为最终头像。支持 JPG、PNG、WebP；原图不超过 12 MB，上传后保存为 512 × 512 JPEG。</p>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeAvatarCrop()">取消</button><button class="btn btn-primary" id="cropUploadButton" onclick="confirmCropAndUpload()">确认上传</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal-head"><h3 id="confirmTitle">确认操作</h3><button class="close" onclick="closeModal('confirmModal')">×</button></div>
@@ -172,6 +192,17 @@ tbody tr:last-child td { border-bottom:0; }
 let allUsers = [];
 let selectedUsername = null;
 let editMode = 'add';
+let cropImage = null;
+let cropUsername = '';
+let cropScale = 1;
+let cropMinScale = 1;
+let cropX = 0;
+let cropY = 0;
+let cropDragging = false;
+let cropDragStartX = 0;
+let cropDragStartY = 0;
+let cropOriginX = 0;
+let cropOriginY = 0;
 
 const $ = id => document.getElementById(id);
 const escapeHtml = value => {
@@ -193,7 +224,13 @@ const maskEmail = value => {
 
 async function requestJson(url, options) {
   const response = await fetch(url, options);
-  const data = await response.json();
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (_error) {
+    if (response.status === 413) throw new Error('图片请求过大，请缩小图片后重试');
+    throw new Error('服务器响应异常（HTTP ' + response.status + '）');
+  }
   if (!response.ok || !data.success) throw new Error(data.message || '请求失败');
   return data;
 }
@@ -347,25 +384,95 @@ async function uploadSelectedAvatar(input) {
   const file = input.files && input.files[0];
   if (!file || !selectedUsername) return;
   try {
-    if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) throw new Error('仅支持 JPG、PNG、WebP 图片');
     if (file.size > 12 * 1024 * 1024) throw new Error('原图片不能超过 12 MB');
     const image = await readImage(file);
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const side = Math.min(image.naturalWidth, image.naturalHeight);
-    const sx = (image.naturalWidth - side) / 2;
-    const sy = (image.naturalHeight - side) / 2;
-    canvas.getContext('2d').drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
-    const imageBase64 = canvas.toDataURL('image/jpeg', .88).split(',')[1];
+    openAvatarCrop(image, selectedUsername);
+  } catch (error) { showToast(error.message, 'error'); }
+  finally { input.value = ''; }
+}
+
+function openAvatarCrop(image, username) {
+  const canvas = $('cropCanvas');
+  cropImage = image;
+  cropUsername = username;
+  cropMinScale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+  cropScale = cropMinScale;
+  cropX = (canvas.width - image.naturalWidth * cropScale) / 2;
+  cropY = (canvas.height - image.naturalHeight * cropScale) / 2;
+  $('cropZoom').value = '1';
+  drawCropPreview();
+  openModal('cropModal');
+}
+
+function clampCrop() {
+  if (!cropImage) return;
+  const canvas = $('cropCanvas');
+  const width = cropImage.naturalWidth * cropScale;
+  const height = cropImage.naturalHeight * cropScale;
+  cropX = Math.min(0, Math.max(canvas.width - width, cropX));
+  cropY = Math.min(0, Math.max(canvas.height - height, cropY));
+}
+
+function drawCropPreview() {
+  if (!cropImage) return;
+  const canvas = $('cropCanvas');
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(cropImage, cropX, cropY, cropImage.naturalWidth * cropScale, cropImage.naturalHeight * cropScale);
+  context.fillStyle = 'rgba(3,7,12,.58)';
+  context.beginPath();
+  context.rect(0, 0, canvas.width, canvas.height);
+  context.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2 - 5, 0, Math.PI * 2, true);
+  context.fill('evenodd');
+  context.strokeStyle = 'rgba(255,255,255,.9)';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2 - 5, 0, Math.PI * 2);
+  context.stroke();
+}
+
+function updateCropZoom() {
+  if (!cropImage) return;
+  const canvas = $('cropCanvas');
+  const imageCenterX = (canvas.width / 2 - cropX) / cropScale;
+  const imageCenterY = (canvas.height / 2 - cropY) / cropScale;
+  cropScale = cropMinScale * Number($('cropZoom').value);
+  cropX = canvas.width / 2 - imageCenterX * cropScale;
+  cropY = canvas.height / 2 - imageCenterY * cropScale;
+  clampCrop();
+  drawCropPreview();
+}
+
+async function confirmCropAndUpload() {
+  if (!cropImage || !cropUsername) return;
+  const button = $('cropUploadButton');
+  button.disabled = true;
+  button.textContent = '上传中…';
+  try {
+    const preview = $('cropCanvas');
+    const output = document.createElement('canvas');
+    output.width = 512; output.height = 512;
+    const sourceSide = preview.width / cropScale;
+    output.getContext('2d').drawImage(cropImage, -cropX / cropScale, -cropY / cropScale, sourceSide, sourceSide, 0, 0, 512, 512);
+    const imageBase64 = output.toDataURL('image/jpeg', .88).split(',')[1];
     if (Math.ceil(imageBase64.length * 3 / 4) > 750 * 1024) throw new Error('处理后的头像仍然过大');
-    await requestJson('/admin/api/users/' + encodeURIComponent(selectedUsername) + '/avatar', {
+    await requestJson('/admin/api/users/' + encodeURIComponent(cropUsername) + '/avatar', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({imageBase64, mimeType:'image/jpeg'})
     });
-    showToast('头像已上传，其他设备将在下次同步时更新', 'success');
+    closeAvatarCrop();
+    showToast('头像已上传，其他设备将在下次登录或启动时同步', 'success');
     await loadUsers();
   } catch (error) { showToast(error.message, 'error'); }
-  finally { input.value = ''; }
+  finally { button.disabled = false; button.textContent = '确认上传'; }
+}
+
+function closeAvatarCrop() {
+  cropImage = null;
+  cropUsername = '';
+  cropDragging = false;
+  closeModal('cropModal');
 }
 
 function confirmDeleteAvatar() {
@@ -408,7 +515,35 @@ function showToast(message, type) { const toast=document.createElement('div'); t
 
 $('search').addEventListener('input', renderTable);
 $('statusFilter').addEventListener('change', renderTable);
-document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeDetails(); ['editModal','resetModal','confirmModal'].forEach(closeModal); } });
+const cropCanvas = $('cropCanvas');
+cropCanvas.addEventListener('pointerdown', event => {
+  if (!cropImage) return;
+  cropDragging = true;
+  cropDragStartX = event.clientX;
+  cropDragStartY = event.clientY;
+  cropOriginX = cropX;
+  cropOriginY = cropY;
+  cropCanvas.classList.add('dragging');
+  cropCanvas.setPointerCapture(event.pointerId);
+});
+cropCanvas.addEventListener('pointermove', event => {
+  if (!cropDragging) return;
+  const rect = cropCanvas.getBoundingClientRect();
+  cropX = cropOriginX + (event.clientX - cropDragStartX) * cropCanvas.width / rect.width;
+  cropY = cropOriginY + (event.clientY - cropDragStartY) * cropCanvas.height / rect.height;
+  clampCrop();
+  drawCropPreview();
+});
+const stopCropDrag = () => { cropDragging = false; cropCanvas.classList.remove('dragging'); };
+cropCanvas.addEventListener('pointerup', stopCropDrag);
+cropCanvas.addEventListener('pointercancel', stopCropDrag);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeDetails();
+    closeAvatarCrop();
+    ['editModal','resetModal','confirmModal'].forEach(closeModal);
+  }
+});
 loadUsers();
 </script>
 </body>

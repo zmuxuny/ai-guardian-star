@@ -588,6 +588,12 @@ class AccountSessionSecurityTest(unittest.TestCase):
         self.assertIn('id="avatarFile"', proxy._ADMIN_HTML)
         self.assertIn("uploadSelectedAvatar", proxy._ADMIN_HTML)
         self.assertIn("confirmDeleteAvatar", proxy._ADMIN_HTML)
+        self.assertIn('id="cropCanvas"', proxy._ADMIN_HTML)
+        self.assertIn('id="cropZoom"', proxy._ADMIN_HTML)
+        self.assertIn("confirmCropAndUpload", proxy._ADMIN_HTML)
+        self.assertNotIn("const sx = (image.naturalWidth - side) / 2", proxy._ADMIN_HTML)
+        self.assertIn("response.text()", proxy._ADMIN_HTML)
+        self.assertIn("response.status === 413", proxy._ADMIN_HTML)
 
     def test_protected_endpoints_reject_missing_bearer_token(self):
         cases = [

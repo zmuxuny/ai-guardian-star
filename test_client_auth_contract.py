@@ -94,6 +94,10 @@ class ClientAuthContractTest(unittest.TestCase):
         index = source("entry/src/main/ets/pages/Index.ets")
         self.assertIn("AvatarSyncService.sync", login)
         self.assertIn("AvatarSyncService.sync", index)
+        login_sync = login[login.index("private async completeCloudLogin"):login.index("private async saveLoginAndJump")]
+        index_sync = index[index.index("private async checkAutoLogin"):]
+        self.assertNotIn("avatarVersion", login_sync)
+        self.assertNotIn("avatarVersion", index_sync)
 
     def test_server_session_fields_survive_release_property_obfuscation(self):
         rules = source("entry/obfuscation-rules.txt")

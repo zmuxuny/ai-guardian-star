@@ -831,10 +831,8 @@ struct Login {
         createTime: cloudUser.createTime,
       });
     }
-    if ((cloudUser.avatarVersion || 0) > 0) {
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      await AvatarSyncService.sync(context, loginId);
-    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    await AvatarSyncService.sync(context, loginId);
     showToast(this.getUIContext(), { message: `${greeting}，${displayName}`, duration: 1500 });
     await this.saveLoginAndJump(loginId, displayName);
   }

@@ -180,10 +180,8 @@ struct Index {
 
     UserManager.getInstance().setCurrentUsername(sessionUserKey);
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
-    if ((result.user.avatarVersion || 0) > 0) {
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      await AvatarSyncService.sync(context, sessionUserKey);
-    }
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    await AvatarSyncService.sync(context, sessionUserKey);
     const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
     const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
     const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
