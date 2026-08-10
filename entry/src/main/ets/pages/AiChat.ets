@@ -172,7 +172,7 @@ export struct AiChat {
       Column() {
         Text('摔倒告警').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.mqttManager.fallRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.dangerTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
@@ -181,7 +181,7 @@ export struct AiChat {
       Column() {
         Text('久坐提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.mqttManager.sedentaryRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#f59e0b')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.warningTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)

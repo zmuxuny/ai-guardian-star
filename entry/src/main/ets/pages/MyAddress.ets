@@ -138,10 +138,10 @@ export struct MyAddress {
           Row() {
             Text('默认').fontSize(10).fontColor('#ffffff')
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .backgroundColor('#3b82f6').borderRadius(4).margin({ right: 6 })
-            Text('家庭').fontSize(10).fontColor('#10b981')
+              .backgroundColor('#1d4ed8').borderRadius(4).margin({ right: 6 })
+            Text('家庭').fontSize(10).fontColor(this.themeManager.colors.successTextColor)
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .border({ width: 1, color: '#10b981' }).borderRadius(4)
+              .border({ width: 1, color: this.themeManager.colors.successTextColor }).borderRadius(4)
           }.width('100%').margin({ top: 10 })
 
           // 联系人 + 电话（移到下方）
@@ -157,7 +157,7 @@ export struct MyAddress {
         }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
         // 编辑笔
-        Text('✎').fontSize(16).fontColor('#3b82f6').padding(8)
+        Text('✎').fontSize(16).fontColor(this.themeManager.colors.linkTextColor).padding(8)
           .onClick(() => { this.enterEdit(); })
       }
       .width('100%').alignItems(VerticalAlign.Top)

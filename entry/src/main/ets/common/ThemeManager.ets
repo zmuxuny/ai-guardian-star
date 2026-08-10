@@ -19,9 +19,15 @@ export class ThemeColors {
   // 按钮色
   primaryButtonColor: string = '#2563EB';
   dangerButtonColor: string = '#FF3B30';
-  
+
   // 卡片边框色
   borderColor: string = '#E5E5EA';
+
+  // 语义文字色：取值须满足华为无障碍要求（正文与背景对比度 ≥ 4.5:1）
+  linkTextColor: string = '#1D4ED8';
+  successTextColor: string = '#047857';
+  warningTextColor: string = '#B45309';
+  dangerTextColor: string = '#DC2626';
 }
 
 // 深色主题
@@ -38,8 +44,13 @@ export class DarkThemeColors extends ThemeColors {
   
   primaryButtonColor: string = '#3B82F6';
   dangerButtonColor: string = '#EF4444';
-  
+
   borderColor: string = '#334155';
+
+  linkTextColor: string = '#60A5FA';
+  successTextColor: string = '#34D399';
+  warningTextColor: string = '#FBBF24';
+  dangerTextColor: string = '#F87171';
 }
 
 // 浅色主题

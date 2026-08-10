@@ -93,7 +93,7 @@ export struct record {
       Column() {
         Text('累计摔倒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.fallRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#ef4444')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.dangerTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
@@ -102,7 +102,7 @@ export struct record {
       Column() {
         Text('累计久坐').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
         Text(`${this.sedentaryRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor('#f59e0b')
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.warningTextColor)
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)

@@ -93,10 +93,10 @@ export struct mainPage {
     return 'normal';
   }
   private statusFillColor(s: string): string {
-    if (s === 'offline') return '#94a3b8';
-    if (s === 'danger') return '#ef4444';
-    if (s === 'warning') return '#f59e0b';
-    return '#10b981';
+    if (s === 'offline') return this.themeManager.colors.tertiaryTextColor;
+    if (s === 'danger') return this.themeManager.colors.dangerTextColor;
+    if (s === 'warning') return this.themeManager.colors.warningTextColor;
+    return this.themeManager.colors.successTextColor;
   }
   private statusBgColor(s: string): string {
     const d = this.themeManager.isDarkMode;
@@ -181,7 +181,7 @@ export struct mainPage {
           Text('设备离线').fontSize(11).fontColor('#ffffff').margin({ left: 4 })
         }
         .padding({ left: '2.5%', right: '2.5%', top: '1%', bottom: '1%' })
-        .backgroundColor('#ef4444').borderRadius(100)
+        .backgroundColor('#dc2626').borderRadius(100)
         .margin({ right: '3%', bottom: '3%' })
       }
     }
@@ -203,7 +203,7 @@ export struct mainPage {
         Column() {
           Text('设备状态').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
           Text(this.deviceOnline ? '在线' : '离线').fontSize(20).fontWeight(FontWeight.Bold)
-            .fontColor(this.deviceOnline ? '#10b981' : '#ef4444').margin({ top: '2%' })
+            .fontColor(this.deviceOnline ? this.themeManager.colors.successTextColor : this.themeManager.colors.dangerTextColor).margin({ top: '2%' })
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Image(this.deviceOnline ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
           .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
@@ -388,8 +388,8 @@ export struct mainPage {
       .linearGradient({
         direction: GradientDirection.Left,
         colors: this.isTalking
-          ? [['#dc2626', 0.0], ['#ef4444', 1.0]]
-          : [['#1e40af', 0.0], ['#3b82f6', 1.0]]
+          ? [['#991b1b', 0.0], ['#dc2626', 1.0]]
+          : [['#1e3a8a', 0.0], ['#2563eb', 1.0]]
       })
       .borderRadius(100)
       .shadow({ radius: 16, color: this.isTalking ? '#ef444440' : '#3b82f640', offsetY: 8 })

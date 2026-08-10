@@ -131,7 +131,7 @@ struct ContactEditDialog {
       }.width('100%').margin({ bottom: 16 })
 
       if (this.errorMsg) {
-        Text(this.errorMsg).fontSize(11).fontColor('#ef4444').alignSelf(ItemAlign.Start).margin({ bottom: 8 })
+        Text(this.errorMsg).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor).alignSelf(ItemAlign.Start).margin({ bottom: 8 })
       }
 
       Row({ space: 12 }) {
@@ -184,7 +184,7 @@ struct PasswordEditDialog {
         () => { this.showConfirmPwd = !this.showConfirmPwd; })
 
       if (this.errorMsg) {
-        Text(this.errorMsg).fontSize(11).fontColor('#ef4444').alignSelf(ItemAlign.Start).margin({ bottom: 8 })
+        Text(this.errorMsg).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor).alignSelf(ItemAlign.Start).margin({ bottom: 8 })
       }
 
       Row({ space: 12 }) {
@@ -579,14 +579,14 @@ export struct Profile {
           .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
         }
         Column() { Text('✎').fontSize(13).fontColor('#ffffff') }
-        .width(30).height(30).borderRadius(15).backgroundColor('#3b82f6')
+        .width(30).height(30).borderRadius(15).backgroundColor('#2563eb')
         .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         .border({ width: 2, color: this.themeManager.colors.cardBackgroundColor }).offset({ x: 2, y: 2 })
       }
       .scale({ x: this.avatarScale, y: this.avatarScale }).animation({ duration: 150, curve: Curve.EaseInOut })
       .onClick(() => { this.avatarScale = 0.92; setTimeout(() => { this.avatarScale = 1.0; }, 150); this.pickAvatar(); })
 
-      Text('点击更换头像').fontSize(13).fontColor('#3b82f6').margin({ top: 12 })
+      Text('点击更换头像').fontSize(13).fontColor(this.themeManager.colors.linkTextColor).margin({ top: 12 })
         .onClick(() => { this.pickAvatar(); })
       Text('支持 JPG / PNG 格式').fontSize(11)
         .fontColor(this.themeManager.colors.tertiaryTextColor).margin({ top: 4 })
@@ -607,7 +607,7 @@ export struct Profile {
         .placeholderColor(this.themeManager.colors.tertiaryTextColor)
         .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
         .onChange(onChange)
-      Text(rightText).fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+      Text(rightText).fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
         .padding({ left: 10, right: 10, top: 4, bottom: 4 })
         .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
         .borderRadius(100)
@@ -634,7 +634,7 @@ export struct Profile {
             .onSubmit(() => { this.saveNickname(); })
           // 改动且合法时才出现「保存」小标签，点击即云端优先保存
           if (this.displayName.trim() !== this.originalDisplayName && this.nameError === '') {
-            Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+            Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
               .padding({ left: 10, right: 10, top: 4, bottom: 4 })
               .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
               .borderRadius(100)
@@ -643,7 +643,7 @@ export struct Profile {
         }
         .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
         if (this.nameError !== '') {
-          Text(this.nameError).fontSize(11).fontColor('#ef4444')
+          Text(this.nameError).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor)
             .alignSelf(ItemAlign.Start).padding({ left: 16, bottom: 10 })
             .animation({ duration: 150, curve: Curve.EaseOut })
         }
@@ -663,7 +663,7 @@ export struct Profile {
         Text(this.phone ? this.maskPhone(this.phone) : '未绑定')
           .fontSize(15).fontColor(this.phone ? this.themeManager.colors.primaryTextColor : this.themeManager.colors.tertiaryTextColor)
           .layoutWeight(1)
-        Text(this.phone ? '修改' : '绑定').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+        Text(this.phone ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
           .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
           .borderRadius(100)
@@ -679,7 +679,7 @@ export struct Profile {
         Text(this.email || '未绑定')
           .fontSize(15).fontColor(this.email ? this.themeManager.colors.primaryTextColor : this.themeManager.colors.tertiaryTextColor)
           .layoutWeight(1)
-        Text(this.email ? '修改' : '绑定').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+        Text(this.email ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
           .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
           .borderRadius(100)
@@ -693,7 +693,7 @@ export struct Profile {
       Row() {
         Text('密码').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
         Text('••••••••').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
-        Text('修改').fontSize(12).fontColor('#3b82f6').fontWeight(FontWeight.Medium)
+        Text('修改').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
           .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
           .borderRadius(100)
