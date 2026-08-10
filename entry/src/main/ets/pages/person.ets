@@ -36,11 +36,37 @@ export function personBuilder(): void {
 @CustomDialog
 struct DeleteAccountDialog {
   controller: CustomDialogController;
-  inputPassword: string = '';
-  isDeleting: boolean = false;
-  onPasswordChange: (v: string) => void = () => {};
-  onConfirm: () => void = () => {};
+  /** 已脱敏的联系方式，仅用于展示 */
+  maskedContact: string = '';
+  contactKind: string = 'phone';
+  @State code: string = '';
+  @State countdown: number = 0;
+  @State isSending: boolean = false;
+  @State isDeleting: boolean = false;
+  private timerId: number = -1;
+  /** 返回 true 表示验证码已发出 */
+  onSendCode: () => Promise<boolean> = async () => false;
+  /** 返回 true 表示注销成功，由父组件负责关闭弹窗与跳转 */
+  onConfirm: (code: string) => Promise<boolean> = async () => false;
   onCancel: () => void = () => {};
+
+  aboutToDisappear(): void {
+    if (this.timerId !== -1) {
+      clearInterval(this.timerId);
+      this.timerId = -1;
+    }
+  }
+
+  private startCountdown(): void {
+    this.countdown = 60;
+    this.timerId = setInterval(() => {
+      this.countdown -= 1;
+      if (this.countdown <= 0) {
+        clearInterval(this.timerId);
+        this.timerId = -1;
+      }
+    }, 1000);
+  }
 
   build() {
     Column({ space: 0 }) {
@@ -51,18 +77,42 @@ struct DeleteAccountDialog {
         .margin({ top: 24, bottom: 8 })
         .textAlign(TextAlign.Center)
         .width('100%')
-      Text('注销账号将永久删除所有数据，请输入当前密码确认')
+      Text(this.maskedContact === ''
+        ? '当前账号未绑定手机号或邮箱，无法完成注销验证'
+        : `注销账号将永久删除所有数据。验证码将发送至${this.contactKind === 'phone' ? '手机号' : '邮箱'} ${this.maskedContact}`)
         .fontSize(13)
         .fontColor('#64748b')
         .textAlign(TextAlign.Center)
         .padding({ left: 20, right: 20 })
         .margin({ bottom: 16 })
-      TextInput({ placeholder: '请输入当前密码', text: this.inputPassword })
-        .type(InputType.Password)
-        .width('100%')
-        .padding({ left: 20, right: 20 })
-        .margin({ bottom: 20 })
-        .onChange((v: string) => { this.onPasswordChange(v); })
+      Row({ space: 8 }) {
+        TextInput({ placeholder: '请输入验证码', text: this.code })
+          .type(InputType.Number)
+          .maxLength(8)
+          .layoutWeight(1)
+          .height(44)
+          .enabled(!this.isDeleting)
+          .onChange((v: string) => { this.code = v; })
+        Button(this.isSending ? '发送中' : this.countdown > 0 ? `${this.countdown}s` : '获取验证码',
+          { type: ButtonType.Normal })
+          .height(44)
+          .fontSize(13)
+          .backgroundColor('#2563eb')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .enabled(this.maskedContact !== '' && !this.isSending && this.countdown === 0 && !this.isDeleting)
+          .onClick(async () => {
+            this.isSending = true;
+            const sent = await this.onSendCode();
+            this.isSending = false;
+            if (sent) {
+              this.startCountdown();
+            }
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20 })
+      .margin({ bottom: 20 })
       Row({ space: 12 }) {
         Button('取消', { type: ButtonType.Normal })
           .layoutWeight(1)
@@ -75,16 +125,23 @@ struct DeleteAccountDialog {
         Button(this.isDeleting ? '注销中...' : '确认注销', { type: ButtonType.Normal })
           .layoutWeight(1)
           .height(44)
-          .backgroundColor('#ef4444')
+          .backgroundColor('#dc2626')
           .fontColor('#ffffff')
           .borderRadius(10)
           .enabled(!this.isDeleting)
-          .onClick(() => { this.onConfirm(); })
+          .onClick(async () => {
+            this.isDeleting = true;
+            const done = await this.onConfirm(this.code.trim());
+            this.isDeleting = false;
+            if (done) {
+              this.code = '';
+            }
+          })
       }
       .width('100%')
       .padding({ left: 20, right: 20, bottom: 24 })
     }
-    .width('100%')
+    .width('90%')
     .constraintSize({ maxWidth: 480 })
     .backgroundColor('#ffffff')
     .borderRadius(16)
@@ -110,51 +167,77 @@ export struct person {
   @State pressedRow: string = "";
   // 退出登录按钮缩放
   @State logoutScale: number = 1.0;
-  @State deleteInputPassword: string = '';
-  @State isDeleting: boolean = false;
+  // 注销验证用的联系方式，来自本地用户表
+  @State bindPhone: string = '';
+  @State bindEmail: string = '';
+  private deleteChallengeId: string = '';
   // 导航路径栈
   pathStack: NavPathStack = new NavPathStack();
 
   private deleteAccountDialogController: CustomDialogController = new CustomDialogController({
     builder: DeleteAccountDialog({
-      inputPassword: this.deleteInputPassword,
-      isDeleting: this.isDeleting,
-      onPasswordChange: (v: string) => { this.deleteInputPassword = v; },
-      onConfirm: () => { this.executeDeleteAccount(); },
+      maskedContact: this.bindPhone !== ''
+        ? this.encryptPhone(this.bindPhone)
+        : this.maskEmail(this.bindEmail),
+      contactKind: this.bindPhone !== '' ? 'phone' : 'email',
+      onSendCode: () => this.sendDeleteAccountCode(),
+      onConfirm: (code: string) => this.executeDeleteAccount(code),
       onCancel: () => {
-        this.deleteInputPassword = '';
+        this.deleteChallengeId = '';
         this.deleteAccountDialogController.close();
       },
     }),
     autoCancel: false,
     alignment: DialogAlignment.Center,
-    customStyle: false,
-    cornerRadius: 16,
-    width: '88%',
+    // customStyle 让弹窗宽度完全由内容决定，否则百分比宽度在平板上会撑成一条空壳
+    customStyle: true,
   });
 
-  private async executeDeleteAccount(): Promise<void> {
+  /** 向账号绑定的手机号（无则邮箱）发送注销验证码 */
+  private async sendDeleteAccountCode(): Promise<boolean> {
+    const kind = this.bindPhone !== '' ? 'phone' : 'email';
+    const value = this.bindPhone !== '' ? this.bindPhone : this.bindEmail;
+    if (value === '') {
+      showToast(this.getUIContext(), { message: '账号未绑定手机号或邮箱，无法注销' });
+      return false;
+    }
+    try {
+      const result = await CloudService.getInstance().sendContactCode(kind, value);
+      if (!result.success || !result.challengeId) {
+        showToast(this.getUIContext(), { message: result.message || '验证码发送失败，请稍后重试' });
+        return false;
+      }
+      this.deleteChallengeId = result.challengeId;
+      showToast(this.getUIContext(), { message: '验证码已发送' });
+      return true;
+    } catch (e) {
+      showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
+      return false;
+    }
+  }
+
+  private async executeDeleteAccount(verifyCode: string): Promise<boolean> {
     const currentUser = UserManager.getInstance().getCurrentUsername();
     const db = DatabaseHelper.getInstance();
-    const password = this.deleteInputPassword.trim();
-    if (password === '') {
-      showToast(this.getUIContext(), { message: '请输入当前密码' });
-      return;
+    if (this.deleteChallengeId === '') {
+      showToast(this.getUIContext(), { message: '请先获取验证码' });
+      return false;
+    }
+    if (verifyCode === '') {
+      showToast(this.getUIContext(), { message: '请输入验证码' });
+      return false;
     }
 
-    this.isDeleting = true;
     try {
       const cloud = CloudService.getInstance();
-      const result = await cloud.deleteUser(password);
+      const result = await cloud.deleteUser(verifyCode, this.deleteChallengeId);
       if (!result.success) {
-        this.isDeleting = false;
         showToast(this.getUIContext(), { message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
-        return;
+        return false;
       }
     } catch (e) {
-      this.isDeleting = false;
       showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
-      return;
+      return false;
     }
 
     try {
@@ -181,14 +264,14 @@ export struct person {
     AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, '');
     UserManager.getInstance().clearCurrentUsername();
 
-    this.isDeleting = false;
-    this.deleteInputPassword = '';
+    this.deleteChallengeId = '';
     this.deleteAccountDialogController.close();
 
     if (this.pathStack) {
       this.pathStack.clear();
       this.pathStack.pushPathByName('Login', null);
     }
+    return true;
   }
 
   private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
@@ -348,6 +431,15 @@ export struct person {
     return prefix + mask + suffix;
   }
 
+  /** 邮箱脱敏：保留首字符和域名 */
+  private maskEmail(email: string): string {
+    const at = email.indexOf("@");
+    if (at <= 0) {
+      return email;
+    }
+    return email.substring(0, 1) + "***" + email.substring(at);
+  }
+
   /** 加载用户信息 */
   private loadUserInfo(): void {
     const currentUser = UserManager.getInstance().getCurrentUsername();
@@ -361,6 +453,8 @@ export struct person {
         if (user) {
           this.userName = user.username;
           this.userNickname = user.username;
+          this.bindPhone = user.phone ?? "";
+          this.bindEmail = user.email ?? "";
           AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.userNickname);
           // 头像路径
           this.userAvatarPath = user.avatarPath ?? "";
@@ -864,7 +958,7 @@ export struct person {
               .width("88%")
               .height(50)
               .backgroundColor("#fee2e2")
-              .fontColor("#ef4444")
+              .fontColor("#b91c1c")
               .fontWeight(FontWeight.Medium)
               .fontSize(16)
               .scale({ x: this.logoutScale, y: this.logoutScale })
@@ -879,7 +973,7 @@ export struct person {
                   message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
                   buttons: [
                     { text: "取消", color: "#64748b" },
-                    { text: "退出", color: "#ef4444" },
+                    { text: "退出", color: "#dc2626" },
                   ],
                 }).then(async (data) => {
                   if (data?.index === 1 && this.pathStack) {
@@ -916,11 +1010,11 @@ export struct person {
                   message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
                   buttons: [
                     { text: '取消', color: '#64748b' },
-                    { text: '继续注销', color: '#ef4444' },
+                    { text: '继续注销', color: '#dc2626' },
                   ],
                 }).then((res) => {
                   if (res?.index === 1) {
-                    this.deleteInputPassword = '';
+                    this.deleteChallengeId = '';
                     this.deleteAccountDialogController.open();
                   }
                 });

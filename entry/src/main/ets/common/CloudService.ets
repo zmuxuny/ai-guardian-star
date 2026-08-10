@@ -89,7 +89,8 @@ interface AvatarUploadRequest {
 }
 
 interface DeleteUserRequest {
-  passwordHash: string;
+  verifyCode: string;
+  challengeId: string;
 }
 
 interface AllowedProfileUpdate {
@@ -466,8 +467,9 @@ export class CloudService {
     return result;
   }
 
-  public async deleteUser(passwordHash: string): Promise<CloudResult> {
-    const body: DeleteUserRequest = { passwordHash: passwordHash };
+  /** 注销账号：凭 sendContactCode 下发的挑战 + 验证码确认身份。 */
+  public async deleteUser(verifyCode: string, challengeId: string): Promise<CloudResult> {
+    const body: DeleteUserRequest = { verifyCode: verifyCode, challengeId: challengeId };
     const result = this.parseResult(await this.authenticatedPost('/api/deleteUser', body));
     if (result.success) {
       this.clearSession();

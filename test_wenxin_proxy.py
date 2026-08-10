@@ -605,7 +605,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
                 "/api/changePassword",
                 {"oldPasswordHash": "old", "newPasswordHash": "new"},
             ),
-            ("post", "/api/deleteUser", {"passwordHash": "old"}),
+            ("post", "/api/deleteUser", {"verifyCode": "123456", "challengeId": "x" * 40}),
             ("post", "/ai/chat", {"message": "hello"}),
         ]
         for method, path, body in cases:
@@ -677,17 +677,47 @@ class AccountSessionSecurityTest(unittest.TestCase):
             sum(bool(response.get_json()["success"]) for response in responses), 1
         )
 
-    def test_delete_ignores_spoofed_username_and_revokes_sessions(self):
+    def _bind_phone(self, username, phone="13340878619"):
+        conn = proxy.get_db()
+        conn.execute("UPDATE t_user SET phone=? WHERE username=?", (phone, username))
+        conn.commit()
+        conn.close()
+
+    def test_delete_requires_one_time_code_and_revokes_sessions(self):
         self.create_user("alice")
         self.create_user("bob")
+        self._bind_phone("alice")
         tokens = self.login("alice").get_json()
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
 
-        response = self.client.post(
-            "/api/deleteUser",
-            headers=self.bearer(tokens["accessToken"]),
-            json={"username": "bob", "passwordHash": "old-password"},
-        )
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            self.assertEqual(sent.status_code, 200)
+            challenge_id = sent.get_json()["challengeId"]
+            without_code = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"challengeId": challenge_id},
+            )
+            # username 是伪造字段，服务端只认 token 里的身份
+            response = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={
+                    "username": "bob",
+                    "verifyCode": "123456",
+                    "challengeId": challenge_id,
+                },
+            )
 
+        self.assertEqual(without_code.status_code, 400)
         self.assertEqual(response.status_code, 200)
         conn = proxy.get_db()
         users = [row["username"] for row in conn.execute("SELECT username FROM t_user")]
@@ -697,6 +727,35 @@ class AccountSessionSecurityTest(unittest.TestCase):
         conn.close()
         self.assertEqual(users, ["bob"])
         self.assertEqual(sessions, 0)
+
+    def test_delete_rejects_challenge_for_unbound_contact(self):
+        self.create_user("alice")
+        self._bind_phone("alice")
+        tokens = self.login("alice").get_json()
+        proxy.ALIYUN_SMS_ENABLED = True
+        self.addCleanup(setattr, proxy, "ALIYUN_SMS_ENABLED", False)
+
+        with mock.patch.object(proxy, "_send_sms_verification"), mock.patch.object(
+            proxy, "_check_sms_verification", return_value=True
+        ):
+            sent = self.client.post(
+                "/api/contact/otp/send",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"kind": "phone", "value": "13340878619"},
+            )
+            # 发码后账号换绑了别的号码，旧挑战不得再用于注销
+            self._bind_phone("alice", "13500000001")
+            response = self.client.post(
+                "/api/deleteUser",
+                headers=self.bearer(tokens["accessToken"]),
+                json={"verifyCode": "123456", "challengeId": sent.get_json()["challengeId"]},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        conn = proxy.get_db()
+        remaining = conn.execute("SELECT COUNT(*) AS count FROM t_user").fetchone()["count"]
+        conn.close()
+        self.assertEqual(remaining, 1)
 
     def test_contact_code_rejects_value_owned_by_another_account(self):
         self.create_user("alice")

@@ -138,6 +138,9 @@ class ClientAuthContractTest(unittest.TestCase):
         self.assertIn("CloudService.getInstance().logout", person)
         self.assertNotRegex(person, r"deleteInputPassword\.trim\(\)\s*!==\s*user\.passwordHash")
         self.assertNotRegex(person, r"deleteUser\([^\n]*currentUser")
+        # 注销身份验证走一次性验证码，不再收集密码
+        self.assertIn("sendContactCode", person)
+        self.assertNotIn("passwordHash", person)
         self.assertIn("sendContactCode", profile)
         self.assertIn("updateContact", profile)
         self.assertIn("challengeId", profile)

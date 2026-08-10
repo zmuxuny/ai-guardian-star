@@ -1322,29 +1322,89 @@ def api_logout():
 @app.route('/api/deleteUser', methods=['POST'])
 @bearer_required
 def api_delete_user():
+    # 注销走联系方式验证码（复用 /api/contact/otp/send 下发的挑战），不再用密码
     d = request.get_json(force=True) or {}
-    pwd_hash = (d.get('passwordHash') or '').strip()
-    if not pwd_hash:
-        return jsonify({"success": False, "message": "参数缺失"}), 400
+    verify_code = (d.get('verifyCode') or '').strip()
+    challenge_id = (d.get('challengeId') or '').strip()
+    if not re.fullmatch(r'\d{4,8}', verify_code):
+        return jsonify({"success": False, "message": "验证码格式不正确"}), 400
+    if len(challenge_id) < 32 or len(challenge_id) > 128:
+        return jsonify({"success": False, "message": "验证码会话无效"}), 400
+
+    now = int(time.time())
+    challenge_hash = _token_hash(challenge_id)
+    conn = None
     try:
         conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
         row = conn.execute(
-            "SELECT username, password_hash FROM t_user WHERE username=?",
-            (g.current_username,)
+            "SELECT username, phone, email FROM t_user WHERE username=?",
+            (g.current_username,),
         ).fetchone()
         if not row:
-            conn.close()
-            return jsonify({"success": False, "message": "账号不存在"})
-        if not verify_password(row['password_hash'], pwd_hash):
-            conn.close()
-            return jsonify({"success": False, "message": "密码错误"})
+            conn.rollback()
+            return jsonify({"success": False, "message": "账号不存在"}), 404
+        challenge = conn.execute(
+            """
+            SELECT kind, value, code_hash
+            FROM t_contact_challenge
+            WHERE challenge_hash=? AND username=? AND expires_at>? AND failed_attempts<?
+              AND (checking_at IS NULL OR checking_at<?) AND consumed_at IS NULL
+            """,
+            (challenge_hash, g.current_username, now, SMS_MAX_ATTEMPTS, now - 30),
+        ).fetchone()
+        if not challenge:
+            conn.rollback()
+            return jsonify({"success": False, "message": "验证码会话无效或已过期"}), 400
+        # 挑战必须指向本账号当前绑定的联系方式，否则换个号码发码就能绕开验证
+        bound = row['phone'] if challenge['kind'] == 'phone' else row['email']
+        if not bound or bound != challenge['value']:
+            conn.rollback()
+            return jsonify({"success": False, "message": "验证码与账号绑定的联系方式不一致"}), 400
+        conn.execute(
+            "UPDATE t_contact_challenge SET checking_at=? WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
+        conn.commit()
+        conn.close()
+        conn = None
+
+        if challenge['kind'] == 'phone':
+            verified = _check_sms_verification(challenge['value'], verify_code, challenge_id)
+        else:
+            verified = hmac.compare_digest(
+                challenge['code_hash'] or '',
+                _token_hash(challenge_id + ':' + verify_code),
+            )
+
+        conn = get_db()
+        conn.execute('BEGIN IMMEDIATE')
+        if not verified:
+            conn.execute(
+                """
+                UPDATE t_contact_challenge
+                SET failed_attempts=failed_attempts+1, checking_at=NULL
+                WHERE challenge_hash=? AND consumed_at IS NULL
+                """,
+                (challenge_hash,),
+            )
+            conn.commit()
+            return jsonify({"success": False, "message": "验证码不正确"}), 400
+        conn.execute(
+            "UPDATE t_contact_challenge SET consumed_at=?, checking_at=NULL WHERE challenge_hash=?",
+            (now, challenge_hash),
+        )
         conn.execute("DELETE FROM t_session WHERE username=?", (row['username'],))
         conn.execute("DELETE FROM t_user WHERE username=?", (row['username'],))
         conn.commit()
-        conn.close()
         return jsonify({"success": True, "message": "账号已注销"})
     except Exception as error:
+        if conn:
+            conn.rollback()
         return _internal_error('api_delete_user', error)
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/api/updateUser', methods=['POST'])
