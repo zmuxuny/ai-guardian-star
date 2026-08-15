@@ -2,7 +2,7 @@
 
 # AI Guardian Star · 智护星
 
-**An open-source edge–cloud–device elderly-care system built with HarmonyOS and edge AI.**  
+**An open-source edge–cloud–device elderly-care system built with HarmonyOS and edge AI.**<br />
 **基于 HarmonyOS 与边缘 AI 的开源端—云—边居家照护系统。**
 
 **English** · [中文](README.zh-CN.md)
@@ -264,4 +264,3 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
-
