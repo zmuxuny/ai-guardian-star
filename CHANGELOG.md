@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Changed
+- 开源协议由 MIT 改为 Apache License 2.0，并补齐版权归属声明。`v0.1.0` 及更早版本按当时的 MIT 协议分发，不受本次变更影响
+- README 拆分为英文 `README.md` 与中文 `README.zh-CN.md`，补充手机端界面截图
+- SECURITY、CONTRIBUTING、CODE_OF_CONDUCT 改为英文 + 中文双语，行为守则改为引用 Contributor Covenant 2.1 官方文本
+
 ---
 
 ## [0.2.0] — 2026-08-10
