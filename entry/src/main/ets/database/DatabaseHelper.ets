@@ -136,9 +136,9 @@ export interface VideoRecord {
 // ─── DatabaseHelper 单例 ──────────────────────────────────────
 
 // ─── 保留天数常量 ──────────────────────────────────────────────
-/** 免费版最大保留天数 */
+/** 默认保留天数 */
 export const FREE_RETENTION_DAYS = 7;
-/** 会员可选的保留天数列表 */
+/** 扩展保留天数选项 */
 export const VIP_RETENTION_OPTIONS = [14, 30, 90];
 /** 所有可选天数（展示给用户） */
 export const ALL_RETENTION_OPTIONS = [7, 14, 30, 90];
@@ -167,7 +167,7 @@ export class DatabaseHelper {
     return v !== undefined && v > 0 ? v : FREE_RETENTION_DAYS;
   }
 
-  /** 设置保留天数并存入 AppStorage（调用方负责会员校验） */
+  /** 设置保留天数并存入 AppStorage */
   public setRetentionDays(days: number): void {
     AppStorage.setOrCreate<number>(STORAGE_KEY_RETENTION, days);
     hilog.info(DOMAIN, TAG, `保留天数已设为 ${days} 天`);

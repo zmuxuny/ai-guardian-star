@@ -893,36 +893,21 @@ export struct person {
                   // 改用 showDialog 实现天数选择
                   showDialog(this.getUIContext(), {
                     title: "数据保留时长",
-                    message: "选择视频与健康记录的保存天数\n（更长时间需要开通会员）",
+                    message: "选择视频与健康记录的保存天数",
                     buttons: [
-                      { text: "7天（免费）", color: "#2563eb" },
-                      { text: "14天 👑", color: "#64748b" },
-                      { text: "30天 👑", color: "#64748b" },
-                      { text: "90天 👑", color: "#64748b" },
+                      { text: "7天", color: "#2563eb" },
+                      { text: "14天", color: "#2563eb" },
+                      { text: "30天", color: "#2563eb" },
+                      { text: "90天", color: "#2563eb" },
                     ],
                   }).then((result) => {
                     if (result === undefined) return;
                     const options = [7, 14, 30, 90];
                     const selected = options[result.index];
                     if (selected === undefined) return;
-                    if (selected > FREE_RETENTION_DAYS) {
-                      showDialog(this.getUIContext(), {
-                        title: "👑 开通守护星会员",
-                        message: `保留 ${selected} 天数据为会员专属功能。\n会员还享有：云端备份、多人协同监护等权益。`,
-                        buttons: [
-                          { text: "稍后再说", color: "#64748b" },
-                          { text: "立即开通", color: "#2563eb" },
-                        ],
-                      }).then((dialog) => {
-                        if (dialog?.index === 1) {
-                          showToast(this.getUIContext(), { message: "会员功能即将上线，敬请期待！" });
-                        }
-                      });
-                    } else {
-                      DatabaseHelper.getInstance().setRetentionDays(selected);
-                      this.retentionDays = selected;
-                      showToast(this.getUIContext(), { message: `已设置保留 ${selected} 天` });
-                    }
+                    DatabaseHelper.getInstance().setRetentionDays(selected);
+                    this.retentionDays = selected;
+                    showToast(this.getUIContext(), { message: `已设置保留 ${selected} 天` });
                   });
                 })
               }
