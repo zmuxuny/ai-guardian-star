@@ -214,9 +214,9 @@ CI also runs Python compilation checks and diff validation. HarmonyOS Release HA
 
 ## Releases
 
-Published packages are available from [GitHub Releases](https://github.com/zmuxuny/ai-guardian-star/releases). The latest published prerelease is `v0.1.0`, which provides a HarmonyOS HAP for device validation and includes responsive-layout work, password-recovery flow improvements, privacy/security fixes, and production-service hardening.
+Published packages are available from [GitHub Releases](https://github.com/zmuxuny/ai-guardian-star/releases). `v0.1.0` is the most recent prerelease shipping an installable HarmonyOS HAP for device validation; `v0.2.0` was published as a source-only prerelease.
 
-The application in this repository is already at version `0.2.0` (semantic-color system, accessible contrast, OTP-verified account deletion). See [CHANGELOG.md](CHANGELOG.md) for the full history.
+This repository is at version `0.2.1` (membership paywall removed, accessible color contrast, semantic color system, OTP-verified account deletion). Versions stay in the `0.x` range until the first store-approved release, which will be `1.0.0`. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 ## Security
 
