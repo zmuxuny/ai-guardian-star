@@ -78,7 +78,7 @@ struct PrivacyDialog {
           .layoutWeight(1)
           .height(44)
           .backgroundColor('#f1f5f9')
-          .fontColor('#64748b')
+          .fontColor('#475569')
           .borderRadius(10)
           .onClick(() => { this.onDisagree(); })
         Button('同意并继续', { type: ButtonType.Normal })

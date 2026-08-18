@@ -165,7 +165,7 @@ export struct mainPage {
         Column() {
           Image($r('app.media.ic_camera_off')).width('13%').aspectRatio(1).objectFit(ImageFit.Contain)
             .opacity(0.5)
-          Text('摄像头未连接').fontSize(14).fontColor('#64748b').margin({ top: '3%' })
+          Text('摄像头未连接').fontSize(14).fontColor('#cbd5e1').margin({ top: '3%' })
         }
         .width('100%').aspectRatio(4 / 3).justifyContent(FlexAlign.Center)
         .backgroundColor(this.themeManager.isDarkMode ? '#1a2744' : '#1e293b')

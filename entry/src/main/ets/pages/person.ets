@@ -118,7 +118,7 @@ struct DeleteAccountDialog {
           .layoutWeight(1)
           .height(44)
           .backgroundColor('#f1f5f9')
-          .fontColor('#64748b')
+          .fontColor('#475569')
           .borderRadius(10)
           .enabled(!this.isDeleting)
           .onClick(() => { this.onCancel(); })
@@ -654,7 +654,7 @@ export struct person {
                         : "跟随",
                   )
                     .fontSize(12)
-                    .fontColor("#2563eb")
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
@@ -758,7 +758,7 @@ export struct person {
                     : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护',
                 )
                   .fontSize(12)
-                  .fontColor("#2563eb")
+                  .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
                   .fontWeight(FontWeight.Medium)
                   .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
                   .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
@@ -882,7 +882,7 @@ export struct person {
                 Row() {
                   Text(`${this.retentionDays}天`)
                     .fontSize(13)
-                    .fontColor("#2563eb")
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })

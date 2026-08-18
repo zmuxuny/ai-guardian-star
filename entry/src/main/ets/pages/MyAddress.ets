@@ -187,7 +187,7 @@ export struct MyAddress {
 
       Button('添加家庭地址').height(46).width('70%').type(ButtonType.Capsule)
         .fontSize(15).fontColor('#ffffff').margin({ top: 28 })
-        .linearGradient({ direction: GradientDirection.Right, colors: [['#1e40af', 0.0], ['#3b82f6', 1.0]] })
+        .linearGradient({ direction: GradientDirection.Right, colors: [['#1e3a8a', 0.0], ['#2563eb', 1.0]] })
         .onClick(() => { this.enterEdit(); })
     }
     .width('100%').alignItems(HorizontalAlign.Center)
@@ -223,7 +223,7 @@ export struct MyAddress {
         Button(this.isSaving ? '保存中…' : '保存').layoutWeight(1).height(46).type(ButtonType.Capsule)
           .enabled(!this.isSaving)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.isSaving ? '#94a3b8' : '#1e40af', 0.0], [this.isSaving ? '#94a3b8' : '#3b82f6', 1.0]] })
+            colors: [[this.isSaving ? '#64748b' : '#1e3a8a', 0.0], [this.isSaving ? '#64748b' : '#2563eb', 1.0]] })
           .fontColor('#ffffff').fontSize(15)
           .onClick(() => { this.saveAddress(); })
       }.width('92%').margin({ top: 24 })

@@ -195,7 +195,7 @@ export struct AiChat {
     Row({ space: 5 }) {
       ForEach([0, 1, 2], (i: number) => {
         Circle({ width: 8, height: 8 })
-          .fill('#93c5fd')
+          .fill(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
           .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
           .animation({ duration: 350, curve: Curve.EaseInOut })
       })
@@ -249,7 +249,7 @@ export struct AiChat {
   @Builder
   QuickChip(q: string): void {
     Text(q)
-      .fontSize(13).fontColor('#2563eb')
+      .fontSize(13).fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
       .padding({ left: 14, right: 14, top: 8, bottom: 8 })
       .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
       .borderRadius(20).border({ width: 1, color: '#93c5fd' })
@@ -321,7 +321,7 @@ export struct AiChat {
         }
       }
       .width(46).height(46)
-      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#2563eb' : '#93c5fd')
+      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#2563eb' : '#64748b')
       .borderRadius(23).animation({ duration: 200, curve: Curve.EaseOut })
       .onClick((): void => { this.sendMessage(this.inputText); })
     }

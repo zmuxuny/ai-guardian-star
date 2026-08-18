@@ -20,7 +20,7 @@ export struct GradientHeader {
       .width('100%')
       .linearGradient({
         direction: GradientDirection.Bottom,
-        colors: [['#1e40af', 0.0], ['#3b82f6', 0.5], ['#60a5fa', 1.0]],
+        colors: [['#1e3a8a', 0.0], ['#1d4ed8', 0.5], ['#2563eb', 1.0]],
       })
       .borderRadius({ bottomLeft: 24, bottomRight: 24 })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])

@@ -142,7 +142,7 @@ struct ContactEditDialog {
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.saving && !this.sending)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.saving ? '#94a3b8' : '#1e40af', 0.0], [this.saving ? '#94a3b8' : '#3b82f6', 1.0]] })
+            colors: [[this.saving ? '#64748b' : '#1e3a8a', 0.0], [this.saving ? '#64748b' : '#2563eb', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(() => { this.saveContact(); })
       }.width('100%')
@@ -195,7 +195,7 @@ struct PasswordEditDialog {
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.changing)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.changing ? '#94a3b8' : '#1e40af', 0.0], [this.changing ? '#94a3b8' : '#3b82f6', 1.0]] })
+            colors: [[this.changing ? '#64748b' : '#1e3a8a', 0.0], [this.changing ? '#64748b' : '#2563eb', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
             if (this.oldPwd.length < 4) { this.errorMsg = '当前密码至少4位'; return; }
