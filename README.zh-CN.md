@@ -213,9 +213,9 @@ CI 还会执行 Python 编译检查与 diff 校验；配置 self-hosted Windows 
 
 ## Release
 
-已发布的安装包见 [GitHub Releases](https://github.com/zmuxuny/ai-guardian-star/releases)。`v0.1.0` 是最近一个带 HarmonyOS HAP 安装包的预发布版本，用于真机验证；`v0.2.0` 为仅含源码的预发布版本。
+已发布的安装包见 [GitHub Releases](https://github.com/zmuxuny/ai-guardian-star/releases)。`v1.0.0` 是首个正式版本，附带 release 签名的 HarmonyOS HAP 安装包。此前的标签均为预发布：`v0.1.0` 附带用于真机验证的 HAP，`v0.2.0` 仅含源码。
 
-仓库中的应用版本为 `0.2.1`（移除未实现的会员付费墙、无障碍色彩对比度、语义色系统、账号注销改用验证码校验）。正式上架通过审核前版本号保持在 `0.x`，首个通过审核的上架版本记为 `1.0.0`。完整记录见 [CHANGELOG.md](CHANGELOG.md)。
+仓库中的应用版本为 `1.0.0` —— 首个通过华为应用市场审核并正式上架的版本。代码内容与 `0.2.1` 一致（移除未实现的会员付费墙、无障碍色彩对比度、语义色系统、账号注销改用验证码校验）；按既定策略，首个过审上架版本记为 `1.0.0`。完整记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 安全
 

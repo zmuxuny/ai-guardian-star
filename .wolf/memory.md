@@ -1627,3 +1627,10 @@
 | 10:28 | 修复管理后台头像上传 413/HTML 误解析，改为拖动缩放后手动裁剪，并让登录及自动登录始终向云端核对头像 | admin_panel.html, nginx config, Login.ets, Index.ets | 管理入口放宽到 2 MB，后端仍限制 750 KB；84 项测试、JS 解析和 HarmonyOS debug 构建通过 | ~9000 |
 | 11:35 | 账号注销由密码改为绑定手机号/邮箱的一次性验证码；语义文字色收敛到 ThemeManager 并达无障碍对比度；Login/Index/注销弹窗平板布局修正；清理诊断页残留死代码与文档条目 | wenxin_proxy.py, CloudService.ets, person.ets, ThemeManager.ets, 7 个页面, DatabaseHelper.ets, PROJECT_STRUCTURE.md, tools/check_contrast.py | 86 项测试 + 26 项对比度自检通过；合并 main 并打 tag v0.2.0 推送 | ~30000 |
 | 11:40 | anatomy 索引把 .claude/worktrees 下的整份仓库副本与 .tmp 一起收进来，555 文件降到 138 | .wolf/config.json | exclude_patterns 加 worktrees / .tmp；openwolf 的模式按路径段匹配，写 `.claude/worktrees` 不生效 | ~2000 |
+
+## Session: 2026-08-15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 16:10 | 生成华为应用市场手机与平板介绍图，排除含头像和昵称的个人页 | 上架介绍图/手机_1080x1920, 上架介绍图/平板_1920x1280 | 各 4 张 PNG；尺寸、5 MB 限制和无个人页引用检查通过 | ~3000 |
+| 00:55 | 审核队长的双语 README 并拆分为 README.md（英）与 README.zh-CN.md（中），插入手机端截图；LICENSE 补 Apache-2.0 版权归属；SECURITY/CONTRIBUTING/CODE_OF_CONDUCT 双语化 | README.md, README.zh-CN.md, LICENSE, SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CHANGELOG.md, docs/screenshots/ | 引用的 16 个文件路径全部核对存在；修正 Release 段版本滞后与维护者拼写；发布 GitHub Release v0.2.0（预发布，无 HAP 附件）；main 与 feature/jyx-home 同步到同一提交 | ~35000 |

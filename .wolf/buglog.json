@@ -955,6 +955,24 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-28"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-08-15T05:50:00.000Z",
+      "error_message": "CI / python failed: git diff --check HEAD^ HEAD -> 'new blank line at EOF' / 'trailing whitespace'",
+      "file": "README.md, README.zh-CN.md, .github/workflows/ci.yml",
+      "root_cause": "CI 的 python job 会跑 git diff --check，任何新增行的行尾空格或文件末尾多余空行都会让整个 workflow 失败。Markdown 用行尾双空格换行的写法必然触发；用 sed 切分文件容易在 EOF 留多余空行。",
+      "fix": "行尾双空格换行改用 <br />；文件末尾只保留一个换行。推送前本地跑 git add + git diff --cached --check 自检。",
+      "tags": [
+        "ci",
+        "github-actions",
+        "whitespace",
+        "markdown",
+        "docs"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-08-15T05:50:00.000Z"
     }
   ]
 }
