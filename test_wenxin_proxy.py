@@ -68,6 +68,17 @@ class AiAccessLevelTest(unittest.TestCase):
         self.assertIn("最近摔倒记录：2026.07.14 10:00:00", full)
 
 
+class CozeStreamTest(unittest.TestCase):
+    def test_workflow_error_is_not_returned_as_a_successful_fallback(self):
+        response = mock.Mock()
+        response.iter_lines.return_value = [
+            'data: {"type":"message_end","finish":true,"content":{"message_end":{"code":"301004","message":"model offline"}}}'
+        ]
+
+        with self.assertRaises(proxy.CozeWorkflowError):
+            proxy._parse_sse_response(response)
+
+
 class PasswordSecurityTest(unittest.TestCase):
     def test_password_is_salted_and_verified(self):
         first = hash_password("correct horse battery staple")
@@ -1326,6 +1337,23 @@ class ClientSecurityRegressionTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn(
             'export const ECS_HOST = "47.108.167.0";',
+            config_source,
+        )
+
+    def test_realtime_web_routes_use_https_domain(self):
+        config_source = source_path.with_name("entry").joinpath(
+            "src", "main", "ets", "config.ets"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'export const VIDEO_FEED_URL = `${ECS_BASE_URL}/video_feed`;',
+            config_source,
+        )
+        self.assertIn(
+            'export const HEALTH_CHECK_URL = `${ECS_BASE_URL}/api/stats`;',
+            config_source,
+        )
+        self.assertIn(
+            'export const WS_INTERCOM_URL = "wss://api.aistar.asia/ws/intercom";',
             config_source,
         )
 

@@ -1503,6 +1503,10 @@ class ModerationUnavailable(Exception):
     pass
 
 
+class CozeWorkflowError(Exception):
+    pass
+
+
 def _local_crisis_response(text):
     crisis_terms = (
         '自杀', '自残', '不想活', '结束生命', '服药过量', '吞药', '中毒',
@@ -1670,6 +1674,9 @@ def ai_chat():
         coze_status = e.response.status_code
         app.logger.error("[ai_chat] upstream HTTP status=%s", coze_status)
         return jsonify({"error": "AI 服务暂时不可用，请稍后重试"}), 502
+    except CozeWorkflowError as e:
+        app.logger.error("[ai_chat] workflow error=%s", str(e))
+        return jsonify({"error": "AI 服务暂时不可用，请稍后重试"}), 502
     except Exception as e:
         app.logger.error("[ai_chat] internal error type=%s", type(e).__name__)
         return jsonify({"error": "服务内部错误，请稍后重试"}), 500
@@ -1700,13 +1707,21 @@ def _parse_sse_response(resp) -> str:
                 answer = content.get("answer", "") if isinstance(content, dict) else ""
                 if answer:
                     result_parts.append(answer)
+            if msg_type == "message_end":
+                content = chunk.get("content", {})
+                message_end = content.get("message_end", {}) if isinstance(content, dict) else {}
+                code = str(message_end.get("code", "")) if isinstance(message_end, dict) else ""
+                if code and code != "0":
+                    raise CozeWorkflowError(code)
             if chunk.get("finish") is True:
                 break
         except json.JSONDecodeError:
             continue
 
     reply = "".join(result_parts).strip()
-    return reply if reply else "抱歉，AI 助手暂时无法回复，请稍后重试"
+    if not reply:
+        raise CozeWorkflowError("empty_response")
+    return reply
 
 
 def _build_context_summary(context: dict) -> str:

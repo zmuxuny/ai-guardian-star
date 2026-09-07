@@ -1635,3 +1635,9 @@
 | 16:10 | 生成华为应用市场手机与平板介绍图，排除含头像和昵称的个人页 | 上架介绍图/手机_1080x1920, 上架介绍图/平板_1920x1280 | 各 4 张 PNG；尺寸、5 MB 限制和无个人页引用检查通过 | ~3000 |
 | 00:55 | 审核队长的双语 README 并拆分为 README.md（英）与 README.zh-CN.md（中），插入手机端截图；LICENSE 补 Apache-2.0 版权归属；SECURITY/CONTRIBUTING/CODE_OF_CONDUCT 双语化 | README.md, README.zh-CN.md, LICENSE, SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CHANGELOG.md, docs/screenshots/ | 引用的 16 个文件路径全部核对存在；修正 Release 段版本滞后与维护者拼写；发布 GitHub Release v0.2.0（预发布，无 HAP 附件）；main 与 feature/jyx-home 同步到同一提交 | ~35000 |
 | 23:02 | 0.2.1 过审上架后正式发布 1.0.0：版本号提升、CHANGELOG 旧 [1.0.0] 改标 [0.1.0-pre]、README 双语版本段更新、重建 release HAP、打标签并建 GitHub Release | AppScope/app.json5, CHANGELOG.md, README.md, README.zh-CN.md, 上架介绍图/, 截图与安全评估报告 | versionName 1.0.0 / versionCode 1010000；HAP 24.5 MB SHA-256 D93BB84B…8A47；main 与 feature/jyx-home 同步在 6996700；CI 通过；Release v1.0.0 非预发布并附 HAP | ~30000 |
+
+## Session: 2026-09-07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 21:25 | 实时画面与通话统一走 api.aistar.asia 的 HTTPS/WSS 反代；扣子模型切换并部署 Doubao-Seed-2.0-mini；SSE 工作流错误不再伪装成成功 | config.ets, api.aistar.asia.conf, wenxin_proxy.py, test_wenxin_proxy.py | 89 项测试和 Release HAP 构建通过；HTTPS JPEG/状态、WSS、AI 端到端均通过；摄像头热插拔后需重启 guardian-board 才会重新选取 /dev/video 节点 | ~12000 |
