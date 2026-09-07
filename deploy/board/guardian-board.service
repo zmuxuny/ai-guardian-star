@@ -1,0 +1,21 @@
+[Unit]
+Description=智护星开发板 AI 与 Web 服务
+Wants=network-online.target
+After=network-online.target frpc-aliyun.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/root/ai_guardian
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/root
+Environment=USER=root
+Environment=SHELL=/bin/bash
+ExecStart=/bin/bash -lc '/root/ai_guardian/start.sh'
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
