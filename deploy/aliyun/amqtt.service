@@ -1,0 +1,17 @@
+[Unit]
+Description=智护星 MQTT Broker（阿里云）
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/wenxin/venv/bin/amqtt -c /etc/amqtt/amqtt.yaml
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

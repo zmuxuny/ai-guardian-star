@@ -1320,6 +1320,15 @@ class ClientSecurityRegressionTest(unittest.TestCase):
             config_source,
         )
 
+    def test_realtime_services_use_aliyun_host(self):
+        config_source = source_path.with_name("entry").joinpath(
+            "src", "main", "ets", "config.ets"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'export const ECS_HOST = "47.108.167.0";',
+            config_source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

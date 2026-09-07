@@ -1,0 +1,15 @@
+[Unit]
+Description=智护星生产健康与费用阈值检查（阿里云）
+After=network-online.target wenxin.service nginx.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/wenxin/aliyun-sms.env
+EnvironmentFile=-/etc/wenxin/monitor.env
+Environment=SQLITE_DB_PATH=/opt/wenxin/app/guardian_users.db
+ExecStart=/usr/bin/python3.11 /usr/local/lib/wenxin/ops_monitor.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict

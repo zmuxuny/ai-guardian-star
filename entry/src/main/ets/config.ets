@@ -4,7 +4,7 @@
  */
 
 // ── ECS 云端服务器 ──────────────────────────────────────────
-export const ECS_HOST = "117.78.9.144";
+export const ECS_HOST = "47.108.167.0";
 export const ECS_API_PORT = 8899;
 export const ECS_VIDEO_PORT = 6001;
 export const ECS_MQTT_PORT = 8883;
