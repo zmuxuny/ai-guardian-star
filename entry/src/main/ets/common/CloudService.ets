@@ -28,6 +28,15 @@ export interface CloudResult {
   imageBase64?: string;
   mimeType?: string;
   updatedAt?: number;
+  credentials?: MqttCredentials;
+}
+
+export interface MqttCredentials {
+  username: string;
+  password: string;
+  clientId: string;
+  topic: string;
+  expiresIn: number;
 }
 
 export interface CloudHttpResponse {
@@ -126,6 +135,7 @@ export class CloudService {
   private sessionUserKey: string = '';
   private rememberSession: boolean = false;
   private refreshPromise: Promise<boolean> | null = null;
+  private sessionClearedListener: (() => void) | null = null;
 
   private constructor() {}
 
@@ -144,11 +154,16 @@ export class CloudService {
     return this.sessionUserKey;
   }
 
+  public setSessionClearedListener(listener: () => void): void {
+    this.sessionClearedListener = listener;
+  }
+
   public clearSession(): void {
     this.accessToken = '';
     this.refreshToken = '';
     this.sessionUserKey = '';
     this.rememberSession = false;
+    if (this.sessionClearedListener) this.sessionClearedListener();
   }
 
   private async persistSession(): Promise<void> {
@@ -399,7 +414,12 @@ export class CloudService {
     );
   }
 
+  public async getMqttCredentials(): Promise<CloudResult> {
+    return this.parseResult(await this.authenticatedPost('/api/mqtt/credentials', new EmptyRequest()));
+  }
+
   public async logout(): Promise<CloudResult> {
+    if (this.sessionClearedListener) this.sessionClearedListener();
     let result: CloudResult = { success: false, message: '未登录' };
     try {
       if (this.hasSession()) {

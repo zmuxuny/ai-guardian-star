@@ -16,3 +16,6 @@ README.md linguist-documentation=true
 
 # Mark files as linguist-vendored if necessary
 /oh_modules/** linguist-vendored=true
+
+# Unified patches need a single-space prefix for blank context lines.
+/deploy/board/*.patch whitespace=-blank-at-eol

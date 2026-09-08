@@ -5,12 +5,12 @@ import {
   MqttConnectOptions,
   MqttMessage,
   MqttResponse,
-  MqttSubscribeOptions,
 } from "@ohos/mqtt";
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
-import { BROKER_URL, ALERT_TOPIC, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT } from '../config';
+import { BROKER_URL, ALERT_TOPIC, MQTT_CA_CERT } from '../config';
 import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
+import { CloudService } from '../common/CloudService';
 
 export interface FallRecord {
   time: string;
@@ -62,8 +62,17 @@ export class MqttManager {
   private readonly DEVICE_TIMEOUT_MS: number = 20000; // 20秒无消息视为离线
   private deviceCheckTimer: number = -1; // 用于定期检查设备在线状态
 
+  private reconnectTimer: number = -1;
+  private renewalTimer: number = -1;
+  private wantsConnection: boolean = false;
+  private connecting: boolean = false;
+  private connectionVersion: number = 0;
+
   private constructor() {
-    this.initClient();
+    CloudService.getInstance().setSessionClearedListener(() => {
+      this.disconnect();
+      this.clearAllCache();
+    });
   }
 
   public static getInstance(): MqttManager {
@@ -71,138 +80,132 @@ export class MqttManager {
     return MqttManager.instance;
   }
 
-  private initClient() {
-    const clientId = MQTT_CLIENT_ID;
-    const clientOptions: MqttClientOptions = {
-      url: BROKER_URL,
-      clientId: clientId,
-      persistenceType: 1,
-    };
-    try {
-      this.mqttClient = MqttAsync.createMqtt(clientOptions);
-      this.setupListeners(this.mqttClient);
-      console.log("[mqtt]:MQTT 客户端初始化成功。");
-    } catch (e) {
-      console.error("[mqtt]:MQTT 客户端初始化失败:", e);
-      this.latestMessage = `连接异常`;
-    }
-  }
-
-  private setupListeners(client: MqttClient) {
-    client.connectLost((err: Error, data: MqttResponse) => {
+  private setupListeners(client: MqttClient): void {
+    client.connectLost((_err: Error, _data: MqttResponse) => {
+      if (this.mqttClient !== client) return;
       this.isConnected = false;
-      console.error("[mqtt]:MQTT 连接丢失:", err, data);
-      this.latestMessage = `连接已断开`;
+      this.latestMessage = "连接已断开";
       this.deviceOnline = false;
       this.stopDeviceCheck();
       this.clearFallRecoveryTimer();
       this.reconnect();
     });
     client.messageArrived((err: Error, data: MqttMessage) => {
-      if (err) {
-        console.error("[mqtt]:接收消息错误:", err);
-        return;
-      }
-      console.log(`[mqtt]:💬 messageArrived 回调触发! topic=${data.topic}`);
+      if (err || this.mqttClient !== client || !this.wantsConnection ||
+        !CloudService.getInstance().hasSession()) return;
       this.handleMessage(data.topic, data.payload);
     });
   }
 
   public async testConnection(): Promise<boolean> {
-    try {
-      if (!MQTT_USERNAME || !MQTT_PASSWORD) {
-        console.error("[mqtt]:安全凭据未配置，拒绝使用安装包内共享密码");
-        return false;
-      }
-      if (!this.mqttClient) return false;
-      const connectOptions: MqttConnectOptions = {
-        connectTimeout: 10,
-        keepAliveInterval: 30,
-        cleanSession: true,
-        userName: MQTT_USERNAME,
-        password: MQTT_PASSWORD,
-        MQTTVersion: 4,
-        sslOptions: {
-          enableServerCertAuth: true,
-          trustStoreContent: MQTT_CA_CERT,
-          verify: false, // IP地址无法做 hostname 校验，跳过
-        },
-      };
-      const result = await this.mqttClient.connect(connectOptions);
-      if (result.code === 0) {
-        await this.mqttClient.disconnect();
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("[mqtt]:连接测试失败:", error);
-      return false;
+    await this.connectAndSubscribe();
+    return this.isConnected;
+  }
+
+  private clearConnectionTimers(): void {
+    if (this.reconnectTimer !== -1) clearTimeout(this.reconnectTimer);
+    if (this.renewalTimer !== -1) clearTimeout(this.renewalTimer);
+    this.reconnectTimer = -1;
+    this.renewalTimer = -1;
+  }
+
+  private async releaseClient(): Promise<void> {
+    const client = this.mqttClient;
+    this.mqttClient = null;
+    this.isConnected = false;
+    this.deviceOnline = false;
+    this.stopDeviceCheck();
+    if (client) {
+      try { await client.disconnect(); } catch (_error) {}
+      try { await client.destroy(); } catch (_error) {}
     }
   }
 
   public async disconnect(): Promise<void> {
-    if (this.mqttClient && this.isConnected) {
-      try {
-        await this.mqttClient.disconnect();
-        this.isConnected = false;
-        this.deviceOnline = false;
-        this.stopDeviceCheck();
-        this.latestMessage = "未连接";
-        this.clearFallRecoveryTimer();
-      } catch (error) {
-        console.error("[mqtt]:断开连接失败:", error);
-      }
-    }
+    this.wantsConnection = false;
+    this.connectionVersion++;
+    this.connecting = false;
+    this.clearConnectionTimers();
+    this.clearFallRecoveryTimer();
+    this.latestMessage = "未连接";
+    await this.releaseClient();
   }
 
-  public async connectAndSubscribe(topic: string = ALERT_TOPIC) {
-    if (!MQTT_USERNAME || !MQTT_PASSWORD) {
-      this.latestMessage = "安全凭据未配置";
-      this.isConnected = false;
+  public async connectAndSubscribe(topic: string = ALERT_TOPIC): Promise<void> {
+    const cloud = CloudService.getInstance();
+    if (!cloud.hasSession()) {
+      await this.disconnect();
+      this.latestMessage = "请先登录";
       return;
     }
-    if (!this.mqttClient) {
-      this.initClient();
-      if (!this.mqttClient) {
-        this.latestMessage = "连接异常";
+    if (topic !== ALERT_TOPIC || this.connecting || this.isConnected) return;
+    this.wantsConnection = true;
+    this.connecting = true;
+    this.clearConnectionTimers();
+    const version = ++this.connectionVersion;
+    try {
+      await this.releaseClient();
+      if (version !== this.connectionVersion) return;
+      this.latestMessage = "正在连接...";
+      const result = await cloud.getMqttCredentials();
+      if (version !== this.connectionVersion || !this.wantsConnection || !cloud.hasSession()) return;
+      const credentials = result.credentials;
+      if (!result.success || !credentials) {
+        this.latestMessage = result.message || "未能获取设备访问凭据";
+        this.reconnect();
         return;
       }
-    }
-    const connectOptions: MqttConnectOptions = {
-      connectTimeout: 30,
-      keepAliveInterval: 60,
-      cleanSession: true,
-      userName: MQTT_USERNAME,
-      password: MQTT_PASSWORD,
-      MQTTVersion: 4,
-      sslOptions: {
-        enableServerCertAuth: true,
-        trustStoreContent: MQTT_CA_CERT,
-        verify: false, // IP地址无法做 hostname 校验，跳过
-      },
-    };
-    try {
-      this.latestMessage = "正在连接...";
-      const connectResult = await this.mqttClient.connect(connectOptions);
-      if (connectResult.code !== 0) throw new Error(`连接失败，返回码: ${connectResult.code}`);
+      if (credentials.topic !== ALERT_TOPIC || !credentials.password || !credentials.username ||
+        credentials.clientId !== credentials.username || !Number.isFinite(credentials.expiresIn) ||
+        credentials.expiresIn <= 30) {
+        throw new Error('无效设备访问凭据');
+      }
+      const clientOptions: MqttClientOptions = {
+        url: BROKER_URL, clientId: credentials.clientId, persistenceType: 1,
+      };
+      const client = MqttAsync.createMqtt(clientOptions);
+      this.mqttClient = client;
+      this.setupListeners(client);
+      const connectOptions: MqttConnectOptions = {
+        connectTimeout: 30,
+        keepAliveInterval: 60,
+        cleanSession: true,
+        userName: credentials.username,
+        password: credentials.password,
+        MQTTVersion: 4,
+        sslOptions: {
+          enableServerCertAuth: true,
+          trustStoreContent: MQTT_CA_CERT,
+          verify: true,
+        },
+      };
+      const connected = await client.connect(connectOptions);
+      if (version !== this.connectionVersion) return;
+      if (connected.code !== 0) throw new Error('连接失败');
+      const subscribed = await client.subscribe({ topic: credentials.topic, qos: 1 });
+      if (version !== this.connectionVersion) return;
+      if (subscribed.code !== 0) throw new Error('订阅失败');
       this.isConnected = true;
-      // 连接成功后启动设备在线检查（先重置状态）
-      this.deviceOnline = false;
       this.lastDeviceActivity = 0;
       this.startDeviceCheck();
-      const subscribeResult = await this.mqttClient.subscribe({ topic: topic, qos: 1 });
-      if (subscribeResult.code !== 0) throw new Error(`订阅失败，返回码: ${subscribeResult.code}`);
-      this.latestMessage = `已连接`;
+      this.latestMessage = "已连接";
       this.clearFallRecoveryTimer();
       this.isFallDetected = false;
       this.fallTimestamp = 0;
-    } catch (err) {
-      this.isConnected = false;
-      this.latestMessage = `未连接`;
+      this.renewalTimer = setTimeout(() => {
+        this.renewalTimer = -1;
+        this.isConnected = false;
+        this.connectAndSubscribe();
+      }, (credentials.expiresIn - 30) * 1000) as number;
+    } catch (_error) {
+      if (version !== this.connectionVersion) return;
+      await this.releaseClient();
+      this.latestMessage = "未连接";
       this.reconnect();
+    } finally {
+      if (version === this.connectionVersion) this.connecting = false;
     }
   }
-
   private clearFallRecoveryTimer(): void {
     if (this.fallRecoveryTimer !== -1) {
       clearTimeout(this.fallRecoveryTimer);
@@ -402,13 +405,13 @@ export class MqttManager {
     }
   }
 
-  private async reconnect() {
-    this.latestMessage = "正在重新连接...";
-    setTimeout(() => {
-      this.connectAndSubscribe();
-    }, 5000);
+  private reconnect(): void {
+    if (!this.wantsConnection || !CloudService.getInstance().hasSession() || this.reconnectTimer !== -1) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = -1;
+      if (this.wantsConnection) this.connectAndSubscribe();
+    }, 5000) as number;
   }
-
   // ── 关键改动：addFallRecord / addSedentaryRecord 新增持久化写库 ──
 
   /** 获取当前登录用户名（统一入口，保证一致性） */

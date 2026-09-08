@@ -5,6 +5,8 @@ After=network-online.target
 
 [Service]
 Type=simple
+WorkingDirectory=/opt/wenxin/app
+Environment=PYTHONPATH=/opt/wenxin/app
 ExecStart=/opt/wenxin/venv/bin/amqtt -c /etc/amqtt/amqtt.yaml
 Restart=always
 RestartSec=5

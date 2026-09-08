@@ -43,6 +43,21 @@
     user
     accessToken
     refreshToken
+    # MQTT 凭据 JSON 来自服务器，字段名不能随 Release 混淆改变。
+    credentials
+    expiresIn
+    password
+    clientId
+    topic
+    avatarVersion
+    challengeId
+    hasAvatar
+    imageBase64
+    mimeType
+    updatedAt
+    verifyCode
+    kind
+    value
 
 # ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
 -keep-property-name

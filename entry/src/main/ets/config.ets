@@ -27,10 +27,7 @@ export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/
 
 // ── MQTT ────────────────────────────────────────────────────
 export const ALERT_TOPIC = "ai_guardian/alerts/#";
-export const MQTT_CLIENT_ID = "HarmonyOS_Client_sad";
-// 禁止在安装包内固化共享 broker 密码；后续由设备注册服务下发短期凭据并写入 Keystore。
-export const MQTT_USERNAME = "harmony_app";
-export const MQTT_PASSWORD = "";
+// MQTT 登录后领取仅订阅告警的短期凭据；只驻留内存，退出即清理。
 // GuardianCA 自签名根证书（公钥，非私钥，可安全内嵌）
 // 用于验证 broker TLS 证书，避免中间人攻击
 export const MQTT_CA_CERT = `-----BEGIN CERTIFICATE-----

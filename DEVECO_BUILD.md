@@ -16,7 +16,7 @@
 - Hvigor：`E:\DevEco Studio\tools\hvigor\bin\hvigorw.bat`
 - Hvigor 版本：`6.24.3`
 - SDK：`E:\DevEco Studio\sdk`
-- HarmonyOS SDK：`6.1.0(23)` / API 23
+- HarmonyOS SDK：`6.1.1(24)` / API 24（2026-09-08 用户确认目标与最低兼容版本统一为 24）
 - 应用版本：读取 `AppScope/app.json5` 中的 `versionName` 和 `versionCode`
 - 签名：读取根目录 `build-profile.json5` 的 `default` 配置
 

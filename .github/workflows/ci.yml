@@ -30,8 +30,10 @@ jobs:
             requirements-moderation.txt
             requirements-sms.txt
       - run: python -m pip install --requirement requirements-production.txt
+      - name: 安装真实 MQTT broker 回归测试依赖
+        run: python -m pip install amqtt==0.11.3
       - run: python -m unittest discover -v
-      - run: python -m py_compile wenxin_proxy.py security_utils.py deploy/sqlite_maintenance.py deploy/ops_monitor.py
+      - run: python -m py_compile wenxin_proxy.py security_utils.py mqtt_access.py guardian_mqtt_plugin.py deploy/sqlite_maintenance.py deploy/ops_monitor.py
       - run: git diff --check HEAD^ HEAD
 
   hap-release:
@@ -90,7 +92,7 @@ jobs:
           test -n "$SSH_HOST"
           ssh -i ~/.ssh/id_ed25519 -p 22 root@"$SSH_HOST" "install -d -m 700 '$RELEASE'"
           scp -i ~/.ssh/id_ed25519 -P 22 \
-            wenxin_proxy.py security_utils.py requirements-production.txt \
+            wenxin_proxy.py admin_panel.html security_utils.py mqtt_access.py requirements-production.txt \
             requirements-moderation.txt requirements-sms.txt \
             root@"$SSH_HOST":"$RELEASE/"
           scp -i ~/.ssh/id_ed25519 -P 22 -r deploy \

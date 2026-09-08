@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
 from security_utils import hash_password, password_needs_rehash, verify_password
+from mqtt_access import allowed_users, create_schema as create_mqtt_schema, issue_grant
 
 app = Flask(__name__)
 
@@ -92,6 +93,7 @@ MAX_AVATAR_BYTES = 750 * 1024
 
 # 账号数据库路径（ECS 上持久存储）
 DB_PATH = os.path.join(os.path.dirname(__file__), "guardian_users.db")
+MQTT_USERS_FILE = os.environ.get('MQTT_USERS_FILE', '/etc/wenxin/mqtt-users.json')
 # ──────────────────────────────────────────────────────────────
 
 
@@ -174,6 +176,7 @@ def get_db():
         "CREATE INDEX IF NOT EXISTS idx_contact_ip_sent "
         "ON t_contact_challenge(requester_ip, sent_at)"
     )
+    create_mqtt_schema(conn)
     conn.commit()
     return conn
 
@@ -405,6 +408,29 @@ def bearer_required(function):
 
 
 # ─── 账号接口 ──────────────────────────────────────────────────
+
+@app.route('/api/mqtt/credentials', methods=['POST'])
+@bearer_required
+def api_mqtt_credentials():
+    if g.current_username not in allowed_users(MQTT_USERS_FILE):
+        return jsonify({'success': False, 'message': '当前账号未获准访问监护设备'}), 403
+    conn = get_db()
+    try:
+        now = int(time.time())
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT access_expires_at FROM t_session WHERE access_token_hash=?',
+                           (g.current_access_hash,)).fetchone()
+        if not row or row['access_expires_at'] <= now + 60:
+            return jsonify({'success': False, 'message': '请刷新登录会话'}), 401
+        credentials = issue_grant(conn, g.current_access_hash, row['access_expires_at'], now)
+        conn.commit()
+        response = jsonify({'success': True, 'credentials': credentials})
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+    except Exception as error:
+        return _internal_error('mqtt_credentials', error)
+    finally:
+        conn.close()
 
 @app.route('/api/otp/send', methods=['POST'])
 def api_send_otp():
@@ -1203,7 +1229,7 @@ def api_refresh():
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute(
             """
-            SELECT session.username
+            SELECT session.username, session.access_token_hash
             FROM t_session AS session
             JOIN t_user AS user ON user.username=session.username
             WHERE session.refresh_token_hash=? AND session.refresh_expires_at>?
@@ -1217,6 +1243,9 @@ def api_refresh():
             return jsonify({"success": False, "message": "刷新会话无效或已过期"}), 401
         conn.execute("DELETE FROM t_session WHERE refresh_token_hash=?", (old_hash,))
         tokens = _new_session(conn, row['username'], now)
+        # Keep current MQTT grants attached to the rotated session until their own expiry.
+        conn.execute('UPDATE t_mqtt_grant SET access_token_hash=? WHERE access_token_hash=?',
+                     (_token_hash(tokens['accessToken']), row['access_token_hash']))
         conn.commit()
         conn.close()
         response = {"success": True}

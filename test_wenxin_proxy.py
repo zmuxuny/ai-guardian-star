@@ -2,6 +2,7 @@ import ast
 import base64
 import hashlib
 import os
+import re
 import runpy
 import sys
 import tempfile
@@ -1303,6 +1304,27 @@ class SmsRegistrationTest(unittest.TestCase):
 
 
 class ClientSecurityRegressionTest(unittest.TestCase):
+    def test_cloud_json_contract_fields_are_preserved_in_release_obfuscation(self):
+        entry = source_path.with_name('entry')
+        cloud = (entry / 'src/main/ets/common/CloudService.ets').read_text(encoding='utf-8')
+        rules = (entry / 'obfuscation-rules.txt').read_text(encoding='utf-8')
+        kept = set()
+        in_properties = False
+        for line in rules.splitlines():
+            line = line.split('#', 1)[0].strip()
+            if line.startswith('-'):
+                in_properties = line == '-keep-property-name'
+            elif in_properties and line:
+                kept.add(line)
+        fields = set()
+        for name, body in re.findall(
+            r'(?:export\s+)?interface\s+(\w+)(?:\s+extends\s+\w+)?\s*\{([^}]+)\}', cloud
+        ):
+            if name in {'CloudUser', 'CloudResult', 'MqttCredentials', 'AllowedProfileUpdate'} or name.endswith('Request'):
+                fields.update(re.findall(r'^\s*(\w+)\??\s*:', body, re.MULTILINE))
+        self.assertTrue(fields, 'No external JSON contract fields found')
+        self.assertFalse(fields - kept, 'Release would rename API fields: ' + ', '.join(sorted(fields - kept)))
+
     def test_cloud_service_does_not_log_request_or_response_bodies(self):
         cloud_source = source_path.with_name("entry").joinpath(
             "src", "main", "ets", "common", "CloudService.ets"
@@ -1320,7 +1342,8 @@ class ClientSecurityRegressionTest(unittest.TestCase):
         config_source = source_path.with_name("entry").joinpath(
             "src", "main", "ets", "config.ets"
         ).read_text(encoding="utf-8")
-        self.assertIn('export const MQTT_PASSWORD = "";', config_source)
+        self.assertNotIn('export const MQTT_PASSWORD', config_source)
+        self.assertNotIn('export const MQTT_USERNAME', config_source)
 
     def test_ai_api_uses_https_domain(self):
         config_source = source_path.with_name("entry").joinpath(

@@ -1,6 +1,12 @@
 # 生产运行与恢复
 
-生产拓扑：公网只到 Nginx `443`；Nginx 转发 `127.0.0.1:8899`；Gunicorn 运行
+当前生产已迁到阿里云 `47.108.167.0`，API 数据库为
+`/opt/wenxin/app/guardian_users.db`。当前部署与本次修复验收见
+[阿里云迁移修复与验收](aliyun-migration-repair.md)。不要将下方旧部署脚本用于阿里云。
+
+## 华为云保留环境（历史部署与回滚参考）
+
+下方主机 `ecs-f195` 和 `/root` 路径均指华为云保留环境。该环境的 API 拓扑为 Nginx `443` 转发 `127.0.0.1:8899`；Gunicorn 运行
 `wenxin_proxy:app`。SQLite 仍位于 `/root/guardian_users.db`，每日在线备份到
 `/var/backups/wenxin`，每份先执行 `PRAGMA integrity_check`，保留 14 天。
 
