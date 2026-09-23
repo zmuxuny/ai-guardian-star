@@ -9,4 +9,24 @@
 /.clang-format
 /.clang-tidy
 **/.test
-/.appanalyzer
+**/.appanalyzer
+
+# Python development artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Runtime logs and private face data
+*.log
+src/known_faces/
+src/debug_faces/
+*.db
+*.db-wal
+*.db-shm
+
+# Optional device-specific audio backend
+src/libguardian_audio.so

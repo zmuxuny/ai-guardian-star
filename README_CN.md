@@ -1,87 +1,55 @@
-**本样例为大家学习昇腾软件栈提供参考，非商业目的！**
+# 智护星（昇腾边缘端）
 
-**本README只提供命令行方式运行样例的指导，如需在Mindstudio下运行样例，请参考[Mindstudio运行图片样例wiki](https://gitee.com/ascend/samples/wikis/Mindstudio%E8%BF%90%E8%A1%8C%E5%9B%BE%E7%89%87%E6%A0%B7%E4%BE%8B?sort_id=3164874)。**
+本仓库当前包含运行于昇腾开发板的 Python 服务端：摄像头采集、姿态推理、跌倒与久坐判断、人脸识别、网页状态页、对讲和 MQTT 告警。HarmonyOS 客户端工程不在本仓库中。
 
-## YOLOV3_coco_detection_picture样例
-功能：使用yolov3模型对输入图片进行预测推理，并将结果打印到输出图片上。   
-样例输入：原始图片jpg文件。    
-样例输出：带推理结果的jpg文件。
+## 目录说明
 
-### 前置条件
-请检查以下条件要求是否满足，如不满足请按照备注进行相应处理。如果CANN版本升级，请同步检查第三方依赖是否需要重新安装（5.0.4及以上版本第三方依赖和5.0.4以下版本有差异，需要重新安装）。
-| 条件 | 要求 | 备注 |
-|---|---|---|
-| CANN版本 | >=5.0.4 | 请参考CANN样例仓介绍中的[安装步骤](https://gitee.com/ascend/samples#%E5%AE%89%E8%A3%85)完成CANN安装，如果CANN低于要求版本请根据[版本说明](https://gitee.com/ascend/samples/blob/master/README_CN.md#%E7%89%88%E6%9C%AC%E8%AF%B4%E6%98%8E)切换samples仓到对应CANN版本 |
-| 硬件要求 | Atlas200DK/Atlas300([ai1s](https://support.huaweicloud.com/productdesc-ecs/ecs_01_0047.html#ecs_01_0047__section78423209366))  | 当前已在Atlas200DK和Atlas300测试通过，产品说明请参考[硬件平台](https://ascend.huawei.com/zh/#/hardware/product) ，其他产品可能需要另做适配|
-| 第三方依赖 | python-acllite | 请参考[第三方依赖安装指导（python样例）](../../../environment)选择需要的依赖完成安装 |
+- `src/ascend_board_server.py`：FastAPI 服务入口，网页、视频、状态、WebSocket 对讲和人脸管理接口。
+- `src/ascend_main_other.py`：当前服务使用的 ACL Lite 推理、跟踪、告警和人脸识别实现。
+- `src/ascend_video_stream.py`：线程安全的视频帧和运行状态缓存。
+- `src/ascend_voice_stream.py`：PyAudio/ALSA 采集、播放和设备选择。
+- `src/ascend_audio_output.py`：当系统没有可用播放设备时，尝试加载板载耳机动态库。
+- `src/acllite/`：昇腾 ACL Lite Python 与本地库支持文件。
+- `*.om`、`*.onnx`：模型文件；多个同名变体的来源和用途尚未完整记录，使用前请对照 `MODEL_PATH` 配置。
+- `data/test/` 和根目录媒体文件：开发样例数据，不参与默认在线推理。
 
-### 样例准备
+`src/ascend_main.py`、`src/dt_pref.py`、`src/detect.py` 和 `src/object_detect.py` 是独立或较早的样例实现，不是 `ascend_board_server.py` 当前启动链路的一部分。
 
-1. 获取源码包。
+## 运行环境
 
-   可以使用以下两种方式下载，请选择其中一种进行源码准备。   
-    - 命令行方式下载（下载时间较长，但步骤简单）。
-       ```    
-       # 开发环境，非root用户命令行中执行以下命令下载源码仓。    
-       cd ${HOME}     
-       git clone https://gitee.com/ascend/samples.git
-       ```
-       **注：如果需要切换到其它tag版本，以v0.5.0为例，可执行以下命令。**
-       ```
-       git checkout v0.5.0
-       ```   
-    - 压缩包方式下载（下载时间较短，但步骤稍微复杂）。   
-       **注：如果需要下载其它版本代码，请先请根据前置条件说明进行samples仓分支切换。**   
-       ``` 
-        # 1. samples仓右上角选择 【克隆/下载】 下拉框并选择 【下载ZIP】。    
-        # 2. 将ZIP包上传到开发环境中的普通用户家目录中，【例如：${HOME}/ascend-samples-master.zip】。     
-        # 3. 开发环境中，执行以下命令，解压zip包。     
-        cd ${HOME}    
-        unzip ascend-samples-master.zip
-        ```
+服务依赖昇腾 CANN/ACL Lite、板端 OpenCV、摄像头和音频系统。请在已安装并配置对应 CANN 环境的开发板上运行；普通 Windows 环境不能替代板端推理验证。
 
-2. 获取此应用中所需要的原始网络模型。
-    |  **模型名称**  |  **模型说明**  |  **模型下载路径**  |
-    |---|---|---|
-    |  yolov3| 基于Caffe-YOLOV3的目标检测模型。  |  请参考[https://gitee.com/ascend/ModelZoo-TensorFlow/tree/master/TensorFlow/contrib/cv/yolov3/ATC_yolov3_caffe_AE](https://gitee.com/ascend/ModelZoo-TensorFlow/tree/master/TensorFlow/contrib/cv/yolov3/ATC_yolov3_caffe_AE)目录中README.md下载原始模型章节下载模型和权重文件。 |
-    ```
-    # 为了方便下载，在这里直接给出原始模型下载及模型转换命令,可以直接拷贝执行。也可以参照上表在modelzoo中下载并手工转换，以了解更多细节。     
-    cd ${HOME}/samples/python/level2_simple_inference/2_object_detection/YOLOV3_coco_detection_picture/model    
-    wget https://obs-9be7.obs.cn-east-2.myhuaweicloud.com/003_Atc_Models/AE/ATC%20Model/Yolov3/yolov3.caffemodel    
-    wget https://obs-9be7.obs.cn-east-2.myhuaweicloud.com/003_Atc_Models/AE/ATC%20Model/Yolov3/yolov3.prototxt
-    wget https://obs-9be7.obs.cn-east-2.myhuaweicloud.com/003_Atc_Models/AE/ATC%20Model/Yolov3/aipp_nv12.cfg
-    atc --model=yolov3.prototxt --weight=yolov3.caffemodel --framework=0 --output=yolov3_yuv --soc_version=Ascend310 --insert_op_conf=aipp_nv12.cfg
-    ```
+```bash
+# 按开发板实际安装位置加载 CANN 环境
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-3. 获取样例需要的测试图片。
-    ```
-    执行以下命令，进入样例的data文件夹中，下载对应的测试图片。
-    cd $HOME/samples/python/level2_simple_inference/2_object_detection/YOLOV3_coco_detection_picture/data
-    wget https://obs-9be7.obs.cn-east-2.myhuaweicloud.com/models/YOLOV3_coco_detection_picture/dog1_1024_683.jpg
-    cd ../src
-    ```
+# 安装 Python 服务依赖；ACL、OpenCV 等板端原生组件需使用设备匹配的版本
+python3 -m pip install -r requirements-edge.txt
 
-### 样例运行
+# 从仓库根目录启动，默认网页端口为 5000
+python3 src/ascend_board_server.py
+```
 
-**注：开发环境与运行环境合一部署，请跳过步骤1，直接执行[步骤2](#step_2)即可。**   
+默认人体模型从 `src/best.om`、当前目录的 `best.om` 等候选路径中查找。若需指定数据库位置，可设置 `AI_GUARDIAN_DB_PATH`。
 
-1. 执行以下命令,将开发环境的 **YOLOV3_coco_detection_picture** 目录上传到运行环境中，例如 **/home/HwHiAiUser**，并以HwHiAiUser（运行用户）登录运行环境（Host）。
-    ```
-    # 【xxx.xxx.xxx.xxx】为运行环境ip，200DK在USB连接时一般为192.168.1.2，300（ai1s）为对应的公网ip。
-    scp -r $HOME/samples/python/level2_simple_inference/2_object_detection/YOLOV3_coco_detection_picture HwHiAiUser@xxx.xxx.xxx.xxx:/home/HwHiAiUser
-    ssh HwHiAiUser@xxx.xxx.xxx.xxx
-    cd ${HOME}/YOLOV3_coco_detection_picture/src    
-    ```
+人脸管理接口默认关闭。启动前配置仅保存在设备环境变量中的管理员令牌：
 
-2. <a name="step_2"></a>运行样例。
-   ```
-   python3.6 object_detect.py ../data/
-   ```
+```bash
+export AI_GUARDIAN_FACE_ADMIN_TOKEN='请替换为本机生成的长随机令牌'
+```
 
-### 查看结果
+调用人脸录入、删除和列表接口时，通过 `X-Admin-Token` 请求头提交该令牌。不要把实际令牌写入仓库、脚本或日志。
 
-运行完成后，会在样例工程的out/目录下生成推理后的图片，显示对比结果如下所示。
-![输入图片说明](https://images.gitee.com/uploads/images/2021/1103/150340_e045f400_8070502.png "屏幕截图.png")
+板载 3.5 mm 耳机输出是可选后备路径，需要部署与设备匹配的 `src/libguardian_audio.so`；缺少它不会阻止其他可用的 PyAudio 输入/输出设备启动。该动态库目前不随仓库提供。
 
-### 常见错误
-请参考[常见问题定位](https://gitee.com/ascend/samples/wikis/%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D/%E4%BB%8B%E7%BB%8D)对遇到的错误进行排查。如果wiki中不包含，请在samples仓提issue反馈。
+## 接口
+
+- `GET /`：服务端内嵌状态页面。
+- `GET /api/stats`：运行状态和检测统计。
+- `GET /video_feed`：MJPEG 视频流。
+- `WS /ws/intercom`：浏览器与开发板双向 PCM 对讲。
+- `/api/face/*`：需配置管理员令牌的人脸管理接口。
+
+## 验证边界
+
+静态语法检查和 Windows 上的轻量检查不能验证 ACL 模型、摄像头、ALSA/PyAudio、板载动态库或 MQTT Broker。部署前应在目标板分别确认服务启动、视频帧更新、双向对讲、人脸录入/删除和告警链路。

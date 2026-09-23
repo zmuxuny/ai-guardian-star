@@ -139,15 +139,16 @@
         let processor;
         let source;
         
-        // 自动获取当前页面 URL 的主机名 (例如 192.168.137.100)
+        // The standalone page may be hosted separately; both streams come from the board API.
         const currentHost = window.location.hostname;
+        const httpProto = window.location.protocol === 'https:' ? 'https' : 'http';
+        const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const boardOrigin = `${httpProto}://${currentHost}:5000`;
         
-        // 1. 设置视频流地址 (端口 5000)
-        const videoUrl = `http://${currentHost}:5000/video_feed`;
+        const videoUrl = `${boardOrigin}/video_feed`;
         document.getElementById('videoStream').src = videoUrl;
 
-        // 2. 设置 WebSocket 地址 (端口 8000)
-        const wsUrl = `ws://${currentHost}:8000/ws/web_client`;
+        const wsUrl = `${wsProto}://${currentHost}:5000/ws/intercom`;
 
         // 3. 音频采样率 (必须与板子 ascend_voice_stream.py 一致)
         const sampleRate = 48000; 
