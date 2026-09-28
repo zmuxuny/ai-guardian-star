@@ -13,6 +13,7 @@
 5. [deploy/aliyun/MQTT_ACCESS.md](deploy/aliyun/MQTT_ACCESS.md)：MQTT 临时凭据、设备访问范围、部署和回滚。
 6. [docs/production-operations.md](docs/production-operations.md)：备份、恢复、监控和部署流程。注意其中标为华为云保留环境的命令是历史环境专用，不能直接用于阿里云。
 7. [SECURITY.md](SECURITY.md)、[docs/database-admin-access.md](docs/database-admin-access.md)：安全报告和管理后台边界。
+8. [.wolf/cerebrum.md](.wolf/cerebrum.md) 的 Do-Not-Repeat 与 Decision Log、[.wolf/buglog.json](.wolf/buglog.json)：历次踩坑、根因和已定决策。改相关模块或排障前先搜一遍，很多问题已经有结论。
 
 旧的 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) 形成于 2026-04，含已过时的华为云、OpenGauss、SDK 和接口描述。它只可作历史背景；当前代码、`DEVECO_BUILD.md`、迁移及运维专项文档优先。
 
@@ -22,6 +23,8 @@
 - 客户端主链路：ArkUI/ArkTS → HTTPS API；告警链路：App 经 MQTT TLS 订阅板端事件；视频、设备状态和对讲通过设备 HTTP/WSS 接入。
 - 当前生产 API 域名为 `https://api.aistar.asia`，云端服务由 Nginx HTTPS 反代到只监听回环地址的 Gunicorn/Flask；生产数据库为 SQLite。MQTT 使用 TLS 8883。
 - 当前生产在阿里云 `47.108.167.0`。华为云 `117.78.9.144` 是保留/回退环境，不能把旧环境脚本、数据库或配置直接覆盖到生产。
+- 阿里云这台机器同时承载官网 `aistar.asia`（宝塔面板 + WordPress，规格 2 核 / 1.8G）。API、官网共用 Nginx 和 certbot 续期钩子，内存也很紧：改 Nginx、升级宝塔或装新服务前，先确认不会影响另一方；官网页脚的 ICP/公安备案信息不能删。
+- 域名 DNS 在阿里云云解析。2026-07 实测 Cloudflare 免费版代理对境内源站是净负面（无大陆节点，延迟翻倍且间歇 520/522），已迁回，不要重新接入 Cloudflare 代理。
 - 开发板部署在独立环境，项目代码路径、密钥和完整人脸数据不在本仓库。板端进程正常、HTTPS 可达或 MQTT 已连接，分别都不能单独证明整条业务已验收。
 - OpenGauss 不是当前生产业务库。迁移评估和当前数据库状态见 [docs/opengauss-migration-assessment.md](docs/opengauss-migration-assessment.md) 与迁移修复文档；不要因历史文档提到它就新建迁移。
 
@@ -48,6 +51,9 @@
 - 单例服务要明确生命周期：数据库初始化应可重复调用；会话清理必须同时清除 MQTT 连接、重连/续期定时器和缓存。
 - ArkUI 响应式集合不要长期持有服务内部数组的原引用；需要界面可靠刷新时维护页面状态副本并明确同步时机。列表 key 应体现数据变化，而不是只用数组下标。
 - 网络/云同步失败要有清楚的错误状态。确实允许离线工作的操作可以降级，但不要把“本地写成功”显示成“云端同步成功”。
+- 资料类写操作（昵称、手机、邮箱、密码、头像）一律“先 await 云端成功，再写本地”；云端失败就不动本地。写完立即退页的场景尤其要 await，否则组件销毁会丢掉未完成的请求，曾导致昵称永不同步。
+- `MqttManager` 的告警数组按最新优先插入，“最近一次”读 `[0]`，不是 `[length - 1]`。
+- 布局尺寸用 vp 定值，随屏幕变化时用 `common/ResponsiveLayout.ets` 的 `pick()` 按断点（600/840vp）取档。ArkUI 百分比（包括纵向 margin）都相对父容器**宽度**计算，平板上会放大三倍以上；百分比只用于“占父容器几成”，如 `width('100%')`。大屏布局异常时先 grep 页面里的 `'%'`。
 - 数据库导出或人工检查时注意 SQLite/WAL：活动数据库可能还有 `-wal`、`-shm` 状态；应使用数据库备份 API 或 checkpoint 后的一致副本，不要只复制主 `.db` 文件就声称数据完整。
 
 ### 登录态与密钥
@@ -63,6 +69,9 @@
 - 项目启用 ArkTS 严格检查，优先使用明确接口类型、避免 `any`/`unknown` 逃逸；按编译器要求处理异常类型，不照抄旧文档中与当前 SDK 不符的写法。
 - 外部 JSON 字段名是客户端/服务器契约。Release 混淆曾改写 `expiresIn` 导致续期定时器异常；更新请求/响应字段时同步维护混淆保留规则和契约检查，并检查 Release 产物字段。
 - 当前统一目标为 HarmonyOS SDK/API 24，构建基线见 `DEVECO_BUILD.md`。使用 DevEco 自带 Node、OHPM、Hvigor；依赖变化时再安装依赖，勿无故重写锁文件或升级工具链。
+- 仓库里没有 `hvigorw.js`，启动器在 DevEco 安装目录 `tools/hvigor/bin/hvigorw.js`；命令行构建必须显式设置 `DEVECO_SDK_HOME`，只设 `DEVECO_STUDIO_HOME` 会报 `Invalid value of 'DEVECO_SDK_HOME'`。签名材料路径在 `build-profile.json5`，文件本身不在仓库，找保管人要。
+- 版本号：`versionCode = 1000000 + major*10000 + minor*100 + patch`（1.0.1 → 1010001），AGC 要求严格递增。改版本时 `AppScope/app.json5` 与两份 README 的版本说明同步。
+- AGC 已批准的 ACL 受限权限会自动写进之后新建的每个 Profile，无法取消，华为答复不影响上架；真正要管住的是 `module.json5` 不声明用不到的权限。
 - HAP 用于安装测试；APP 是 App Pack，不能直接安装。只有找到非空产物、记录 SHA-256 才能称已构建；构建通过不等于真机通过，上架还需 AppGallery Connect 校验。
 - 做设备验收时分开记录构建、模拟器、真机、网络、权限和端到端结果，并以仓库现有专项记录为准。历史上验证过的 API 23 真机认证链路不能替代当前 API 24 与新功能的核验，不要沿用旧结论。
 
@@ -119,7 +128,12 @@
 - 干净检出缺 `@ohos/mqtt`：检查 OHPM 安装与 DevEco 自带 Node；确认被忽略的依赖目录/锁文件状态，别把生成物误提交。
 - Release 出现 MQTT 凭据不断续期：先查混淆后的字段名、返回 JSON 和有限数值检查，不能仅看 Debug。
 - 本地 RDB 看不到最近记录：确认 WAL 状态并用一致性备份/checkpoint。
-- AI 接口返回 5xx：沿 App → `/ai/chat` → 输入审核 → Coze → 输出审核逐段查，依据上游状态分类；不能把审核失败等同模型故障。
+- AI 接口返回 5xx：沿 App → `/ai/chat` → 输入审核 → Coze → 输出审核逐段查，依据上游状态分类；不能把审核失败等同模型故障。历史上最常见的两个上游原因是扣子积分耗尽（402）和 API Token 过期。更新服务端环境文件后必须 `systemctl restart wenxin.service`，Python 进程不会热加载。
+- 调用新云端接口前先确认 `wenxin_proxy.py` 里端点已实现，曾出现 App 调用了后端根本没有的 `/api/changePassword`（404）。后端 UPDATE 后要检查影响行数，0 行不能返回成功。
+- 真机与模拟器行为不一致：例如 PhotoViewPicker 返回的 media URI 在真机上不能直接 `copyFile`，要 `openSync` 取 fd 再用 `image.createImageSource` 解码。模拟器通过的文件/媒体/权限流程要在真机再测一遍。
+- 官网或设备页的视觉验收用无扩展的干净浏览器（如 Playwright）。装了 Dark Reader 这类扩展的浏览器截图会被改色，曾因此误判页面有背景断层；Playwright 的 `fullPage` 截图对 `position: fixed` 和 `drop-shadow` 也不可靠，以视口截图和 DOM 查询为准。
+- 对外使用的截图（官网、比赛材料、上架素材）先检查有没有未打码的手机号、内部提示串或“设备离线”状态。
+- Windows 中文控制台（代码页 936）打印 UTF-8 会乱码，Python 脚本加 `PYTHONIOENCODING=utf-8`，看到乱码先排除编码问题再下结论。
 - SSH/FRP 断开：分别观察服务 PID/重启次数、板端帧增长、摄像头状态、MQTT、NPU/USB/OOM 和 API。单次隧道失败不能判定业务进程崩溃。
 - 摄像头离线后旧帧可能造成“假在线”；失去新帧时应检查 `camera_connected`、FPS 和帧接口状态，恢复后确认帧确实增长。
 - 不因历史交接里的某个 IP、端口、数据库、SDK 数字或测试通过记录推定现状；回到配置和线上证据确认。
@@ -130,6 +144,8 @@
 - [ ] 明确 API 24 的目标设备与最低兼容版本，完成一次当前分支 Release HAP 构建并归档产物哈希。
 - [ ] 确认生产 SSH/云账号由新负责人按团队流程获得；不要通过聊天传递私钥、密码或 Token。
 - [ ] 交接生产服务、数据库备份、监控告警、证书续期、短信/审核/模型供应商账单入口及各自负责人。
+- [ ] 证书近期到期：API 2026-10-13、官网 2026-10-25。续期 dry-run 已通过，但到期前后仍要实际确认新证书已生效、Nginx 已 reload。扣子积分余量也要定期看。
+- [ ] Git：仓库 `zmuxuny/ai-guardian-star` 是**公开**仓库，推送前自查 diff 里有没有密钥、证书、环境文件和个人数据。团队每人一条固定工作分支，不随手建临时分支；提交用自己 GitHub 账号的 noreply 邮箱，Conventional Commits、描述用中文。
 - [ ] 逐项列明实体设备验收：登录/刷新/退出、MQTT 真实告警、摄像头恢复、双向音频、AI 同意与审核；当前未实测项继续标为待验收。
 - [ ] 先读 Git 工作区和未提交差异，再开始改动；发布前按专项文档留备份、做健康检查并写明回滚步骤。
 
