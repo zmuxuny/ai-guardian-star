@@ -472,7 +472,8 @@ async function fetchStats(){
                 const nameColor=isStranger?'var(--danger)':'var(--text)';
                 const confColor=isStranger?'var(--danger)':'var(--brand)';
                 const avatarChar=isKnown?name.charAt(0):(isStranger?'?':'·');
-                const subText=isStranger?'未登记人员':(isKnown?'已登记人员':'等待识别结果');
+                const reasons={too_dark:'光线不足',overexposed:'光线过强',low_contrast:'人脸细节不足',blurred:'画面模糊',landmarks_unavailable:'关键区域不清晰',no_face:'等待清晰人脸',low_light:'弱光处理中'};
+                const subText=isStranger?'未登记人员':(isKnown?'已登记人员':(reasons[f.reason]||'等待识别结果'));
                 const showConf=(isKnown||isStranger)&&f.score!=null;
                 const row=document.createElement('div');
                 row.className='face-row';
@@ -825,6 +826,7 @@ def run_system():
                             faces.append({
                                 "label": fl,
                                 "score": _a.get('face_score'),
+                                "reason": _a.get('face_reason', 'waiting'),
                                 "person_id": _a.get('id'),
                             })
                         if _a.get('is_sitting'):

@@ -22,6 +22,12 @@ def face_namespace():
                  "ensure_dir": lambda path: Path(path).mkdir(parents=True, exist_ok=True),
                  "print": lambda *args: None, "SAVE_FACE_RECOG_INPUTS": False,
                  "ACL_MODEL_EXEC_LOCK": threading.Lock()}
+    # These existing tests isolate matching/geometry. Pixel-quality behavior is
+    # covered independently with real image arrays in test_face_quality.py.
+    namespace.update(SAMPLE_INTERVAL=0.5, BEST_CROP_TTL=2.0,
+        assess_face_image=lambda image: dict(usable=image is not None, reason="ready",
+            brightness=100.0, sharpness=100.0, rank=1.0),
+        enhance_face_image=lambda image, cv_module=None: image)
     tree = ast.parse((ROOT / "src/ascend_main_other.py").read_text(encoding="utf-8"))
     for node in tree.body:
         if not isinstance(node, ast.Assign):

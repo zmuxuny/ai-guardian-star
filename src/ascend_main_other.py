@@ -29,6 +29,7 @@ if current_file_dir not in sys.path:
 # 导入本地模块
 from ascend_video_stream import start_stream, update_frame
 from guardian_runtime import StationaryTimer, create_mqtt_client
+from guardian_face_quality import assess_face_image, enhance_face_image, SAMPLE_INTERVAL, BEST_CROP_TTL
 try:
     import ascend_voice_stream as audio_hw  # 导入音频硬件模块
 except Exception:
@@ -644,7 +645,7 @@ class FaceLibrary:
                     if face_bgr is None:
                         print(f"[FaceDiag] skip sample, no usable face crop: {img_path}")
                         continue
-                    embedding = self.arcface.infer(face_bgr)
+                    embedding = self.arcface.infer(enhance_face_image(face_bgr, cv2))
                     if embedding is None:
                         print("[FaceDiag] ACL recognizer failed; rebuild the entire library with CPU features")
                         return self._load(use_arcface=False)
@@ -733,7 +734,7 @@ class FaceLibrary:
             self._log_diag("live_face_crop_empty", "[FaceDiag] live face crop is empty")
             return "unknown", None
         if use_arcface and face_color is not None:
-            embedding = self.arcface.infer(face_color)
+            embedding = self.arcface.infer(enhance_face_image(face_color, cv2))
             if embedding is None:
                 shape = getattr(face_color, "shape", None)
                 self._log_diag("live_arcface_failed", f"[FaceDiag] live ACL face embedding failed, face_shape={shape}")
@@ -1698,7 +1699,8 @@ class AclLiteStreamDetector:
                 state.update(face_label="pending", face_score=None, face_pending=False,
                              face_candidate=None, face_candidate_hits=0, last_face_check=0.0,
                              face_vote_history=deque(maxlen=FACE_VOTE_WINDOW),
-                             best_face_crop=None, best_face_score=0.0)
+                             best_face_crop=None, best_face_score=0.0, best_face_at=0.0,
+                             last_quality_sample=0.0, face_reason="waiting")
             self.recent_known_tracks.clear()
             self.face_global_last_check = 0.0
             self._face_library_revision = revision
@@ -1931,6 +1933,7 @@ class AclLiteStreamDetector:
                 state["best_face_crop"] = None
                 state["best_face_score"] = 0.0
 
+            state["face_reason"] = "matched" if str(state["face_label"]).startswith("known:") else "unmatched"
             state["face_score"] = numeric_score
             state["face_pending"] = False
 
@@ -2168,6 +2171,9 @@ class AclLiteStreamDetector:
                     state["face_vote_history"] = deque(maxlen=FACE_VOTE_WINDOW)
                     state["best_face_crop"] = None
                     state["best_face_score"] = 0.0
+                    state["best_face_at"] = 0.0
+                    state["last_quality_sample"] = 0.0
+                    state["face_reason"] = "waiting"
                 state["box"] = det["box"]
                 state["last_seen"] = now_ts
                 state.setdefault("first_seen", now_ts)
@@ -2297,16 +2303,15 @@ class AclLiteStreamDetector:
                 if current_state is not None:
                     current_state["face_label"] = "pending"
                     current_state["face_score"] = None
+                    current_state["face_reason"] = "landmarks_unavailable"
+                    current_state.update(best_face_crop=None, best_face_score=0.0, best_face_at=0.0)
             return
-        retry_interval = (FACE_RETRY_UNKNOWN_INTERVAL
-                          if face_label in ("unknown", "stranger") or str(face_label).startswith("known:")
-                          else FACE_RECOGNITION_COOLDOWN)
-        if now_ts - state.get("last_face_check", 0.0) < retry_interval:
+        if now_ts - state.get("last_quality_sample", 0.0) < SAMPLE_INTERVAL:
             return
-        if now_ts - self.face_global_last_check < FACE_GLOBAL_RECOGNITION_COOLDOWN:
-            return
-        if state.get("face_pending"):
-            return
+        with self.person_state_lock:
+            current_state = self.person_states.get(person_id)
+            if current_state is not None:
+                current_state["last_quality_sample"] = now_ts
 
         face_crop = None
         face_score = 0.0
@@ -2340,21 +2345,37 @@ class AclLiteStreamDetector:
             and (detector_crop or (front_face_ok and quality_score >= FACE_RECOG_MIN_QUALITY_SCORE))
         )
 
+        image_quality = assess_face_image(face_crop)
+        quality_ok = quality_ok and image_quality["usable"]
+        rank = quality_score + image_quality["rank"]
+        chosen_face = None
         with self.person_state_lock:
             current_state = self.person_states.get(person_id)
-            if current_state is not None:
-                current_state["face_det_box"] = face_det_box
-                current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
-                if quality_ok and face_crop is not None and quality_score > current_state.get("best_face_score", 0.0):
-                    current_state["best_face_crop"] = face_crop
-                    current_state["best_face_score"] = quality_score
+            if current_state is None:
+                return
+            current_state["face_det_box"] = face_det_box
+            current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
+            current_state["face_reason"] = image_quality["reason"] if face_crop is not None else "no_face"
+            if now_ts - current_state.get("best_face_at", 0.0) > BEST_CROP_TTL:
+                current_state.update(best_face_crop=None, best_face_score=0.0)
+            if quality_ok and rank > current_state.get("best_face_score", 0.0):
+                current_state.update(best_face_crop=face_crop, best_face_score=rank, best_face_at=now_ts)
+            chosen_face = current_state.get("best_face_crop")
 
-        if not quality_ok:
+        if chosen_face is None:
             self.face_library._log_diag(
-                "crop_gate", f"[FaceGate] waiting for usable crop: candidate_score={face_score:.3f} "
-                f"quality={quality_score:.3f} frontal={front_face_ok}")
+                "crop_gate", f"[FaceGate] waiting for usable crop: reason={image_quality['reason']} "
+                f"brightness={image_quality['brightness']:.1f} sharpness={image_quality['sharpness']:.1f}")
             return
-
+        retry_interval = (FACE_RETRY_UNKNOWN_INTERVAL
+                          if face_label in ("unknown", "stranger") or str(face_label).startswith("known:")
+                          else FACE_RECOGNITION_COOLDOWN)
+        if now_ts - state.get("last_face_check", 0.0) < retry_interval:
+            return
+        if now_ts - self.face_global_last_check < FACE_GLOBAL_RECOGNITION_COOLDOWN:
+            return
+        if state.get("face_pending"):
+            return
         with self.person_state_lock:
             current_state = self.person_states.get(person_id)
             if current_state is None:
@@ -2362,9 +2383,8 @@ class AclLiteStreamDetector:
             current_state["last_face_check"] = now_ts
             current_state["face_pending"] = True
             self.face_global_last_check = now_ts
-            cached_best_face = current_state.get("best_face_crop")
-            cached_best_score = float(current_state.get("best_face_score", 0.0) or 0.0)
-        chosen_face = cached_best_face if cached_best_face is not None and cached_best_score >= quality_score else face_crop
+            # Consume once; an old crop cannot produce several independent votes.
+            current_state.update(best_face_crop=None, best_face_score=0.0, best_face_at=0.0)
         if SAVE_FACE_RECOG_INPUTS:
             save_face_debug_image(chosen_face, person_id, face_score, now_ts, force=True)
 
@@ -2467,6 +2487,7 @@ class AclLiteStreamDetector:
                 "fall_motion": latest_state.get("fall_motion", motion_fallen),
                 "face_label": latest_state.get("face_label", "pending"),
                 "face_score": latest_state.get("face_score"),
+                "face_reason": latest_state.get("face_reason", "waiting"),
                 "face_det_box": latest_state.get("face_det_box"),
                 "face_det_box_ts": latest_state.get("face_det_box_ts", 0.0),
                 "vlm_summary": latest_state.get("vlm_last_summary"),
