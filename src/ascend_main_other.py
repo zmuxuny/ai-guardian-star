@@ -29,7 +29,8 @@ if current_file_dir not in sys.path:
 # 导入本地模块
 from ascend_video_stream import start_stream, update_frame
 from guardian_runtime import StationaryTimer, create_mqtt_client
-from guardian_face_quality import assess_face_image, enhance_face_image, SAMPLE_INTERVAL, BEST_CROP_TTL
+from guardian_face_quality import (assess_face_image, enhance_face_image, expire_face_wait,
+                                   SAMPLE_INTERVAL, BEST_CROP_TTL)
 try:
     import ascend_voice_stream as audio_hw  # 导入音频硬件模块
 except Exception:
@@ -1700,7 +1701,9 @@ class AclLiteStreamDetector:
                              face_candidate=None, face_candidate_hits=0, last_face_check=0.0,
                              face_vote_history=deque(maxlen=FACE_VOTE_WINDOW),
                              best_face_crop=None, best_face_score=0.0, best_face_at=0.0,
-                             last_quality_sample=0.0, face_reason="waiting")
+                             last_quality_sample=0.0, face_reason="waiting", face_quality_reason="waiting",
+                             face_wait_started=time.time(), face_wait_seconds=0.0,
+                             face_timeout_seconds=0.0, face_timed_out=False)
             self.recent_known_tracks.clear()
             self.face_global_last_check = 0.0
             self._face_library_revision = revision
@@ -1933,7 +1936,14 @@ class AclLiteStreamDetector:
                 state["best_face_crop"] = None
                 state["best_face_score"] = 0.0
 
-            state["face_reason"] = "matched" if str(state["face_label"]).startswith("known:") else "unmatched"
+            if str(state["face_label"]).startswith("known:"):
+                state.update(face_reason="matched", face_wait_started=None,
+                             face_timeout_seconds=0.0, face_wait_seconds=0.0, face_timed_out=False)
+            else:
+                if str(previous_label).startswith("known:"):
+                    state.update(face_wait_started=time.time(), face_timeout_seconds=0.0,
+                                 face_timed_out=False)
+                state["face_reason"] = "timeout" if state.get("face_timed_out") else "unmatched"
             state["face_score"] = numeric_score
             state["face_pending"] = False
 
@@ -2133,6 +2143,7 @@ class AclLiteStreamDetector:
                         "fall_recover_since": 0.0,
                         "fall_confirmed": False,
                         "face_label": "pending",
+                        "face_wait_started": now_ts,
                         "face_score": None,
                         "face_det_box": None,
                         "face_det_box_ts": 0.0,
@@ -2160,6 +2171,9 @@ class AclLiteStreamDetector:
                     or best_match_norm_dist > FACE_TRACK_REUSE_DIST_STRICT
                 )
                 if weak_reuse:
+                    if str(state.get("face_label", "")).startswith("known:") or state.get("face_label") == "stranger":
+                        state.update(face_wait_started=now_ts, face_timeout_seconds=0.0,
+                                     face_wait_seconds=0.0, face_timed_out=False)
                     state["face_label"] = "pending"
                     state["face_score"] = None
                     state["face_det_box"] = None
@@ -2174,6 +2188,7 @@ class AclLiteStreamDetector:
                     state["best_face_at"] = 0.0
                     state["last_quality_sample"] = 0.0
                     state["face_reason"] = "waiting"
+                    state["face_quality_reason"] = "waiting"
                 state["box"] = det["box"]
                 state["last_seen"] = now_ts
                 state.setdefault("first_seen", now_ts)
@@ -2301,9 +2316,13 @@ class AclLiteStreamDetector:
             with self.person_state_lock:
                 current_state = self.person_states.get(person_id)
                 if current_state is not None:
+                    if str(current_state.get("face_label", "")).startswith("known:"):
+                        current_state.update(face_wait_started=now_ts, face_timeout_seconds=0.0,
+                                             face_timed_out=False)
                     current_state["face_label"] = "pending"
                     current_state["face_score"] = None
                     current_state["face_reason"] = "landmarks_unavailable"
+                    current_state["face_quality_reason"] = "landmarks_unavailable"
                     current_state.update(best_face_crop=None, best_face_score=0.0, best_face_at=0.0)
             return
         if now_ts - state.get("last_quality_sample", 0.0) < SAMPLE_INTERVAL:
@@ -2356,6 +2375,7 @@ class AclLiteStreamDetector:
             current_state["face_det_box"] = face_det_box
             current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
             current_state["face_reason"] = image_quality["reason"] if face_crop is not None else "no_face"
+            current_state["face_quality_reason"] = current_state["face_reason"]
             if now_ts - current_state.get("best_face_at", 0.0) > BEST_CROP_TTL:
                 current_state.update(best_face_crop=None, best_face_score=0.0)
             if quality_ok and rank > current_state.get("best_face_score", 0.0):
@@ -2434,6 +2454,9 @@ class AclLiteStreamDetector:
         alerts = []
         for person_id, state, det in assignments:
             with self.person_state_lock:
+                tracked = self.person_states.get(person_id)
+                if tracked is not None:
+                    expire_face_wait(tracked, now_ts, len(assignments))
                 latest_state = dict(self.person_states.get(person_id, state))
 
             box = det["box"]
@@ -2488,6 +2511,8 @@ class AclLiteStreamDetector:
                 "face_label": latest_state.get("face_label", "pending"),
                 "face_score": latest_state.get("face_score"),
                 "face_reason": latest_state.get("face_reason", "waiting"),
+                "face_wait_seconds": latest_state.get("face_wait_seconds", 0.0),
+                "face_timeout_seconds": latest_state.get("face_timeout_seconds", 0.0),
                 "face_det_box": latest_state.get("face_det_box"),
                 "face_det_box_ts": latest_state.get("face_det_box_ts", 0.0),
                 "vlm_summary": latest_state.get("vlm_last_summary"),

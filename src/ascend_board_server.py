@@ -266,6 +266,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
     <!-- 人脸识别（动态多人，底部） -->
     <div class="card face-card">
         <div class="card-label">人脸识别</div>
+        <div style="color:var(--muted);font-size:11px;padding:4px 0;">上传不同方向的照片，有助于加快识别并提高精度；照片数量不作要求，一张也可登记。</div>
         <div id="face-list">
             <div style="color:var(--muted);font-size:11px;padding:4px 0;">无检测对象</div>
         </div>
@@ -473,7 +474,8 @@ async function fetchStats(){
                 const confColor=isStranger?'var(--danger)':'var(--brand)';
                 const avatarChar=isKnown?name.charAt(0):(isStranger?'?':'·');
                 const reasons={too_dark:'光线不足',overexposed:'光线过强',low_contrast:'人脸细节不足',blurred:'画面模糊',landmarks_unavailable:'关键区域不清晰',no_face:'等待清晰人脸',low_light:'弱光处理中'};
-                const subText=isStranger?'未登记人员':(isKnown?'已登记人员':(reasons[f.reason]||'等待识别结果'));
+                const waitText=f.timeout_seconds>0?`（${Math.floor(f.wait_seconds||0)}/${Math.ceil(f.timeout_seconds)}秒）`:'';
+                const subText=isStranger?(f.reason==='timeout'?'识别超时，暂列陌生人':'未匹配登记人员'):(isKnown?'已登记人员':((reasons[f.reason]||'等待识别结果')+waitText));
                 const showConf=(isKnown||isStranger)&&f.score!=null;
                 const row=document.createElement('div');
                 row.className='face-row';
@@ -827,6 +829,8 @@ def run_system():
                                 "label": fl,
                                 "score": _a.get('face_score'),
                                 "reason": _a.get('face_reason', 'waiting'),
+                                "wait_seconds": _a.get('face_wait_seconds', 0.0),
+                                "timeout_seconds": _a.get('face_timeout_seconds', 0.0),
                                 "person_id": _a.get('id'),
                             })
                         if _a.get('is_sitting'):
@@ -961,6 +965,27 @@ def _validate_face_fields(name: str, user_id: str):
         raise HTTPException(status_code=400, detail="user_id 只能包含字母、数字、下划线和连字符")
 
 
+_FACE_ENROLL_HINT = "上传不同方向的照片，有助于加快识别并提高精度；照片数量不作要求，一张也可登记。"
+
+
+def _face_sample_paths(person_dir, user_id):
+    if not os.path.isdir(person_dir):
+        return []
+    paths = []
+    for file_name in sorted(os.listdir(person_dir)):
+        stem, extension = os.path.splitext(file_name)
+        owner, separator, token = stem.rpartition("_")
+        # Match the complete ID, not a prefix (user and user_a are different).
+        is_uuid = len(token) == 32 and all(c in "0123456789abcdefABCDEF" for c in token)
+        is_legacy_timestamp = 9 <= len(token) <= 13 and token.isdigit()
+        if (separator and owner == user_id and extension.lower() == ".jpg"
+                and (is_uuid or is_legacy_timestamp)):
+            path = os.path.join(person_dir, file_name)
+            if os.path.isfile(path):
+                paths.append(path)
+    return paths
+
+
 def _connect_face_db():
     parent = os.path.dirname(_DB_PATH)
     if parent:
@@ -1019,7 +1044,8 @@ def _db_list_faces():
         rows = conn.execute(
             "SELECT user_id, name, create_time FROM t_face_feature ORDER BY create_time DESC"
         ).fetchall()
-        return [{"user_id": r[0], "name": r[1], "create_time": r[2]} for r in rows]
+        return [{"user_id": r[0], "name": r[1], "create_time": r[2],
+                 "photo_count": len(_face_sample_paths(os.path.join(_FACE_DIR, r[1]), r[0]))} for r in rows]
     finally:
         conn.close()
 
@@ -1067,10 +1093,26 @@ async def face_enroll(
     img_path = os.path.join(person_dir, f"{user_id}_{uuid.uuid4().hex}.jpg")
     with open(img_path, "xb") as f:
         f.write(stored_bytes)
+    moved_files = []
     try:
+        old_name = _db_get_face_name(user_id)
+        if old_name and old_name != name:
+            _validate_face_fields(old_name, user_id)
+            old_dir = os.path.join(_FACE_DIR, old_name)
+            for old_path in _face_sample_paths(old_dir, user_id):
+                new_path = os.path.join(person_dir, os.path.basename(old_path))
+                if os.path.exists(new_path):
+                    raise FileExistsError("renamed sample already exists")
+                os.rename(old_path, new_path)
+                moved_files.append((old_path, new_path))
         # feature_blob 沿用旧表结构，实际保存规范化后的图片字节。
-        old_name = _db_log_face(user_id, name, stored_bytes)
+        _db_log_face(user_id, name, stored_bytes)
     except Exception as e:
+        for old_path, new_path in reversed(moved_files):
+            try:
+                os.rename(new_path, old_path)
+            except OSError as rollback_error:
+                print(f"[FaceEnroll] sample move rollback failed: {rollback_error}")
         try:
             os.remove(img_path)
         except OSError:
@@ -1078,28 +1120,20 @@ async def face_enroll(
         print(f"[FaceEnroll] database write failed: {e}")
         raise HTTPException(status_code=500, detail="人脸记录写入失败") from e
 
-    # 同一用户重复录入时只保留最新照片，避免旧样本继续参与识别。
-    for previous_name in {name, old_name} - {None}:
-        if (not previous_name or previous_name in (".", "..")
-                or any(c in previous_name for c in ("/", "\\", "\x00"))):
-            print("[FaceEnroll] skipped cleanup for an invalid stored name")
-            continue
-        previous_dir = os.path.join(_FACE_DIR, previous_name)
-        if not os.path.isdir(previous_dir):
-            continue
-        for old_file in os.listdir(previous_dir):
-            old_path = os.path.join(previous_dir, old_file)
-            if old_file.startswith(user_id + "_") and old_path != img_path:
-                try:
-                    os.remove(old_path)
-                except OSError as e:
-                    print(f"[FaceEnroll] stale sample cleanup failed: {e}")
-        if previous_dir != person_dir and not os.listdir(previous_dir):
-            shutil.rmtree(previous_dir, ignore_errors=True)
+    # Same-user uploads append; renaming preserves and moves that user's samples.
+    if old_name and old_name != name:
+        old_dir = os.path.join(_FACE_DIR, old_name)
+        if os.path.isdir(old_dir) and not os.listdir(old_dir):
+            try:
+                os.rmdir(old_dir)
+            except OSError:
+                pass
 
     recognition_status = _reload_face_library_for_api(img_path)
     return JSONResponse({"ok": True, "user_id": user_id, "name": name,
-                         "recognition_status": recognition_status})
+                         "recognition_status": recognition_status,
+                         "photo_count": len(_face_sample_paths(person_dir, user_id)),
+                         "hint": _FACE_ENROLL_HINT})
 
 
 @app.delete("/api/face/{user_id}", dependencies=[Depends(require_face_admin)])
@@ -1117,12 +1151,10 @@ async def face_delete(user_id: str):
     moved_files = []
     try:
         if os.path.isdir(person_dir):
-            for file_name in os.listdir(person_dir):
-                if file_name.startswith(user_id + "_"):
-                    original_path = os.path.join(person_dir, file_name)
-                    hidden_path = original_path + ".deleting-" + uuid.uuid4().hex
-                    os.replace(original_path, hidden_path)
-                    moved_files.append((original_path, hidden_path))
+            for original_path in _face_sample_paths(person_dir, user_id):
+                hidden_path = original_path + ".deleting-" + uuid.uuid4().hex
+                os.replace(original_path, hidden_path)
+                moved_files.append((original_path, hidden_path))
         deleted_name = _db_delete_face(user_id)
         if deleted_name is None:
             raise HTTPException(status_code=404, detail="人脸记录已不存在")
@@ -1147,7 +1179,7 @@ async def face_delete(user_id: str):
 
 @app.get("/api/face/list", dependencies=[Depends(require_face_admin)])
 async def face_list():
-    return JSONResponse({"ok": True, "faces": _db_list_faces()})
+    return JSONResponse({"ok": True, "faces": _db_list_faces(), "hint": _FACE_ENROLL_HINT})
 
 
 if __name__ == "__main__":

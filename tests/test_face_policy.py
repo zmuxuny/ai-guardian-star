@@ -107,7 +107,7 @@ class TrackAuthenticationTests(unittest.TestCase):
         namespace["analyze_fall_motion"] = lambda *args: False
         method = load_definition("ascend_main_other.py", "AclLiteStreamDetector", namespace, "_build_alerts")
         states = {1: {"face_label": "known:Yang", "face_score": 0.8, "last_face_check": 100},
-                  2: {"face_label": "pending", "last_face_check": 0}}
+                  2: {"face_label": "pending", "last_face_check": 0, "first_seen": 80}}
         for state in states.values():
             state["fall_confirmed"] = False
         detection = {"box": [0, 0, 100, 200], "kpts": [(0, 0, 0)] * 17}
@@ -122,6 +122,8 @@ class TrackAuthenticationTests(unittest.TestCase):
         alerts = method(detector, SimpleNamespace(shape=(480, 640, 3)), [], 110)
         self.assertEqual(calls, [2, 1])
         self.assertEqual([alert["id"] for alert in alerts], [1, 2])
+        self.assertEqual(alerts[1]["face_label"], "stranger")
+        self.assertEqual(alerts[1]["face_reason"], "timeout")
 
     def detector(self):
         namespace = face_namespace()
@@ -192,7 +194,7 @@ class ApiRegistrationFlowTests(unittest.IsolatedAsyncioTestCase):
         namespace["cv2"] = cv
         library_class = load_definition("ascend_main_other.py", "FaceLibrary", namespace)
         arcface = SimpleNamespace(enabled=True,
-            infer=lambda frame: np.array([1, 0] if frame[0, 0, 0] == 1 else [0, 1], np.float32))
+            infer=lambda frame: np.eye(3, dtype=np.float32)[min(int(frame[0, 0, 0]), 3) - 1])
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(library_class, "_extract_face_gray", return_value=np.zeros((128, 128), np.uint8)):
             library = library_class(str(Path(directory) / "known_faces"), arcface)
@@ -204,13 +206,14 @@ class ApiRegistrationFlowTests(unittest.IsolatedAsyncioTestCase):
                 "_sqlite3": sqlite3, "system_detector": detector,
                 "_FACE_DIR": library.library_dir, "_DB_PATH": str(Path(directory) / "faces.db"),
                 "_FACE_UPLOAD_MAX_BYTES": 8 * 1024 * 1024,
+                "_FACE_ENROLL_HINT": "上传不同方向的照片，有助于加快识别并提高精度；照片数量不作要求，一张也可登记。",
                 "UploadFile": object, "Form": lambda *args: None, "File": lambda *args: None,
                 "JSONResponse": lambda result: result, "print": lambda *args: None}
             class HTTPException(Exception):
                 def __init__(self, status_code, detail):
                     self.status_code, self.detail = status_code, detail
             api["HTTPException"] = HTTPException
-            for name in ("_validate_face_fields", "_connect_face_db", "_db_get_face_name", "_db_log_face",
+            for name in ("_validate_face_fields", "_face_sample_paths", "_connect_face_db", "_db_get_face_name", "_db_log_face",
                          "_db_delete_face", "_db_list_faces", "_reload_face_library_for_api",
                          "face_enroll", "face_delete"):
                 load_definition("ascend_board_server.py", name, api)
@@ -218,17 +221,26 @@ class ApiRegistrationFlowTests(unittest.IsolatedAsyncioTestCase):
                 return b"\x01"
             result = await api["face_enroll"]("Yang", "user_yang", SimpleNamespace(read=read))
             self.assertEqual(result["recognition_status"], "ready")
+            self.assertEqual(result["photo_count"], 1)
+            self.assertIn("一张也可登记", result["hint"])
             self.assertEqual(api["_db_list_faces"]()[0]["name"], "Yang")
+            async def read_second(limit):
+                return b"\x02"
+            result = await api["face_enroll"]("Yang", "user_yang", SimpleNamespace(read=read_second))
+            self.assertEqual(result["photo_count"], 2)
+            self.assertEqual(api["_db_list_faces"]()[0]["photo_count"], 2)
+            self.assertEqual(len(library.entries), 2)
             label, score = library.recognize(image(1))
             detector._apply_face_result(1, label, score)
             self.assertEqual(detector.person_states[1]["face_label"], "known:Yang")
             for _ in range(3):
-                label, score = library.recognize(image(2))
+                label, score = library.recognize(image(3))
                 detector._apply_face_result(2, label, score)
             self.assertEqual(detector.person_states[2]["face_label"], "stranger")
             deleted = await api["face_delete"]("user_yang")
             self.assertEqual(deleted["recognition_status"], "ready")
             self.assertEqual(api["_db_list_faces"](), [])
+            self.assertEqual(library.registered_sample_count, 0)
             for _ in range(3):
                 label, score = library.recognize(image(1))
                 detector._apply_face_result(1, label, score)
