@@ -193,7 +193,8 @@ class InferenceTests(unittest.TestCase):
                                    _recover_active_known_track=lambda *args: None,
                                    _recover_recent_known_track=lambda *args: None)
         for name in ("_ensure_face_library_loaded", "_refresh_face_det_cache",
-                     "_update_face_det_debug", "_maybe_recognize_face", "_maybe_trigger_vlm_events"):
+                     "_update_face_det_debug", "_maybe_recognize_face", "_maybe_trigger_vlm_events",
+                     "_sync_face_library_revision"):
             setattr(detector, name, lambda *args, **kwargs: None)
         for name in ("_assign_person_ids", "_is_long_sit_state", "_build_alerts"):
             method = load_definition("ascend_main_other.py", "AclLiteStreamDetector", namespace, name)

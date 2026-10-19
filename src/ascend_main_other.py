@@ -396,9 +396,12 @@ class ArcFaceRecognizerACL:
                     if result is None or result[0] is None:
                         raise RuntimeError("AclLiteModel.execute returned empty result")
                     embedding = np.array(result[0]).astype(np.float32).reshape(-1)
-                    if embedding.size == 0:
-                        raise RuntimeError("face embedding is empty")
-                    embedding /= (np.linalg.norm(embedding) + 1e-6)
+                    if embedding.size == 0 or not np.all(np.isfinite(embedding)):
+                        raise RuntimeError("face embedding is empty or non-finite")
+                    norm = np.linalg.norm(embedding)
+                    if not np.isfinite(norm) or norm <= 1e-6:
+                        raise RuntimeError("face embedding has no usable norm")
+                    embedding /= (norm + 1e-6)
                     if (layout, dtype) != (self.input_layout, self.input_dtype):
                         self.input_layout = layout
                         self.input_dtype = dtype
@@ -490,6 +493,10 @@ class FaceLibrary:
         self.label_to_name = {}
         self.face_cascade = None
         self._diag_last_log = {}
+        self._load_lock = threading.Lock()
+        self._state_lock = threading.RLock()
+        self.embedding_backend = None
+        self.revision = 0
 
     def _log_diag(self, key, message, interval=5.0):
         now = time.time()
@@ -582,6 +589,20 @@ class FaceLibrary:
         return cv2.resize(gray, (128, 128), interpolation=cv2.INTER_LINEAR)
 
     def load(self):
+        # Build outside the published library; readers keep using the complete old state.
+        with self._load_lock:
+            staged = FaceLibrary(self.library_dir, self.arcface)
+            staged._load()
+            with self._state_lock:
+                for field in ("entries", "centroids", "enabled", "recognizer",
+                              "label_to_name", "face_cascade", "embedding_backend"):
+                    setattr(self, field, getattr(staged, field))
+                self.revision += 1
+
+    def _load(self, use_arcface=None):
+        if use_arcface is None:
+            use_arcface = self.arcface is not None and self.arcface.enabled
+        self.embedding_backend = "arcface" if use_arcface else "cpu"
         ensure_dir(self.library_dir)
         self.entries = []
         self.centroids = {}
@@ -601,23 +622,22 @@ class FaceLibrary:
                     continue
                 img_path = os.path.join(person_dir, file_name)
                 image = cv2.imread(img_path)
-                face_bgr = image if self.arcface is not None and self.arcface.enabled else self._extract_face_bgr(image)
+                face_bgr = image if use_arcface else self._extract_face_bgr(image)
                 face_gray = self._extract_face_gray(image)
                 embedding = None
-                if self.arcface is not None and self.arcface.enabled:
+                if use_arcface:
                     if face_bgr is None:
                         print(f"[FaceDiag] skip sample, no usable face crop: {img_path}")
                         continue
                     embedding = self.arcface.infer(face_bgr)
                     if embedding is None:
-                        print(f"[FaceDiag] ACL recognizer failed, fallback to CPU embedding: {img_path}")
-                elif self.arcface is not None and face_bgr is not None:
-                    embedding = self.arcface.infer(face_bgr)
+                        print("[FaceDiag] ACL recognizer failed; rebuild the entire library with CPU features")
+                        return self._load(use_arcface=False)
                 if embedding is None:
                     embedding = (
                         build_face_embedding_from_gray(face_gray)
                         if face_gray is not None
-                        else build_face_embedding(image)
+                        else None
                     )
                 if embedding is None:
                     print(f"[Face] Skip invalid face sample: {img_path}")
@@ -643,20 +663,41 @@ class FaceLibrary:
         print(
             f"[Face] library_dir={self.library_dir} loaded={len(self.entries)} "
             f"identities={len(self.centroids)} "
-            f"recognizer={'on' if self.arcface is not None and self.arcface.enabled else 'off'} "
+            f"recognizer={'on' if use_arcface else 'off'} "
             f"lbph={'on' if self.recognizer is not None else 'off'}"
         )
         if not self.enabled:
             print("[Face] No known faces found. Add images to known_faces/<person_name>/*.jpg")
 
     def recognize(self, face_bgr):
+        with self._state_lock:
+            result = self._recognize(face_bgr)
+            rebuild_cpu = (self.embedding_backend == "arcface"
+                           and (self.arcface is None or not self.arcface.enabled))
+        if rebuild_cpu:
+            # Never compare CPU live features with a gallery built by the ACL model.
+            # Do not hold the state lock while acquiring the load lock.
+            try:
+                self.load()
+            except Exception as exc:
+                self._log_diag("fallback_reload", f"[FaceDiag] CPU gallery reload failed: {exc}")
+                return "unknown", None
+            with self._state_lock:
+                return self._recognize(face_bgr)
+        return result
+
+    def _recognize(self, face_bgr):
         if not self.enabled:
             self._log_diag("library_disabled", "[FaceDiag] face library is disabled or empty")
             return "unregistered", None
 
-        face_gray = self._extract_face_gray(face_bgr)
-        face_color = face_bgr if self.arcface is not None and self.arcface.enabled else self._extract_face_bgr(face_bgr)
-        if self.recognizer is not None and face_gray is not None and not (self.arcface is not None and self.arcface.enabled):
+        use_arcface = self.embedding_backend == "arcface"
+        if use_arcface and (self.arcface is None or not self.arcface.enabled):
+            return "unknown", None
+        # Haar/gray/LBPH data are only needed by the CPU backend.
+        face_gray = None if use_arcface else self._extract_face_gray(face_bgr)
+        face_color = face_bgr if use_arcface else self._extract_face_bgr(face_bgr)
+        if self.recognizer is not None and face_gray is not None and not use_arcface:
             try:
                 label_id, confidence = self.recognizer.predict(face_gray)
                 if label_id in self.label_to_name and confidence < 65.0:
@@ -665,12 +706,12 @@ class FaceLibrary:
                 pass
 
         embedding = None
-        if self.arcface is not None and self.arcface.enabled and face_color is None:
+        if use_arcface and face_color is None:
             self._log_diag("live_face_crop_empty", "[FaceDiag] live face crop is empty")
             return "unknown", None
-        if self.arcface is not None and face_color is not None:
+        if use_arcface and face_color is not None:
             embedding = self.arcface.infer(face_color)
-            if self.arcface.enabled and embedding is None:
+            if embedding is None:
                 shape = getattr(face_color, "shape", None)
                 self._log_diag("live_arcface_failed", f"[FaceDiag] live ACL face embedding failed, face_shape={shape}")
                 return "unknown", None
@@ -678,10 +719,16 @@ class FaceLibrary:
             embedding = (
                 build_face_embedding_from_gray(face_gray)
                 if face_gray is not None
-                else build_face_embedding(face_bgr)
+                else None
             )
         if embedding is None:
             self._log_diag("live_embedding_empty", "[FaceDiag] live face embedding is empty")
+            return "unknown", None
+
+        embedding = np.asarray(embedding, dtype=np.float32).reshape(-1)
+        if (embedding.size == 0 or not np.all(np.isfinite(embedding))
+                or np.linalg.norm(embedding) <= 1e-6):
+            self._log_diag("invalid_embedding", "[FaceDiag] no usable live embedding")
             return "unknown", None
 
         best_name = None
@@ -690,9 +737,10 @@ class FaceLibrary:
         second_best_similarity = -999.0
         best_sample_similarity = -999.0
         second_best_sample_similarity = -999.0
+        sample_best_name = None
         centroid_items = list(self.centroids.items()) if self.centroids else []
 
-        if self.arcface is not None and self.arcface.enabled:
+        if use_arcface:
             ranked_names = []
             for name, centroid in centroid_items:
                 if centroid is None or len(centroid) != len(embedding):
@@ -753,7 +801,10 @@ class FaceLibrary:
                 else:
                     second_best_distance = 999.0
 
-        if self.arcface is not None and self.arcface.enabled:
+        if use_arcface:
+            if sample_best_name is None:
+                self._log_diag("no_arcface_match", "[FaceDiag] no dimension-compatible ACL samples")
+                return "unknown", None
             similarity_margin = (
                 best_similarity - second_best_similarity
                 if second_best_similarity > -998.0
@@ -770,11 +821,11 @@ class FaceLibrary:
                 else FACE_MATCH_SIMILARITY_ARCFACE
             )
             if (
-                best_name is not None
+                sample_best_name is not None
                 and best_sample_similarity >= min_similarity
                 and sample_margin >= FACE_MATCH_SIMILARITY_MARGIN_ARCFACE
             ):
-                return f"known:{best_name}", best_sample_similarity
+                return f"known:{sample_best_name}", best_sample_similarity
             self._log_diag(
                 "arcface_low_similarity",
                 f"[FaceDiag] recognizer low similarity best={best_name} "
@@ -783,6 +834,9 @@ class FaceLibrary:
             )
             return "unknown", best_sample_similarity
 
+        if best_name is None:
+            self._log_diag("no_cpu_match", "[FaceDiag] no dimension-compatible CPU centroids")
+            return "unknown", None
         distance_margin = (
             second_best_distance - best_distance
             if 'second_best_distance' in locals()
@@ -1486,6 +1540,7 @@ class AclLiteStreamDetector:
         self.face_library = FaceLibrary(recognizer=self.face_recognizer)
         self.face_library_loaded = False
         self.face_library_loading = False
+        self._face_library_revision = 0
         self.next_person_id = 1
         self.person_state_lock = threading.Lock()
         self.recent_known_tracks = deque(maxlen=12)
@@ -1610,6 +1665,20 @@ class AclLiteStreamDetector:
         self.face_library_loading = True
         print("[Face] detected person in frame, start loading face library...")
         threading.Thread(target=self._load_face_library_async, daemon=True).start()
+
+    def _sync_face_library_revision(self):
+        revision = self.face_library.revision
+        if revision == self._face_library_revision:
+            return
+        with self.person_state_lock:
+            for state in self.person_states.values():
+                state.update(face_label="pending", face_score=None, face_pending=False,
+                             face_candidate=None, face_candidate_hits=0, last_face_check=0.0,
+                             face_vote_history=deque(maxlen=FACE_VOTE_WINDOW),
+                             best_face_crop=None, best_face_score=0.0)
+            self.recent_known_tracks.clear()
+            self.face_global_last_check = 0.0
+            self._face_library_revision = revision
 
     def init(self):
         try:
@@ -1781,7 +1850,12 @@ class AclLiteStreamDetector:
 
             if label.startswith("known:"):
                 known_count = sum(1 for vote_label, _ in vote_history if vote_label == label)
-                strong_known = numeric_score is not None and numeric_score >= FACE_MATCH_SIMILARITY_ARCFACE_STRONG
+                strong_known = (
+                    self.face_library.embedding_backend == "arcface"
+                    and self.face_recognizer is not None and self.face_recognizer.enabled
+                    and numeric_score is not None
+                    and numeric_score >= FACE_MATCH_SIMILARITY_ARCFACE_STRONG
+                )
                 if strong_known or known_count >= FACE_VOTE_MIN_KNOWN:
                     state["face_label"] = label
                     state["face_candidate"] = label
@@ -2229,6 +2303,7 @@ class AclLiteStreamDetector:
         face_score = 0.0
         face_det_box = None
         quality_score = 0.0
+        detector_crop = False
         if self.face_detector is not None and self.face_detector.enabled:
             matched_face = self._get_face_detection_for_person(det["box"])
             if matched_face is not None:
@@ -2236,11 +2311,13 @@ class AclLiteStreamDetector:
                 face_score = float(matched_face.get("score", 0.0))
                 fx1, fy1, fx2, fy2 = [int(v) for v in face_det_box]
                 candidate = frame[fy1:fy2, fx1:fx2].copy()
-                if candidate.size != 0:
+                if candidate.size != 0 and min(candidate.shape[:2]) >= 24:
                     face_crop = candidate
-            if face_crop is not None and face_score < FACE_RECOG_MIN_FACEDET_SCORE:
+            if face_crop is not None and (not np.isfinite(face_score)
+                                          or face_score < FACE_RECOG_MIN_FACEDET_SCORE):
                 face_crop = None
-            quality_score = max(quality_score, face_score)
+            detector_crop = face_crop is not None
+            quality_score = score_face_crop(face_crop, det["kpts"])
 
         if face_crop is None:
             face_crop = extract_face_crop(frame, det["box"], det["kpts"])
@@ -2251,8 +2328,7 @@ class AclLiteStreamDetector:
 
         quality_ok = (
             face_crop is not None
-            and quality_score >= FACE_RECOG_MIN_QUALITY_SCORE
-            and (front_face_ok or face_det_box is not None)
+            and (detector_crop or (front_face_ok and quality_score >= FACE_RECOG_MIN_QUALITY_SCORE))
         )
 
         with self.person_state_lock:
@@ -2260,11 +2336,14 @@ class AclLiteStreamDetector:
             if current_state is not None:
                 current_state["face_det_box"] = face_det_box
                 current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
-                if quality_ok and face_crop is not None and face_score > current_state.get("best_face_score", 0.0):
+                if quality_ok and face_crop is not None and quality_score > current_state.get("best_face_score", 0.0):
                     current_state["best_face_crop"] = face_crop
-                    current_state["best_face_score"] = face_score
+                    current_state["best_face_score"] = quality_score
 
         if not quality_ok:
+            self.face_library._log_diag(
+                "crop_gate", f"[FaceGate] waiting for usable crop: candidate_score={face_score:.3f} "
+                f"quality={quality_score:.3f} frontal={front_face_ok}")
             return
 
         with self.person_state_lock:
@@ -2276,17 +2355,22 @@ class AclLiteStreamDetector:
             self.face_global_last_check = now_ts
             cached_best_face = current_state.get("best_face_crop")
             cached_best_score = float(current_state.get("best_face_score", 0.0) or 0.0)
-        chosen_face = cached_best_face if cached_best_face is not None and cached_best_score >= face_score else face_crop
+        chosen_face = cached_best_face if cached_best_face is not None and cached_best_score >= quality_score else face_crop
         if SAVE_FACE_RECOG_INPUTS:
             save_face_debug_image(chosen_face, person_id, face_score, now_ts, force=True)
 
         try:
             face_rec_started = time.perf_counter()
+            recognition_revision = self.face_library.revision
             try:
                 label, score = self.face_library.recognize(chosen_face)
             finally:
                 self._face_rec_ms += (time.perf_counter() - face_rec_started) * 1000.0
-            self._apply_face_result(person_id, label, score)
+            with self.face_library._state_lock:
+                if recognition_revision != self.face_library.revision:
+                    self._sync_face_library_revision()
+                    return
+                self._apply_face_result(person_id, label, score)
         except Exception as e:
             print(f"[Face] synchronous recognize failed: {e}")
             with self.person_state_lock:
@@ -2309,6 +2393,7 @@ class AclLiteStreamDetector:
                 current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
 
     def _build_alerts(self, frame, detections, now_ts):
+        self._sync_face_library_revision()
         self._ensure_face_library_loaded(bool(detections))
         self._refresh_face_det_cache(frame, now_ts, has_people=bool(detections))
         alerts = []
