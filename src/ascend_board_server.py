@@ -472,14 +472,14 @@ async function fetchStats(){
                 const nameColor=isStranger?'var(--danger)':'var(--text)';
                 const confColor=isStranger?'var(--danger)':'var(--brand)';
                 const avatarChar=isKnown?name.charAt(0):(isStranger?'?':'·');
-                const subText=isStranger?'未登记人员':(isKnown?'家庭成员':'--');
-                const showConf=isKnown||isStranger;
+                const subText=isStranger?'未登记人员':(isKnown?'已登记人员':'等待识别结果');
+                const showConf=(isKnown||isStranger)&&f.score!=null;
                 const row=document.createElement('div');
                 row.className='face-row';
                 row.innerHTML=
                     `<div class="face-avatar" style="background:${avatarBg};color:${avatarColor};">${avatarChar}</div>`+
                     `<div><div class="face-name" style="color:${nameColor};">${name}</div><div class="face-sub">${subText}</div></div>`+
-                    `<div style="text-align:right;"><div style="font-size:9px;color:var(--muted);margin-bottom:1px;">置信度</div>`+
+                    `<div style="text-align:right;"><div style="font-size:9px;color:var(--muted);margin-bottom:1px;">匹配分数</div>`+
                     `<div class="face-conf" style="color:${confColor};">${showConf?score:'--'}</div></div>`;
                 faceList.appendChild(row);
                 // 日志：每标签2分钟限频
@@ -820,8 +820,8 @@ def run_system():
                         if fl and face_label is None:
                             face_label = fl
                             face_score = _a.get('face_score')
-                        # 多人人脸数组（pending 状态不加入）
-                        if fl and fl not in ('pending',):
+                        # Include pending tracks so a detected person shows "等待识别".
+                        if fl:
                             faces.append({
                                 "label": fl,
                                 "score": _a.get('face_score'),
@@ -1021,6 +1021,22 @@ def _db_list_faces():
     finally:
         conn.close()
 
+def _reload_face_library_for_api(sample_path=None):
+    if system_detector is None or not hasattr(system_detector, "face_library"):
+        return "service_offline"
+    try:
+        library = system_detector.face_library
+        library.load()
+        with library._state_lock:
+            if sample_path is not None and not any(
+                    entry.get("path") == sample_path for entry in library.entries):
+                return "photo_unusable"
+        return "ready"
+    except Exception as exc:
+        print(f"[FaceAPI] face library reload failed: {exc}")
+        return "reload_failed"
+
+
 @app.post("/api/face/enroll", dependencies=[Depends(require_face_admin)])
 async def face_enroll(
     name: str = Form(...),
@@ -1079,12 +1095,9 @@ async def face_enroll(
         if previous_dir != person_dir and not os.listdir(previous_dir):
             shutil.rmtree(previous_dir, ignore_errors=True)
 
-    if system_detector is not None and hasattr(system_detector, "face_library"):
-        try:
-            system_detector.face_library.load()
-        except Exception as e:
-            print(f"[FaceEnroll] face library reload failed: {e}")
-    return JSONResponse({"ok": True, "user_id": user_id, "name": name})
+    recognition_status = _reload_face_library_for_api(img_path)
+    return JSONResponse({"ok": True, "user_id": user_id, "name": name,
+                         "recognition_status": recognition_status})
 
 
 @app.delete("/api/face/{user_id}", dependencies=[Depends(require_face_admin)])
@@ -1125,12 +1138,9 @@ async def face_delete(user_id: str):
             print(f"[FaceDelete] deferred image cleanup failed: {e}")
     if os.path.isdir(person_dir) and not os.listdir(person_dir):
         shutil.rmtree(person_dir, ignore_errors=True)
-    if system_detector is not None and hasattr(system_detector, "face_library"):
-        try:
-            system_detector.face_library.load()
-        except Exception as e:
-            print(f"[FaceDelete] face library reload failed: {e}")
-    return JSONResponse({"ok": True, "deleted": user_id})
+    recognition_status = _reload_face_library_for_api()
+    return JSONResponse({"ok": True, "deleted": user_id,
+                         "recognition_status": recognition_status})
 
 
 @app.get("/api/face/list", dependencies=[Depends(require_face_admin)])

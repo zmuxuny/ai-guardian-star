@@ -41,7 +41,8 @@ def face_namespace():
 
 class CropGateTests(unittest.TestCase):
     def run_candidate(self, score=0.9, box=None, front=False, pose_crop=None,
-                      pose_quality=None, detector_enabled=True, reload_during_match=False):
+                      pose_quality=None, detector_enabled=True, reload_during_match=False,
+                      face_label="pending"):
         namespace = face_namespace()
         namespace["is_front_face_candidate"] = lambda kpts: front
         namespace["extract_face_crop"] = lambda *args: pose_crop
@@ -58,7 +59,7 @@ class CropGateTests(unittest.TestCase):
         detector = SimpleNamespace(
             face_library_loaded=True, face_detector=SimpleNamespace(enabled=detector_enabled),
             face_library=library, person_state_lock=threading.Lock(), face_global_last_check=0,
-            person_states={1: {"first_seen": 100, "face_label": "pending"}}, _face_rec_ms=0,
+            person_states={1: {"first_seen": 100, "face_label": face_label}}, _face_rec_ms=0,
             _get_face_detection_for_person=lambda body: {"box": box or [20, 20, 100, 100], "score": score},
             _apply_face_result=Mock(), _sync_face_library_revision=Mock())
         method(detector, np.zeros((200, 200, 3), np.uint8), 1,
@@ -89,6 +90,10 @@ class CropGateTests(unittest.TestCase):
         detector = self.run_candidate(reload_during_match=True)
         detector._apply_face_result.assert_not_called()
         detector._sync_face_library_revision.assert_called_once()
+
+    def test_known_identity_is_periodically_rechecked(self):
+        detector = self.run_candidate(face_label="known:Yang")
+        detector.face_library.recognize.assert_called_once()
 
 
 class LibraryTests(unittest.TestCase):
@@ -180,7 +185,9 @@ class LibraryTests(unittest.TestCase):
                 library.load()
         self.assertIs(library.entries, old_entries)
         self.assertIs(library.centroids, old_centroids)
-        self.assertEqual(library.revision, 0)
+        self.assertEqual(library.revision, 1)
+        self.assertTrue(library.reload_failed)
+        self.assertEqual(library.recognize(np.zeros((80, 80, 3), np.uint8)), ("unknown", None))
 
     def test_recognition_uses_old_snapshot_while_replacement_is_building(self):
         library = self.arc_library()

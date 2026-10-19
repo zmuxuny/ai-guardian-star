@@ -145,9 +145,9 @@ FACE_MATCH_SIMILARITY_ARCFACE_STRONG = FACE_MATCH_SIMILARITY_ARCFACE
 FACE_SINGLE_IDENTITY_SIMILARITY_ARCFACE = 0.45
 FACE_MATCH_SIMILARITY_MARGIN_ARCFACE = 0.08
 FACE_MATCH_SIMILARITY_MARGIN_FALLBACK = 0.10
-FACE_STRANGER_DISTANCE_FALLBACK = 0.74
+FACE_STRANGER_DISTANCE_FALLBACK = FACE_MATCH_THRESHOLD
 FACE_STRANGER_SIMILARITY_ARCFACE = FACE_MATCH_SIMILARITY_ARCFACE
-FACE_STRANGER_SIMILARITY_ARCFACE_SINGLE_ID = 0.05
+FACE_STRANGER_SIMILARITY_ARCFACE_SINGLE_ID = FACE_SINGLE_IDENTITY_SIMILARITY_ARCFACE
 FACE_STABLE_TIME = 0.2
 FACE_RETRY_UNKNOWN_INTERVAL = 8.0
 FACE_VOTE_WINDOW = 4
@@ -497,6 +497,8 @@ class FaceLibrary:
         self._state_lock = threading.RLock()
         self.embedding_backend = None
         self.revision = 0
+        self.registered_sample_count = 0
+        self.reload_failed = False
 
     def _log_diag(self, key, message, interval=5.0):
         now = time.time()
@@ -592,11 +594,19 @@ class FaceLibrary:
         # Build outside the published library; readers keep using the complete old state.
         with self._load_lock:
             staged = FaceLibrary(self.library_dir, self.arcface)
-            staged._load()
+            try:
+                staged._load()
+            except Exception:
+                with self._state_lock:
+                    self.reload_failed = True
+                    self.revision += 1
+                raise
             with self._state_lock:
                 for field in ("entries", "centroids", "enabled", "recognizer",
-                              "label_to_name", "face_cascade", "embedding_backend"):
+                              "label_to_name", "face_cascade", "embedding_backend",
+                              "registered_sample_count"):
                     setattr(self, field, getattr(staged, field))
+                self.reload_failed = False
                 self.revision += 1
 
     def _load(self, use_arcface=None):
@@ -607,6 +617,7 @@ class FaceLibrary:
         self.entries = []
         self.centroids = {}
         self.label_to_name = {}
+        self.registered_sample_count = 0
         train_images = []
         train_labels = []
         label_id = 0
@@ -620,8 +631,12 @@ class FaceLibrary:
             for file_name in sorted(os.listdir(person_dir)):
                 if not file_name.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
                     continue
+                self.registered_sample_count += 1
                 img_path = os.path.join(person_dir, file_name)
                 image = cv2.imread(img_path)
+                if image is None or image.size == 0 or min(image.shape[:2]) < 24:
+                    print(f"[FaceDiag] skip unreadable or undersized sample: {img_path}")
+                    continue
                 face_bgr = image if use_arcface else self._extract_face_bgr(image)
                 face_gray = self._extract_face_gray(image)
                 embedding = None
@@ -687,7 +702,15 @@ class FaceLibrary:
         return result
 
     def _recognize(self, face_bgr):
+        if face_bgr is None or face_bgr.size == 0 or min(face_bgr.shape[:2]) < 24:
+            return "unknown", None
+        if self.reload_failed:
+            self._log_diag("gallery_reload_failed", "[FaceDiag] gallery reload failed; recognition unavailable")
+            return "unknown", None
         if not self.enabled:
+            if self.revision == 0 or self.registered_sample_count:
+                self._log_diag("gallery_unavailable", "[FaceDiag] gallery not loaded or registered samples unusable")
+                return "unknown", None
             self._log_diag("library_disabled", "[FaceDiag] face library is disabled or empty")
             return "unregistered", None
 
@@ -1808,9 +1831,20 @@ class AclLiteStreamDetector:
                 return
 
             vote_history = state.setdefault("face_vote_history", deque(maxlen=FACE_VOTE_WINDOW))
-            numeric_score = float(score) if score is not None else None
+            try:
+                numeric_score = float(score) if score is not None else None
+            except (ValueError, TypeError):
+                numeric_score = None
             previous_label = state.get("face_label")
-            invalid_result = (not str(label).startswith("known:")) and (numeric_score is None or numeric_score < 0)
+            backend = self.face_library.embedding_backend
+            empty_gallery = (label == "unregistered" and self.face_library.revision > 0
+                             and not self.face_library.enabled
+                             and self.face_library.registered_sample_count == 0)
+            valid_score = (numeric_score is not None and np.isfinite(numeric_score)
+                           and ((backend == "arcface" and -1.000001 <= numeric_score <= 1.000001)
+                                or (backend == "cpu" and numeric_score >= 0
+                                    and (str(label).startswith("known:") or numeric_score <= 2.000001))))
+            invalid_result = not valid_score and not empty_gallery
 
             if invalid_result:
                 state["face_pending"] = False
@@ -1869,52 +1903,31 @@ class AclLiteStreamDetector:
             else:
                 state["face_candidate"] = None
                 state["face_candidate_hits"] = 0
-                if str(previous_label).startswith("known:"):
-                    state["face_label"] = previous_label
+                stranger_similarity = (
+                    FACE_STRANGER_SIMILARITY_ARCFACE_SINGLE_ID
+                    if len(getattr(self.face_library, "centroids", {}) or {}) <= 1
+                    else FACE_STRANGER_SIMILARITY_ARCFACE)
+
+                def is_nonmatch(vote_label, vote_score):
+                    if vote_label == "unregistered":
+                        return empty_gallery
+                    if vote_label != "unknown" or vote_score is None or not np.isfinite(vote_score):
+                        return False
+                    if backend == "arcface":
+                        return -1.000001 <= vote_score < stranger_similarity
+                    return backend == "cpu" and vote_score > FACE_STRANGER_DISTANCE_FALLBACK
+
+                unknown_count = sum(is_nonmatch(vote_label, vote_score)
+                                    for vote_label, vote_score in vote_history)
+                can_promote_stranger = (time.time() - float(state.get("first_seen", 0.0) or 0.0)
+                                        >= FACE_STRANGER_MIN_AGE)
+                if (can_promote_stranger and is_nonmatch(label, numeric_score)
+                        and unknown_count >= FACE_VOTE_MIN_UNKNOWN):
+                    state["face_label"] = "stranger"
+                elif previous_label == "stranger":
+                    state["face_label"] = "stranger"
                 else:
-                    can_promote_stranger = (
-                        (time.time() - float(state.get("first_seen", 0.0) or 0.0)) >= FACE_STRANGER_MIN_AGE
-                    )
-                    confident_unknown = False
-                    if numeric_score is not None:
-                        if self.face_recognizer is not None and self.face_recognizer.enabled:
-                            known_count = len(getattr(self.face_library, "centroids", {}) or {})
-                            stranger_similarity = (
-                                FACE_STRANGER_SIMILARITY_ARCFACE_SINGLE_ID
-                                if known_count <= 1
-                                else FACE_STRANGER_SIMILARITY_ARCFACE
-                            )
-                            confident_unknown = numeric_score <= stranger_similarity
-                        else:
-                            confident_unknown = numeric_score >= FACE_STRANGER_DISTANCE_FALLBACK
-                    unknown_count = sum(
-                        1
-                        for vote_label, vote_score in vote_history
-                        if vote_label == "unknown"
-                        and vote_score is not None
-                        and (
-                            (
-                                self.face_recognizer is not None
-                                and self.face_recognizer.enabled
-                                and vote_score <= (
-                                    FACE_STRANGER_SIMILARITY_ARCFACE_SINGLE_ID
-                                    if len(getattr(self.face_library, "centroids", {}) or {}) <= 1
-                                    else FACE_STRANGER_SIMILARITY_ARCFACE
-                                )
-                            )
-                            or (
-                                (self.face_recognizer is None or not self.face_recognizer.enabled)
-                                and vote_score >= FACE_STRANGER_DISTANCE_FALLBACK
-                            )
-                        )
-                    )
-                    state["face_label"] = (
-                        "stranger"
-                        if can_promote_stranger
-                        and confident_unknown
-                        and unknown_count >= FACE_VOTE_MIN_UNKNOWN
-                        else "pending"
-                    )
+                    state["face_label"] = "pending"
                 state["best_face_crop"] = None
                 state["best_face_score"] = 0.0
 
@@ -2105,41 +2118,36 @@ class AclLiteStreamDetector:
                         best_match_norm_dist = norm_dist
 
                 if best_id is None:
-                    recovered_known = self._recover_active_known_track(det["box"], now_ts, used_ids)
-                    if recovered_known is not None and recovered_known.get("person_id") in self.person_states:
-                        best_id = recovered_known["person_id"]
-                    else:
-                        if recovered_known is None:
-                            recovered_known = self._recover_recent_known_track(det["box"], now_ts)
-                        best_id = self.next_person_id
-                        self.next_person_id += 1
-                        self.person_states[best_id] = {
-                            "box": det["box"],
-                            "first_seen": now_ts,
-                            "last_seen": now_ts,
-                            "box_history": deque(maxlen=12),
-                            "fall_candidate_since": 0.0,
-                            "fall_recover_since": 0.0,
-                            "fall_confirmed": False,
-                            "face_label": recovered_known["face_label"] if recovered_known else "pending",
-                            "face_score": recovered_known.get("face_score") if recovered_known else None,
-                            "face_det_box": None,
-                            "face_det_box_ts": 0.0,
-                            "last_face_check": now_ts if recovered_known else 0.0,
-                            "face_pending": False,
-                            "face_candidate": recovered_known["face_label"] if recovered_known else None,
-                            "face_candidate_hits": FACE_VOTE_MIN_KNOWN if recovered_known else 0,
-                            "face_vote_history": deque(maxlen=FACE_VOTE_WINDOW),
-                            "best_face_crop": None,
-                            "best_face_score": 0.0,
-                            "vlm_sent_events": set(),
-                            "vlm_inflight_events": set(),
-                            "vlm_last_summary": None,
-                            "vlm_last_event": None,
-                            "vlm_last_risk_level": None,
-                            "vlm_last_ts": 0.0,
-                            "vlm_retry_after": {},
-                        }
+                    # Geometry may continue a body track, but cannot authenticate a new face.
+                    best_id = self.next_person_id
+                    self.next_person_id += 1
+                    self.person_states[best_id] = {
+                        "box": det["box"],
+                        "first_seen": now_ts,
+                        "last_seen": now_ts,
+                        "box_history": deque(maxlen=12),
+                        "fall_candidate_since": 0.0,
+                        "fall_recover_since": 0.0,
+                        "fall_confirmed": False,
+                        "face_label": "pending",
+                        "face_score": None,
+                        "face_det_box": None,
+                        "face_det_box_ts": 0.0,
+                        "last_face_check": 0.0,
+                        "face_pending": False,
+                        "face_candidate": None,
+                        "face_candidate_hits": 0,
+                        "face_vote_history": deque(maxlen=FACE_VOTE_WINDOW),
+                        "best_face_crop": None,
+                        "best_face_score": 0.0,
+                        "vlm_sent_events": set(),
+                        "vlm_inflight_events": set(),
+                        "vlm_last_summary": None,
+                        "vlm_last_event": None,
+                        "vlm_last_risk_level": None,
+                        "vlm_last_ts": 0.0,
+                        "vlm_retry_after": {},
+                    }
                     best_match_iou = 1.0
                     best_match_norm_dist = 0.0
 
@@ -2149,18 +2157,17 @@ class AclLiteStreamDetector:
                     or best_match_norm_dist > FACE_TRACK_REUSE_DIST_STRICT
                 )
                 if weak_reuse:
-                    if not str(state.get("face_label", "")).startswith("known:"):
-                        state["face_label"] = "pending"
-                        state["face_score"] = None
-                        state["face_det_box"] = None
-                        state["face_det_box_ts"] = 0.0
-                        state["last_face_check"] = 0.0
-                        state["face_pending"] = False
-                        state["face_candidate"] = None
-                        state["face_candidate_hits"] = 0
-                        state["face_vote_history"] = deque(maxlen=FACE_VOTE_WINDOW)
-                        state["best_face_crop"] = None
-                        state["best_face_score"] = 0.0
+                    state["face_label"] = "pending"
+                    state["face_score"] = None
+                    state["face_det_box"] = None
+                    state["face_det_box_ts"] = 0.0
+                    state["last_face_check"] = 0.0
+                    state["face_pending"] = False
+                    state["face_candidate"] = None
+                    state["face_candidate_hits"] = 0
+                    state["face_vote_history"] = deque(maxlen=FACE_VOTE_WINDOW)
+                    state["best_face_crop"] = None
+                    state["best_face_score"] = 0.0
                 state["box"] = det["box"]
                 state["last_seen"] = now_ts
                 state.setdefault("first_seen", now_ts)
@@ -2278,7 +2285,7 @@ class AclLiteStreamDetector:
         if not self.face_library_loaded:
             return
         face_label = state.get("face_label")
-        if face_label not in (None, "pending", "unknown", "stranger"):
+        if face_label not in (None, "pending", "unknown", "stranger") and not str(face_label).startswith("known:"):
             return
         if now_ts - state.get("first_seen", now_ts) < FACE_STABLE_TIME:
             return
@@ -2291,7 +2298,9 @@ class AclLiteStreamDetector:
                     current_state["face_label"] = "pending"
                     current_state["face_score"] = None
             return
-        retry_interval = FACE_RETRY_UNKNOWN_INTERVAL if face_label in ("unknown", "stranger") else FACE_RECOGNITION_COOLDOWN
+        retry_interval = (FACE_RETRY_UNKNOWN_INTERVAL
+                          if face_label in ("unknown", "stranger") or str(face_label).startswith("known:")
+                          else FACE_RECOGNITION_COOLDOWN)
         if now_ts - state.get("last_face_check", 0.0) < retry_interval:
             return
         if now_ts - self.face_global_last_check < FACE_GLOBAL_RECOGNITION_COOLDOWN:
@@ -2396,10 +2405,14 @@ class AclLiteStreamDetector:
         self._sync_face_library_revision()
         self._ensure_face_library_loaded(bool(detections))
         self._refresh_face_det_cache(frame, now_ts, has_people=bool(detections))
-        alerts = []
-        for person_id, state, det in self._assign_person_ids(detections, now_ts):
+        assignments = self._assign_person_ids(detections, now_ts)
+        # Give never-checked/oldest tracks their turn without changing alert order.
+        for person_id, state, det in sorted(
+                assignments, key=lambda item: float(item[1].get("last_face_check", 0.0) or 0.0)):
             self._update_face_det_debug(frame, person_id, det, now_ts)
             self._maybe_recognize_face(frame, person_id, state, det, now_ts)
+        alerts = []
+        for person_id, state, det in assignments:
             with self.person_state_lock:
                 latest_state = dict(self.person_states.get(person_id, state))
 
