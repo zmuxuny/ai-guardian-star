@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "data_root": null,
+  "storage_quota_bytes": null,
+  "min_free_bytes": null,
+  "retention_days": 7,
+  "timezone": "Asia/Shanghai",
+  "segment_seconds": 300,
+  "record_fps": 15,
+  "bitrate_mbps": 1.0,
+  "encoder": null,
+  "queue_frames": 15,
+  "queue_bytes": 16777216,
+  "cleanup_interval_seconds": 60,
+  "journal_mode": "DELETE",
+  "synchronous": "FULL"
+}
