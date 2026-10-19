@@ -28,6 +28,7 @@ if current_file_dir not in sys.path:
 
 # 导入本地模块
 from ascend_video_stream import start_stream, update_frame
+from guardian_runtime import StationaryTimer, create_mqtt_client
 try:
     import ascend_voice_stream as audio_hw  # 导入音频硬件模块
 except Exception:
@@ -1374,7 +1375,7 @@ def draw_results(display_image, alerts):
 
 class MQTTAlertClient:
     def __init__(self):
-        self.client = mqtt.Client(client_id=f"{DEVICE_ID}_{uuid.uuid4().hex[:6]}", callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        self.client = create_mqtt_client(mqtt, f"{DEVICE_ID}_{uuid.uuid4().hex[:6]}")
         if MQTT_USERNAME:
             self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
         if MQTT_CA_CERT:
@@ -1470,6 +1471,8 @@ class AclLiteStreamDetector:
         self._infer_interval = 1.0 / self.infer_fps_limit
         self._last_capture_ts = 0.0
         self._last_infer_ts = 0.0
+        self.last_frame_inferred = False
+        self.last_successful_inference_at = 0.0
 
         self._perf_window = deque(maxlen=60)
         self._last_perf_log = 0.0
@@ -2093,6 +2096,11 @@ class AclLiteStreamDetector:
                 state.setdefault("box_history", deque(maxlen=12)).append(
                     (now_ts, box_cy, box_h, box_h / box_w)
                 )
+                if "stationary_timer" not in state:
+                    state["stationary_timer"] = StationaryTimer(
+                        STATIONARY_PIXEL_THRESHOLD, FACE_TRACK_MAX_AGE)
+                timer = state["stationary_timer"]
+                timer.update(det["box"], now_ts)
                 state_snapshot = dict(state)
 
             used_ids.add(best_id)
@@ -2101,22 +2109,9 @@ class AclLiteStreamDetector:
         return assignments
 
     def _is_long_sit_state(self, state, now_ts):
-        history = list(state.get("box_history", []))
-        if len(history) < 2 or state.get("fall_confirmed"):
-            return False
-
-        oldest_ts = history[0][0]
-        if now_ts - oldest_ts < VLM_LONG_SIT_THRESHOLD_SECONDS:
-            return False
-
-        centers_y = [item[1] for item in history]
-        heights = [max(1.0, item[2]) for item in history]
-        move_threshold = max(STATIONARY_PIXEL_THRESHOLD, float(np.median(heights)) * 0.12)
-        if max(centers_y) - min(centers_y) > move_threshold:
-            return False
-
-        latest_aspect = history[-1][3]
-        return latest_aspect > 0.45
+        timer = state.get("stationary_timer")
+        return (timer is not None and not state.get("fall_confirmed")
+                and timer.duration(now_ts) >= VLM_LONG_SIT_THRESHOLD_SECONDS)
 
     def _trigger_vlm_event_async(self, frame, person_id, event_type, state, det, now_ts, repeatable=False):
         if not self.vlm_enabled:
@@ -2350,6 +2345,8 @@ class AclLiteStreamDetector:
                     tracked_state["fall_raw"] = raw_fallen
                     tracked_state["fall_structure"] = structure_fallen
                     tracked_state["fall_motion"] = motion_fallen
+                    if tracked_state["fall_confirmed"]:
+                        tracked_state["stationary_timer"].reset()
                     latest_state = dict(tracked_state)
                 else:
                     raw_fallen = structure_fallen
@@ -2359,8 +2356,8 @@ class AclLiteStreamDetector:
             status = "FALL DETECTED" if is_fallen else "Normal"
             color = (0, 0, 255) if is_fallen else (0, 255, 0)
             is_sitting = self._is_long_sit_state(latest_state, now_ts)
-            _bh = list(latest_state.get("box_history", []))
-            sit_duration_sec = (now_ts - _bh[0][0]) if (is_sitting and _bh) else 0.0
+            timer = latest_state.get("stationary_timer")
+            sit_duration_sec = timer.duration(now_ts) if is_sitting else 0.0
             alerts.append({
                 "box": box,
                 "kpts": kpts,
@@ -2385,6 +2382,7 @@ class AclLiteStreamDetector:
         return alerts
 
     def get_detected_frame(self):
+        self.last_frame_inferred = False
         if not self.running:
             return None
 
@@ -2457,6 +2455,8 @@ class AclLiteStreamDetector:
             res_frame = draw_results(frame, alerts)
             t4 = time.time()
             self._record_perf(t1, t2, t3, t4)
+            self.last_frame_inferred = True
+            self.last_successful_inference_at = time.monotonic()
             return res_frame, alerts
         except Exception as e:
             self._infer_fail_count += 1

@@ -18,6 +18,7 @@ if current_file_dir not in sys.path:
 
 # 推流服务（网页 + MJPEG 流）由 ascend_video_stream.py 提供
 from ascend_video_stream import start_stream, update_frame
+from guardian_runtime import create_mqtt_client
 
 # ---------------------- 导入 ACL Lite（昇腾）模块 ----------------------
 try:
@@ -293,10 +294,7 @@ DEVICE_ID = "ascend_board"
 
 class MQTTAlertClient:
     def __init__(self):
-        self.client = mqtt.Client(
-            client_id=f"{DEVICE_ID}_{uuid.uuid4().hex[:6]}",
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION2
-        )
+        self.client = create_mqtt_client(mqtt, f"{DEVICE_ID}_{uuid.uuid4().hex[:6]}")
         self.client.on_connect = self.on_connect
         try:
             self.client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)

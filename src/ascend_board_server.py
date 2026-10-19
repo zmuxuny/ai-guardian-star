@@ -18,6 +18,7 @@ sys.path.append(current_dir)
 
 import ascend_video_stream as video_hw
 from ascend_main_other import AclLiteStreamDetector, MQTTAlertClient, MODEL_PATH
+from guardian_runtime import AlertEpisodeTracker
 try:
     import ascend_voice_stream as audio_hw
 except Exception:
@@ -397,11 +398,12 @@ async function fetchStats(){
             document.getElementById('r-fps').textContent=fpsStr+' fps';
             document.getElementById('hd-fps').textContent=fpsStr;
             document.getElementById('fps_tag').textContent='FPS: '+fpsStr;
-        } else if(!streamOk){
+        } else {
+            document.getElementById('det-fps2').textContent='--';
+            document.getElementById('r-fps').textContent='-- fps';
             document.getElementById('hd-fps').textContent='--';
             document.getElementById('fps_tag').textContent='FPS: --';
         }
-        // fps=0但流正常说明模型还在加载，保持上次显示值不覆写
 
         // 设备状态
         if(d.frame_count!=null){
@@ -579,6 +581,11 @@ async def api_stats():
     if not camera_video_is_live():
         s.update(fps=0.0, detections=0, status="摄像头离线" if not camera_connected else "等待新画面",
                  keypoint_scores=None, face_label=None, face_score=None, faces=[], sit_duration=0)
+    elif (not system_detector.inference_enabled
+          or time.monotonic() - system_detector.last_successful_inference_at > 3.0):
+        s.update(fps=0.0, detections=0,
+                 status="推理已暂停" if not system_detector.inference_enabled else "等待有效推理",
+                 keypoint_scores=None, face_label=None, face_score=None, faces=[], sit_duration=0)
     return JSONResponse({
         "camera_connected": camera_connected,
         "fps":             s["fps"],
@@ -717,7 +724,8 @@ async def mic_broadcast_task():
     idle_rounds = 0
     while True:
         frame = audio_hw.get_audio_frame()
-        if frame and ws_clients:
+        if frame:
+            idle_rounds = 0
             dead_clients = []
             for client in list(ws_clients):
                 try:
@@ -732,6 +740,8 @@ async def mic_broadcast_task():
                     udp_socket.sendto(frame, phone_addr)
                 except Exception:
                     pass
+            # UDP-only delivery has no WebSocket await; yield so HTTP stays responsive.
+            await asyncio.sleep(0)
         else:
             idle_rounds += 1
             if idle_rounds % 200 == 0 and ws_clients:
@@ -763,7 +773,7 @@ def run_system():
         mqtt_client = MQTTAlertClient()
         _fps_count = 0
         _fps_timer = time.time()
-        _sit_active = False
+        event_tracker = AlertEpisodeTracker()
         _last_face_label = None
 
         if detector.init():
@@ -788,6 +798,9 @@ def run_system():
                     frame, alerts = res
                     video_hw.update_frame(frame)
                     video_frame_started_at = frame_started_at
+                    # Raw/throttled frames do not establish an empty or recovered scene.
+                    if not detector.last_frame_inferred:
+                        continue
 
                     is_fallen = any("FALL" in a.get('status', '') for a in alerts)
                     kpt_scores = None
@@ -847,21 +860,23 @@ def run_system():
                         faces=faces,
                     )
 
+                    new_events = event_tracker.update(alerts, _now)
+                    for alert in new_events["fall"]:
+                        video_hw.update_stats(fall_count_inc=True, last_fall_time=_now)
+                        print(f"[Event] 摔倒检测 person_id={alert.get('id')}")
+                    for _ in new_events["sit"]:
+                        video_hw.update_stats(sit_count_inc=True)
+                    for _ in new_events["stranger"]:
+                        video_hw.update_stats(stranger_count_inc=True)
+
                     for alert in alerts:
                         if "FALL" in alert.get('status', ''):
                             mqtt_client.publish_fall_alert()
-                            video_hw.update_stats(fall_count_inc=True, last_fall_time=time.time())
-                            print(f"[Event] 摔倒检测 person_id={alert.get('id')}")
                             break
 
                     if any_sitting:
-                        if not _sit_active:
-                            _sit_active = True
-                            video_hw.update_stats(sit_count_inc=True)
                         sit_person = next((a.get('id') for a in alerts if a.get('is_sitting')), None)
                         mqtt_client.publish_sit_alert(duration_seconds=max_sit_sec, person_id=sit_person)
-                    else:
-                        _sit_active = False
 
                     for alert in alerts:
                         if alert.get("face_label") == "stranger":
@@ -869,7 +884,6 @@ def run_system():
                                 person_id=alert.get("id"),
                                 score=alert.get("face_score"),
                             )
-                            video_hw.update_stats(stranger_count_inc=True)
                             break
 
                     if face_label and face_label.startswith('known:') and face_label != _last_face_label:
