@@ -179,6 +179,23 @@ class EventClipCacheTests(unittest.TestCase):
         self.assertTrue(self.wait_until(lambda: self.cache.status()["completed_clips"] == 1))
         self.assertEqual(len(self.store.list_events()), 1)
 
+    def test_clip_ready_callback_receives_ids_after_finalize(self):
+        ready = []
+        self.cache = EventClipCache(
+            self.config, self.store,
+            lambda _: FakeBackend(self.backends),
+            clock=self.clock.now, monotonic=self.clock.monotonic,
+            on_clip_ready=lambda event_ids, recording_id: ready.append((event_ids, recording_id)))
+        self.assertTrue(self.cache.start())
+        self.feed(10)
+        result = self.cache.trigger("fall")
+        self.feed(5, start_index=500)
+        self.clock.advance(1.5)
+        self.assertTrue(self.wait_until(lambda: self.cache.status()["completed_clips"] == 1))
+        self.assertEqual(len(ready), 1)
+        self.assertEqual(ready[0][1], self.store.list_event_recordings(result["event_id"])[0]["id"])
+        self.assertIn(result["event_id"], ready[0][0])
+
     def test_disabled_config_never_captures(self):
         disabled = RecordingConfig()
         cache = EventClipCache(disabled, None, None)

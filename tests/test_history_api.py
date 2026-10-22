@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -92,7 +93,7 @@ class HistoryApiTests(unittest.TestCase):
         self.assertEqual(status["state"], "encoder_not_configured")
         self.assertFalse(status["recording_backend_ready"])
         self.assertFalse(status["capture_integrated"])
-        self.assertFalse(status["media_download_enabled"])
+        self.assertTrue(status["media_download_enabled"])  # 下载已实现：按版本放行
         self.assertFalse(status["resume_verified"])
         self.assertNotIn(str(self.root), str(status))
         with client_for(SimpleNamespace(enabled=True, history_token=TOKEN, encoder="candidate")) as client:
@@ -195,24 +196,51 @@ class HistoryApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json(), {"detail": "history_query_unavailable"})
 
-    def test_media_routes_are_closed_without_range_advertisement(self):
-        for path in ("/recordings/segment-1/video", "/events/unknown/snapshot"):
-            response = self.client.get("/api/history" + path, headers={**AUTH, "Range": "bytes=0-1"})
-            self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.json()["detail"], "media_not_implemented")
-            self.assertNotIn("accept-ranges", response.headers)
+    def test_media_routes_fail_closed_for_incomplete_or_unknown(self):
+        response = self.client.get("/api/history/recordings/segment-1/video",
+                                   headers={**AUTH, "Range": "bytes=0-1"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], "media_not_ready")
+        snapshot = self.client.get("/api/history/events/unknown/snapshot", headers=AUTH)
+        self.assertEqual(snapshot.status_code, 503)
+        self.assertEqual(snapshot.json()["detail"], "media_not_implemented")
+        self.assertNotIn("accept-ranges", snapshot.headers)
+
+    def test_completed_recording_downloads_and_leases(self):
+        relpath = "recordings/2026-10-18/done.mp4"
+        self.store.start_segment("done-1", relpath, START)
+        media = self.config.data_root / relpath
+        media.parent.mkdir(parents=True, exist_ok=True)
+        media.write_bytes(b"FAKE VIDEO BYTES")
+        self.store.finish_segment("done-1", START + 5, media.stat().st_size,
+                                  relpath=relpath, duration_seconds=5.0)
+        response = self.client.get("/api/history/recordings/done-1/video", headers=AUTH)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"FAKE VIDEO BYTES")
+        disposition = response.headers.get("content-disposition", "")
+        self.assertNotIn(str(self.config.data_root), disposition)
+        row = self.store.get_recording("done-1")
+        self.assertGreater(float(row["lease_until"]), time.time() + 60)
+        ranged = self.client.get("/api/history/recordings/done-1/video",
+                                 headers={**AUTH, "Range": "bytes=0-3"})
+        self.assertEqual(ranged.status_code, 206)
+        self.assertEqual(ranged.content, b"FAKE")
+        self.assertEqual(self.client.get("/api/history/recordings/unknown9", headers=AUTH).status_code, 404)
 
     def test_missing_store_is_unavailable(self):
         with client_for(self.config) as client:
             self.assertEqual(client.get("/api/history/events", headers=AUTH).status_code, 503)
 
     def test_range_detection_never_claims_verified_resume(self):
-        for installed, expected in (("0.38.6", "unsupported_version"), ("0.46.2", "version_capable_unverified"), ("1.0.0rc1", "unknown")):
+        for installed, expected, download in (
+                ("0.38.6", "unsupported_version", False),
+                ("0.46.2", "version_capable_unverified", True),
+                ("1.0.0rc1", "unknown", False)):
             with patch("guardian_history_api.metadata.version", return_value=installed):
                 capability = file_response_capability()
                 self.assertEqual(capability["file_response_range"], expected)
                 self.assertFalse(capability["resume_verified"])
-                self.assertFalse(capability["media_download_enabled"])
+                self.assertEqual(capability["media_download_enabled"], download)
 
 
 if __name__ == "__main__":

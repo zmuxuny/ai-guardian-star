@@ -272,6 +272,26 @@ class HistoryStore:
             (event_id, recording_id, created))
         return True
 
+    def lease_recording(self, recording_id, seconds=3600.0):
+        """Extend the cleanup lease while a client downloads the media.
+
+        cleanup_expired skips rows whose lease_until is in the future, so an
+        in-progress download survives a retention sweep.  Returns the new
+        lease deadline, or None when the recording is missing or not complete.
+        """
+        validate_history_id(recording_id)
+        seconds = float(seconds)
+        if not math.isfinite(seconds) or seconds <= 0 or seconds > 24 * 3600:
+            raise ValueError("invalid lease duration")
+        deadline = time.time() + seconds
+        with self._write_lock, self._connection() as db:
+            cursor = db.execute(
+                "UPDATE recordings SET lease_until=? WHERE id=? AND state='complete'",
+                (deadline, recording_id))
+            if cursor.rowcount != 1:
+                return None
+        return deadline
+
     def list_event_recordings(self, event_id):
         validate_history_id(event_id)
         rows = self._query(

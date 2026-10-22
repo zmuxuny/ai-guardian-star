@@ -91,6 +91,7 @@ MQTT_CA_CERT = os.environ.get("MQTT_CA_CERT", "")
 ALERT_TOPIC = "ai_guardian/alerts/fall"
 STRANGER_ALERT_TOPIC = "ai_guardian/alerts/stranger"
 SIT_ALERT_TOPIC = "ai_guardian/alerts/sit"
+RECORD_READY_TOPIC = "ai_guardian/recordings/ready"
 FACE_ALERT_TOPIC = "ai_guardian/alerts/face"
 DEVICE_ID = "ascend_board"
 KNOWN_FACE_DIR = os.path.join(current_file_dir, "known_faces")
@@ -1513,6 +1514,18 @@ class MQTTAlertClient:
         self.client.publish(SIT_ALERT_TOPIC, json.dumps(alert))
         print(f"[MQTT] Sit Alert Sent: {alert}")
         self.last_sit_alert_time = time.time()
+
+    def publish_record_ready(self, recording_id, event_ids=None):
+        """Tell the phone a clip is finalized and downloadable on demand."""
+        payload = {
+            "event": "recording_ready",
+            "timestamp": str(datetime.now()),
+            "recording_id": recording_id,
+            "event_ids": list(event_ids or []),
+            "download_path": f"/api/history/recordings/{recording_id}/video",
+        }
+        self.client.publish(RECORD_READY_TOPIC, json.dumps(payload))
+        print(f"[MQTT] Recording Ready Sent: {recording_id}")
 
     def publish_face_alert(self, name=None, score=None, person_id=None):
         if time.time() - self.last_face_alert_time < 10:

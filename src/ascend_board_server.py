@@ -24,6 +24,8 @@ from guardian_storage import initialize_storage
 from guardian_history import HistoryStore
 from guardian_event_cache import EventClipCache
 from guardian_ffmpeg_backend import create_backend
+from guardian_cleanup import CleanupScheduler
+from guardian_history_api import create_history_router
 try:
     import ascend_voice_stream as audio_hw
 except Exception:
@@ -43,6 +45,10 @@ except Exception:
     audio_hw = _AudioStub()
 
 app = FastAPI()
+history_store = None
+event_cache = None
+cleanup_scheduler = None
+alert_mqtt = None
 ws_clients = []
 system_detector = None
 video_frame_started_at = 0.0
@@ -776,17 +782,41 @@ def run_system():
 
     # Event-triggered clips stay fully disabled unless AI_GUARDIAN_RECORDING_CONFIG
     # enables them; a broken recording setup must never stop detection.
-    global history_store, event_cache
+    global history_store, event_cache, cleanup_scheduler, alert_mqtt
     history_store = None
     event_cache = None
+    cleanup_scheduler = None
+    alert_mqtt = None
+
+    def on_clip_ready(event_ids, recording_id):
+        """片段封装完成：MQTT 通知手机可按需下载（下载走 /api/history）。"""
+        client = alert_mqtt
+        if client is None:
+            return
+        try:
+            client.publish_record_ready(recording_id, event_ids)
+        except Exception as exc:
+            print(f"[Record] publish_record_ready failed: {type(exc).__name__}")
+
     try:
         recording_config = RecordingConfig.from_env()
         if recording_config.enabled:
             initialize_storage(recording_config)
             history_store = HistoryStore(recording_config)
-            candidate = EventClipCache(recording_config, history_store, create_backend)
+            candidate = EventClipCache(recording_config, history_store, create_backend,
+                                       on_clip_ready=on_clip_ready)
             if candidate.start():
                 event_cache = candidate
+                app.include_router(create_history_router(
+                    recording_config, store=history_store, recorder=event_cache))
+                print("[Record] 历史查询接口已注册 /api/history")
+                scheduler = CleanupScheduler(history_store,
+                                             recording_config.cleanup_interval_seconds)
+                if scheduler.start():
+                    cleanup_scheduler = scheduler
+                    print("[Record] 七天清理调度已启动")
+                else:
+                    print("[Record] 清理调度未启动，保留策略不生效")
                 print(f"[Record] 事件录像已启用 pre={recording_config.pre_roll_seconds}s "
                       f"post={recording_config.post_roll_seconds}s "
                       f"fps={recording_config.record_fps}")
@@ -798,12 +828,15 @@ def run_system():
         print(f"[Record] 事件录像初始化失败，已跳过: {type(exc).__name__}")
         history_store = None
         event_cache = None
+        cleanup_scheduler = None
 
     def inference_loop():
         global system_detector, video_frame_started_at
         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
         system_detector = detector
         mqtt_client = MQTTAlertClient()
+        global alert_mqtt
+        alert_mqtt = mqtt_client
         _fps_count = 0
         _fps_timer = time.time()
         event_tracker = AlertEpisodeTracker()
@@ -974,6 +1007,11 @@ def run_system():
                 print("[Record] 事件录像已停止")
             except Exception as exc:
                 print(f"[Record] 停止事件录像失败: {type(exc).__name__}")
+        if cleanup_scheduler is not None:
+            try:
+                cleanup_scheduler.stop(timeout=5)
+            except Exception:
+                pass
         if history_store is not None:
             try:
                 history_store.close()

@@ -80,12 +80,13 @@ class EventClipCache:
     """One worker thread; the ring is memory-only and strictly bounded."""
 
     def __init__(self, config, store, backend_factory,
-                 clock=time.time, monotonic=time.monotonic):
+                 clock=time.time, monotonic=time.monotonic, on_clip_ready=None):
         self.config = config
         self.store = store
         self._factory = backend_factory
         self._clock = clock
         self._monotonic = monotonic
+        self._on_clip_ready = on_clip_ready
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self._stop = threading.Event()
@@ -384,3 +385,8 @@ class EventClipCache:
                 "written_frames": state.get("written_frames"),
             }
             self._clip = None
+        if completed and clip.recording_id and callable(self._on_clip_ready):
+            try:
+                self._on_clip_ready(list(clip.event_ids), clip.recording_id)
+            except Exception:
+                pass

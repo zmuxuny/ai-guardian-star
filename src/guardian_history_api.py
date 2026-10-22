@@ -1,4 +1,4 @@
-"""Opt-in history query router; deliberately has no recording or media backend.
+"""Opt-in history query router with lease-guarded media download.
 
 Create and include this router explicitly after managed storage initialization.
 It does not open a database, a camera, a socket, or a file on import/construction.
@@ -12,40 +12,60 @@ import secrets
 from typing import Any, Mapping, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from guardian_history import HISTORY_ID_PATTERN as _ID, validate_event_kind
+from guardian_storage import safe_managed_path
 
 
 MAX_QUERY_DAYS = 31
 MAX_LIMIT = 200
 MAX_OFFSET = 100000
+MEDIA_LEASE_SECONDS = 3600.0
 _OMIT = object()
 _PRIVATE_KEY = re.compile(r"path|file|token|secret|password|dsn|url|error", re.I)
 _FILENAME = re.compile(r"\.(?:mp4|mkv|avi|jpg|jpeg|png|db|sqlite3?|json|py|log)(?:\b|$)", re.I)
 
 
-def file_response_capability() -> dict:
-    """Report installed-version eligibility, never advertise tested HTTP Range.
+def _range_supported() -> bool:
+    """Serve media only when the installed Starlette can do it safely."""
+    return file_response_capability()["file_response_range"] == "version_capable_unverified"
 
-    Range was introduced in Starlette 0.39.0. This is not an end-to-end or
-    security certification: https://starlette.dev/release-notes/#0390-september-23-2024
-    Media endpoints remain closed until lease/cleanup and Range tests pass.
-    """
+
+def _version_eligibility() -> str:
     try:
         installed = metadata.version("starlette")
     except metadata.PackageNotFoundError:
         installed = None
     match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", installed or "")
-    eligibility = "unknown"
-    if match:
-        eligibility = (
-            "version_capable_unverified"
+    if not match:
+        return "unknown"
+    return ("version_capable_unverified"
             if tuple(map(int, match.groups())) >= (0, 39, 0)
-            else "unsupported_version"
-        )
+            else "unsupported_version")
+
+
+def _range_supported() -> bool:
+    """Serve media only when the installed Starlette can do it safely."""
+    return _version_eligibility() == "version_capable_unverified"
+
+
+def file_response_capability() -> dict:
+    """Report installed-version eligibility, never advertise tested HTTP Range.
+
+    Range was introduced in Starlette 0.39.0; the installed version gates the
+    media endpoints. This is not an end-to-end or security certification:
+    https://starlette.dev/release-notes/#0390-september-23-2024
+    """
+    installed = None
+    try:
+        installed = metadata.version("starlette")
+    except metadata.PackageNotFoundError:
+        pass
+    eligibility = _version_eligibility()
     return {
         "starlette_version": installed,
         "file_response_range": eligibility,
-        "media_download_enabled": False,
+        "media_download_enabled": eligibility == "version_capable_unverified",
         "resume_verified": False,
     }
 
@@ -239,11 +259,31 @@ def create_history_router(config: Any, store: Any = None, recorder: Any = None) 
         return item
 
     @router.get("/recordings/{recording_id}/video")
-    def video(recording_id: str) -> None:
-        require_store()
+    def video(recording_id: str):
+        backend = require_store()
         if not _ID.fullmatch(recording_id):
             raise HTTPException(422, "invalid_recording_id")
-        raise HTTPException(503, "media_not_implemented")
+        if not _range_supported():
+            raise HTTPException(503, "media_version_unsupported")
+        try:
+            row = backend.get_recording(recording_id)
+            if row is None:
+                raise HTTPException(404, "history_recording_not_found")
+            if row.get("state") != "complete":
+                raise HTTPException(503, "media_not_ready")
+            path = safe_managed_path(config, row["relpath"], must_exist=True)
+            if not path.is_file():
+                raise HTTPException(404, "history_recording_not_found")
+            # Lease the file so a retention sweep cannot unlink a live download.
+            if backend.lease_recording(recording_id, MEDIA_LEASE_SECONDS) is None:
+                raise HTTPException(503, "media_not_ready")
+        except HTTPException:
+            raise
+        except Exception:
+            # Never echo SQL, absolute device paths or token material.
+            raise HTTPException(503, "history_query_unavailable") from None
+        return FileResponse(path, media_type="video/mp4",
+                            filename=recording_id + ".mp4")
 
     @router.get("/events/{event_id}/snapshot")
     def snapshot(event_id: str) -> None:
