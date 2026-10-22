@@ -801,8 +801,7 @@ def run_system():
 
     def inference_loop():
         global system_detector, video_frame_started_at
-        detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0,
-                                         event_cache=event_cache)
+        detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
         system_detector = detector
         mqtt_client = MQTTAlertClient()
         _fps_count = 0
@@ -835,6 +834,15 @@ def run_system():
                     # Raw/throttled frames do not establish an empty or recovered scene.
                     if not detector.last_frame_inferred:
                         continue
+                    # Submit the ANNOTATED frame (inference ran on it): clips keep the
+                    # boxes, skeleton and status text so playback shows why an event
+                    # fired. Throttled raw frames must NOT enter the ring buffer.
+                    if event_cache is not None:
+                        try:
+                            event_cache.submit_frame(frame, captured_at=time.time(),
+                                                     monotonic_at=time.monotonic())
+                        except Exception as _cache_exc:
+                            print(f"[Record] submit_frame failed: {type(_cache_exc).__name__}")
 
                     is_fallen = any("FALL" in a.get('status', '') for a in alerts)
                     kpt_scores = None
