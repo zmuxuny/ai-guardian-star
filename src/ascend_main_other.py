@@ -314,6 +314,8 @@ class ArcFaceRecognizerACL:
         self._infer_lock = threading.Lock()
         self._last_fail_ts = 0.0
         self._permanently_disabled = False
+        self._acl_context = None
+        self._acl_owner_thread = None
         model_name = os.path.basename(model_path).lower() if model_path else ""
         self.input_layout = "NHWC" if "arc_82" in model_name or "face_rec_arc" in model_name else "NCHW"
         self.input_dtype = np.float32
@@ -331,6 +333,10 @@ class ArcFaceRecognizerACL:
             return
         try:
             self.model = AclLiteModel(self.model_path)
+            self._acl_context, context_ret = acl.rt.get_context()
+            if context_ret != 0:
+                raise RuntimeError(f"cannot obtain face model ACL context: {context_ret}")
+            self._acl_owner_thread = threading.get_ident()
             self.enabled = True
             print(
                 f"[FaceRec] recognizer loaded: {self.model_path} | "
@@ -394,6 +400,11 @@ class ArcFaceRecognizerACL:
                         model_input = np.transpose(normalized, (2, 0, 1))[np.newaxis, :, :, :]
                     model_input = np.ascontiguousarray(model_input, dtype=dtype)
                     with ACL_MODEL_EXEC_LOCK:
+                        if (self._acl_context is not None
+                                and threading.get_ident() != self._acl_owner_thread):
+                            context_ret = acl.rt.set_context(self._acl_context)
+                            if context_ret != 0:
+                                raise RuntimeError(f"cannot bind face model ACL context: {context_ret}")
                         result = self.model.execute([model_input])
                     if result is None or result[0] is None:
                         raise RuntimeError("AclLiteModel.execute returned empty result")
@@ -1710,6 +1721,7 @@ class AclLiteStreamDetector:
 
     def init(self):
         try:
+            self._acl_owner_thread = threading.get_ident()
             self._acl_resource = AclLiteResource()
             self._acl_resource.init()
 
@@ -2644,6 +2656,29 @@ class AclLiteStreamDetector:
         if self.camera_thread is not None:
             self.camera_thread.join(timeout=4.0)
         print('Detector Stopped')
+
+    def release_acl(self):
+        """Run on the inference owner after stopping; unload before context finalization."""
+        if getattr(self, "_acl_resource", None) is None:
+            return
+        if threading.get_ident() != self._acl_owner_thread:
+            raise RuntimeError("ACL resources must be released on the initialization thread")
+        # Wait for API gallery reloads and in-flight face recognition before unload.
+        with self.face_library._load_lock, self.face_library._state_lock, ACL_MODEL_EXEC_LOCK:
+            self.face_recognizer.enabled = False
+            self.face_detector.enabled = False
+            for owner in (self.face_recognizer, self.face_detector, self):
+                model = getattr(owner, "model", None)
+                if model is not None:
+                    model.destroy()
+                    owner.model = None
+            if self.dvpp is not None:
+                self.dvpp.destroy()
+                self.dvpp = None
+            self.face_recognizer._acl_context = None
+            # AclLiteResource finalizes ACL in its destructor. All models and DVPP
+            # must already be destroyed, including SDK objects in other registries.
+            self._acl_resource = None
 # ---------------------- ????????----------------------
 
 def run_stream_and_infer(camera_index=0, model_path=None):
@@ -2659,7 +2694,9 @@ def run_stream_and_infer(camera_index=0, model_path=None):
     mqtt_client = MQTTAlertClient()
     detector = AclLiteStreamDetector(model_path=model_path or MODEL_PATH, camera_index=camera_index)
 
-    if not detector.init(): return
+    if not detector.init():
+        detector.release_acl()
+        return
 
     # 4. 主循环：只负责视频推理，音频在后台线程跑
     print("🚀 Main Inference Loop Started...")
@@ -2681,6 +2718,7 @@ def run_stream_and_infer(camera_index=0, model_path=None):
         print("Stopping...")
     finally:
         detector.stop()
+        detector.release_acl()
         audio_hw.stop_audio_service()
 
 if __name__ == "__main__":

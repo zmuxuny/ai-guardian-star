@@ -900,7 +900,12 @@ def run_system():
                     time.sleep(0.008)
             finally:
                 detector.stop()
+                detector.release_acl()
                 system_detector = None
+        else:
+            detector.stop()
+            detector.release_acl()
+            system_detector = None
 
     inference_thread = threading.Thread(target=inference_loop, name="guardian-inference", daemon=True)
     inference_thread.start()
