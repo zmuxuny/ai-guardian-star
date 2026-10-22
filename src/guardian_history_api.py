@@ -227,6 +227,11 @@ def create_history_router(config: Any, store: Any = None, recorder: Any = None) 
         try:
             row = backend.get_event(event_id)
             item = _public_row(row, True, token) if row is not None else None
+            if item is not None:
+                # Additive: an event now lists the clips recorded for that episode.
+                lister = getattr(backend, "list_event_recordings", None)
+                linked = lister(event_id) if callable(lister) else []
+                item["recordings"] = [_public_row(clip, False, token) for clip in linked]
         except Exception:
             raise HTTPException(503, "history_query_unavailable") from None
         if item is None:

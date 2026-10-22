@@ -22,6 +22,12 @@ class RecordingConfig:
     queue_bytes: int = 16 * 1024 * 1024
     cleanup_interval_seconds: int = 60
     encoder: Optional[str] = None
+    # Event-triggered clips: keep a bounded pre-roll ring in memory, then record
+    # one clip per episode covering pre_roll + post_roll seconds.
+    pre_roll_seconds: int = 5
+    post_roll_seconds: int = 10
+    event_clip_max_seconds: int = 120
+    cache_bytes: int = 32 * 1024 * 1024
     journal_mode: str = "DELETE"
     synchronous: str = "FULL"
     history_token: Optional[str] = field(default=None, repr=False, compare=False)
@@ -33,11 +39,16 @@ class RecordingConfig:
             "segment_seconds": (1, 3600), "retention_days": (7, 7),
             "queue_frames": (1, 300), "queue_bytes": (1, 1024 ** 3),
             "cleanup_interval_seconds": (1, 3600),
+            "pre_roll_seconds": (0, 60), "post_roll_seconds": (1, 600),
+            "event_clip_max_seconds": (1, 3600),
+            "cache_bytes": (1024 * 1024, 512 * 1024 * 1024),
         }
         for name, bounds in integer_ranges.items():
             value = getattr(self, name)
             if type(value) is not int or not bounds[0] <= value <= bounds[1]:
                 raise ValueError("invalid " + name)
+        if self.pre_roll_seconds + self.post_roll_seconds > self.event_clip_max_seconds:
+            raise ValueError("pre_roll_seconds plus post_roll_seconds exceed event_clip_max_seconds")
         for name, maximum in (("record_fps", 120), ("bitrate_mbps", 1000)):
             value = getattr(self, name)
             if (type(value) not in (int, float) or not math.isfinite(value)

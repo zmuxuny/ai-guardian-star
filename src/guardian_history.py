@@ -9,6 +9,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 
@@ -87,6 +88,12 @@ class HistoryStore:
                 CREATE TABLE IF NOT EXISTS gaps (
                     id TEXT PRIMARY KEY, started_at REAL NOT NULL,
                     ended_at REAL, reason TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS event_recordings (
+                    event_id TEXT NOT NULL, recording_id TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    PRIMARY KEY (event_id, recording_id));
+                CREATE INDEX IF NOT EXISTS event_recording_event ON event_recordings(event_id);
+                CREATE INDEX IF NOT EXISTS event_recording_recording ON event_recordings(recording_id);
                 CREATE TABLE IF NOT EXISTS history_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL);
                 PRAGMA user_version=1;
             """)
@@ -254,3 +261,27 @@ class HistoryStore:
 
     def managed_size_bytes(self):
         return managed_usage(self.config) if self.config.enabled else 0
+
+    def link_event_recording(self, event_id, recording_id, created_at=None):
+        """Associate an event with a clip; repeated links are idempotent."""
+        validate_history_id(event_id)
+        validate_history_id(recording_id)
+        created = _timestamp(created_at if created_at is not None else time.time())
+        self._execute(
+            "INSERT OR IGNORE INTO event_recordings(event_id,recording_id,created_at) VALUES(?,?,?)",
+            (event_id, recording_id, created))
+        return True
+
+    def list_event_recordings(self, event_id):
+        validate_history_id(event_id)
+        rows = self._query(
+            "SELECT r.* FROM recordings r JOIN event_recordings er ON er.recording_id=r.id "
+            "WHERE er.event_id=? ORDER BY r.started_at, r.id", (event_id,))
+        return [self._decode(row) for row in rows]
+
+    def list_recording_events(self, recording_id):
+        validate_history_id(recording_id)
+        rows = self._query(
+            "SELECT e.* FROM events e JOIN event_recordings er ON er.event_id=e.id "
+            "WHERE er.recording_id=? ORDER BY e.started_at, e.id", (recording_id,))
+        return [self._decode(row) for row in rows]
