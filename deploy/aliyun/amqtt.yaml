@@ -1,0 +1,21 @@
+---
+listeners:
+  default:
+    type: tcp
+    bind: 0.0.0.0:8883
+    ssl: true
+    cafile: /etc/amqtt/certs/ca.crt
+    certfile: /etc/amqtt/certs/server.crt
+    keyfile: /etc/amqtt/certs/server.key
+
+# CONNECT packet logging can disclose credentials; do not enable PacketLoggerPlugin.
+plugins:
+  guardian_mqtt_plugin.GuardianAuthPlugin:
+    database: /opt/wenxin/app/guardian_users.db
+    users_file: /etc/wenxin/mqtt-users.json
+    password_file: /etc/amqtt/passwd
+  guardian_mqtt_plugin.GuardianTopicPlugin:
+    database: /opt/wenxin/app/guardian_users.db
+    users_file: /etc/wenxin/mqtt-users.json
+  amqtt.plugins.sys.broker.BrokerSysPlugin:
+    sys_interval: 20

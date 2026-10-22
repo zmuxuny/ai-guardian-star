@@ -1,0 +1,2 @@
+# Logitech C270: keep the UVC device awake while guardian-board is running.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="046d", ATTR{idProduct}=="0825", TEST=="power/control", ATTR{power/control}="on"

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wenxin-proxy",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["wenxin_proxy.py"],
+      "port": 8899
+    }
+  ]
+}

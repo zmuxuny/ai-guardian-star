@@ -1,0 +1,1084 @@
+/**
+ * person.ets — 个人中心页面
+ * 显示用户信息、统计数据和系统设置
+ */
+import { ThemeManager, ThemeMode } from "../common/ThemeManager";
+import { MqttManager } from "./MqttManager";
+import { GradientHeader, ICON_FRAME_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { StatDashboard } from '../components/StatDashboard';
+import { MenuRow } from '../components/MenuRow';
+import { showDialog, showToast } from '../common/UiFeedback';
+import {
+  DatabaseHelper,
+  HealthEvent,
+  FREE_RETENTION_DAYS,
+  STORAGE_KEY_RETENTION,
+  UserInfo,
+} from "../database/DatabaseHelper";
+import { preferences } from "@kit.ArkData";
+import { common, abilityAccessCtrl, Want } from "@kit.AbilityKit";
+import { UserManager } from "../common/UserManager";
+import cameraPicker from "@ohos.multimedia.cameraPicker";
+import camera from "@ohos.multimedia.camera";
+import fs from "@ohos.file.fs";
+import http from "@ohos.net.http";
+import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+import { CloudService } from '../common/CloudService';
+import { AiPermissionService } from '../common/AiPermissionService';
+import { STORE_KEY_AI_POLICY_READY } from '../config';
+import { fileUri } from "@kit.CoreFileKit";
+import { util } from "@kit.ArkTS";
+import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
+import { CacheManager } from '../common/CacheManager';
+@Builder
+export function personBuilder(): void {
+  NavDestination() {
+    person()
+  }.hideTitleBar(true);
+}
+@CustomDialog
+struct DeleteAccountDialog {
+  controller: CustomDialogController;
+  /** 已脱敏的联系方式，仅用于展示 */
+  maskedContact: string = '';
+  contactKind: string = 'phone';
+  @State code: string = '';
+  @State countdown: number = 0;
+  @State isSending: boolean = false;
+  @State isDeleting: boolean = false;
+  private timerId: number = -1;
+  /** 返回 true 表示验证码已发出 */
+  onSendCode: () => Promise<boolean> = async () => false;
+  /** 返回 true 表示注销成功，由父组件负责关闭弹窗与跳转 */
+  onConfirm: (code: string) => Promise<boolean> = async () => false;
+  onCancel: () => void = () => {};
+
+  aboutToDisappear(): void {
+    if (this.timerId !== -1) {
+      clearInterval(this.timerId);
+      this.timerId = -1;
+    }
+  }
+
+  private startCountdown(): void {
+    this.countdown = 60;
+    this.timerId = setInterval(() => {
+      this.countdown -= 1;
+      if (this.countdown <= 0) {
+        clearInterval(this.timerId);
+        this.timerId = -1;
+      }
+    }, 1000);
+  }
+
+  build() {
+    Column({ space: 0 }) {
+      Text('验证身份')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1e293b')
+        .margin({ top: 24, bottom: 8 })
+        .textAlign(TextAlign.Center)
+        .width('100%')
+      Text(this.maskedContact === ''
+        ? '当前账号未绑定手机号或邮箱，无法完成注销验证'
+        : `注销账号将永久删除所有数据。验证码将发送至${this.contactKind === 'phone' ? '手机号' : '邮箱'} ${this.maskedContact}`)
+        .fontSize(13)
+        .fontColor('#64748b')
+        .textAlign(TextAlign.Center)
+        .padding({ left: 20, right: 20 })
+        .margin({ bottom: 16 })
+      Row({ space: 8 }) {
+        TextInput({ placeholder: '请输入验证码', text: this.code })
+          .type(InputType.Number)
+          .maxLength(8)
+          .layoutWeight(1)
+          .height(44)
+          .enabled(!this.isDeleting)
+          .onChange((v: string) => { this.code = v; })
+        Button(this.isSending ? '发送中' : this.countdown > 0 ? `${this.countdown}s` : '获取验证码',
+          { type: ButtonType.Normal })
+          .height(44)
+          .fontSize(13)
+          .backgroundColor('#2563eb')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .enabled(this.maskedContact !== '' && !this.isSending && this.countdown === 0 && !this.isDeleting)
+          .onClick(async () => {
+            this.isSending = true;
+            const sent = await this.onSendCode();
+            this.isSending = false;
+            if (sent) {
+              this.startCountdown();
+            }
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20 })
+      .margin({ bottom: 20 })
+      Row({ space: 12 }) {
+        Button('取消', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#f1f5f9')
+          .fontColor('#475569')
+          .borderRadius(10)
+          .enabled(!this.isDeleting)
+          .onClick(() => { this.onCancel(); })
+        Button(this.isDeleting ? '注销中...' : '确认注销', { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(44)
+          .backgroundColor('#dc2626')
+          .fontColor('#ffffff')
+          .borderRadius(10)
+          .enabled(!this.isDeleting)
+          .onClick(async () => {
+            this.isDeleting = true;
+            const done = await this.onConfirm(this.code.trim());
+            this.isDeleting = false;
+            if (done) {
+              this.code = '';
+            }
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, bottom: 24 })
+    }
+    .width('90%')
+    .constraintSize({ maxWidth: 480 })
+    .backgroundColor('#ffffff')
+    .borderRadius(16)
+  }
+}
+
+@Component
+export struct person {
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State mqttManager: MqttManager = MqttManager.getInstance();
+  @State userName: string = "";
+  @StorageProp(STORE_KEY_NICKNAME) userNickname: string = "";
+  @StorageProp(STORE_KEY_AVATAR) userAvatarPath: string = "";
+  @State useDays: number = 128;
+  @State totalAlertCount: number = 0;
+  @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
+  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = false;
+  @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
+  @StorageProp(STORE_KEY_AI_POLICY_READY) aiPolicyReady: boolean = false;
+  @State aiSaving: boolean = false;
+  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
+  // 当前视口宽度，用于按断点取尺寸档位
+  @State viewportWidth: number = 360;
+  // 各菜单行按压状态
+  @State pressedRow: string = "";
+  @State cacheBusy: boolean = false;
+  @State cacheSummary: string = '查看临时文件占用并释放空间';
+  private cacheManager: CacheManager = CacheManager.getInstance();
+  // 退出登录按钮缩放
+  @State logoutScale: number = 1.0;
+  // 注销验证用的联系方式，来自本地用户表
+  @State bindPhone: string = '';
+  @State bindEmail: string = '';
+  private deleteChallengeId: string = '';
+  private async saveAiPermission(enabled: boolean, level: string): Promise<void> {
+    if (this.aiSaving) return;
+    this.aiSaving = true;
+    try {
+      await AiPermissionService.getInstance().save(enabled, level);
+      showToast(this.getUIContext(), { message: enabled ? 'AI 权限已保存到云端' : 'AI 助手已关闭' });
+    } catch (error) {
+      await AiPermissionService.getInstance().sync();
+      showToast(this.getUIContext(), { message: (error as Error).message || '保存失败，请联网后重试' });
+    } finally {
+      this.aiSaving = false;
+    }
+  }
+  // 导航路径栈
+  pathStack: NavPathStack = new NavPathStack();
+
+  private deleteAccountDialogController: CustomDialogController = new CustomDialogController({
+    builder: DeleteAccountDialog({
+      maskedContact: this.bindPhone !== ''
+        ? this.encryptPhone(this.bindPhone)
+        : this.maskEmail(this.bindEmail),
+      contactKind: this.bindPhone !== '' ? 'phone' : 'email',
+      onSendCode: () => this.sendDeleteAccountCode(),
+      onConfirm: (code: string) => this.executeDeleteAccount(code),
+      onCancel: () => {
+        this.deleteChallengeId = '';
+        this.deleteAccountDialogController.close();
+      },
+    }),
+    autoCancel: false,
+    alignment: DialogAlignment.Center,
+    // customStyle 让弹窗宽度完全由内容决定，否则百分比宽度在平板上会撑成一条空壳
+    customStyle: true,
+  });
+
+  /** 向账号绑定的手机号（无则邮箱）发送注销验证码 */
+  private async sendDeleteAccountCode(): Promise<boolean> {
+    const kind = this.bindPhone !== '' ? 'phone' : 'email';
+    const value = this.bindPhone !== '' ? this.bindPhone : this.bindEmail;
+    if (value === '') {
+      showToast(this.getUIContext(), { message: '账号未绑定手机号或邮箱，无法注销' });
+      return false;
+    }
+    try {
+      const result = await CloudService.getInstance().sendContactCode(kind, value);
+      if (!result.success || !result.challengeId) {
+        showToast(this.getUIContext(), { message: result.message || '验证码发送失败，请稍后重试' });
+        return false;
+      }
+      this.deleteChallengeId = result.challengeId;
+      showToast(this.getUIContext(), { message: '验证码已发送' });
+      return true;
+    } catch (e) {
+      showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
+      return false;
+    }
+  }
+
+  private async executeDeleteAccount(verifyCode: string): Promise<boolean> {
+    const currentUser = UserManager.getInstance().getCurrentUsername();
+    const db = DatabaseHelper.getInstance();
+    if (this.deleteChallengeId === '') {
+      showToast(this.getUIContext(), { message: '请先获取验证码' });
+      return false;
+    }
+    if (verifyCode === '') {
+      showToast(this.getUIContext(), { message: '请输入验证码' });
+      return false;
+    }
+
+    try {
+      const cloud = CloudService.getInstance();
+      const result = await cloud.deleteUser(verifyCode, this.deleteChallengeId);
+      if (!result.success) {
+        showToast(this.getUIContext(), { message: result.message || '服务器拒绝注销，请稍后重试或联系客服' });
+        return false;
+      }
+    } catch (e) {
+      showToast(this.getUIContext(), { message: '网络不可用，请检查网络后重试' });
+      return false;
+    }
+
+    try {
+      const user = await db.queryUserByIdentifier(currentUser);
+      if (user) await db.deleteUserByUsername(user.username);
+    } catch (e) {
+      console.error('[person]: 本地删除失败', JSON.stringify(e));
+    }
+
+    try {
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const opts: preferences.Options = { name: PREF_NAME_AUTH };
+      const pref = preferences.getPreferencesSync(ctx, opts);
+      pref.deleteSync(PREF_KEY_LAST_USERNAME);
+      pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+      pref.deleteSync(PREF_KEY_PRIVACY_ACCEPTED);
+      pref.flushSync();
+    } catch (e) {
+      console.warn('[person]: 清除 Preferences 失败', JSON.stringify(e));
+    }
+
+    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
+    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, '');
+    AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, '');
+    UserManager.getInstance().clearCurrentUsername();
+
+    this.deleteChallengeId = '';
+    this.deleteAccountDialogController.close();
+
+    if (this.pathStack) {
+      this.pathStack.clear();
+      this.pathStack.pushPathByName('Login', null);
+    }
+    return true;
+  }
+
+  private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
+    // Step 0: 弹窗让用户输入老人姓名
+    let enrollName = '';
+    try {
+      const nameDialog = await showDialog(this.getUIContext(), {
+        title: '录入人脸',
+        message: '请输入被监护人姓名（用于识别显示）',
+        buttons: [
+          { text: '取消', color: '#64748b' },
+          { text: '去拍照', color: '#2563eb' },
+        ],
+      });
+      if (nameDialog?.index !== 1) {
+        return;
+      }
+      // ArkTS 无法弹 TextInput，用当前登录昵称作为默认姓名，后续可扩展
+      enrollName = AppStorage.get<string>('loggedInNickname') ?? this.userName ?? 'unknown';
+      if (!enrollName || enrollName.trim() === '') {
+        enrollName = 'unknown';
+      }
+    } catch (e) {
+      return;
+    }
+
+    // Step 1: 申请相机权限
+    try {
+      const atManager = abilityAccessCtrl.createAtManager();
+      const grantResult = await atManager.requestPermissionsFromUser(
+        context, ['ohos.permission.CAMERA']
+      );
+      if (grantResult.authResults[0] !== 0) {
+        showToast(this.getUIContext(), { message: '需要相机权限才能录入人脸，请在系统设置中开启' });
+        return;
+      }
+    } catch (error) {
+      console.error(`[Person] request camera permission failed: ${JSON.stringify(error)}`);
+      showToast(this.getUIContext(), { message: '相机权限申请失败，请稍后重试' });
+      return;
+    }
+
+    const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
+    await this.cacheManager.retain(sandboxPath);
+    let httpRequest = http.createHttp();
+
+    try {
+      // Step 2: 预创建沙箱文件
+      let tempFile = fs.openSync(sandboxPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
+      fs.closeSync(tempFile);
+
+      // Step 3: 调起前置相机
+      const sandboxUri = fileUri.getUriFromPath(sandboxPath);
+      let pickerProfile: cameraPicker.PickerProfile = {
+        cameraPosition: camera.CameraPosition.CAMERA_POSITION_FRONT,
+        saveUri: sandboxUri,
+      };
+      let pickerResult = await cameraPicker.pick(
+        context,
+        [cameraPicker.PickerMediaType.PHOTO],
+        pickerProfile,
+      );
+      if (pickerResult.resultCode !== 0 || pickerResult.resultUri === '') {
+        console.log('[person]: 用户取消拍照');
+        return;
+      }
+
+      // Step 4: 读取图片文件
+      let file = fs.openSync(sandboxPath, fs.OpenMode.READ_ONLY);
+      let fileStat = fs.statSync(file.fd);
+      if (fileStat.size === 0) {
+        fs.closeSync(file);
+        throw new Error('照片文件为空');
+      }
+      let buffer = new ArrayBuffer(fileStat.size);
+      fs.readSync(file.fd, buffer);
+      fs.closeSync(file);
+
+      showToast(this.getUIContext(), { message: '正在上传人脸信息...' });
+
+      // Step 5: 构造 multipart/form-data 手动拼装
+      // ArkTS http 模块不支持 FormData，手动拼 boundary
+      const boundary = 'GuardianBoundary' + Date.now().toString();
+      const nameField = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="name"\r\n\r\n'
+        + enrollName + '\r\n';
+      const userIdField = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="user_id"\r\n\r\n'
+        + (this.userName ?? 'unknown') + '\r\n';
+      const fileHeader = '--' + boundary + '\r\n'
+        + 'Content-Disposition: form-data; name="file"; filename="face.jpg"\r\n'
+        + 'Content-Type: image/jpeg\r\n\r\n';
+      const tail = '\r\n--' + boundary + '--\r\n';
+
+      // 编码各部分为 Uint8Array 再合并
+      const encoder = new util.TextEncoder();
+      const namePart = encoder.encodeInto(nameField).buffer as ArrayBuffer;
+      const userIdPart = encoder.encodeInto(userIdField).buffer as ArrayBuffer;
+      const headerPart = encoder.encodeInto(fileHeader).buffer as ArrayBuffer;
+      const tailPart = encoder.encodeInto(tail).buffer as ArrayBuffer;
+
+      const totalLen = namePart.byteLength + userIdPart.byteLength
+        + headerPart.byteLength + buffer.byteLength + tailPart.byteLength;
+      const merged = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const part of [namePart, userIdPart, headerPart, buffer, tailPart]) {
+        merged.set(new Uint8Array(part), offset);
+        offset += part.byteLength;
+      }
+
+      // Step 6: 发送到板子
+      let response = await httpRequest.request(BOARD_FACE_ENROLL_URL, {
+        method: http.RequestMethod.POST,
+        header: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+        extraData: merged.buffer as ArrayBuffer,
+        connectTimeout: 10000,
+        readTimeout: 10000,
+      });
+
+      if (response.responseCode === 200) {
+        showToast(this.getUIContext(), { message: '人脸录入成功！开发板已更新识别库' });
+        console.log('[person]: 人脸录入成功 name=' + enrollName);
+      } else {
+        showToast(this.getUIContext(), { message: '上传失败，状态码: ' + response.responseCode });
+        console.warn('[person]: 人脸上传失败 code=' + response.responseCode + ' body=' + response.result);
+      }
+    } catch (error) {
+      console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
+      showToast(this.getUIContext(), { message: '操作失败，请重试' });
+    } finally {
+      httpRequest.destroy();
+      try {
+        fs.unlinkSync(sandboxPath);
+        console.log('[person]: 人脸临时文件已销毁');
+      } catch (e) {
+        // 忽略
+      }
+      this.cacheManager.release(sandboxPath);
+    }
+  }
+
+  aboutToAppear(): void {
+    this.loadUserInfo();
+    this.refreshCacheSize();
+    AiPermissionService.getInstance().sync();
+    // 监听 Profile 页保存后的 AppStorage 广播，实时刷新昵称和头像
+    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, AppStorage.get<string>(STORE_KEY_NICKNAME) ?? '');
+    AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, AppStorage.get<string>(STORE_KEY_AVATAR) ?? '');
+  }
+
+  private async refreshCacheSize(): Promise<void> {
+    if (this.cacheBusy) return;
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const stats = await this.cacheManager.measure(context);
+      if (!this.cacheBusy) this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(stats.bytes)} · 临时文件`;
+    } catch (_error) { this.cacheSummary = '缓存占用暂不可用，点击重试'; }
+  }
+
+  private async clearAppCache(): Promise<void> {
+    if (this.cacheBusy) return;
+    this.cacheBusy = true;
+    this.cacheSummary = '正在统计缓存…';
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const stats = await this.cacheManager.measure(context);
+      const choice = await showDialog(this.getUIContext(), {
+        title: '清理缓存',
+        message: `可清理临时文件 ${this.cacheManager.formatBytes(stats.bytes)}（${stats.files}个）。\n同时清理网页资源缓存。账号、头像、设置、历史记录和服务器录像都会保留；正在使用的文件会跳过。`,
+        buttons: [
+          { text: '取消', color: this.themeManager.colors.secondaryTextColor },
+          { text: '立即清理', color: '#2563eb' },
+        ],
+      });
+      if (choice === undefined || choice.index !== 1) {
+        this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(stats.bytes)} · 临时文件`;
+        return;
+      }
+      this.cacheSummary = '正在清理缓存…';
+      const result = await this.cacheManager.clear(context);
+      const released = this.cacheManager.formatBytes(result.releasedBytes);
+      this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(result.remaining.bytes)} · 本次释放 ${released}`;
+      const message = result.failed > 0 || result.remaining.failed > 0
+        ? `已释放 ${released}，部分缓存未清理，请稍后重试`
+        : result.deletedFiles > 0 ? `已释放 ${released}，清理 ${result.deletedFiles} 个临时文件`
+        : '暂无可清理的临时文件，网页资源缓存已提交清理';
+      showToast(this.getUIContext(), { message: message, duration: 3000 });
+    } catch (_error) {
+      this.cacheSummary = '清理未完成，点击重试';
+      showToast(this.getUIContext(), { message: '清理未完成，请稍后重试' });
+    } finally { this.cacheBusy = false; }
+  }
+
+  /** 手机号加密处理：只显示前 3 位和后 4 位，中间用 * 替代 */
+  private encryptPhone(phone: string): string {
+    if (!phone || phone.length < 7) {
+      return phone;
+    }
+    // 保留前 3 位和后 4 位，中间用 * 替代
+    const prefix = phone.substring(0, 3);
+    const suffix = phone.substring(phone.length - 4);
+    const maskLength = phone.length - 7;
+    const mask = "*".repeat(maskLength);
+    return prefix + mask + suffix;
+  }
+
+  /** 邮箱脱敏：保留首字符和域名 */
+  private maskEmail(email: string): string {
+    const at = email.indexOf("@");
+    if (at <= 0) {
+      return email;
+    }
+    return email.substring(0, 1) + "***" + email.substring(at);
+  }
+
+  /** 加载用户信息 */
+  private loadUserInfo(): void {
+    const currentUser = UserManager.getInstance().getCurrentUsername();
+    const db = DatabaseHelper.getInstance();
+
+    console.log(`[person]: 开始加载用户信息，currentUser=${currentUser}`);
+
+    // 从数据库加载当前用户信息
+    db.queryUserByIdentifier(currentUser)
+      .then((user: UserInfo | null) => {
+        if (user) {
+          this.userName = user.username;
+          this.userNickname = user.username;
+          this.bindPhone = user.phone ?? "";
+          this.bindEmail = user.email ?? "";
+          AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, this.userNickname);
+          // 头像路径
+          this.userAvatarPath = user.avatarPath ?? "";
+          AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.userAvatarPath);
+          const msPerDay = 24 * 60 * 60 * 1000;
+          this.useDays = Math.max(1, Math.floor((Date.now() - user.createTime) / msPerDay));
+          console.log(
+            `[person]: 用户信息加载成功 user=${user.username}, useDays=${this.useDays}`,
+          );
+        } else {
+          console.warn(`[person]: 未找到用户信息 user=${currentUser}`);
+        }
+      })
+      .catch((err: Error) => {
+        console.error(`[person]: 查询用户失败 ${err.message}`);
+      });
+
+    // 从数据库加载当前用户的累计预警次数
+    db.queryHealthEvents("fall", currentUser)
+      .then((events: HealthEvent[]) => {
+        this.totalAlertCount = events.length;
+        console.log(`[person]: 摔倒事件加载成功 count=${events.length}, user=${currentUser}`);
+      })
+      .catch((err: Error) => {
+        this.totalAlertCount = this.mqttManager.fallRecords.length;
+        console.error(`[person]: 查询健康事件失败 ${err.message}`);
+      });
+  }
+
+  private safePush(pageName: string): void {
+    this.pathStack.pushPathByName(pageName, null);
+  }
+
+  /** 头像直径：手机 80vp，随断点小幅放大，不再用相对父容器的百分比 */
+  private avatarSize(): number {
+    return pick(getWindowSizeClass(this.viewportWidth), 80, 96, 112);
+  }
+
+  @Builder
+  GradientHeader(): void {
+    GradientHeader() {
+      Column() {
+        if (this.userAvatarPath !== '') {
+          Image(fileUri.getUriFromPath(this.userAvatarPath))
+            .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
+            .objectFit(ImageFit.Cover)
+            .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
+            .clip(true)
+        } else {
+          Column() {
+            Image($r("app.media.ic_user")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
+          }
+          .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
+          .backgroundColor("rgba(255,255,255,0.2)")
+          .border({ width: 2, color: "rgba(255,255,255,0.6)" })
+          .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
+        }
+        Text(this.userNickname || this.userName)
+          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: 14 })
+      }
+      .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
+    }
+  }
+
+  build() {
+    Column() {
+      this.GradientHeader()
+      StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount })
+        .zIndex(1)
+        .margin({ top: -36 })
+      Scroll() {
+        Column() {
+          Column() {
+            Text("服务设置")
+              .fontSize(13).fontWeight(FontWeight.Medium)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ left: '4%', bottom: 10, top: 24 })
+              .alignSelf(ItemAlign.Start)
+            Column() {
+              MenuRow({
+                imgRes: $r("app.media.ic_user_blue"),
+                bgColorLight: "#eff6ff",
+                bgColorDark: "#1e3a5f",
+                title: "个人资料",
+                subTitle: "修改头像、名字及安全联系方式",
+                onClickAction: (): void => {
+                  this.pathStack.pushPathByName("Profile", null);
+                },
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              MenuRow({
+                imgRes: $r("app.media.ic_camera"),
+                bgColorLight: "#e0f2fe",
+                bgColorDark: "#0c4a6e",
+                title: "人脸信息",
+                subTitle: "录入人脸用于开发板识别 (阅后即焚)",
+                onClickAction: (): void => {
+                  this.takePhotoAndSendToBoard(this.getUIContext().getHostContext() as common.UIAbilityContext);
+                },
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              MenuRow({
+                imgRes: $r("app.media.ic_map_pin_green"),
+                bgColorLight: "#f0fdf4",
+                bgColorDark: "#14302a",
+                title: "常用地址",
+                subTitle: "保存详细地址，设置默认住处",
+                onClickAction: (): void => this.safePush("MyAddress"),
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              // ── 紧急联系人（功能暂未实现，先隐藏，后续再做）──
+              // MenuRow({
+              //   imgRes: $r("app.media.ic_phone_orange"),
+              //   bgColorLight: "#fff7ed",
+              //   bgColorDark: "#3d2000",
+              //   title: "紧急联系人",
+              //   subTitle: "危急时刻一键呼叫通知",
+              //   onClickAction: (): void => {
+              //   },
+              // })
+              // Divider()
+              //   .margin({ left: "15%", right: "4%" })
+              //   .color(this.themeManager.colors.separatorColor)
+              MenuRow({
+                imgRes: $r("app.media.ic_shield_blue"),
+                bgColorLight: "#eff6ff",
+                bgColorDark: "#1e3a5f",
+                title: "隐私政策",
+                subTitle: "查看个人信息收集与使用说明",
+                onClickAction: (): void => {
+                  const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                  const want: Want = {
+                    action: 'ohos.want.action.viewData',
+                    entities: ['entity.system.browsable'],
+                    uri: PRIVACY_POLICY_URL,
+                  };
+                  ctx.startAbility(want).catch((e: Error) => {
+                    console.warn('[person]: 打开隐私政策链接失败', e.message);
+                  });
+                },
+              })
+            }
+            .width("92%")
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .border({ width: 1, color: this.themeManager.colors.borderColor })
+            .borderRadius(SURFACE_RADIUS)
+            .clip(true)
+          }.width("100%")
+          Column() {
+            Text("系统偏好")
+              .fontSize(13).fontWeight(FontWeight.Medium)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .margin({ left: '4%', bottom: 10, top: 24 })
+              .alignSelf(ItemAlign.Start)
+            Column() {
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_gray"),
+                )
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Text("外观模式")
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.themeManager.colors.primaryTextColor)
+                Blank()
+                Row() {
+                  Text(
+                    this.themeManager.themeMode === ThemeMode.LIGHT
+                      ? "浅色"
+                      : this.themeManager.themeMode === ThemeMode.DARK
+                        ? "深色"
+                        : "跟随",
+                  )
+                    .fontSize(12)
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                    .fontWeight(FontWeight.Medium)
+                }
+                .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .borderRadius(100)
+                .onClick((): void => {
+                  this.themeManager.setThemeMode(
+                    ((this.themeManager.themeMode + 1) % 3) as ThemeMode,
+                  );
+                })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "外观模式"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "外观模式";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image($r("app.media.tab_ai_active"))
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
+                  .objectFit(ImageFit.Contain)
+                  .padding(7)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("AI 健康助手")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text("关闭后隐藏 AI 页面与底栏入口")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Toggle({ type: ToggleType.Switch, isOn: this.aiEnabled })
+                  .selectedColor("#2563eb")
+                  .enabled(!this.aiSaving)
+                  .onChange((enabled: boolean): void => {
+                    if (enabled !== this.aiEnabled) this.saveAiPermission(enabled, this.aiAccessLevel);
+                  })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_blue"),
+                )
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("AI 分析权限")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text(this.aiSaving ? '正在保存到云端…' : !this.aiPolicyReady ? '权限未同步，点击重试'
+                    : '管理共享范围；切换后清空当前对话')
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Text(
+                  this.aiAccessLevel === 'full' ? '深度照护'
+                    : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护',
+                )
+                  .fontSize(12)
+                  .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                  .fontWeight(FontWeight.Medium)
+                  .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(100)
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .enabled(!this.aiSaving)
+              .onClick((): void => {
+                if (!this.aiPolicyReady) {
+                  AiPermissionService.getInstance().sync().then((success: boolean) => {
+                    showToast(this.getUIContext(), { message: success ? '权限已同步，请再次点击设置' : '同步失败，请检查网络后重试' });
+                  });
+                  return;
+                }
+                showDialog(this.getUIContext(), {
+                  title: "AI 分析权限",
+                  message: '深度照护：统计、当前监护状态与最近事件精确时间\n隐私保护（默认）：近7天次数、距摔倒天数与设备在线状态\n基础问答：不附带监护数据\n\n问题和最近对话会经服务器交给云端 AI。自动隐藏常见手机号、身份证号和邮箱；请勿输入姓名、住址等私人信息。不会自动上传视频、人脸或地址。切换权限会清空当前对话。',
+                  buttons: [
+                    { text: "深度照护", color: "#2563eb" },
+                    { text: "隐私保护", color: "#2563eb" },
+                    { text: "基础问答", color: "#64748b" },
+                  ],
+                }).then((result) => {
+                  if (result === undefined) return;
+                  const levels: string[] = ['full', 'privacy', 'basic'];
+                  const selected = levels[result.index];
+                  if (selected === undefined) return;
+                  if (selected !== this.aiAccessLevel) this.saveAiPermission(this.aiEnabled, selected);
+                });
+              })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_refresh_light")
+                    : $r("app.media.ic_refresh_gray"),
+                )
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("清理缓存")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text(this.cacheSummary)
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Image($r("app.media.ic_chevron_right"))
+                  .width(16)
+                  .height(16)
+                  .objectFit(ImageFit.Contain)
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "清理缓存"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "清理缓存";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+              .enabled(!this.cacheBusy)
+              .accessibilityText(this.cacheBusy ? '正在清理缓存，请稍候' : `清理缓存，${this.cacheSummary}`)
+              .onClick((): void => { this.clearAppCache(); })
+              Divider()
+                .margin({ left: "15%", right: "4%" })
+                .color(this.themeManager.colors.separatorColor)
+              // ── 数据保留天数设置行 ────────────────────────────────
+              Row() {
+                Image(
+                  this.themeManager.isDarkMode
+                    ? $r("app.media.ic_shield_light")
+                    : $r("app.media.ic_shield_blue"),
+                )
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
+                  .objectFit(ImageFit.Contain)
+                  .padding(8)
+                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .borderRadius(10)
+                  .margin({ right: "4%" })
+                Column() {
+                  Text("数据保留时长")
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text("视频与健康记录的保存天数")
+                    .fontSize(12)
+                    .fontColor(this.themeManager.colors.secondaryTextColor)
+                    .margin({ top: "2%" })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                // 当前天数标签
+                Row() {
+                  Text(`${this.retentionDays}天`)
+                    .fontSize(13)
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                    .fontWeight(FontWeight.Medium)
+                }
+                .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
+                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .borderRadius(100)
+                .onClick((): void => {
+                  // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
+                  // 改用 showDialog 实现天数选择
+                  showDialog(this.getUIContext(), {
+                    title: "数据保留时长",
+                    message: "选择视频与健康记录的保存天数",
+                    buttons: [
+                      { text: "7天", color: "#2563eb" },
+                      { text: "14天", color: "#2563eb" },
+                      { text: "30天", color: "#2563eb" },
+                      { text: "90天", color: "#2563eb" },
+                    ],
+                  }).then((result) => {
+                    if (result === undefined) return;
+                    const options = [7, 14, 30, 90];
+                    const selected = options[result.index];
+                    if (selected === undefined) return;
+                    DatabaseHelper.getInstance().setRetentionDays(selected);
+                    this.retentionDays = selected;
+                    showToast(this.getUIContext(), { message: `已设置保留 ${selected} 天` });
+                  });
+                })
+              }
+              .width("100%")
+              .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+              .constraintSize({ minHeight: 64 })
+              .backgroundColor(
+                this.pressedRow === "数据保留时长"
+                  ? this.themeManager.isDarkMode
+                    ? "#2a3a50"
+                    : "#e8edf5"
+                  : this.themeManager.colors.cardBackgroundColor,
+              )
+              .animation({ duration: 80, curve: Curve.EaseOut })
+              .onTouch((e: TouchEvent): void => {
+                if (e.type === TouchType.Down) {
+                  this.pressedRow = "数据保留时长";
+                } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+                  setTimeout(() => {
+                    this.pressedRow = "";
+                  }, 150);
+                }
+              })
+            }
+            .width("92%")
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .border({ width: 1, color: this.themeManager.colors.borderColor })
+            .borderRadius(SURFACE_RADIUS)
+            .clip(true)
+          }.width("100%")
+          Column({ space: 12 }) {
+            Button("退出登录", { type: ButtonType.Capsule })
+              .width("88%")
+              .height(50)
+              .backgroundColor("#fee2e2")
+              .fontColor("#b91c1c")
+              .fontWeight(FontWeight.Medium)
+              .fontSize(16)
+              .scale({ x: this.logoutScale, y: this.logoutScale })
+              .animation({ duration: 120, curve: Curve.EaseInOut })
+              .onClick((): void => {
+                this.logoutScale = 0.95;
+                setTimeout(() => {
+                  this.logoutScale = 1.0;
+                }, 150);
+                showDialog(this.getUIContext(), {
+                  title: "退出确认",
+                  message: "您确定要退出当前账号吗？（这不会删除你的账号信息）",
+                  buttons: [
+                    { text: "取消", color: "#64748b" },
+                    { text: "退出", color: "#dc2626" },
+                  ],
+                }).then(async (data) => {
+                  if (data?.index === 1 && this.pathStack) {
+                    await CloudService.getInstance().logout();
+                    try {
+                      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                      const opts: preferences.Options = { name: PREF_NAME_AUTH };
+                      const pref = preferences.getPreferencesSync(ctx, opts);
+                      pref.deleteSync(PREF_KEY_LAST_USERNAME);
+                      pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+                      pref.flush();
+                    } catch (e) {
+                      console.warn("[person]: 清除登录态失败 " + JSON.stringify(e));
+                    }
+                    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, "");
+                    AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, "");
+                    UserManager.getInstance().clearCurrentUsername();
+                    this.pathStack.clear();
+                    this.pathStack.pushPathByName("Login", null);
+                  }
+                });
+              })
+            Button('注销账号', { type: ButtonType.Normal })
+              .width("88%")
+              .height(50)
+              .backgroundColor("#dc2626")
+              .fontColor("#ffffff")
+              .fontWeight(FontWeight.Medium)
+              .fontSize(16)
+              .borderRadius(100)
+              .onClick(() => {
+                showDialog(this.getUIContext(), {
+                  title: '注销账号',
+                  message: '此操作将永久删除您在本设备和云端的所有数据，且无法恢复。确定要继续吗？',
+                  buttons: [
+                    { text: '取消', color: '#64748b' },
+                    { text: '继续注销', color: '#dc2626' },
+                  ],
+                }).then((res) => {
+                  if (res?.index === 1) {
+                    this.deleteChallengeId = '';
+                    this.deleteAccountDialogController.open();
+                  }
+                });
+              })
+          }
+          .width("100%")
+          .alignItems(HorizontalAlign.Center)
+          .margin({ top: 29, bottom: 14 })
+          Text("智护星 v1.0.0")
+            .fontSize(12)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+            .margin({ bottom: 29 })
+        }
+        .width("100%")
+        .constraintSize({ maxWidth: 640 })
+        .alignItems(HorizontalAlign.Center)
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .width("100%")
+    .height("100%")
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
+  }
+}

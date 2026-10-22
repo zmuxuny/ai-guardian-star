@@ -1,0 +1,14 @@
+[Unit]
+Description=智护星生产健康与费用阈值检查
+After=network-online.target wenxin.service nginx.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/wenxin/aliyun-sms.env
+EnvironmentFile=-/etc/wenxin/monitor.env
+ExecStart=/usr/bin/python3 /usr/local/lib/wenxin/ops_monitor.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict

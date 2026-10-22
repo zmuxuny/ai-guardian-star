@@ -1,0 +1,112 @@
+# Define project specific obfuscation rules here.
+# You can include the obfuscation configuration files in the current module's build-profile.json5.
+#
+# For more details, see
+#   https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/source-obfuscation-V5
+
+# Obfuscation options:
+# -disable-obfuscation: disable all obfuscations
+# -enable-property-obfuscation: obfuscate the property names
+# -enable-toplevel-obfuscation: obfuscate the names in the global scope
+# -compact: remove unnecessary blank spaces and all line feeds
+# -remove-log: remove all console.* statements
+# -print-namecache: print the name cache that contains the mapping from the old names to new names
+# -apply-namecache: reuse the given cache file
+
+# Keep options:
+# -keep-property-name: specifies property names that you want to keep
+# -keep-global-name: specifies names that you want to keep in the global scope
+
+-enable-property-obfuscation
+-enable-toplevel-obfuscation
+-enable-filename-obfuscation
+-enable-export-obfuscation
+# -remove-log  # 上架前再开启，开发期保留日志
+
+# ── 云端接口字段名保留（否则服务器收不到正确字段） ──
+-keep-property-name
+    username
+    passwordHash
+    nickname
+    phone
+    email
+    address
+    avatarPath
+    createTime
+    target
+    type
+    code
+    oldPasswordHash
+    newPasswordHash
+    success
+    message
+    user
+    accessToken
+    refreshToken
+    # MQTT 凭据 JSON 来自服务器，字段名不能随 Release 混淆改变。
+    credentials
+    expiresIn
+    password
+    clientId
+    topic
+    avatarVersion
+    challengeId
+    hasAvatar
+    imageBase64
+    mimeType
+    updatedAt
+    verifyCode
+    kind
+    value
+
+# AI consent and chat JSON fields cross the native/server boundary.
+-keep-property-name
+    enabled
+    settings
+    version
+    accessLevel
+    policyVersion
+    context
+    history
+    role
+    content
+    fallCount7d
+    sedentaryCount7d
+    lastFallDaysAgo
+    deviceOnline
+    deviceConnected
+    currentStatus
+    latestFallRecord
+    latestSedentaryRecord
+    reply
+    model
+    timestamp
+    error
+
+# ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
+-keep-property-name
+    id
+    password_hash
+    avatar_path
+    bind_elder_id
+    create_time
+    setting_key
+    setting_value
+    update_time
+    settingKey
+    settingValue
+    updateTime
+    bindElderId
+    event_type
+    event_time
+    date_str
+    time_str
+    severity
+    is_handled
+    remark
+    file_path
+    thumbnail_path
+    duration_sec
+    file_size_kb
+    record_time
+    is_exported

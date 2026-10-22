@@ -1,0 +1,15 @@
+[Unit]
+Description=FRP Client to Alibaba Cloud
+After=NetworkManager-wait-online.service network-online.target
+Wants=NetworkManager-wait-online.service network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c 'until ping -c1 -W1 47.108.167.0 >/dev/null 2>&1; do sleep 2; done'
+ExecStart=/root/frp_0.61.1_linux_arm64/frpc -c /root/frp_0.61.1_linux_arm64/frpc-aliyun.toml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

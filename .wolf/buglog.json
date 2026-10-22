@@ -1,0 +1,978 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-17T15:56:59.250Z",
+      "error_message": "Missing guard clause",
+      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
+      "root_cause": "No early return/throw for edge case: /^1[3-9]\\d{9}$/.test(id",
+      "fix": "Added guard clause: if (/^1[3-9]\\d{9}$/.test(id)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:56:59.250Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-17T15:57:40.961Z",
+      "error_message": "Wrong reference: queryUserByUsername should be queryUserByIdentifier",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Used \"queryUserByUsername\" instead of \"queryUserByIdentifier\"",
+      "fix": "Changed queryUserByUsername → queryUserByIdentifier",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:57:40.961Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-05-17T16:31:02.624Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: const user = this.loadedUser;; if (!user || user.id === undefined) { this.errorMsg = '用户信息异",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-17T16:31:19.868Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-05-17T17:17:57.938Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T17:17:57.938Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-05-17T17:18:05.210Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→4 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T17:18:05.210Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-05-17T17:19:27.421Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T17:19:27.421Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-05-19T13:08:38.587Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/AiChat.ets",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 22→35 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T13:08:38.588Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-05-19T13:09:31.207Z",
+      "error_message": "Significant refactor of ",
+      "file": "wenxin_proxy.py",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 30→48 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T13:09:31.207Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-19T13:11:19.926Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 21→32 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T13:11:19.926Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-05-20T01:46:16.475Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 21→32 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T01:46:16.475Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-20T01:48:55.820Z",
+      "error_message": "Null/undefined access in ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T01:48:55.820Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "修改手机号显示成功，但云端未更新；旧手机号仍能登录，资料回退为旧值",
+      "file": "wenxin_proxy.py / entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "云端 t_user.username 是主键且存昵称；App 改手机号时用 loginId 当 username 去 WHERE username=? UPDATE，匹配 0 行，云端 phone 列永不更新。旧手机重登时 cloud.login 凭旧 phone 列匹配成功，把旧记录塞回本地。",
+      "fix": "后端 /api/updateUser 改柔性 lookup WHERE username=? OR phone=? OR email=? + rowcount==0 返回失败 + 新增 newUsername 改名字段；Profile 三个 dialog 改为先 await 云端成功再写本地。",
+      "tags": [
+        "cloud-sync",
+        "login",
+        "primary-key",
+        "ets",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-002"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "审核员选择图片上传后显示「处理图片失败」",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "fs.copyFile 直接复制 PhotoViewPicker 返回的 file://media URI，真机严格不允许（需先取 fd）。",
+      "fix": "fs.openSync(uri,READ_ONLY) 取 fd → image.createImageSource(fd) 解码 → crop 居中裁方 → scale 512 → ImagePacker 编码 JPEG → 时间戳文件名写沙箱 + 删旧文件。",
+      "tags": [
+        "image",
+        "avatar",
+        "real-device",
+        "fs",
+        "ImageKit",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-05-19T00:00:00.000Z",
+      "error_message": "修改密码云端同步失败（/api/changePassword 404）",
+      "file": "wenxin_proxy.py",
+      "root_cause": "App 调用 /api/changePassword，但后端从未实现该端点。",
+      "fix": "在 wenxin_proxy.py 新增 /api/changePassword：柔性 lookup + 校验旧密码哈希后再写新哈希。",
+      "tags": [
+        "cloud-sync",
+        "password",
+        "missing-endpoint",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-012"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-19T00:00:00.000Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-05-20T06:49:23.875Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 10→6 lines (4 removed) | Also: // ── 保存昵称/头像 ────────────────────────────────────; private async saveProfile(): Promise<void> { | Also: Text(\"保存\").fontSize(15).fontColor(\"#ffffff\"); .padding({ left: 14, right: 14, top: 6, bottom: 6  | Also: .onBackPressed(() => {; if (this.hasChanged) {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-20T06:50:59.976Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-05-20T06:50:25.765Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T06:50:25.765Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-05-20T06:50:00.000Z",
+      "error_message": "昵称改了之后云端的还是修改前的（手机/邮箱/密码正常）",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "saveProfile 云端 updateUser 用 .then() fire-and-forget 不等待，紧接 setTimeout(pop,1000) 1秒退页销毁组件，云端请求（10s超时）未完成就被丢弃。手机/邮箱/密码因 await 且不退页所以正常。",
+      "fix": "去掉全局保存按钮，改为全内联即时保存：saveNickname 云端优先 await 后再写本地；头像选完即 await saveAvatar。删除 hasChanged/updateChangedState/saveProfile 及 onBackPressed 未保存拦截。",
+      "tags": [
+        "cloud-sync",
+        "race-condition",
+        "fire-and-forget",
+        "nickname",
+        "ets"
+      ],
+      "related_bugs": [
+        "bug-012"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T06:50:00.000Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-05-20T07:14:07.453Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:14:07.453Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-05-20T07:16:53.307Z",
+      "error_message": "Null/undefined access in ",
+      "file": "entry/src/main/ets/pages/MyAddress.ets",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:16:53.307Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-05-20T07:17:17.993Z",
+      "error_message": "Wrong operator: || should be &&",
+      "file": "entry/src/main/ets/pages/MyAddress.ets",
+      "root_cause": "Used \"||\" instead of \"&&\"",
+      "fix": "Changed operator || → &&",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:17:17.993Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-05-20T07:15:00.000Z",
+      "error_message": "昵称改了显示保存成功，但云端 t_user 仍是旧值（手机/邮箱/密码正常）",
+      "file": "entry/src/main/ets/pages/Profile.ets",
+      "root_cause": "改昵称只靠 newUsername 改云端 username(PK)；若部署后端无 newUsername 映射则 updates 为空→返回'无需更新'+success=true，App 误显示成功但云端没动。",
+      "fix": "saveNickname 同时写 nickname 列(fields.nickname，任何后端版本都支持) + newUsername；Login 跨设备登录优先读 cu.nickname。配合云端优先 await 彻底修复。",
+      "tags": [
+        "cloud-sync",
+        "nickname",
+        "robustness",
+        "ets",
+        "flask"
+      ],
+      "related_bugs": [
+        "bug-012",
+        "bug-017"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-20T07:15:00.000Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-05-22T10:03:28.153Z",
+      "error_message": "Missing error handling in admin_required",
+      "file": "wenxin_proxy.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:03:28.153Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-05-22T10:16:05.153Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/Login.ets",
+      "root_cause": "Had \"名字至少2个字\"",
+      "fix": "Changed to \"名字不能为空\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:16:05.153Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-05-22T11:27:10.204Z",
+      "error_message": "Missing error handling in deleteUserByUsername",
+      "file": "entry/src/main/ets/database/DatabaseHelper.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T11:27:10.204Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-05-22T11:27:38.412Z",
+      "error_message": "Missing await",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T11:27:38.412Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-06-03T06:24:06.180Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/module.json5",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 29→10 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json5"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-03T06:24:06.180Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-06-03T07:10:59.188Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/config.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 7→27 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-03T07:10:59.188Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-06-05T07:09:59.806Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/common/CloudService.ets",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 5→5 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:09:59.806Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-06-05T07:11:42.838Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: private privacyDialogController: CustomDialogController = ne; builder: PrivacyDialog({",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-05T07:11:56.239Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-06-05T07:22:38.866Z",
+      "error_message": "Missing error handling in executeDeleteAccount",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:22:38.866Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-06-05T07:22:48.338Z",
+      "error_message": "Wrong reference: lastUsername should be PREF_KEY_LAST_USERNAME",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Used \"lastUsername\" instead of \"PREF_KEY_LAST_USERNAME\"",
+      "fix": "Changed lastUsername → PREF_KEY_LAST_USERNAME",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-05T07:22:48.338Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-06-06T17:00:27.872Z",
+      "error_message": "Wrong reference: STORAGE_KEY_LOGGED_IN_USER should be STORE_KEY_LOGGED_IN_USER",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "Used \"STORAGE_KEY_LOGGED_IN_USER\" instead of \"STORE_KEY_LOGGED_IN_USER\"",
+      "fix": "Changed STORAGE_KEY_LOGGED_IN_USER → STORE_KEY_LOGGED_IN_USER",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:00:27.872Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-06-06T17:00:35.916Z",
+      "error_message": "Significant refactor of ",
+      "file": "entry/src/main/ets/pages/Index.ets",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:00:35.916Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-06-06T17:01:10.402Z",
+      "error_message": "Incorrect value in code",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Had \"./Login\"",
+      "fix": "Changed to \"@ohos.multimedia.cameraPicker\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:01:10.402Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-06-06T17:01:31.781Z",
+      "error_message": "Wrong reference: STORAGE_KEY_LOGGED_IN_USER should be STORE_KEY_LOGGED_IN_USER",
+      "file": "entry/src/main/ets/pages/person.ets",
+      "root_cause": "Used \"STORAGE_KEY_LOGGED_IN_USER\" instead of \"STORE_KEY_LOGGED_IN_USER\"",
+      "fix": "Changed STORAGE_KEY_LOGGED_IN_USER → STORE_KEY_LOGGED_IN_USER",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "ets"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:01:31.781Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-06-06T17:29:24.396Z",
+      "error_message": "Wrong return value",
+      "file": "wenxin_proxy.py",
+      "root_cause": "Was returning: jsonify({\"success\": False, \"message\": \"密码错误\"}), 40",
+      "fix": "Now returns: jsonify({\"success\": False, \"message\": \"密码错误\"})",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T17:29:24.396Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-06-07",
+      "error_message": "注销账号后显示'服务器格式不正确'，注销失败",
+      "file": "wenxin_proxy.py",
+      "root_cause": "api_delete_user 密码错误时返回 HTTP 403，HarmonyOS http 模块对非 2xx 响应返回 ArrayBuffer 而非 string，导致 CloudService postJson 中 JSON.parse 失败，返回 '服务器响应格式错误'",
+      "fix": "删除 return jsonify({...}), 403 中的 403 状态码，改为默认 200，确保 HarmonyOS http 返回 string 类型响应体",
+      "tags": [
+        "cloud",
+        "http",
+        "harmonyos",
+        "json-parse",
+        "delete-account"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-07"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk failed to run rg/cat and one nested PowerShell command lost quoting",
+      "file": "C:\\Users\\16228\\.codex\\RTK.md",
+      "root_cause": "The Windows RTK wrapper could not resolve cat, returned access denied for rg, and outer PowerShell expanded nested command syntax",
+      "fix": "Use rtk proxy powershell.exe with simple commands and literal paths; avoid nested variables and regex-heavy quoting",
+      "tags": [
+        "tooling",
+        "rtk",
+        "powershell",
+        "windows"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-07-14",
+      "error_message": "ModuleNotFoundError: No module named 'flask' while running test_wenxin_proxy.py",
+      "file": "test_wenxin_proxy.py",
+      "root_cause": "The available MSYS2 Python runtime does not have the Flask production dependency installed",
+      "fix": "Load the real target function from wenxin_proxy.py via Python AST so the unit test stays dependency-free",
+      "tags": [
+        "test",
+        "python",
+        "flask",
+        "dependency"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-07-14",
+      "error_message": "AI lastFallDaysAgo used the oldest fall record as the latest record",
+      "file": "entry/src/main/ets/common/WenxinService.ets",
+      "root_cause": "MqttManager prepends new records, but WenxinService read falls[falls.length - 1]",
+      "fix": "Read falls[0], matching the newest-first record order used by MqttManager and the UI",
+      "tags": [
+        "ai",
+        "mqtt",
+        "record-order",
+        "health-context"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-07-14",
+      "error_message": "00303217 Configuration Error: Invalid value of 'DEVECO_SDK_HOME' in the system environment path",
+      "file": "build environment",
+      "root_cause": "Hvigor was not on PATH and its process did not receive the installed DevEco SDK location",
+      "fix": "Run DevEco's bundled node/hvigorw.js with process-local DEVECO_SDK_HOME=E:\\DevEco Studio\\sdk",
+      "tags": [
+        "build",
+        "deveco",
+        "hvigor",
+        "sdk"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-07-14",
+      "error_message": "Connection to 117.78.9.144 port 6022 timed out",
+      "file": "local SSH configuration",
+      "root_cause": "The local SSH configuration rewrote the default port to 6022 when no explicit port was supplied",
+      "fix": "Pass -p 22 explicitly; root authentication then succeeded and returned hostname ecs-f195",
+      "tags": [
+        "ssh",
+        "ecs",
+        "port",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-07-14",
+      "error_message": "Permission denied, please try again while inspecting ECS process environment",
+      "file": "ECS SSH authentication",
+      "root_cause": "A later read-only SSH session rejected the supplied password twice after earlier sessions had authenticated successfully",
+      "fix": "Stopped retries to avoid account lockout; rely on the already confirmed process/path/port and require environment checks before restart",
+      "tags": [
+        "ssh",
+        "ecs",
+        "authentication",
+        "safety"
+      ],
+      "related_bugs": [
+        "bug-042"
+      ],
+      "occurrences": 2,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-07-14",
+      "error_message": "curl: (35) schannel: failed to receive handshake, SSL/TLS connection failed",
+      "file": "OpenAI developer manual fetch helper",
+      "root_cause": "The local Windows curl TLS handshake failed while fetching the Codex manual",
+      "fix": "Installed the official OpenAI Developer Docs MCP and used an official-domain web search for the bounded check",
+      "tags": [
+        "docs",
+        "curl",
+        "tls",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-07-14",
+      "error_message": "[mcporter] Unable to load tool metadata; name positional arguments explicitly",
+      "file": "agent-reach Exa search command",
+      "root_cause": "The mcporter invocation could not resolve the Exa tool metadata from the positional call syntax",
+      "fix": "Stopped using that invocation and queried official OpenAI domains through the available web search tool",
+      "tags": [
+        "search",
+        "mcporter",
+        "exa",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk: Failed to resolve 'Get-Content' via PATH",
+      "file": "RTK PowerShell invocation",
+      "root_cause": "Get-Content is a PowerShell cmdlet, not a standalone executable that RTK can resolve directly",
+      "fix": "Invoke powershell.exe through rtk proxy and run Get-Content inside PowerShell",
+      "tags": [
+        "rtk",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-07-14",
+      "error_message": "SyntaxError: Unexpected string",
+      "file": "functions.exec JavaScript wrapper",
+      "root_cause": "Nested PowerShell quoting broke the JavaScript string literal",
+      "fix": "Use a JavaScript template literal for commands containing nested quoted PowerShell paths",
+      "tags": [
+        "javascript",
+        "quoting",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-07-14",
+      "error_message": "The term '=' is not recognized as the name of a cmdlet",
+      "file": "nested PowerShell JSON verification command",
+      "root_cause": "The outer PowerShell expanded $null inside a double-quoted child command before powershell.exe received it",
+      "fix": "Avoid variables in nested double-quoted PowerShell commands and pipe directly to Out-Null",
+      "tags": [
+        "powershell",
+        "quoting",
+        "verification",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047"
+      ],
+      "occurrences": 2,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-07-14",
+      "error_message": "rtk: Failed to execute command: rg: Access is denied (os error 5)",
+      "file": "RTK ripgrep verification",
+      "root_cause": "The RTK wrapper could not execute the resolved rg binary in this Windows environment",
+      "fix": "Use git diff and PowerShell read-only verification commands instead of RTK-wrapped rg for this check",
+      "tags": [
+        "rtk",
+        "rg",
+        "windows",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 3,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-07-14",
+      "error_message": "ConvertFrom-Json: Invalid object passed in, ':' or '}' expected",
+      "file": ".wolf/buglog.json",
+      "root_cause": "The existing bug log already contains malformed legacy JSON before the newly appended entries",
+      "fix": "Kept the new entries structurally valid and left the unrelated legacy corruption untouched for a dedicated repair",
+      "tags": [
+        "openwolf",
+        "json",
+        "legacy-data",
+        "verification"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-14"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-07-15",
+      "error_message": "Missing type name after '[' in nested PowerShell slice command",
+      "file": "RTK PowerShell file inspection",
+      "root_cause": "The outer PowerShell expanded the child $lines variable before the nested command executed",
+      "fix": "Use variable-free Get-Content pipelines with Select-Object and single-quoted child commands",
+      "tags": [
+        "powershell",
+        "quoting",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-048"
+      ],
+      "occurrences": 7,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-07-15",
+      "error_message": "Select-String rejected a pattern with an illegal trailing backslash",
+      "file": "PowerShell source search",
+      "root_cause": "Nested quoting changed the intended regular expression before Select-String parsed it",
+      "fix": "Use rtk git grep for tracked source searches and avoid regex-heavy nested PowerShell quoting",
+      "tags": [
+        "powershell",
+        "regex",
+        "quoting",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047",
+        "bug-048"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-07-15"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-07-16",
+      "error_message": "Claude-mem inspection hit an incorrect skill path, RTK rg access denial, and nested PowerShell quoting errors",
+      "file": "Codex local runtime inspection commands",
+      "root_cause": "The first command assumed the wrong skill-root path, while later commands repeated known Windows RTK rg and nested PowerShell quoting limitations",
+      "fix": "Use the explicit plugin cache path, run file inspection through rtk proxy powershell, and pass variable-bearing child commands in single quotes",
+      "tags": [
+        "claude-mem",
+        "rtk",
+        "powershell",
+        "tooling"
+      ],
+      "related_bugs": [
+        "bug-047",
+        "bug-049",
+        "bug-051"
+      ],
+      "occurrences": 6,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-07-16",
+      "error_message": "GitHub CLI required authentication and Agent Reach curl fallback returned FAILED while reading the Repomix repository",
+      "file": "Repomix official-source research commands",
+      "root_cause": "The local gh client had no authenticated account and the RTK-wrapped curl route did not return page content",
+      "fix": "Opened the public official GitHub repository through the web fetch route and verified the README there",
+      "tags": [
+        "agent-reach",
+        "github",
+        "gh",
+        "curl",
+        "web-research"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-16"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-07-28",
+      "error_message": "aistar.asia 官网发信全部失败：wp-mail-smtp 的 from_email 是占位值 admin@exmaple.com，且 from_email_force=1",
+      "file": "WordPress option wp_mail_smtp (47.108.167.0)",
+      "root_cause": "安装向导留下的示例地址（还带拼写错误 exmaple）未改；QQ SMTP 要求 From 与认证账号一致，强制覆盖后每封信都被服务端拒绝",
+      "fix": "把 mail.from_email 改为 smtp.user（1622828551@qq.com），wp_mail() 自检返回 true",
+      "tags": [
+        "wordpress",
+        "smtp",
+        "wp-mail-smtp",
+        "aistar.asia",
+        "email"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-28"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-07-28",
+      "error_message": "aistar.asia 窄屏下整页横向溢出 6px（document.scrollWidth 381 > clientWidth 375）",
+      "file": "wp-content/mu-plugins/zhx-frontend-tweaks.php（.zhx-photo img / .zhx-shot img）",
+      "root_cause": "图片宽度用了 max-width:min(560px,90vw)。vw 单位按含滚动条的视口宽度计算（viewport 390，clientWidth 只有 375），90vw=351px 超出内容区，撑出横向滚动条",
+      "fix": "图片尺寸改用 width:100% + max-width:<px>，容器负责约束，彻底不用 vw",
+      "tags": [
+        "css",
+        "responsive",
+        "overflow",
+        "vw",
+        "wordpress",
+        "aistar.asia"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-28"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-08-15T05:50:00.000Z",
+      "error_message": "CI / python failed: git diff --check HEAD^ HEAD -> 'new blank line at EOF' / 'trailing whitespace'",
+      "file": "README.md, README.zh-CN.md, .github/workflows/ci.yml",
+      "root_cause": "CI 的 python job 会跑 git diff --check，任何新增行的行尾空格或文件末尾多余空行都会让整个 workflow 失败。Markdown 用行尾双空格换行的写法必然触发；用 sed 切分文件容易在 EOF 留多余空行。",
+      "fix": "行尾双空格换行改用 <br />；文件末尾只保留一个换行。推送前本地跑 git add + git diff --cached --check 自检。",
+      "tags": [
+        "ci",
+        "github-actions",
+        "whitespace",
+        "markdown",
+        "docs"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-08-15T05:50:00.000Z"
+    }
+  ]
+}

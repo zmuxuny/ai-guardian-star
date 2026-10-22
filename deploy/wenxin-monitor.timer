@@ -1,0 +1,10 @@
+[Unit]
+Description=每五分钟检查智护星生产健康与费用阈值
+
+[Timer]
+OnBootSec=2m
+OnUnitInactiveSec=5m
+Unit=wenxin-monitor.service
+
+[Install]
+WantedBy=timers.target

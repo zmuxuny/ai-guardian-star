@@ -1,0 +1,11 @@
+[Unit]
+Description=每天备份智护星 SQLite
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+Unit=wenxin-sqlite-backup.service
+
+[Install]
+WantedBy=timers.target

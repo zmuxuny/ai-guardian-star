@@ -1,0 +1,17 @@
+[Unit]
+Description=智护星 FRP Server（阿里云）
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/frp
+ExecStart=/opt/frp/frps -c /etc/frp/frps.toml
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

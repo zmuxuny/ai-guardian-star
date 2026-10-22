@@ -1,0 +1,32 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "智护星"
+    },
+    {
+      "name": "reason_net",
+      "value": "请检查网络"
+    },
+    {
+      "name": "voice_reason",
+      "value": "用于与老人端设备进行实时语音对讲"
+    },
+    {
+      "name": "camera_reason",
+      "value": "用于拍摄人脸照片上传至开发板进行识别"
+    },
+    {
+      "name": "media_reason",
+      "value": "用于从相册选取头像图片"
+    }
+  ]
+}

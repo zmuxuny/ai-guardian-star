@@ -1,17 +1,11 @@
+# Node / JS
 /node_modules
-/oh_modules
-/local.properties
-/.idea
-**/build
-/.hvigor
-.cxx
-/.clangd
-/.clang-format
-/.clang-tidy
-**/.test
-**/.appanalyzer
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
 
-# Python development artifacts
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -19,6 +13,40 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+
+# HarmonyOS / ohos specific
+/oh_modules
+/*.hap
+/pac.json
+/pack.info
+/oh-package-lock.json5
+/oh-package.json5
+
+# Local config
+/.idea
+/local.properties
+
+# Build artifacts
+**/build/
+**/outputs/
+**/intermediates/
+**/generated/
+**/release/
+*.app
+*.hap
+
+# Tooling
+/.hvigor
+.hvigor/
+.cxx
+
+# clang/format
+/.clangd
+/.clang-format
+/.clang-tidy
+
+# Test artifacts
+**/.test
 
 # Runtime logs and private face data
 *.log
@@ -30,3 +58,53 @@ src/debug_faces/
 
 # Optional device-specific audio backend
 src/libguardian_audio.so
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+/.preview
+/.appanalyzer
+
+# AI assistant working files (OpenWolf)
+/.wolf/
+
+# Personal IDE settings
+.claude/settings.local.json
+
+# TLS certificates — CA public key may be kept, but private keys must never be committed
+entry/src/main/resources/resfile/client.key
+entry/src/main/resources/resfile/client.crt
+
+# Personal / temporary files at project root
+1.20
+DEFENSE_TECH_BRIEF.md
+iCAN_*.txt
+iCAN_*.docx
+project-overview.html
+/repomix-output.xml
+
+# Scratch
+/.tmp/
+
+# impeccable-ignore-start
+# Ephemeral output, runtime state, and per-developer overrides.
+**/.impeccable/config.local.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+**/.impeccable/*.png
+**/.impeccable/review/
+**/.impeccable/questions/
+**/.impeccable/live/server.json
+**/.impeccable/live/sessions/
+**/.impeccable/live/previews/
+**/.impeccable/live/annotations/
+**/.impeccable/live/cache/
+**/.impeccable/live/manual-edit-apply-transaction.json
+**/.impeccable/live/manual-edit-events.jsonl
+**/.impeccable/live/manual-edit-evidence/
+**/.impeccable/live/pending-manual-edits.json
+**/.impeccable/live/deferred-svelte-component-accepts.json
+**/.impeccable/live/*.png
+# impeccable-ignore-end

@@ -1,0 +1,382 @@
+/**
+ * AiChat.ets - AI Health Assistant Page
+ * Tab sub-component, no @Entry decorator
+ */
+
+import { WenxinService, ChatMessage } from '../common/WenxinService';
+import { ThemeManager } from '../common/ThemeManager';
+import { MqttManager } from './MqttManager';
+import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { STORE_KEY_AI_ACCESS_LEVEL, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
+import { getWindowSizeClass } from '../common/ResponsiveLayout';
+
+const QUICK_QUESTIONS: string[] = [
+  '老人最近状态怎么样？',
+  '摔倒后有哪些注意事项？',
+  '久坐对老人有什么危害？',
+  '如何预防老人摔倒？',
+];
+
+interface BubbleMsg {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  isLoading: boolean;
+  timestamp: number;
+}
+
+@Component
+export struct AiChat {
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State mqttManager: MqttManager = MqttManager.getInstance();
+  @State messages: BubbleMsg[] = [];
+  @State inputText: string = '';
+  @State isRequesting: boolean = false;
+  @State dotPhase: number = 0;
+  @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
+  @StorageProp(STORE_KEY_AI_POLICY_STAMP) @Watch('onPolicyChanged') policyStamp: string = '';
+  @StorageProp(STORE_KEY_AI_POLICY_READY) @Watch('onPolicyReadinessChanged') policyReady: boolean = false;
+  @StorageProp('topSafeHeight') topSafeHeight: number = 48;
+  // 当前视口宽度，用于快捷提问在大屏折行铺开
+  @State viewportWidth: number = 360;
+
+  private scroller: Scroller = new Scroller();
+  private msgIdCounter: number = 0;
+  private dotTimer: number = -1;
+  private requestGeneration: number = 0;
+
+  private onPolicyChanged(): void {
+    this.requestGeneration++;
+    this.stopDotAnimation();
+    this.messages = [];
+    this.inputText = '';
+    this.isRequesting = false;
+    this.pushAssistantMsg('AI 权限已更新，之前的对话已清空。请重新提问。');
+  }
+
+  private onPolicyReadinessChanged(): void {
+    if (!this.policyReady) this.onPolicyChanged();
+  }
+
+  aboutToAppear(): void {
+    const accessText = this.aiAccessLevel === 'full' ? '完整监护状态'
+      : this.aiAccessLevel === 'basic' ? '基础健康问答' : '脱敏统计摘要';
+    this.pushAssistantMsg(
+      '你好！我是智护星 AI 健康助手 👋\n\n' +
+      `当前模式：${accessText}，` +
+      '可以帮你分析健康风险、解答护理疑问。\n\n问题和最近对话会交给云端 AI。常见手机号、身份证号和邮箱会自动隐藏；请勿输入姓名或住址。切换权限会清空对话。'
+    );
+  }
+
+  aboutToDisappear(): void {
+    this.requestGeneration++;
+    if (this.dotTimer !== -1) {
+      clearInterval(this.dotTimer);
+      this.dotTimer = -1;
+    }
+  }
+
+  private nextId(): number { return ++this.msgIdCounter; }
+
+  private pushMsg(msg: BubbleMsg): void {
+    this.messages = [...this.messages, msg];
+  }
+
+  private pushAssistantMsg(content: string): void {
+    this.pushMsg({
+      id: this.nextId(), role: 'assistant',
+      content, isLoading: false, timestamp: Date.now()
+    });
+    this.scrollToBottom();
+  }
+
+  private replaceLoadingMsg(loadingId: number, reply: string): void {
+    const filtered = this.messages.filter(m => m.id !== loadingId);
+    const replyMsg: BubbleMsg = {
+      id: loadingId,
+      role: 'assistant',
+      content: reply,
+      isLoading: false,
+      timestamp: Date.now()
+    };
+    this.messages = [];
+    this.messages = [...filtered, replyMsg];
+  }
+
+  private scrollToBottom(): void {
+    setTimeout(() => { this.scroller.scrollEdge(Edge.Bottom); }, 100);
+  }
+
+  private startDotAnimation(): void {
+    this.dotPhase = 0;
+    if (this.dotTimer !== -1) clearInterval(this.dotTimer);
+    this.dotTimer = setInterval(() => { this.dotPhase = (this.dotPhase + 1) % 3; }, 400);
+  }
+
+  private stopDotAnimation(): void {
+    if (this.dotTimer !== -1) { clearInterval(this.dotTimer); this.dotTimer = -1; }
+  }
+
+  private buildHistory(): ChatMessage[] {
+    return this.messages
+      .filter(m => !m.isLoading && m.content.length > 0)
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content } as ChatMessage));
+  }
+
+  private async sendMessage(text: string): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed || this.isRequesting || !this.policyReady) return;
+    const generation = ++this.requestGeneration;
+
+    this.inputText = '';
+    this.isRequesting = true;
+
+    this.pushMsg({
+      id: this.nextId(), role: 'user',
+      content: trimmed, isLoading: false, timestamp: Date.now()
+    });
+    this.scrollToBottom();
+
+    const loadingId = this.nextId();
+    this.pushMsg({
+      id: loadingId, role: 'assistant',
+      content: '', isLoading: true, timestamp: Date.now()
+    });
+    this.startDotAnimation();
+    this.scrollToBottom();
+
+    const history = this.buildHistory().slice(0, -1);
+
+    let reply = '';
+    try {
+      reply = await WenxinService.getInstance().chat(trimmed, history);
+    } catch (e) {
+      reply = '请求出现异常，请稍后重试';
+      console.error('[AiChat] sendMessage failed');
+    }
+    if (generation !== this.requestGeneration) return;
+    this.replaceLoadingMsg(loadingId, reply);
+    this.stopDotAnimation();
+    this.isRequesting = false;
+    this.scrollToBottom();
+  }
+
+  @Builder
+  GradientHeader(): void {
+    GradientHeader() {
+      Row() {
+        Text('AI 健康助手')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+        Blank()
+        Row({ space: 6 }) {
+          Circle({ width: 8, height: 8 }).fill('#4ade80')
+          Text(
+            `云端 AI · ${this.aiAccessLevel === 'full' ? '深度照护'
+              : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
+          ).fontSize(12).fontColor('#E0F2FE')
+        }
+        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+        .backgroundColor('#33FFFFFF').borderRadius(100)
+      }
+      .width('100%')
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 16, bottom: 20 })
+    }
+  }
+
+  @Builder
+  HealthOverview(): void {
+    Row({ space: 15 }) {
+      Column() {
+        Text('摔倒告警').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.mqttManager.fallRecords.length}`)
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.dangerTextColor)
+      }
+      .layoutWeight(1).padding({ top: 20, bottom: 20 })
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
+
+      Column() {
+        Text('久坐提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+        Text(`${this.mqttManager.sedentaryRecords.length}`)
+          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.warningTextColor)
+      }
+      .layoutWeight(1).padding({ top: 20, bottom: 20 })
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
+    }
+    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
+  }
+
+  @Builder
+  LoadingDots(): void {
+    Column({ space: 4 }) {
+      Text('正在整理建议…')
+        .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+      Row({ space: 5 }) {
+        ForEach([0, 1, 2], (i: number) => {
+          Circle({ width: 7, height: 7 })
+            .fill(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+            .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
+            .animation({ duration: 350, curve: Curve.EaseInOut })
+        })
+      }
+    }.padding({ left: 4, right: 4, top: 4, bottom: 4 })
+  }
+
+  @Builder
+  MessageBubble(msg: BubbleMsg): void {
+    Row() {
+      if (msg.role === 'user') {
+        Blank()
+        Text(msg.content)
+          .fontSize(15).fontColor('#ffffff').lineHeight(22)
+          .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+          .backgroundColor('#2563eb')
+          .borderRadius({ topLeft: 16, topRight: 4, bottomLeft: 16, bottomRight: 16 })
+          .constraintSize({ maxWidth: '72%' })
+      } else {
+        Text('🤖')
+          .fontSize(20).width(36).height(36)
+          .textAlign(TextAlign.Center).lineHeight(36)
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .borderRadius(18).margin({ right: 10 }).flexShrink(0)
+        Column() {
+          if (msg.isLoading) {
+            this.LoadingDots()
+          } else {
+            Text('AI生成内容')
+              .fontSize(11)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+              .alignSelf(ItemAlign.Start)
+              .margin({ bottom: 4 })
+            Text(msg.content)
+              .fontSize(15)
+              .fontColor(this.themeManager.colors.primaryTextColor)
+              .lineHeight(22)
+          }
+        }
+        .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+        .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .borderRadius({ topLeft: 4, topRight: 16, bottomLeft: 16, bottomRight: 16 })
+        .border({ width: 1, color: this.themeManager.colors.borderColor })
+        .constraintSize({ maxWidth: '72%' })
+        Blank()
+      }
+    }
+    .width('100%').padding({ left: '5%', right: '5%', top: 6, bottom: 6 })
+  }
+
+  @Builder
+  QuickChip(q: string): void {
+    Text(q)
+      .fontSize(13).fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+      .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+      .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+      .borderRadius(20).border({ width: 1, color: '#93c5fd' })
+      .onClick((): void => {
+        if (!this.isRequesting) this.sendMessage(q);
+      })
+  }
+
+  @Builder
+  QuickQuestions(): void {
+    Column() {
+      Text('快捷提问').fontSize(12)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .margin({ left: 18, bottom: 8 }).alignSelf(ItemAlign.Start)
+      if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+        // 手机宽度放不下，横向滑动
+        Scroll(new Scroller()) {
+          Row({ space: 10 }) {
+            ForEach(QUICK_QUESTIONS, (q: string) => {
+              this.QuickChip(q)
+            })
+          }.padding({ left: 18, right: 18 })
+        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
+      } else {
+        // 大屏直接折行铺开，不留半截被截断的提问
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+          ForEach(QUICK_QUESTIONS, (q: string) => {
+            Row() { this.QuickChip(q) }.margin({ right: 10, bottom: 8 })
+          })
+        }.width('100%').padding({ left: 18, right: 18 })
+      }
+    }
+    .width('100%').constraintSize({ maxWidth: 640 })
+    .margin({ bottom: 6 })
+  }
+
+  @Builder
+  AiDisclaimer(): void {
+    Row({ space: 4 }) {
+      Text('AI').fontSize(10).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+      Text('内容由 AI 生成，仅供参考，不替代专业医疗诊断')
+        .fontSize(11)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding({ top: 4, bottom: 6 })
+  }
+
+  @Builder
+  InputBar(): void {
+    Row({ space: 12 }) {
+      TextInput({ text: this.inputText, placeholder: '问点什么…' })
+        .maxLength(2000)
+        .layoutWeight(1).height(46).fontSize(15)
+        .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .borderRadius(23).padding({ left: 16, right: 16 })
+        .border({ width: 1.5, color: this.isRequesting ? '#93c5fd' : '#e2e8f0' })
+        .placeholderColor(this.themeManager.colors.secondaryTextColor)
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .onChange((val: string): void => { this.inputText = val; })
+        .onSubmit((): void => { this.sendMessage(this.inputText); })
+        .enabled(!this.isRequesting && this.policyReady)
+      Stack() {
+        if (this.isRequesting) {
+          LoadingProgress().width(22).height(22).color('#ffffff')
+        } else {
+          Text('↑').fontSize(20).fontColor('#ffffff').fontWeight(FontWeight.Bold)
+        }
+      }
+      .width(46).height(46)
+      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#2563eb' : '#64748b')
+      .borderRadius(23).animation({ duration: 200, curve: Curve.EaseOut })
+      .onClick((): void => { this.sendMessage(this.inputText); })
+    }
+    .width('100%').constraintSize({ maxWidth: 640 })
+    .padding({ left: 18, right: 18, top: 10, bottom: 16 })
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .shadow({ radius: 10, color: '#12000000', offsetY: -3 })
+  }
+
+  build() {
+    Column() {
+      this.GradientHeader()
+      this.HealthOverview()
+      Scroll(this.scroller) {
+        Column({ space: 0 }) {
+          ForEach(this.messages, (msg: BubbleMsg) => {
+            this.MessageBubble(msg)
+          }, (msg: BubbleMsg) => `${msg.id}_${msg.isLoading ? 'L' : msg.content.length}`)
+          Column().height(16)
+        }.width('100%').constraintSize({ maxWidth: 640 }).padding({ top: 12 })
+      }
+      .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+      this.QuickQuestions()
+      this.AiDisclaimer()
+      this.InputBar()
+    }
+    .width('100%').height('100%')
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onAreaChange((_oldValue: Area, newValue: Area): void => {
+      const width = Number(newValue.width);
+      if (width > 0) this.viewportWidth = width;
+    })
+  }
+}

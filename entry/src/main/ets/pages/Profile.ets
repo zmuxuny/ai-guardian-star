@@ -1,0 +1,787 @@
+/**
+ * Profile.ets — 个人资料编辑页
+ * 支持修改头像、名字、密码，以及验证码保护的手机号和邮箱绑定。
+ * 账号资料修改由云端 Bearer 会话授权，云端失败不写本地。
+ */
+import { ThemeManager } from '../common/ThemeManager';
+import { getWindowSizeClass } from '../common/ResponsiveLayout';
+import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { UserManager } from '../common/UserManager';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
+import { CloudService, CloudUpdateFields } from '../common/CloudService';
+import { preferences } from '@kit.ArkData';
+import { common } from '@kit.AbilityKit';
+import { util } from '@kit.ArkTS';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import { fileUri } from '@kit.CoreFileKit';
+import { image } from '@kit.ImageKit';
+import fs from '@ohos.file.fs';
+import { showToast } from '../common/UiFeedback';
+
+// ── 绑定/修改手机号或邮箱 ───────────────────────────────────
+@CustomDialog
+struct ContactEditDialog {
+  controller: CustomDialogController;
+  themeManager: ThemeManager = ThemeManager.getInstance();
+  kind: string = 'phone';
+  currentValue: string = '';
+  loadedUser: UserInfo | null = null;
+  onSuccess: (newValue: string) => void = (_v: string) => {};
+
+  @State value: string = '';
+  @State verifyCode: string = '';
+  @State challengeId: string = '';
+  @State sending: boolean = false;
+  @State saving: boolean = false;
+  @State errorMsg: string = '';
+
+  private label(): string { return this.kind === 'phone' ? '手机号' : '邮箱'; }
+
+  private validValue(): boolean {
+    const value = this.value.trim();
+    return this.kind === 'phone'
+      ? /^1[3-9]\d{9}$/.test(value)
+      : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private displayCurrent(): string {
+    if (!this.currentValue) return `当前未绑定${this.label()}`;
+    if (this.kind === 'phone' && this.currentValue.length >= 7) {
+      return '当前绑定：' + this.currentValue.substring(0, 3) + '****' +
+        this.currentValue.substring(this.currentValue.length - 4);
+    }
+    return '当前绑定：' + this.currentValue;
+  }
+
+  private async sendCode(): Promise<void> {
+    if (!this.validValue()) { this.errorMsg = `${this.label()}格式不正确`; return; }
+    this.sending = true;
+    this.errorMsg = '';
+    const result = await CloudService.getInstance().sendContactCode(this.kind, this.value.trim());
+    this.sending = false;
+    if (!result.success || !result.challengeId) {
+      this.errorMsg = result.message || '验证码发送失败';
+      return;
+    }
+    this.challengeId = result.challengeId;
+    showToast(this.getUIContext(), { message: '验证码已发送，5 分钟内有效' });
+  }
+
+  private async saveContact(): Promise<void> {
+    if (!this.validValue()) { this.errorMsg = `${this.label()}格式不正确`; return; }
+    if (!this.challengeId || !/^\d{4,8}$/.test(this.verifyCode.trim())) {
+      this.errorMsg = '请先获取并输入验证码';
+      return;
+    }
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
+    this.saving = true;
+    const value = this.value.trim();
+    const result = await CloudService.getInstance().updateContact(
+      this.kind, value, this.verifyCode.trim(), this.challengeId
+    );
+    if (!result.success) {
+      this.errorMsg = result.message || '修改失败';
+      this.saving = false;
+      return;
+    }
+    if (this.kind === 'phone') user.phone = value; else user.email = value;
+    await DatabaseHelper.getInstance().updateUser(user);
+    this.onSuccess(value);
+    this.saving = false;
+    showToast(this.getUIContext(), { message: `${this.label()}已更新` });
+    this.controller.close();
+  }
+
+  build() {
+    Column() {
+      Text(`${this.currentValue ? '修改' : '绑定'}${this.label()}`).fontSize(18).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor).margin({ bottom: 4 })
+      Text(this.displayCurrent()).fontSize(12)
+        .fontColor(this.themeManager.colors.secondaryTextColor).margin({ bottom: 16 })
+
+      Text(`新${this.label()}`).fontSize(12).fontWeight(FontWeight.Medium)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .alignSelf(ItemAlign.Start).margin({ bottom: 6 })
+      TextInput({ placeholder: `请输入新${this.label()}`, text: this.value })
+        .type(this.kind === 'phone' ? InputType.PhoneNumber : InputType.Email)
+        .maxLength(this.kind === 'phone' ? 11 : 254).fontSize(14)
+        .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+        .borderRadius(12).height(44).width('100%')
+        .onChange((v: string) => { this.value = v; this.challengeId = ''; this.errorMsg = ''; })
+        .margin({ bottom: 12 })
+
+      Row({ space: 8 }) {
+        TextInput({ placeholder: '请输入验证码', text: this.verifyCode })
+          .type(InputType.Number).maxLength(8).fontSize(14).layoutWeight(1)
+          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .borderRadius(12).height(44)
+          .onChange((v: string) => { this.verifyCode = v; this.errorMsg = ''; })
+        Button(this.sending ? '发送中' : (this.challengeId ? '重新发送' : '发送验证码'))
+          .height(44).type(ButtonType.Normal).enabled(!this.sending && !this.saving)
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+          .fontSize(12).borderRadius(12)
+          .onClick(() => { this.sendCode(); })
+      }.width('100%').margin({ bottom: 16 })
+
+      if (this.errorMsg) {
+        Text(this.errorMsg).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor).alignSelf(ItemAlign.Start).margin({ bottom: 8 })
+      }
+
+      Row({ space: 12 }) {
+        Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+          .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
+          .onClick(() => { this.controller.close(); })
+        Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .enabled(!this.saving && !this.sending)
+          .linearGradient({ direction: GradientDirection.Right,
+            colors: [[this.saving ? '#64748b' : '#1e3a8a', 0.0], [this.saving ? '#64748b' : '#2563eb', 1.0]] })
+          .fontColor(Color.White).fontSize(14).borderRadius(12)
+          .onClick(() => { this.saveContact(); })
+      }.width('100%')
+    }
+    .width('100%').constraintSize({ maxWidth: 480 }).padding({ left: 24, right: 24, top: 28, bottom: 24 })
+    .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20)
+  }
+}
+
+// ── 修改密码弹窗 ───────────────────────────────────────────
+@CustomDialog
+struct PasswordEditDialog {
+  controller: CustomDialogController;
+  themeManager: ThemeManager = ThemeManager.getInstance();
+  loadedUser: UserInfo | null = null;
+  onSuccess: () => void = () => {};
+
+  @State oldPwd: string = '';
+  @State newPwd: string = '';
+  @State confirmPwd: string = '';
+  @State showOldPwd: boolean = false;
+  @State showNewPwd: boolean = false;
+  @State showConfirmPwd: boolean = false;
+  @State changing: boolean = false;
+  @State errorMsg: string = '';
+
+  build() {
+    Column() {
+      Text('修改密码').fontSize(18).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor).margin({ bottom: 16 })
+
+      this.PwdRow('当前密码', this.oldPwd, this.showOldPwd, (v: string) => { this.oldPwd = v; this.errorMsg = ''; },
+        () => { this.showOldPwd = !this.showOldPwd; })
+
+      this.PwdRow('新密码', this.newPwd, this.showNewPwd, (v: string) => { this.newPwd = v; this.errorMsg = ''; },
+        () => { this.showNewPwd = !this.showNewPwd; })
+
+      this.PwdRow('确认新密码', this.confirmPwd, this.showConfirmPwd, (v: string) => { this.confirmPwd = v; this.errorMsg = ''; },
+        () => { this.showConfirmPwd = !this.showConfirmPwd; })
+
+      if (this.errorMsg) {
+        Text(this.errorMsg).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor).alignSelf(ItemAlign.Start).margin({ bottom: 8 })
+      }
+
+      Row({ space: 12 }) {
+        Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+          .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
+          .onClick(() => { this.controller.close(); })
+        Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
+          .enabled(!this.changing)
+          .linearGradient({ direction: GradientDirection.Right,
+            colors: [[this.changing ? '#64748b' : '#1e3a8a', 0.0], [this.changing ? '#64748b' : '#2563eb', 1.0]] })
+          .fontColor(Color.White).fontSize(14).borderRadius(12)
+          .onClick(async () => {
+            if (this.oldPwd.length < 4) { this.errorMsg = '当前密码至少4位'; return; }
+            if (this.newPwd.length < 4) { this.errorMsg = '新密码至少4位'; return; }
+            if (this.newPwd !== this.confirmPwd) { this.errorMsg = '两次输入的新密码不一致'; return; }
+            if (this.newPwd === this.oldPwd) { this.errorMsg = '新密码不能与当前密码相同'; return; }
+            const user = this.loadedUser;
+            if (!user || user.id === undefined) { this.errorMsg = '用户信息异常'; return; }
+            this.changing = true;
+            try {
+              const cloudR = await CloudService.getInstance().changePassword(this.oldPwd, this.newPwd);
+              if (!cloudR.success) {
+                this.errorMsg = cloudR.message === '网络不可用'
+                  ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message;
+                this.changing = false;
+                return;
+              }
+              try {
+                await DatabaseHelper.getInstance().updatePasswordHash(user.id!, '');
+              } catch (e) {
+                console.warn('[PasswordEditDialog]: 本地密码缓存清空失败 ' + JSON.stringify(e));
+              }
+              user.passwordHash = '';
+              showToast(this.getUIContext(), { message: '密码修改成功，请重新登录' });
+              this.onSuccess();
+              this.controller.close();
+            } catch (e) {
+              this.errorMsg = '操作异常，请重试';
+              console.error('[PasswordEditDialog]: ' + JSON.stringify(e));
+            }
+            this.changing = false;
+          })
+      }.width('100%')
+    }
+    .width('100%').constraintSize({ maxWidth: 480 }).padding({ left: 24, right: 24, top: 28, bottom: 24 })
+    .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20)
+  }
+
+  @Builder
+  PwdRow(label: string, value: string, show: boolean,
+         onChange: (v: string) => void, onToggle: () => void): void {
+    Column() {
+      Text(label).fontSize(12).fontWeight(FontWeight.Medium)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+        .alignSelf(ItemAlign.Start).margin({ bottom: 6 })
+      Row() {
+        TextInput({ placeholder: `请输入${label}`, text: value })
+          .type(show ? InputType.Normal : InputType.Password).fontSize(14).layoutWeight(1)
+          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .borderRadius(12).height(44).padding({ left: 12, right: 0 })
+          .onChange(onChange)
+      }.width('100%')
+    }.width('100%').margin({ bottom: 10 })
+  }
+}
+
+// ── ProfileBuilder ─────────────────────────────────────────
+@Builder
+export function ProfileBuilder() {
+  Profile();
+}
+
+@Component
+export struct Profile {
+  @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
+  @State viewportWidth: number = 360;
+  pathStack: NavPathStack = new NavPathStack();
+
+  // ── 表单状态 ──────────────────────────────────────────────
+  @State displayName: string = '';
+  @State avatarPath: string = '';
+  @State phone: string = '';
+  @State email: string = '';
+  @State originalDisplayName: string = '';  // 判断昵称是否改动，决定是否显示「保存」小标签
+  @State isLoading: boolean = false;
+  @State isSaving: boolean = false;         // 昵称保存中
+  @State nameError: string = '';
+
+  // ── 动画 ──────────────────────────────────────────────────
+  @State avatarScale: number = 1.0;
+
+  private currentUser: string = '';
+  private loadedUser: UserInfo | null = null;
+
+  // ── Dialog 控制器（每次打开时重建以传递最新状态）─────────────────
+  private phoneDialogController: CustomDialogController = new CustomDialogController({
+    builder: ContactEditDialog({ kind: 'phone', currentValue: '', loadedUser: null }),
+    alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+  });
+
+  private emailDialogController: CustomDialogController = new CustomDialogController({
+    builder: ContactEditDialog({ kind: 'email', currentValue: '', loadedUser: null }),
+    alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+  });
+
+  private pwdDialogController: CustomDialogController = new CustomDialogController({
+    builder: PasswordEditDialog({ loadedUser: null }),
+    alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+  });
+
+  aboutToAppear(): void {
+    this.currentUser = UserManager.getInstance().getCurrentUsername();
+    this.loadProfile();
+  }
+
+  // ── 数据加载 ──────────────────────────────────────────────
+  private async loadProfile(): Promise<void> {
+    this.isLoading = true;
+    const db = DatabaseHelper.getInstance();
+    try {
+      let user = await db.queryUserByIdentifier(this.currentUser);
+      if (!user) {
+        // loginId 可能已变（如修改了手机号），用昵称兜底查一次
+        const nickname = AppStorage.get<string>(STORE_KEY_NICKNAME) ?? '';
+        if (nickname) user = await db.queryUserByUsername(nickname);
+      }
+      this.isLoading = false;
+      if (user) {
+        this.loadedUser = user;
+        this.displayName = user.username || '';
+        this.avatarPath = user.avatarPath ?? '';
+        this.phone = user.phone ?? '';
+        this.email = user.email ?? '';
+        this.originalDisplayName = this.displayName;
+      }
+    } catch (_e) {
+      this.isLoading = false;
+    }
+  }
+
+  private validateName(): string {
+    const v = this.displayName.trim();
+    if (v.length < 1) return '名字不能为空';
+    if (v.length > 12) return '名字最多 12 个字';
+    return '';
+  }
+
+  // ── 打开弹窗（每次重建 controller 以传入最新字段） ───────────
+  private openPhoneDialog(): void {
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
+    this.phoneDialogController = new CustomDialogController({
+      builder: ContactEditDialog({
+        kind: 'phone',
+        currentValue: this.phone,
+        loadedUser: this.loadedUser,
+        onSuccess: (newPhone: string) => {
+          this.phone = newPhone;
+          if (this.loadedUser) this.loadedUser.phone = newPhone;
+          // 若当前 loginId 是手机号，同步更新，避免下次 loadProfile 找不到用户
+          if (/^1[3-9]\d{9}$/.test(this.currentUser)) {
+            this.currentUser = newPhone;
+            UserManager.getInstance().setCurrentUsername(newPhone);
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+            try {
+              const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+              pref.putSync(PREF_KEY_LAST_USERNAME, newPhone);
+              pref.flush();
+            } catch (_e) {}
+          }
+        },
+      }),
+      alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+    });
+    this.phoneDialogController.open();
+  }
+
+  private openEmailDialog(): void {
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
+    this.emailDialogController = new CustomDialogController({
+      builder: ContactEditDialog({
+        kind: 'email',
+        currentValue: this.email,
+        loadedUser: this.loadedUser,
+        onSuccess: (newEmail: string) => {
+          this.email = newEmail;
+          if (this.loadedUser) this.loadedUser.email = newEmail;
+          // 若当前 loginId 是邮箱，同步更新
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.currentUser)) {
+            this.currentUser = newEmail;
+            UserManager.getInstance().setCurrentUsername(newEmail);
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+            try {
+              const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+              pref.putSync(PREF_KEY_LAST_USERNAME, newEmail);
+              pref.flush();
+            } catch (_e) {}
+          }
+        },
+      }),
+      alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+    });
+    this.emailDialogController.open();
+  }
+
+  private openPwdDialog(): void {
+    if (!this.loadedUser) { showToast(this.getUIContext(), { message: '用户信息未加载，请稍后再试' }); return; }
+    this.pwdDialogController = new CustomDialogController({
+      builder: PasswordEditDialog({
+        loadedUser: this.loadedUser,
+        onSuccess: () => {
+          UserManager.getInstance().clearCurrentUsername();
+          AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
+          try {
+            const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+            const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+            pref.deleteSync(PREF_KEY_LAST_USERNAME);
+            pref.deleteSync(PREF_KEY_LAST_NICKNAME);
+            pref.flush();
+          } catch (_e) {}
+          this.pathStack.clear();
+          this.pathStack.pushPathByName('Login', null);
+        },
+      }),
+      alignment: DialogAlignment.Center, cornerRadius: 20, maskColor: 'rgba(0,0,0,0.5)',
+    });
+    this.pwdDialogController.open();
+  }
+
+  // ── 头像 ──────────────────────────────────────────────────
+  private async pickAvatar(): Promise<void> {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const picker = new photoAccessHelper.PhotoViewPicker();
+    const selectOptions = new photoAccessHelper.PhotoSelectOptions();
+    selectOptions.MIMEType = photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE;
+    selectOptions.maxSelectNumber = 1;
+    try {
+      const pickerResult = await picker.select(selectOptions);
+      if (!pickerResult || pickerResult.photoUris.length === 0) return;
+      await this.processAndSaveAvatar(context, pickerResult.photoUris[0]);
+    } catch (e) {
+      console.error('[Profile]: 选图失败', JSON.stringify(e));
+      showToast(this.getUIContext(), { message: '选取图片失败，请重试' });
+    }
+  }
+
+  /**
+   * 处理并保存头像：
+   *   1. 用 fd 打开相册 URI（真机必须先取 fd，不能直接 fs.copyFile URI）
+   *   2. ImageKit 解码任意尺寸图片为 PixelMap
+   *   3. 按短边居中裁成正方形，再缩放到 512×512（统一规格，控制体积）
+   *   4. 重编码为 JPEG 写入沙箱（带时间戳文件名，绕过 Image 组件路径缓存）
+   *   5. 尽力删除旧头像文件，避免堆积
+   */
+  private async processAndSaveAvatar(context: common.UIAbilityContext, sourceUri: string): Promise<void> {
+    let srcFile: fs.File | undefined;
+    let imageSource: image.ImageSource | undefined;
+    let pixelMap: image.PixelMap | undefined;
+    let packer: image.ImagePacker | undefined;
+    try {
+      const avatarDir = context.filesDir + '/avatars';
+      try { fs.mkdirSync(avatarDir); } catch (_e) {}
+
+      // 1) fd 打开来源 URI
+      srcFile = fs.openSync(sourceUri, fs.OpenMode.READ_ONLY);
+      imageSource = image.createImageSource(srcFile.fd);
+      const info = await imageSource.getImageInfo();
+      pixelMap = await imageSource.createPixelMap();
+
+      // 2) 短边居中裁正方形
+      const w = info.size.width;
+      const h = info.size.height;
+      const side = Math.min(w, h);
+      const region: image.Region = {
+        x: Math.max(0, Math.floor((w - side) / 2)),
+        y: Math.max(0, Math.floor((h - side) / 2)),
+        size: { width: side, height: side },
+      };
+      await pixelMap.crop(region);
+
+      // 3) 缩放到 512×512
+      const TARGET = 512;
+      await pixelMap.scale(TARGET / side, TARGET / side);
+
+      // 4) JPEG 重编码
+      packer = image.createImagePacker();
+      const jpegBuffer = await packer.packToData(pixelMap, { format: 'image/jpeg', quality: 90 });
+
+      // 5) 写入带时间戳的新文件，删除旧文件
+      const destPath = avatarDir + '/avatar_' + this.currentUser + '_' + Date.now() + '.jpg';
+      const destFile = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      fs.writeSync(destFile.fd, jpegBuffer);
+      fs.closeSync(destFile);
+
+      const oldPath = this.avatarPath;
+      this.avatarPath = destPath;
+      if (oldPath && oldPath !== destPath) {
+        try { fs.unlinkSync(oldPath); } catch (_e) {}
+      }
+      // 选完即存：立即落地本地 + 云端
+      await this.saveAvatar(jpegBuffer);
+    } catch (e) {
+      console.error('[Profile]: 处理头像失败', JSON.stringify(e));
+      showToast(this.getUIContext(), { message: '处理图片失败，请重试' });
+    } finally {
+      pixelMap?.release();
+      packer?.release();
+      imageSource?.release();
+      if (srcFile !== undefined) { try { fs.closeSync(srcFile); } catch (_e) {} }
+    }
+  }
+
+  // ── 保存昵称（内联即时，云端优先）─────────────────────────
+  private async saveNickname(): Promise<void> {
+    const err = this.validateName();
+    if (err !== '') { this.nameError = err; return; }
+    this.nameError = '';
+    const newName = this.displayName.trim();
+    if (newName === this.originalDisplayName) return; // 没改，不动
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) { showToast(this.getUIContext(), { message: '用户信息异常' }); return; }
+    this.isSaving = true;
+    try {
+      // 先同步云端昵称；服务端从 Bearer 会话识别当前用户。
+      const fields = new CloudUpdateFields();
+      fields.nickname = newName;
+      const cloudR = await CloudService.getInstance().updateUser(fields);
+      if (!cloudR.success) {
+        showToast(this.getUIContext(), { message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
+        this.isSaving = false;
+        return;
+      }
+      // 2) 云端成功，再写本地 + AppStorage + Preferences
+      user.username = newName;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, newName);
+      try {
+        const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+        const pref = preferences.getPreferencesSync(ctx, { name: PREF_NAME_AUTH });
+        pref.putSync(PREF_KEY_LAST_NICKNAME, newName);
+        pref.flush();
+      } catch (_) {}
+      this.originalDisplayName = newName;
+      showToast(this.getUIContext(), { message: '名字已更新', duration: 1500 });
+    } catch (e) {
+      console.error('[Profile]: 昵称保存失败', JSON.stringify(e));
+      showToast(this.getUIContext(), { message: '保存失败，请重试' });
+    }
+    this.isSaving = false;
+  }
+
+  // ── 保存头像：本地立即落地，云端保存图片数据供其他设备恢复 ────
+  private async saveAvatar(jpegBuffer: ArrayBuffer): Promise<void> {
+    const user = this.loadedUser;
+    if (!user || user.id === undefined) return;
+    try {
+      user.avatarPath = this.avatarPath;
+      await DatabaseHelper.getInstance().updateUser(user);
+      AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, this.avatarPath);
+      const encoded = new util.Base64Helper().encodeToStringSync(new Uint8Array(jpegBuffer));
+      const cloudResult = await CloudService.getInstance().uploadAvatar(encoded);
+      if (!cloudResult.success) {
+        showToast(this.getUIContext(), { message: '头像已保存到本机，云端同步失败：' + cloudResult.message });
+        return;
+      }
+      showToast(this.getUIContext(), { message: '头像已更新', duration: 1500 });
+    } catch (e) {
+      console.error('[Profile]: 头像保存失败', JSON.stringify(e));
+      showToast(this.getUIContext(), { message: '头像保存失败，请重试' });
+    }
+  }
+
+  // ── 头像区域 Builder ──────────────────────────────────────
+  @Builder
+  AvatarSection(): void {
+    Column() {
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        if (this.avatarPath !== '') {
+          Image(fileUri.getUriFromPath(this.avatarPath)).width(100).height(100).borderRadius(50)
+            .objectFit(ImageFit.Cover)
+            .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
+        } else {
+          Column() {
+            Image($r('app.media.ic_user')).width(52).height(52).objectFit(ImageFit.Contain)
+          }
+          .width(100).height(100).borderRadius(50)
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#dbeafe')
+          .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
+          .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
+        }
+        Column() { Text('✎').fontSize(13).fontColor('#ffffff') }
+        .width(30).height(30).borderRadius(15).backgroundColor('#2563eb')
+        .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
+        .border({ width: 2, color: this.themeManager.colors.cardBackgroundColor }).offset({ x: 2, y: 2 })
+      }
+      .scale({ x: this.avatarScale, y: this.avatarScale }).animation({ duration: 150, curve: Curve.EaseInOut })
+      .onClick(() => { this.avatarScale = 0.92; setTimeout(() => { this.avatarScale = 1.0; }, 150); this.pickAvatar(); })
+
+      Text('点击更换头像').fontSize(13).fontColor(this.themeManager.colors.linkTextColor).margin({ top: 12 })
+        .onClick(() => { this.pickAvatar(); })
+      Text('支持 JPG / PNG 格式').fontSize(11)
+        .fontColor(this.themeManager.colors.tertiaryTextColor).margin({ top: 4 })
+    }
+    .width('100%').padding({ top: 36, bottom: 28 }).alignItems(HorizontalAlign.Center)
+  }
+
+  // ── 可编辑行 Builder（昵称/手机/邮箱通用） ─────────────────
+  @Builder
+  EditRow(label: string, value: string, placeholder: string, maxLen: number,
+          onChange: (v: string) => void, rightText: string, rightTap: () => void,
+          inputType: InputType): void {
+    Row() {
+      Text(label).fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+      TextInput({ placeholder: placeholder, text: value })
+        .type(inputType).maxLength(maxLen).fontSize(15).layoutWeight(1)
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+        .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
+        .onChange(onChange)
+      Text(rightText).fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
+        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+        .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+        .borderRadius(100)
+        .onClick(rightTap)
+    }
+    .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
+  }
+
+  // ── 表单区域 ──────────────────────────────────────────────
+  @Builder
+  FormSection(): void {
+    Column() {
+      // 名字行
+      Column() {
+        Row() {
+          Text('名字').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+          TextInput({ placeholder: '请输入你的名字（2-12字）', text: this.displayName })
+            .layoutWeight(1).fontSize(15)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+            .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+            .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
+            .maxLength(12)
+            .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); })
+            .onSubmit(() => { this.saveNickname(); })
+          // 改动且合法时才出现「保存」小标签，点击即云端优先保存
+          if (this.displayName.trim() !== this.originalDisplayName && this.nameError === '') {
+            Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .borderRadius(100)
+              .onClick(() => { if (!this.isSaving) this.saveNickname(); })
+          }
+        }
+        .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
+        if (this.nameError !== '') {
+          Text(this.nameError).fontSize(11).fontColor(this.themeManager.colors.dangerTextColor)
+            .alignSelf(ItemAlign.Start).padding({ left: 16, bottom: 10 })
+            .animation({ duration: 150, curve: Curve.EaseOut })
+        }
+      }
+      .width('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
+    }
+    .width('92%')
+  }
+
+  // ── 安全与联系区域 ───────────────────────────────────────
+  @Builder
+  SecuritySection(): void {
+    Column() {
+      // 手机号行
+      Row() {
+        Text('手机号').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+        Text(this.phone ? this.maskPhone(this.phone) : '未绑定')
+          .fontSize(15).fontColor(this.phone ? this.themeManager.colors.primaryTextColor : this.themeManager.colors.tertiaryTextColor)
+          .layoutWeight(1)
+        Text(this.phone ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .borderRadius(100)
+          .onClick(() => { this.openPhoneDialog(); })
+      }
+      .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
+
+      Divider().margin({ left: '12%', right: '4%' }).color(this.themeManager.colors.separatorColor)
+
+      // 邮箱行
+      Row() {
+        Text('邮箱').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+        Text(this.email || '未绑定')
+          .fontSize(15).fontColor(this.email ? this.themeManager.colors.primaryTextColor : this.themeManager.colors.tertiaryTextColor)
+          .layoutWeight(1)
+        Text(this.email ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .borderRadius(100)
+          .onClick(() => { this.openEmailDialog(); })
+      }
+      .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
+
+      Divider().margin({ left: '12%', right: '4%' }).color(this.themeManager.colors.separatorColor)
+
+      // 密码行
+      Row() {
+        Text('密码').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width(56)
+        Text('••••••••').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
+        Text('修改').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
+          .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .borderRadius(100)
+          .onClick(() => { this.openPwdDialog(); })
+      }
+      .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
+    }
+    .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+    .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
+  }
+
+  private maskPhone(phone: string): string {
+    if (!phone || phone.length < 7) return phone;
+    return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
+  }
+
+  @Builder
+  PageHeader(): void {
+    GradientHeader({ contentMaxWidth: 640 }) {
+      Row() {
+        Image($r('app.media.ic_chevron_right'))
+          .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
+          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
+          .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
+          .onClick((): void => { this.pathStack.pop(); })
+        Text('个人资料')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .margin({ left: 12 }).layoutWeight(1)
+      }
+      .width('100%')
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
+    }
+  }
+
+  @Builder
+  ProfileFields(): void {
+    Column() {
+      Text('基本信息').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+        .alignSelf(ItemAlign.Start).margin({ left: '4%', bottom: 10, top: 8 })
+      Column() { this.FormSection() }.width('100%').alignItems(HorizontalAlign.Center)
+
+      Text('安全与联系').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+        .alignSelf(ItemAlign.Start).margin({ left: '4%', bottom: 10, top: 24 })
+      Column() { this.SecuritySection() }.width('100%').alignItems(HorizontalAlign.Center)
+
+      Text('手机号和邮箱将用于账号安全验证和重要通知').fontSize(11)
+        .fontColor(this.themeManager.colors.tertiaryTextColor)
+        .width('92%').textAlign(TextAlign.Start).margin({ top: 8, bottom: 32 })
+      Column().height(40)
+    }
+    .width('100%').alignItems(HorizontalAlign.Center)
+  }
+
+  build() {
+    NavDestination() {
+      Column() {
+        this.PageHeader()
+        // 内容区域改为可滚动，容纳新增的安全设置区
+        Scroll() {
+          if (getWindowSizeClass(this.viewportWidth) === 'compact') {
+            Column() {
+              this.AvatarSection()
+              this.ProfileFields()
+            }.width('100%')
+          } else {
+            Row({ space: 32 }) {
+              Column() { this.AvatarSection() }
+                .width(260).alignSelf(ItemAlign.Start)
+              Column() { this.ProfileFields() }
+                .layoutWeight(1).alignSelf(ItemAlign.Start)
+            }
+            .width('100%').constraintSize({ maxWidth: 960 })
+            .padding({ left: 24, right: 24, top: 16 })
+            .alignItems(VerticalAlign.Top)
+          }
+        }
+        .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+        .width('100%')
+      }
+      .width('100%').height('100%')
+      .onAreaChange((_oldValue: Area, newValue: Area): void => {
+        const width = Number(newValue.width);
+        if (width > 0) this.viewportWidth = width;
+      })
+    }
+    .hideTitleBar(true)
+    .backgroundColor(this.themeManager.colors.backgroundColor)
+    .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
+  }
+}
