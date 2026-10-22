@@ -23,6 +23,8 @@ from guardian_recording_config import RecordingConfig
 from guardian_storage import initialize_storage
 from guardian_history import HistoryStore
 from guardian_event_cache import EventClipCache
+from guardian_recording import RecordingManager
+from guardian_continuous import ContinuousCaptureSink
 from guardian_ffmpeg_backend import create_backend
 from guardian_cleanup import CleanupScheduler
 from guardian_history_api import create_history_router
@@ -49,6 +51,9 @@ history_store = None
 event_cache = None
 cleanup_scheduler = None
 alert_mqtt = None
+continuous_store = None
+continuous_recorder = None
+continuous_cleanup = None
 ws_clients = []
 system_detector = None
 video_frame_started_at = 0.0
@@ -830,9 +835,49 @@ def run_system():
         event_cache = None
         cleanup_scheduler = None
 
+    # Continuous video has its own managed root, quota and rolling 24-hour
+    # retention. It uses the existing camera capture, never a second opener.
+    global continuous_store, continuous_recorder, continuous_cleanup
+    continuous_store = continuous_recorder = continuous_cleanup = None
+    try:
+        continuous_config = RecordingConfig.from_env(
+            config_env_var="AI_GUARDIAN_CONTINUOUS_CONFIG")
+        if continuous_config.enabled:
+            if continuous_config.retention_hours != 24:
+                raise ValueError("continuous recording requires 24-hour retention")
+            if (history_store is not None and
+                    continuous_config.data_root.resolve() == history_store.config.data_root.resolve()):
+                raise ValueError("continuous and event recording roots must differ")
+            initialize_storage(continuous_config)
+            continuous_store = HistoryStore(continuous_config)
+            candidate = RecordingManager(continuous_config, continuous_store, create_backend)
+            if not candidate.start():
+                raise RuntimeError("continuous recorder failed to start")
+            continuous_recorder = candidate
+            app.include_router(create_history_router(
+                continuous_config, store=continuous_store, recorder=continuous_recorder,
+                prefix="/api/continuous"))
+            continuous_cleanup = CleanupScheduler(
+                continuous_store, continuous_config.cleanup_interval_seconds)
+            if not continuous_cleanup.start():
+                raise RuntimeError("continuous cleanup failed to start")
+            print("[Record] 24 小时连续录像已启用 /api/continuous")
+    except Exception as exc:
+        print(f"[Record] 连续录像初始化失败，已跳过: {type(exc).__name__}")
+        if continuous_recorder is not None:
+            continuous_recorder.stop(timeout=15)
+        if continuous_cleanup is not None:
+            continuous_cleanup.stop(timeout=5)
+        if continuous_store is not None:
+            continuous_store.close()
+        continuous_store = continuous_recorder = continuous_cleanup = None
+
     def inference_loop():
         global system_detector, video_frame_started_at
         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
+        if continuous_recorder is not None:
+            detector.on_captured_frame = ContinuousCaptureSink(
+                continuous_recorder, continuous_recorder.config.record_fps)
         system_detector = detector
         mqtt_client = MQTTAlertClient()
         global alert_mqtt
@@ -1001,6 +1046,15 @@ def run_system():
     @app.on_event("shutdown")
     async def shutdown_event():
         global mic_broadcast_handle
+        if continuous_recorder is not None:
+            try:
+                continuous_recorder.stop(timeout=30)
+            except Exception as exc:
+                print(f"[Record] 停止连续录像失败: {type(exc).__name__}")
+        if continuous_cleanup is not None:
+            continuous_cleanup.stop(timeout=5)
+        if continuous_store is not None:
+            continuous_store.close()
         if event_cache is not None:
             try:
                 event_cache.stop(timeout=15)

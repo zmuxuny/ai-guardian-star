@@ -1575,6 +1575,8 @@ class AclLiteStreamDetector:
         self._last_capture_ts = 0.0
         self._last_infer_ts = 0.0
         self.last_frame_inferred = False
+        # Optional non-blocking consumer of successful raw camera captures.
+        self.on_captured_frame = None
         self.last_successful_inference_at = 0.0
 
         self._perf_window = deque(maxlen=60)
@@ -1811,6 +1813,13 @@ class AclLiteStreamDetector:
                 if now - self._last_capture_ts < self._capture_interval:
                     continue
                 self._last_capture_ts = now
+
+                callback = self.on_captured_frame
+                if callback is not None:
+                    try:
+                        callback(frame, now, self.last_camera_frame_at)
+                    except Exception as exc:
+                        print(f'[Camera] recording callback failed: {type(exc).__name__}')
 
                 with self.frame_lock:
                     self.latest_frame = frame.copy()

@@ -15,6 +15,7 @@ export struct RecordingBrowser {
   @State asOf: number = Date.now();
   @State windowStart: number = Date.now() - 86400000;
   @State status: string = 'waiting';
+  @State wholeSegments: boolean = false;
   @State loading: boolean = true;
   @State error: string = '';
   @State preparing: boolean = false;
@@ -68,6 +69,7 @@ export struct RecordingBrowser {
       this.asOf = result.asOf;
       this.windowStart = result.windowStart;
       this.status = result.status;
+      this.wholeSegments = result.wholeSegments === true;
       this.clips = result.clips.sort((a: RecordingClip, b: RecordingClip): number => a.startTime - b.startTime);
     } catch (error) {
       if (this.disposed || version !== this.queryVersion) return;
@@ -199,6 +201,7 @@ export struct RecordingBrowser {
         this.Filter('久坐', 'sedentary')
       }.width('100%')
       Text(this.filter === 'all' ? '展示范围内所有可用录像 · 按时间顺序连续播放'
+        : this.wholeSegments ? '展示与事件时间重叠的完整录像分段'
         : '保留事件开始前1分钟至结束后1分钟 · 重叠片段合并')
         .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%').maxLines(2)
       if (this.loading) {

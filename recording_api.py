@@ -1,12 +1,12 @@
 """Authenticated recording queries and bounded MP4 playback downloads."""
-import fcntl
 import hashlib
 import os
 import subprocess
 import time
-from flask import request, jsonify, g, send_file
+from flask import request, jsonify, g, send_file, Response, stream_with_context
 from mqtt_access import allowed_users
 from recording_store import ROOT, DAY, connect, snapshot
+import board_recording_bridge as board_bridge
 
 FFMPEG = os.environ.get('RECORDING_FFMPEG', '/opt/guardian-ffmpeg/bin/ffmpeg')
 
@@ -32,7 +32,11 @@ def register_recording_routes(app, bearer_required):
                 raise ValueError()
         except (ValueError, TypeError, OverflowError):
             return jsonify(success=False, message='请刷新查看最近24小时录像'), 400
-        response = jsonify(snapshot(as_of, kind))
+        try:
+            result = board_bridge.snapshot(as_of, kind) if board_bridge.configured() else snapshot(as_of, kind)
+        except board_bridge.BoardRecordingUnavailable:
+            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+        response = jsonify(result)
         response.headers['Cache-Control'] = 'no-store'
         return response
 
@@ -48,12 +52,34 @@ def register_recording_routes(app, bearer_required):
             kind = data['filter']
             if kind not in ('all', 'fall', 'sedentary'):
                 raise ValueError()
-            result = snapshot(int(data['asOf']), kind)
+            result = (board_bridge.snapshot(int(data['asOf']), kind)
+                      if board_bridge.configured() else snapshot(int(data['asOf']), kind))
             clip = next((item for item in result['clips'] if item['id'] == data['clipId']), None)
+        except board_bridge.BoardRecordingUnavailable:
+            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
         except (ValueError, KeyError, TypeError, OverflowError):
             clip = None
         if not clip:
             return jsonify(success=False, message='录像已过期或不在筛选范围，请刷新'), 404
+        if board_bridge.configured():
+            try:
+                source = board_bridge.open_media(clip['segmentId'])
+            except board_bridge.BoardRecordingUnavailable:
+                return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+
+            def generate():
+                with source:
+                    while True:
+                        chunk = source.read(65536)
+                        if not chunk:
+                            break
+                        yield chunk
+
+            response = Response(stream_with_context(generate()), mimetype='video/mp4')
+            response.headers['Cache-Control'] = 'no-store'
+            return response
+
+        import fcntl
         with connect() as db:
             segment = db.execute('SELECT * FROM segments WHERE id=?', (clip['segmentId'],)).fetchone()
         source = ROOT / segment['filename']

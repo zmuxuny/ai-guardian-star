@@ -173,7 +173,8 @@ def _query(request: Request, events: bool = False) -> dict:
         raise HTTPException(422, "invalid_history_query") from None
 
 
-def create_history_router(config: Any, store: Any = None, recorder: Any = None) -> APIRouter:
+def create_history_router(config: Any, store: Any = None, recorder: Any = None,
+                          prefix: str = "/api/history") -> APIRouter:
     """Build the optional router. The caller owns storage and recorder lifecycle.
 
     Authentication is deliberately explicit across supported FastAPI versions:
@@ -193,7 +194,7 @@ def create_history_router(config: Any, store: Any = None, recorder: Any = None) 
         ):
             raise HTTPException(401, "invalid_history_credentials", headers={"WWW-Authenticate": "Bearer"})
 
-    router = APIRouter(prefix="/api/history", tags=["history"], dependencies=[Depends(authenticate)])
+    router = APIRouter(prefix=prefix, tags=["history"], dependencies=[Depends(authenticate)])
 
     def require_store() -> Any:
         if not getattr(config, "enabled", False):
@@ -205,17 +206,20 @@ def create_history_router(config: Any, store: Any = None, recorder: Any = None) 
     @router.get("/status")
     def status() -> dict:
         enabled = bool(getattr(config, "enabled", False))
+        recorder_status = recorder.status() if recorder is not None else None
         state = "disabled" if not enabled else (
-            "prepared" if getattr(config, "encoder", None) else "encoder_not_configured"
+            recorder_status["state"] if recorder_status is not None else
+            ("prepared" if getattr(config, "encoder", None) else "encoder_not_configured")
         )
         return {
             "state": state,
             "enabled": enabled,
             "store_attached": store is not None,
             "recorder_attached": recorder is not None,
-            "capture_integrated": False,
-            "recording_backend_ready": False,
+            "capture_integrated": recorder_status is not None,
+            "recording_backend_ready": bool(recorder_status and recorder_status.get("worker_alive")),
             "retention_days": getattr(config, "retention_days", 7),
+            "retention_hours": getattr(config, "retention_hours", None),
             **file_response_capability(),
         }
 

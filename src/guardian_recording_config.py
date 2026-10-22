@@ -15,6 +15,7 @@ class RecordingConfig:
     record_fps: float = 15.0
     bitrate_mbps: float = 1.0
     retention_days: int = 7
+    retention_hours: Optional[int] = None
     timezone: str = "Asia/Shanghai"
     storage_quota_bytes: Optional[int] = None
     min_free_bytes: Optional[int] = None
@@ -47,6 +48,9 @@ class RecordingConfig:
             value = getattr(self, name)
             if type(value) is not int or not bounds[0] <= value <= bounds[1]:
                 raise ValueError("invalid " + name)
+        if self.retention_hours is not None and (type(self.retention_hours) is not int
+                                                  or not 1 <= self.retention_hours <= 168):
+            raise ValueError("invalid retention_hours")
         if self.pre_roll_seconds + self.post_roll_seconds > self.event_clip_max_seconds:
             raise ValueError("pre_roll_seconds plus post_roll_seconds exceed event_clip_max_seconds")
         for name, maximum in (("record_fps", 120), ("bitrate_mbps", 1000)):
@@ -81,10 +85,10 @@ class RecordingConfig:
             raise ValueError("enabled recording requires data_root, quota and minimum free bytes")
 
     @classmethod
-    def from_env(cls, environ=None):
+    def from_env(cls, environ=None, config_env_var="AI_GUARDIAN_RECORDING_CONFIG"):
         env = os.environ if environ is None else environ
         values = {}
-        filename = env.get("AI_GUARDIAN_RECORDING_CONFIG")
+        filename = env.get(config_env_var)
         if filename:
             with open(filename, "r", encoding="utf-8-sig") as stream:
                 values = json.load(stream)

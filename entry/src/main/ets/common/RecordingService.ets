@@ -18,6 +18,7 @@ export interface RecordingResult {
   status: string;
   clips: RecordingClip[];
   eventCount: number;
+  wholeSegments?: boolean;
 }
 
 export interface RecordingQuery {

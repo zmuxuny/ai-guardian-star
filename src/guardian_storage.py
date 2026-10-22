@@ -172,6 +172,8 @@ def storage_status(config):
 def retention_cutoff(config, now):
     if type(now) not in (float, int) or not math.isfinite(now):
         raise ValueError("invalid UTC timestamp")
+    if config.retention_hours is not None:
+        return float(now) - config.retention_hours * 3600
     local = datetime.fromtimestamp(now, SHANGHAI)
     midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
     return (midnight - timedelta(days=config.retention_days - 1)).timestamp()
