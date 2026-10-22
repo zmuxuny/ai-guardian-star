@@ -19,6 +19,11 @@ sys.path.append(current_dir)
 import ascend_video_stream as video_hw
 from ascend_main_other import AclLiteStreamDetector, MQTTAlertClient, MODEL_PATH
 from guardian_runtime import AlertEpisodeTracker
+from guardian_recording_config import RecordingConfig
+from guardian_storage import initialize_storage
+from guardian_history import HistoryStore
+from guardian_event_cache import EventClipCache
+from guardian_ffmpeg_backend import create_backend
 try:
     import ascend_voice_stream as audio_hw
 except Exception:
@@ -769,9 +774,35 @@ def run_system():
     audio_thread = threading.Thread(target=audio_hw.start_audio_service, name="guardian-audio", daemon=True)
     audio_thread.start()
 
+    # Event-triggered clips stay fully disabled unless AI_GUARDIAN_RECORDING_CONFIG
+    # enables them; a broken recording setup must never stop detection.
+    global history_store, event_cache
+    history_store = None
+    event_cache = None
+    try:
+        recording_config = RecordingConfig.from_env()
+        if recording_config.enabled:
+            initialize_storage(recording_config)
+            history_store = HistoryStore(recording_config)
+            candidate = EventClipCache(recording_config, history_store, create_backend)
+            if candidate.start():
+                event_cache = candidate
+                print(f"[Record] 事件录像已启用 pre={recording_config.pre_roll_seconds}s "
+                      f"post={recording_config.post_roll_seconds}s "
+                      f"fps={recording_config.record_fps}")
+            else:
+                print("[Record] 事件录像缓存未能启动，保持关闭")
+        else:
+            print("[Record] 事件录像默认关闭")
+    except Exception as exc:
+        print(f"[Record] 事件录像初始化失败，已跳过: {type(exc).__name__}")
+        history_store = None
+        event_cache = None
+
     def inference_loop():
         global system_detector, video_frame_started_at
-        detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
+        detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0,
+                                         event_cache=event_cache)
         system_detector = detector
         mqtt_client = MQTTAlertClient()
         _fps_count = 0
@@ -867,6 +898,17 @@ def run_system():
                     )
 
                     new_events = event_tracker.update(alerts, _now)
+                    if event_cache is not None:
+                        for _kind in ("fall", "sit", "stranger"):
+                            for _alert in new_events.get(_kind, []):
+                                try:
+                                    _pid = _alert.get("id")
+                                    event_cache.trigger(
+                                        _kind, at=_now,
+                                        person_id=None if _pid is None else str(_pid),
+                                        payload={"kind": _kind})
+                                except Exception as exc:
+                                    print(f"[Record] trigger {_kind} failed: {type(exc).__name__}")
                     for alert in new_events["fall"]:
                         video_hw.update_stats(fall_count_inc=True, last_fall_time=_now)
                         print(f"[Event] 摔倒检测 person_id={alert.get('id')}")
@@ -918,6 +960,17 @@ def run_system():
     @app.on_event("shutdown")
     async def shutdown_event():
         global mic_broadcast_handle
+        if event_cache is not None:
+            try:
+                event_cache.stop(timeout=15)
+                print("[Record] 事件录像已停止")
+            except Exception as exc:
+                print(f"[Record] 停止事件录像失败: {type(exc).__name__}")
+        if history_store is not None:
+            try:
+                history_store.close()
+            except Exception:
+                pass
         if mic_broadcast_handle is not None:
             mic_broadcast_handle.cancel()
             try:

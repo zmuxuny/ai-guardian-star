@@ -1529,8 +1529,9 @@ class MQTTAlertClient:
         self.last_face_alert_time = time.time()
 
 class AclLiteStreamDetector:
-    def __init__(self, model_path=MODEL_PATH, camera_index=0):
+    def __init__(self, model_path=MODEL_PATH, camera_index=0, event_cache=None):
         self.model_path = model_path
+        self.event_cache = event_cache
         env_cam = os.getenv("AI_GUARDIAN_CAMERA_INDEX", "").strip()
         if env_cam != "":
             try:
@@ -1802,6 +1803,17 @@ class AclLiteStreamDetector:
                 with self.frame_lock:
                     self.latest_frame = frame.copy()
                 self.frame_ready.set()
+
+                # Single capture point: the event cache keeps its own bounded copy.
+                if self.event_cache is not None:
+                    try:
+                        self.event_cache.submit_frame(
+                            frame, captured_at=now,
+                            monotonic_at=self.last_camera_frame_at)
+                    except Exception as exc:
+                        if time.monotonic() - getattr(self, "_last_cache_error_log", 0.0) > 30.0:
+                            self._last_cache_error_log = time.monotonic()
+                            print(f'[Record] submit_frame failed: {type(exc).__name__}')
 
                 if not self.inference_enabled:
                     with self.result_lock:
