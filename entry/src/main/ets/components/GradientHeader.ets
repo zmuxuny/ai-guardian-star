@@ -5,6 +5,13 @@
  * 渐变背景铺满整个宽度，内部内容限宽居中，保证大屏上标题与正文内容列左右对齐。
  * 圆角用 vp 定值：百分比圆角在平板上会被放大到七八十 vp。
  */
+export const PAGE_HORIZONTAL_GUTTER: number = 20;
+export const PAGE_TITLE_SIZE: number = 24;
+export const PAGE_TITLE_ROW_HEIGHT: number = 44;
+export const ICON_FRAME_SIZE: number = 40;
+export const SURFACE_RADIUS: number = 16;
+export const SURFACE_PADDING: number = 16;
+
 @Component
 export struct GradientHeader {
   @BuilderParam content: () => void;

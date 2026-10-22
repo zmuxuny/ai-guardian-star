@@ -6,7 +6,7 @@
 import { ThemeManager } from '../common/ThemeManager';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
-import { GradientHeader } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
@@ -263,9 +263,9 @@ export function ProfileBuilder() {
 @Component
 export struct Profile {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   @State viewportWidth: number = 360;
   pathStack: NavPathStack = new NavPathStack();
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
 
   // ── 表单状态 ──────────────────────────────────────────────
   @State displayName: string = '';
@@ -648,7 +648,8 @@ export struct Profile {
             .animation({ duration: 150, curve: Curve.EaseOut })
         }
       }
-      .width('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
+      .width('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
     }
     .width('92%')
   }
@@ -701,7 +702,8 @@ export struct Profile {
       }
       .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
     }
-    .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
+    .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+    .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
   }
 
   private maskPhone(phone: string): string {
@@ -709,19 +711,21 @@ export struct Profile {
     return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
   }
 
-  // ── 标题栏 ────────────────────────────────────────────────
   @Builder
-  GradientHeader(): void {
-    GradientHeader() {
+  PageHeader(): void {
+    GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
-        Image($r("app.media.ic_chevron_right")).width(36).height(36)
-          .objectFit(ImageFit.Contain).padding(8)
-          .backgroundColor("#33FFFFFF").borderRadius(100).rotate({ angle: 180 })
+        Image($r('app.media.ic_chevron_right'))
+          .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
+          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
+          .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
-        Text("个人资料").fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
-          .margin({ left: "5%" }).layoutWeight(1)
+        Text('个人资料')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .margin({ left: 12 }).layoutWeight(1)
       }
-      .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
+      .width('100%')
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
     }
   }
 
@@ -747,7 +751,7 @@ export struct Profile {
   build() {
     NavDestination() {
       Column() {
-        this.GradientHeader()
+        this.PageHeader()
         // 内容区域改为可滚动，容纳新增的安全设置区
         Scroll() {
           if (getWindowSizeClass(this.viewportWidth) === 'compact') {

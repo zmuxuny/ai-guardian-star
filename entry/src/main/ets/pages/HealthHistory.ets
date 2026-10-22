@@ -1,13 +1,23 @@
 /**
  * HealthHistory.ets — 健康历史记录页
- * 从 ArkDB 加载保留期内的全部摔倒/久坐事件，支持导出为文本。
+ * 从 ArkDB 加载保留期内的摔倒/久坐事件，按日期展示并支持筛选和 CSV 导出。
  * 入口：person.ets → 历史记录按钮
  */
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { ThemeManager } from "../common/ThemeManager";
 import { UserManager } from "../common/UserManager";
-import { GradientHeader } from '../components/GradientHeader';
-import { FallRecord, SedentaryRecord } from "./MqttManager";
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { common } from '@kit.AbilityKit';
+import fs from '@ohos.file.fs';
+import picker from '@ohos.file.picker';
+import { showToast } from '../common/UiFeedback';
+import { RecordingBrowser } from '../components/RecordingBrowser';
+
+interface HistoryDateGroup {
+  dateKey: string;
+  dateLabel: string;
+  events: HealthEvent[];
+}
 @Builder
 export function HealthHistoryBuilder(): void {
   HealthHistory();
@@ -17,12 +27,11 @@ export function HealthHistoryBuilder(): void {
 struct HealthHistory {
   pathStack: NavPathStack = new NavPathStack();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State events: HealthEvent[] = [];
   @State currentTab: number = 0;
-  @State fallRecords: FallRecord[] = [];
-  @State sedentaryRecords: SedentaryRecord[] = [];
   @State isLoading: boolean = true;
+  @State isExporting: boolean = false;
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
-
   aboutToAppear(): void {
     this.loadHistory();
   }
@@ -33,141 +42,302 @@ struct HealthHistory {
   }
 
   /** 从数据库加载历史记录 */
-  private loadHistory(): void {
+  private async loadHistory(): Promise<void> {
     this.isLoading = true;
-    const db = DatabaseHelper.getInstance();
-    const currentUser = UserManager.getInstance().getCurrentUsername();
+    try {
+      const currentUser = UserManager.getInstance().getCurrentUsername();
+      const result = await DatabaseHelper.getInstance().queryHealthEvents(undefined, currentUser);
+      this.events = result
+        .filter((event: HealthEvent): boolean => event.eventType === 'fall' || event.eventType === 'sedentary')
+        .sort((first: HealthEvent, second: HealthEvent): number => second.eventTime - first.eventTime);
+    } catch (error) {
+      this.events = [];
+      console.error(`[HealthHistory]: 历史记录加载失败 ${JSON.stringify(error)}`);
+      showToast(this.getUIContext(), { message: '历史记录加载失败，请稍后重试' });
+    } finally {
+      this.isLoading = false;
+    }
+  }
 
-    console.log(`[HealthHistory]: 开始加载数据 user=${currentUser}`);
+  private selectedEvents(): HealthEvent[] {
+    if (this.currentTab === 1) {
+      return this.events.filter((event: HealthEvent): boolean => event.eventType === 'fall');
+    }
+    if (this.currentTab === 2) {
+      return this.events.filter((event: HealthEvent): boolean => event.eventType === 'sedentary');
+    }
+    return this.events;
+  }
 
-    // 加载摔倒记录
-    db.queryHealthEvents("fall", currentUser)
-      .then((events: HealthEvent[]) => {
-        this.fallRecords = events.map(
-          (e: HealthEvent): FallRecord => ({
-            time: e.timeStr,
-            date: e.dateStr,
-            timestamp: e.eventTime,
-          }),
-        );
-        console.log(`[HealthHistory]: 摔倒记录加载完成 count=${events.length}`);
-      })
-      .catch((err: Error) => {
-        this.fallRecords = [];
-        console.error(`[HealthHistory]: 加载摔倒记录失败 ${err.message}`);
+  private dateKey(timestamp: number): string {
+    const date = new Date(timestamp);
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
+
+  private dateLabel(timestamp: number): string {
+    const key = this.dateKey(timestamp);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const todayKey = this.dateKey(today.getTime());
+    const yesterdayKey = this.dateKey(yesterday.getTime());
+    const date = new Date(timestamp);
+    const formatted = `${date.getFullYear()}年${`${date.getMonth() + 1}`.padStart(2, '0')}月${`${date.getDate()}`.padStart(2, '0')}日`;
+    if (key === todayKey) return `今天 · ${formatted}`;
+    if (key === yesterdayKey) return `昨天 · ${formatted}`;
+    return formatted;
+  }
+
+  private formatTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    const second = `${date.getSeconds()}`.padStart(2, '0');
+    return `${hour}:${minute}:${second}`;
+  }
+
+  private displayDate(event: HealthEvent): string {
+    if (event.dateStr && event.dateStr.trim() !== '') return event.dateStr;
+    return this.dateKey(event.eventTime);
+  }
+
+  private displayTime(event: HealthEvent): string {
+    if (event.timeStr && event.timeStr.trim() !== '') return event.timeStr;
+    return this.formatTime(event.eventTime);
+  }
+
+  private groupedEvents(): HistoryDateGroup[] {
+    const groups: HistoryDateGroup[] = [];
+    const sortedEvents = this.selectedEvents()
+      .slice()
+      .sort((first: HealthEvent, second: HealthEvent): number => second.eventTime - first.eventTime);
+    for (const event of sortedEvents) {
+      const key = this.dateKey(event.eventTime);
+      let group = groups.length > 0 ? groups[groups.length - 1] : undefined;
+      if (group === undefined || group.dateKey !== key) {
+        group = { dateKey: key, dateLabel: this.dateLabel(event.eventTime), events: [] };
+        groups.push(group);
+      }
+      group.events.push(event);
+    }
+    return groups;
+  }
+
+  private eventTitle(event: HealthEvent): string {
+    return event.eventType === 'fall' ? '跌倒告警' : '久坐提醒';
+  }
+
+  private severityLabel(severity: number): string {
+    if (severity >= 3) return '高风险';
+    if (severity === 2) return '中风险';
+    return '低风险';
+  }
+
+  private showEventDetails(event: HealthEvent): void {
+    const handledText = event.isHandled === 1 ? '已处理' : '待处理';
+    const remark = event.remark && event.remark.trim() !== '' ? `\n详情：${event.remark}` : '';
+    this.getUIContext().showAlertDialog({
+      title: this.eventTitle(event),
+      message: `${this.displayDate(event)}  ${this.displayTime(event)}\n${this.severityLabel(event.severity)} · ${handledText}${remark}`,
+      primaryButton: { value: '关闭', action: (): void => {} },
+      alignment: DialogAlignment.Center,
+    });
+  }
+
+  private csvCell(value: string): string {
+    const safeValue = /^[=+\-@]/.test(value.trimStart()) ? `'${value}` : value;
+    return `"${safeValue.replace(/"/g, '""')}"`;
+  }
+
+  private buildCsv(): string {
+    const lines: string[] = [];
+    lines.push(['事件类型', '发生日期', '发生时间', '风险等级', '处理状态', '详情'].map((value: string): string => this.csvCell(value)).join(','));
+    for (const event of this.events) {
+      lines.push([
+        this.eventTitle(event),
+        this.displayDate(event),
+        this.displayTime(event),
+        this.severityLabel(event.severity),
+        event.isHandled === 1 ? '已处理' : '待处理',
+        event.remark ?? '',
+      ].map((value: string): string => this.csvCell(value)).join(','));
+    }
+    return `\uFEFF${lines.join('\r\n')}\r\n`;
+  }
+
+  private async exportRecords(): Promise<void> {
+    if (this.isExporting) return;
+    if (this.events.length === 0) {
+      showToast(this.getUIContext(), { message: '暂无历史记录可导出' });
+      return;
+    }
+    this.isExporting = true;
+    try {
+      const now = new Date();
+      const date = `${now.getFullYear()}${`${now.getMonth() + 1}`.padStart(2, '0')}${`${now.getDate()}`.padStart(2, '0')}`;
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const documentPicker = new picker.DocumentViewPicker(context);
+      const uris = await documentPicker.save({
+        newFileNames: [`守护星健康记录_${date}.csv`],
+        fileSuffixChoices: ['CSV 表格|csv'],
       });
-
-    // 加载久坐记录
-    db.queryHealthEvents("sedentary", currentUser)
-      .then((events: HealthEvent[]) => {
-        this.sedentaryRecords = events.map(
-          (e: HealthEvent): SedentaryRecord => ({
-            time: e.timeStr,
-            date: e.dateStr,
-            timestamp: e.eventTime,
-          }),
-        );
-        console.log(`[HealthHistory]: 久坐记录加载完成 count=${events.length}`);
-        this.isLoading = false;
-      })
-      .catch((err: Error) => {
-        this.sedentaryRecords = [];
-        this.isLoading = false;
-        console.error(`[HealthHistory]: 加载久坐记录失败 ${err.message}`);
-      });
+      if (uris.length === 0) return;
+      const file = fs.openSync(uris[0], fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      try {
+        fs.writeSync(file.fd, this.buildCsv(), { encoding: 'utf-8' });
+      } finally {
+        fs.closeSync(file);
+      }
+      showToast(this.getUIContext(), { message: `已导出 ${this.events.length} 条记录` });
+    } catch (error) {
+      console.error(`[HealthHistory]: 导出失败 ${JSON.stringify(error)}`);
+      showToast(this.getUIContext(), { message: '导出失败，请重新选择保存位置' });
+    } finally {
+      this.isExporting = false;
+    }
   }
 
   @Builder
-  GradientHeader(): void {
-    GradientHeader() {
+  PageHeader(): void {
+    GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
-        Image($r("app.media.ic_chevron_right"))
-          .width(36).height(36).objectFit(ImageFit.Contain)
-          .padding(8).backgroundColor("#33FFFFFF").borderRadius(100)
-          .rotate({ angle: 180 })
+        Image($r('app.media.ic_chevron_right'))
+          .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
+          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
+          .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
-        Text("历史记录")
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
-          .margin({ left: "5%" })
-        Blank()
-        Text("导出")
-          .fontSize(15).fontColor("#ffffff")
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor("#33FFFFFF").borderRadius(20)
+        Text('历史记录')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .margin({ left: 12 }).layoutWeight(1)
+        Text(this.isExporting ? '准备中' : '导出事件 CSV')
+          .fontSize(14).fontWeight(FontWeight.Medium).fontColor('#ffffff')
+          .padding({ left: 14, right: 14, top: 9, bottom: 9 })
+          .backgroundColor('#33FFFFFF').borderRadius(18)
+          .opacity(this.isExporting ? 0.65 : 1).enabled(!this.isExporting)
           .onClick((): void => { this.exportRecords(); })
       }
-      .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
+      .width('100%')
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
     }
   }
 
   @Builder
   TabBar(): void {
     Row() {
-      Text(`摔倒记录 (${this.fallRecords.length})`)
-        .fontSize(15)
-        .fontWeight(this.currentTab === 0 ? FontWeight.Bold : FontWeight.Normal)
-        .fontColor(this.currentTab === 0 ? "#2563eb" : this.themeManager.colors.secondaryTextColor)
-        .layoutWeight(1)
+      Text(`全部 ${this.events.length}`)
+        .fontSize(14)
+        .fontWeight(this.currentTab === 0 ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(this.currentTab === 0 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
         .textAlign(TextAlign.Center)
-        .padding({ bottom: "3%" })
-        .border({ width: { bottom: this.currentTab === 0 ? 3 : 0 }, color: "#2563eb" })
-        .onClick((): void => {
-          this.currentTab = 0;
-        })
-      Text(`久坐记录 (${this.sedentaryRecords.length})`)
-        .fontSize(15)
-        .fontWeight(this.currentTab === 1 ? FontWeight.Bold : FontWeight.Normal)
-        .fontColor(this.currentTab === 1 ? "#2563eb" : this.themeManager.colors.secondaryTextColor)
         .layoutWeight(1)
+        .height(42)
+        .backgroundColor(this.currentTab === 0 ? '#dbeafe' : this.themeManager.colors.cardBackgroundColor)
+        .borderRadius(12)
+        .margin({ right: 8 })
+        .onClick((): void => { this.currentTab = 0; })
+      Text(`摔倒 ${this.events.filter((event: HealthEvent): boolean => event.eventType === 'fall').length}`)
+        .fontSize(14)
+        .fontWeight(this.currentTab === 1 ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(this.currentTab === 1 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
         .textAlign(TextAlign.Center)
-        .padding({ bottom: "3%" })
-        .border({ width: { bottom: this.currentTab === 1 ? 3 : 0 }, color: "#2563eb" })
-        .onClick((): void => {
-          this.currentTab = 1;
-        })
+        .layoutWeight(1)
+        .height(42)
+        .backgroundColor(this.currentTab === 1 ? '#dbeafe' : this.themeManager.colors.cardBackgroundColor)
+        .borderRadius(12)
+        .margin({ right: 8 })
+        .onClick((): void => { this.currentTab = 1; })
+      Text(`久坐 ${this.events.filter((event: HealthEvent): boolean => event.eventType === 'sedentary').length}`)
+        .fontSize(14)
+        .fontWeight(this.currentTab === 2 ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(this.currentTab === 2 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
+        .textAlign(TextAlign.Center)
+        .layoutWeight(1)
+        .height(42)
+        .backgroundColor(this.currentTab === 2 ? '#dbeafe' : this.themeManager.colors.cardBackgroundColor)
+        .borderRadius(12)
+        .onClick((): void => { this.currentTab = 2; })
     }
     .width("100%")
     .constraintSize({ maxWidth: 640 })
-    .padding({ left: 29, right: 29, top: 14, bottom: 0 });
+    .padding({ left: 20, right: 20, top: 14, bottom: 10 });
   }
 
   @Builder
-  RecordItem(date: string, time: string, isDanger: boolean): void {
+  DateHeading(group: HistoryDateGroup): void {
     Row() {
-      Column()
-        .width(4)
-        .height(36)
-        .borderRadius(2)
-        .backgroundColor(isDanger ? "#ef4444" : "#3b82f6")
-        .margin({ right: "4%" })
-      Column() {
-        Text(isDanger ? "⚠️ 疑似跌倒警报" : "🪑 久坐超时提醒")
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.themeManager.colors.primaryTextColor)
-        Text(`${date}  ${time}`)
-          .fontSize(12)
-          .fontColor(this.themeManager.colors.secondaryTextColor)
-          .margin({ top: 4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
+      Text(group.dateLabel)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor)
+      Blank()
+      Text(`${group.events.length} 条`)
+        .fontSize(12)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
     }
-    .width("100%")
-    .padding({ left: "4%", right: "4%", top: 14, bottom: 14 })
+    .width('100%')
+    .padding({ top: 18, bottom: 10, left: 2, right: 2 });
+  }
+
+  @Builder
+  EventRow(event: HealthEvent): void {
+    Column() {
+      Row() {
+        Column() {
+          Text(event.eventType === 'fall' ? '跌倒' : '久坐')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(event.eventType === 'fall' ? '#b91c1c' : '#1d4ed8')
+            .padding({ left: 9, right: 9, top: 5, bottom: 5 })
+            .backgroundColor(event.eventType === 'fall' ? '#fee2e2' : '#dbeafe')
+            .borderRadius(8)
+        }
+        .alignItems(HorizontalAlign.Start)
+        Column() {
+          Text(this.eventTitle(event))
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+          Text(this.displayTime(event))
+            .fontSize(13)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+            .margin({ top: 4 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Text(event.isHandled === 1 ? '已处理' : this.severityLabel(event.severity))
+          .fontSize(12)
+          .fontColor(event.isHandled === 1 ? '#15803d' : '#9a3412')
+      }
+      Row() {
+        Text(event.remark && event.remark.trim() !== '' ? event.remark : '暂无详情')
+          .fontSize(13)
+          .fontColor(this.themeManager.colors.secondaryTextColor)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        Text('查看')
+          .fontSize(12)
+          .fontColor('#2563eb')
+          .margin({ left: 10 })
+      }
+      .width('100%')
+      .margin({ top: 10 })
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-    .borderRadius("3%")
-    .margin({ bottom: "2.5%" })
-    .shadow({ radius: 6, color: "#0000000A", offsetY: 3 });
+    .border({ width: 1, color: this.themeManager.colors.borderColor })
+    .borderRadius(SURFACE_RADIUS)
+    .margin({ bottom: 10 })
+    .onClick((): void => { this.showEventDetails(event); });
   }
 
   @Builder
   EmptyState(): void {
     Column() {
-      Text("📭")
-        .fontSize(56)
-        .margin({ bottom: 16 })
-      Text("暂无历史记录")
+      Text(this.currentTab === 1 ? '暂无摔倒记录' : (this.currentTab === 2 ? '暂无久坐记录' : '暂无历史记录'))
         .fontSize(18)
         .fontWeight(FontWeight.Medium)
         .fontColor(this.themeManager.colors.primaryTextColor)
@@ -181,78 +351,11 @@ struct HealthHistory {
     .alignItems(HorizontalAlign.Center);
   }
 
-  /** 导出记录为纯文本（目前实现为弹窗展示，可扩展为写文件） */
-  private exportRecords(): void {
-    const lines: string[] = [];
-    lines.push("=== 守护星健康历史记录 ===");
-    lines.push(`导出时间：${new Date().toLocaleString()}`);
-    lines.push(`保留天数：${DatabaseHelper.getInstance().getRetentionDays()} 天`);
-    lines.push("");
-    lines.push(`--- 摔倒记录 (${this.fallRecords.length} 条) ---`);
-    this.fallRecords.forEach((r) => lines.push(`  ${r.date}  ${r.time}  跌倒告警`));
-    lines.push("");
-    lines.push(`--- 久坐记录 (${this.sedentaryRecords.length} 条) ---`);
-    this.sedentaryRecords.forEach((r) => lines.push(`  ${r.date}  ${r.time}  久坐提醒`));
-
-    // 弹窗展示（可替换为 fs.writeFile 写到沙箱文件）
-    this.getUIContext().showAlertDialog({
-      title: "历史记录导出",
-      message: lines.slice(0, 20).join("\n") + (lines.length > 20 ? "\n..." : ""),
-      primaryButton: { value: "关闭", action: () => {} },
-      alignment: DialogAlignment.Center,
-      gridCount: 8,
-    });
-  }
-
   build() {
     NavDestination() {
       Column() {
-        this.GradientHeader()
-        this.TabBar()
-
-        if (this.isLoading) {
-          Column() {
-            LoadingProgress()
-              .width(48)
-              .height(48)
-          }
-          .width("100%")
-          .margin({ top: "25%" });
-        } else {
-          List({ space: 0 }) {
-            if (this.currentTab === 0) {
-              if (this.fallRecords.length === 0) {
-                ListItem() {
-                  this.EmptyState()
-                };
-              } else {
-                ForEach(this.fallRecords, (item: FallRecord) => {
-                  ListItem() {
-                    this.RecordItem(item.date, item.time, true)
-                  };
-                });
-              }
-            } else {
-              if (this.sedentaryRecords.length === 0) {
-                ListItem() {
-                  this.EmptyState()
-                };
-              } else {
-                ForEach(this.sedentaryRecords, (item: SedentaryRecord) => {
-                  ListItem() {
-                    this.RecordItem(item.date, item.time, false)
-                  };
-                });
-              }
-            }
-          }
-          .layoutWeight(1)
-          .width("92%")
-          .constraintSize({ maxWidth: 640 })
-          .padding({ top: 11 })
-          .edgeEffect(EdgeEffect.Spring)
-          .scrollBar(BarState.Off);
-        }
+        this.PageHeader()
+        RecordingBrowser().layoutWeight(1)
       }
       .width("100%")
       .height("100%")

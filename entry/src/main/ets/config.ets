@@ -59,6 +59,8 @@ export const STORE_KEY_EMAIL = "loggedInEmail";
 export const STORE_KEY_RETENTION = "retentionDays";
 export const STORE_KEY_AI_ENABLED = "aiAssistantEnabled";
 export const STORE_KEY_AI_ACCESS_LEVEL = "aiAccessLevel";
+export const STORE_KEY_AI_POLICY_READY = 'aiPolicyReady';
+export const STORE_KEY_AI_POLICY_STAMP = 'aiPolicyStamp';
 
 // ── Preferences ──────────────────────────────────────────────
 export const PREF_NAME_AUTH = "guardian_auth";

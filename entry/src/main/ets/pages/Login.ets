@@ -4,6 +4,7 @@ import { ThemeManager } from "../common/ThemeManager";
 import { DatabaseHelper, UserInfo } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
 import { CloudService, CloudUser } from "../common/CloudService";
+import { AiPermissionService } from '../common/AiPermissionService';
 import { AvatarSyncService } from "../common/AvatarSyncService";
 import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
@@ -862,12 +863,7 @@ struct Login {
     } catch (e) {
       console.warn("[Login]: Preferences 写入失败 " + JSON.stringify(e));
     }
-    const aiEnabled = await DatabaseHelper.getInstance().loadSetting(loginId, STORE_KEY_AI_ENABLED);
-    const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(loginId, STORE_KEY_AI_ACCESS_LEVEL);
-    const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
-      ? savedAccessLevel : 'privacy';
-    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
-    AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
+    await AiPermissionService.getInstance().sync();
     this.pathStack.replacePathByName("Layout", {}, false);
   }
 

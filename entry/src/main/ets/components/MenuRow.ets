@@ -2,6 +2,7 @@
  * MenuRow.ets — 通用菜单行组件（图标 + 标题/副标题 + 右箭头）
  */
 import { ThemeManager } from '../common/ThemeManager';
+import { ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER } from './GradientHeader';
 
 @Component
 export struct MenuRow {
@@ -17,11 +18,11 @@ export struct MenuRow {
   build() {
     Row() {
       Image(this.imgRes)
-        .width(36).height(36).objectFit(ImageFit.Contain)
-        .padding(8)
+        .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).objectFit(ImageFit.Contain)
+        .padding(10)
         .backgroundColor(this.themeManager.isDarkMode ? this.bgColorDark : this.bgColorLight)
-        .borderRadius(10)
-        .margin({ right: "4%" })
+        .borderRadius(12)
+        .margin({ right: 14 })
       Column() {
         Text(this.title)
           .fontSize(15).fontWeight(FontWeight.Medium)
@@ -36,7 +37,7 @@ export struct MenuRow {
         .width(16).height(16).objectFit(ImageFit.Contain)
     }
     .width("100%")
-    .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+    .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 12, bottom: 12 })
     .constraintSize({ minHeight: 64 })
     .backgroundColor(
       this.pressed

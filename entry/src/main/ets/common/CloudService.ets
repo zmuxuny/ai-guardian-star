@@ -3,7 +3,8 @@ import http from '@ohos.net.http';
 import { asset } from '@kit.AssetStoreKit';
 import { util } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { ECS_BASE_URL } from '../config';
+import { ECS_BASE_URL, STORE_KEY_AI_ENABLED, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
+import fs from '@ohos.file.fs';
 
 export interface CloudUser {
   username: string;
@@ -159,6 +160,9 @@ export class CloudService {
   }
 
   public clearSession(): void {
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, false);
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_POLICY_READY, false);
+    AppStorage.setOrCreate<string>(STORE_KEY_AI_POLICY_STAMP, 'signed-out');
     this.accessToken = '';
     this.refreshToken = '';
     this.sessionUserKey = '';
@@ -313,6 +317,39 @@ export class CloudService {
 
   public async authenticatedPost(path: string, body: Object, readTimeout: number = 10000): Promise<CloudHttpResponse> {
     return this.requestRaw(path, http.RequestMethod.POST, body, true, readTimeout, true);
+  }
+
+  /** Download only the recording API into a private app cache file; tokens stay in memory. */
+  public async downloadRecording(body: Object, destination: string, retry: boolean = true): Promise<string> {
+    const token = this.accessToken;
+    if (token === '') return '请先登录';
+    const req = http.createHttp();
+    let expired = false;
+    try {
+      const response = await req.request(ECS_BASE_URL + '/api/recordings/media', {
+        method: http.RequestMethod.POST,
+        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        extraData: JSON.stringify(body),
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        connectTimeout: 10000,
+        readTimeout: 45000,
+        maxLimit: 12 * 1024 * 1024,
+      });
+      expired = response.responseCode === 401;
+      if (response.responseCode === 200) {
+        const file = fs.openSync(destination, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+        try { fs.writeSync(file.fd, response.result as ArrayBuffer); } finally { fs.closeSync(file); }
+        return '';
+      }
+      if (!expired) return response.responseCode === 404 ? '录像已过期，请刷新列表'
+        : response.responseCode === 429 ? '正在准备录像，请稍后重试' : '录像暂不可用，请重试';
+    } catch (_error) {
+      return '录像下载失败，请检查网络后重试';
+    } finally {
+      req.destroy();
+    }
+    if (expired && retry && await this.refreshSession(token)) return this.downloadRecording(body, destination, false);
+    return '登录已过期，请重新登录';
   }
 
   public async login(username: string, passwordHash: string, rememberMe: boolean = false): Promise<CloudResult> {

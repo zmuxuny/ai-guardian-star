@@ -13,10 +13,15 @@ export function LayoutBuilder(): void {
 @Component
 export struct Layout {
   @State currentIndex: number = 0;
+  @State pressedTabIndex: number = -1;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
+  @StorageLink(STORE_KEY_AI_ENABLED) @Watch('onAiEnabledChanged') aiEnabled: boolean = false;
   @State viewportWidth: number = 360;
   pathStack: NavPathStack = new NavPathStack();
+
+  private onAiEnabledChanged(): void {
+    if (!this.aiEnabled && this.currentIndex === 2) this.currentIndex = 3;
+  }
 
   private getTabIconResource(index: number): Resource {
     const active = this.currentIndex === index;
@@ -50,10 +55,10 @@ export struct Layout {
         .opacity(this.currentIndex === index ? 1.0 : 0.6)
         .animation({ duration: 220, curve: Curve.EaseOut })
       Text(this.getTabText(index))
-        .fontSize(10)
+        .fontSize(12)
         .margin({ top: 4 })
         .fontColor(this.currentIndex === index ? "#2563eb" : this.themeManager.colors.secondaryTextColor)
-        .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
+        .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Medium)
         .opacity(1.0)
         .animation({ duration: 220, curve: Curve.EaseOut })
       Circle({ width: 4, height: 4 }).fill("#2563eb")
@@ -66,17 +71,32 @@ export struct Layout {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .layoutWeight(1)
-    .padding({ top: 6, bottom: 6 })
-    .onClick(() => { this.currentIndex = index; })
+    .height('100%')
+    .backgroundColor(this.pressedTabIndex === index
+      ? (this.themeManager.isDarkMode ? '#334155' : '#f1f5f9')
+      : Color.Transparent)
+    .borderRadius(14)
+    .animation({ duration: 90, curve: Curve.EaseOut })
+    .onTouch((event: TouchEvent): void => {
+      if (event.type === TouchType.Down) {
+        this.pressedTabIndex = index;
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        setTimeout((): void => {
+          if (this.pressedTabIndex === index) this.pressedTabIndex = -1;
+        }, 110);
+      }
+    })
+    .onClick((): void => { this.currentIndex = index; })
   }
 
   @Builder
   pageStack(): void {
     Stack() {
-      Column() { mainPage() }.width('100%').height('100%')
+      Column() { mainPage({ pathStack: this.pathStack }) }.width('100%').height('100%')
         .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
-      Column() { record() }.width('100%').height('100%')
-        .visibility(this.currentIndex === 1 ? Visibility.Visible : Visibility.None)
+      if (this.currentIndex === 1) {
+        Column() { record() }.width('100%').height('100%')
+      }
       if (this.aiEnabled) {
         Column() { AiChat() }.width('100%').height('100%')
           .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
@@ -143,7 +163,7 @@ export struct Layout {
             this.tabItem(3)
           }
           .width('100%')
-          .height(56)
+          .height(64)
           .backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .border({ width: { top: 0.5 }, color: this.themeManager.colors.borderColor })
         } else {
@@ -164,6 +184,9 @@ export struct Layout {
       })
     }
     .hideTitleBar(true)
+    .backgroundColor(this.currentIndex === 0
+      ? this.themeManager.isDarkMode ? '#0f172a' : '#dce9ff'
+      : this.themeManager.colors.cardBackgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
     .onReady((context: NavDestinationContext): void => {
       this.pathStack = context.pathStack;

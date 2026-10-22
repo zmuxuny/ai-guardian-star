@@ -1,6 +1,7 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
+import { AiPermissionService } from '../common/AiPermissionService';
 import { AvatarSyncService } from '../common/AvatarSyncService';
 import { UserManager } from '../common/UserManager';
 import { DatabaseHelper } from '../database/DatabaseHelper';
@@ -103,6 +104,50 @@ struct PrivacyDialog {
 @Component
 struct Index {
   pathStack: NavPathStack = new NavPathStack();
+  @State showSplash: boolean = true;
+  @StorageProp('startupLogoOffsetPx') startupLogoOffsetPx: number = 0;
+  private startupStarted: boolean = false;
+  private disposed: boolean = false;
+  private startupTime: number = 0;
+  private splashTimer: number = -1;
+  private splashWaitResolve: (() => void) | null = null;
+
+  aboutToDisappear(): void {
+    this.disposed = true;
+    if (this.splashTimer !== -1) clearTimeout(this.splashTimer);
+    this.splashTimer = -1;
+    if (this.splashWaitResolve !== null) this.splashWaitResolve();
+    this.splashWaitResolve = null;
+  }
+
+  /** Keep the cold-start logo readable while session checks run in parallel. */
+  private async waitForSplash(): Promise<void> {
+    if (!this.showSplash) return;
+    const remaining = Math.max(0, 1800 - (Date.now() - this.startupTime));
+    if (remaining === 0 || this.disposed) return;
+    await new Promise<void>((resolve: () => void): void => {
+      this.splashWaitResolve = resolve;
+      this.splashTimer = setTimeout((): void => {
+        this.splashTimer = -1;
+        this.splashWaitResolve = null;
+        resolve();
+      }, remaining);
+    });
+  }
+
+  private async openStartupPage(name: string): Promise<void> {
+    await this.waitForSplash();
+    if (this.disposed) return;
+    this.pathStack.pushPathByName(name, null, false);
+    this.showSplash = false;
+  }
+
+  private async openPrivacyAfterSplash(): Promise<void> {
+    await this.waitForSplash();
+    if (this.disposed) return;
+    this.showSplash = false;
+    this.privacyDialogController.open();
+  }
 
   private privacyDialogController: CustomDialogController = new CustomDialogController({
     builder: PrivacyDialog({
@@ -142,7 +187,7 @@ struct Index {
       const pref = preferences.getPreferencesSync(ctx, options);
       const accepted = pref.getSync(PREF_KEY_PRIVACY_ACCEPTED, false) as boolean;
       if (!accepted) {
-        this.privacyDialogController.open();
+        this.openPrivacyAfterSplash();
         return;
       }
     } catch (e) {
@@ -152,18 +197,36 @@ struct Index {
   }
 
   build() {
-    Navigation(this.pathStack) {
-    }.onAppear(() => {
-      this.checkPrivacyThenLogin();
-    })
-    .hideNavBar(true)
+    Stack() {
+      Navigation(this.pathStack) {
+      }
+      .hideNavBar(true).width('100%').height('100%')
+      if (this.showSplash) {
+        Column() {
+          // Match the system starting window's 72vp icon without a size/shape jump.
+          Image($r('app.media.APPicon')).width(72).height(72)
+            .objectFit(ImageFit.Contain)
+            .offset({ y: this.getUIContext().px2vp(this.startupLogoOffsetPx) })
+            .accessibilityText('智护星正在启动')
+        }.width('100%').height('100%').justifyContent(FlexAlign.Center)
+          .backgroundColor('#ffffff')
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+          .hitTestBehavior(HitTestMode.Block)
+          .onAppear(() => {
+            if (this.startupStarted) return;
+            this.startupStarted = true;
+            this.startupTime = Date.now();
+            this.checkPrivacyThenLogin();
+          })
+      }
+    }.width('100%').height('100%').backgroundColor('#ffffff')
   }
 
   /** 内存会话或经 Asset Store 恢复并换新的服务端会话才可进入应用。 */
   private async checkAutoLogin(): Promise<void> {
     const cloud = CloudService.getInstance();
     if (!cloud.hasSession() && !await cloud.restorePersistedSession()) {
-      this.pathStack.pushPathByName('Login', null, false);
+      await this.openStartupPage('Login');
       return;
     }
 
@@ -173,7 +236,7 @@ struct Index {
       cloud.clearSession();
       UserManager.getInstance().clearCurrentUsername();
       AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
-      this.pathStack.pushPathByName('Login', null, false);
+      await this.openStartupPage('Login');
       return;
     }
 
@@ -181,13 +244,8 @@ struct Index {
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     await AvatarSyncService.sync(context, sessionUserKey);
-    const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
-    const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
-    const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
-      ? savedAccessLevel : 'privacy';
-    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
-    AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
-    this.pathStack.pushPathByName('Layout', null, false);
+    await AiPermissionService.getInstance().sync();
+    await this.openStartupPage('Layout');
   }
 
 }

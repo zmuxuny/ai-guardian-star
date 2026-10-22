@@ -56,6 +56,9 @@ export default class EntryAbility extends UIAbility {
           const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
           // 获取系统状态栏高度并存储
           AppStorage.setOrCreate<number>('statusBarHeight', avoidArea.topRect.height);
+          const navigationArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+          AppStorage.setOrCreate<number>('startupLogoOffsetPx',
+            (Math.max(avoidArea.bottomRect.height, navigationArea.bottomRect.height) - avoidArea.topRect.height) / 2);
         } catch (error) {
           hilog.warn(DOMAIN, 'testTag', 'Failed to read avoid area: %{public}s', JSON.stringify(error));
         }

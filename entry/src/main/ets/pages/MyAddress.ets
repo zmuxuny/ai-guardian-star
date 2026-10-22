@@ -1,270 +1,265 @@
-/**
- * MyAddress.ets — 地址编辑页
- * 从数据库加载当前用户地址，可编辑，保存到本地 RDB + 云端同步
- */
 import { ThemeManager } from '../common/ThemeManager';
-import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
-import { CloudService, CloudUpdateFields } from '../common/CloudService';
-import { GradientHeader } from '../components/GradientHeader';
-import { showToast } from '../common/UiFeedback';
+import { AddressService, SavedAddress, AddressDraft, AddressIdentity, AddressResult } from '../common/AddressService';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { showToast, showDialog } from '../common/UiFeedback';
 
 @Builder
-export function MyAddressBuilder() {
-  MyAddress();
-}
+export function MyAddressBuilder(): void { MyAddress(); }
 
 @Component
 export struct MyAddress {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   pathStack: NavPathStack = new NavPathStack();
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
-
-  @State address: string = '';
-  @State originalAddress: string = '';
-  @State isLoading: boolean = true;
-  @State isSaving: boolean = false;
-  @State isEditing: boolean = false;   // 是否处于编辑态（展示卡片 ↔ 编辑表单）
-
+  @State addresses: SavedAddress[] = [];
+  @State loading: boolean = true;
+  @State busy: boolean = false;
+  @State editing: boolean = false;
+  @State offline: boolean = false;
+  @State loadError: string = '';
+  @State formError: string = '';
+  @State detail: string = '';
+  @State makeDefault: boolean = false;
+  private originalDraft: string = '';
   private currentUser: string = '';
-  private loadedUser: UserInfo | null = null;
+  private disposed: boolean = false;
+  private requestVersion: number = 0;
+  private inputFocused: boolean = false;
+
+  private finishInput(): void { this.getUIContext().getFocusController().clearFocus(); }
 
   aboutToAppear(): void {
+    this.disposed = false;
     this.currentUser = UserManager.getInstance().getCurrentUsername();
-    this.loadAddress();
+    this.loadAddresses();
+  }
+  aboutToDisappear(): void { this.disposed = true; this.requestVersion++; }
+
+  private active(): boolean {
+    return !this.disposed && this.currentUser !== '' &&
+      UserManager.getInstance().getCurrentUsername() === this.currentUser;
   }
 
-  private loadAddress(): void {
-    this.isLoading = true;
-    const db = DatabaseHelper.getInstance();
-    db.queryUserByIdentifier(this.currentUser)
-      .then((user: UserInfo | null) => {
-        this.isLoading = false;
-        if (user) {
-          this.loadedUser = user;
-          this.address = user.address ?? '';
-          this.originalAddress = this.address;
-        }
-      })
-      .catch(() => { this.isLoading = false; });
-  }
-
-  private maskPhone(phone: string): string {
-    if (!phone || phone.length < 7) return phone;
-    return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
-  }
-
-  private enterEdit(): void {
-    this.address = this.originalAddress;
-    this.isEditing = true;
-  }
-
-  private cancelEdit(): void {
-    this.address = this.originalAddress;
-    this.isEditing = false;
-  }
-
-  // 保存：云端优先（成功后再写本地），避免本地/云端分叉；不退页，停在卡片视图
-  private async saveAddress(): Promise<void> {
-    const newAddr = this.address.trim();
-    if (newAddr === '') { showToast(this.getUIContext(), { message: '请输入地址' }); return; }
-    const user = this.loadedUser;
-    if (!user || user.id === undefined) {
-      showToast(this.getUIContext(), { message: '用户信息未加载，请返回重试' });
-      return;
-    }
-    this.isSaving = true;
+  private async loadAddresses(): Promise<void> {
+    if (this.busy) return;
+    const version = ++this.requestVersion;
+    this.loading = true;
+    this.loadError = '';
     try {
-      // 1) 先同步云端
-      const fields = new CloudUpdateFields();
-      fields.username = this.currentUser;
-      fields.address = newAddr;
-      const cloudR = await CloudService.getInstance().updateUser(fields);
-      if (!cloudR.success) {
-        showToast(this.getUIContext(), { message: cloudR.message === '网络不可用' ? '网络不可用，请检查后重试' : '云端同步失败：' + cloudR.message });
-        this.isSaving = false;
-        return;
-      }
-      // 2) 云端成功，再写本地
-      user.address = newAddr;
-      await DatabaseHelper.getInstance().updateUser(user);
-      this.originalAddress = newAddr;
-      this.isEditing = false;
-      showToast(this.getUIContext(), { message: '地址已保存', duration: 1500 });
-    } catch (e) {
-      console.error('[MyAddress]: 保存失败', JSON.stringify(e));
-      showToast(this.getUIContext(), { message: '保存失败，请重试' });
-    }
-    this.isSaving = false;
-  }
-
-  @Builder
-  GradientHeader(): void {
-    GradientHeader() {
-      Row() {
-        Image($r("app.media.ic_chevron_right")).width(36).height(36)
-          .objectFit(ImageFit.Contain).padding(8)
-          .backgroundColor("#33FFFFFF").borderRadius(100).rotate({ angle: 180 })
-          .onClick((): void => { this.pathStack.pop(); })
-        Text("我的地址").fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
-          .margin({ left: "5%" }).layoutWeight(1)
-      }
-      .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
+      const cached = await AddressService.cached(this.currentUser);
+      if (!this.active() || version !== this.requestVersion) return;
+      if (cached !== null) this.addresses = cached;
+      const result = await AddressService.list();
+      if (!this.active() || version !== this.requestVersion) return;
+      this.addresses = result.addresses;
+      this.offline = false;
+      const cachedOk = await AddressService.cache(this.currentUser, result);
+      if (!cachedOk && this.active()) showToast(this.getUIContext(), { message: '云端已读取，本机离线副本暂未更新' });
+    } catch (error) {
+      if (!this.active() || version !== this.requestVersion) return;
+      this.offline = true;
+      this.loadError = (error as Error).message || '地址加载失败，请重试';
+    } finally {
+      if (this.active() && version === this.requestVersion) this.loading = false;
     }
   }
 
-  // ── 地址卡片（仿京东收货地址：联系人 + 电话 + 地址 + 默认/家庭标签）──
+  private draftKey(): string {
+    return JSON.stringify([this.detail, this.makeDefault]);
+  }
+
+  private beginAdd(): void {
+    if (this.busy || this.offline) return;
+    this.detail = '';
+    this.makeDefault = this.addresses.length === 0;
+    this.formError = '';
+    this.originalDraft = this.draftKey();
+    this.editing = true;
+  }
+
+  private async leaveEdit(): Promise<void> {
+    if (this.busy) return;
+    if (this.originalDraft !== this.draftKey()) {
+      const choice = await showDialog(this.getUIContext(), {
+        title: '放弃未保存的修改？', message: '本次填写的内容还没有保存。',
+        buttons: [{ text: '继续填写', color: '#2563eb' },
+          { text: '放弃修改', color: this.themeManager.colors.secondaryTextColor }],
+      });
+      if (choice === undefined || choice.index !== 1) return;
+    }
+    this.editing = false;
+    this.formError = '';
+  }
+
+  private draft(): AddressDraft | undefined {
+    const detail = this.detail.trim();
+    if (detail.length < 5 || detail.length > 300) { this.formError = '请填写5至300字的详细地址'; return undefined; }
+    // Keep the existing API contract; name/coordinates are no longer user inputs.
+    const existing = this.addresses.find((address: SavedAddress): boolean => address.detail.trim() === detail);
+    const value: AddressDraft = { label: existing?.label || '常用住处', detail,
+      latitude: existing?.latitude ?? null, longitude: existing?.longitude ?? null,
+      isDefault: this.makeDefault || (existing?.isDefault ?? false) };
+    if (existing !== undefined) { value.id = existing.id; value.version = existing.version; }
+    return value;
+  }
+
+  private async apply(action: string, body: Object, message: string): Promise<void> {
+    if (this.busy || !this.active()) return;
+    this.busy = true;
+    this.formError = '';
+    try {
+      const result = await AddressService.request(action, body);
+      if (!this.active()) return;
+      this.addresses = result.addresses;
+      this.editing = false;
+      this.offline = false;
+      this.loadError = '';
+      const cached = await AddressService.cache(this.currentUser, result);
+      if (this.active()) showToast(this.getUIContext(), {
+        message: cached ? message : `${message}（云端成功，本机离线副本暂未更新）`,
+      });
+    } catch (error) {
+      if (!this.active()) return;
+      const message = (error as Error).message || '地址操作失败，请重试';
+      if (this.editing) this.formError = message;
+      else showToast(this.getUIContext(), { message: message });
+    } finally { if (this.active()) this.busy = false; }
+  }
+
+  private async save(): Promise<void> {
+    if (this.busy) return;
+    this.finishInput();
+    const draft = this.draft();
+    if (draft !== undefined) await this.apply('save', draft, '住处已保存');
+  }
+
+  private setDefault(address: SavedAddress): void {
+    const identity: AddressIdentity = { id: address.id, version: address.version };
+    this.apply('default', identity, '默认地址已更新');
+  }
+
   @Builder
-  AddressCard(): void {
-    Column() {
+  PageHeader(): void {
+    GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
-        // 左侧定位图标
-        Column() {
-          Image($r("app.media.ic_map_pin_green")).width(22).height(22).objectFit(ImageFit.Contain)
+        Image($r('app.media.ic_chevron_right')).width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
+          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF').borderRadius(20).rotate({ angle: 180 })
+          .accessibilityText('返回').onClick((): void => {
+            if (this.editing) this.leaveEdit(); else if (!this.busy) this.pathStack.pop();
+          })
+        Text('常用地址').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .margin({ left: 12 }).layoutWeight(1)
+        Button(this.editing ? this.busy ? '保存中…' : '保存' : this.loading ? '读取中' : '刷新', { type: ButtonType.Normal })
+          .height(44).fontSize(14).fontColor('#ffffff').backgroundColor('#1e40af').borderRadius(12)
+          .enabled(!this.busy && !this.loading && (!this.editing || !this.offline))
+          .accessibilityText(this.editing ? '保存详细地址' : '刷新常用地址')
+          .onClick((): void => { if (this.editing) this.save(); else this.loadAddresses(); })
+      }.width('100%')
+        .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
+    }
+  }
+
+  @Builder
+  AddressCard(address: SavedAddress): void {
+    Column({ space: 12 }) {
+      Row({ space: 10 }) {
+        Image($r('app.media.ic_map_pin_green')).width(28).height(28).objectFit(ImageFit.Contain)
+        Text(address.detail).fontSize(16).fontWeight(FontWeight.Medium).lineHeight(24)
+          .fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
+        if (address.isDefault) {
+          Text('默认住处').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).padding({ left: 8, right: 8, top: 4, bottom: 4 })
+            .backgroundColor(this.themeManager.isDarkMode ? '#17315a' : '#dbeafe').borderRadius(6)
         }
-        .width(40).height(40).borderRadius(20)
-        .backgroundColor(this.themeManager.isDarkMode ? '#14302a' : '#f0fdf4')
-        .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
-        .margin({ right: 12 })
-
-        Column() {
-          // 地址（移到顶部，最突出）
-          Text(this.originalAddress)
-            .fontSize(15).fontWeight(FontWeight.Medium)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-            .lineHeight(22).width('100%').maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
-
-          // 标签
-          Row() {
-            Text('默认').fontSize(10).fontColor('#ffffff')
-              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .backgroundColor('#1d4ed8').borderRadius(4).margin({ right: 6 })
-            Text('家庭').fontSize(10).fontColor(this.themeManager.colors.successTextColor)
-              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .border({ width: 1, color: this.themeManager.colors.successTextColor }).borderRadius(4)
-          }.width('100%').margin({ top: 10 })
-
-          // 联系人 + 电话（移到下方）
-          Row() {
-            Text((this.loadedUser && this.loadedUser.username) ? this.loadedUser.username : '家庭住址')
-              .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
-            if (this.loadedUser && this.loadedUser.phone) {
-              Text(this.maskPhone(this.loadedUser.phone))
-                .fontSize(12).fontColor(this.themeManager.colors.tertiaryTextColor)
-                .margin({ left: 10 })
-            }
-          }.width('100%').margin({ top: 10 })
-        }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-
-        // 编辑笔
-        Text('✎').fontSize(16).fontColor(this.themeManager.colors.linkTextColor).padding(8)
-          .onClick(() => { this.enterEdit(); })
+      }.width('100%')
+      if (!address.isDefault) {
+          Button('设为默认', { type: ButtonType.Normal }).height(44).fontSize(14).width('100%')
+            .backgroundColor(this.themeManager.colors.secondaryBackgroundColor).fontColor(this.themeManager.colors.linkTextColor)
+            .borderRadius(10).onClick((): void => { this.setDefault(address); })
+            .enabled(!this.busy && !this.offline)
       }
-      .width('100%').alignItems(VerticalAlign.Top)
-    }
-    .width('92%').padding(16).margin({ top: 16 })
-    .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
-    .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
-    // 左侧高亮色条，呼应京东默认地址的强调样式
-    .border({ width: { left: 3 }, color: '#3b82f6' })
+    }.alignItems(HorizontalAlign.Start).width('100%').padding(16).borderRadius(SURFACE_RADIUS)
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor })
   }
 
-  // ── 空状态 ──
-  @Builder
-  EmptyState(): void {
-    Column() {
-      Column() {
-        Image($r("app.media.ic_map_pin_green")).width(40).height(40).objectFit(ImageFit.Contain)
-      }
-      .width(80).height(80).borderRadius(40)
-      .backgroundColor(this.themeManager.isDarkMode ? '#14302a' : '#f0fdf4')
-      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center).margin({ top: 60 })
-
-      Text('还没有添加家庭地址').fontSize(15).fontWeight(FontWeight.Medium)
-        .fontColor(this.themeManager.colors.primaryTextColor).margin({ top: 20 })
-      Text('用于紧急情况时快速定位').fontSize(12)
-        .fontColor(this.themeManager.colors.tertiaryTextColor).margin({ top: 6 })
-
-      Button('添加家庭地址').height(46).width('70%').type(ButtonType.Capsule)
-        .fontSize(15).fontColor('#ffffff').margin({ top: 28 })
-        .linearGradient({ direction: GradientDirection.Right, colors: [['#1e3a8a', 0.0], ['#2563eb', 1.0]] })
-        .onClick(() => { this.enterEdit(); })
-    }
-    .width('100%').alignItems(HorizontalAlign.Center)
-  }
-
-  // ── 编辑表单 ──
   @Builder
   EditForm(): void {
-    Column() {
-      Text('家庭地址').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-        .alignSelf(ItemAlign.Start).margin({ left: '4%', bottom: 10, top: 20 })
-      Column() {
-        TextArea({ placeholder: '请输入详细地址，如省/市/区/街道/门牌号', text: this.address })
-          .fontSize(15).fontColor(this.themeManager.colors.primaryTextColor)
-          .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
-          .borderRadius(12).padding(16).height(140).width('100%')
-          .onChange((v: string) => { this.address = v; })
-      }.width('92%')
-      Text('用于紧急情况时提供位置信息').fontSize(11)
-        .fontColor(this.themeManager.colors.tertiaryTextColor)
-        .width('92%').textAlign(TextAlign.Start).margin({ top: 8 })
-
-      Row({ space: 12 }) {
-        // 已有地址时才显示取消（空状态首次添加不需要）
-        if (this.originalAddress !== '') {
-          Button('取消').layoutWeight(1).height(46).type(ButtonType.Capsule)
-            .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
-            .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(15)
-            .onClick(() => { this.cancelEdit(); })
-        }
-        Button(this.isSaving ? '保存中…' : '保存').layoutWeight(1).height(46).type(ButtonType.Capsule)
-          .enabled(!this.isSaving)
-          .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.isSaving ? '#64748b' : '#1e3a8a', 0.0], [this.isSaving ? '#64748b' : '#2563eb', 1.0]] })
-          .fontColor('#ffffff').fontSize(15)
-          .onClick(() => { this.saveAddress(); })
-      }.width('92%').margin({ top: 24 })
-    }
-    .width('100%').alignItems(HorizontalAlign.Center)
+    Column({ space: 14 }) {
+      Text('保存常用地址').fontSize(19).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor).width('100%')
+      if (this.formError !== '') {
+        Text(this.formError).fontSize(13).fontColor(this.themeManager.colors.dangerTextColor).width('100%')
+      }
+      Column({ space: 7 }) {
+        Text('详细地址（必填）').fontSize(14).fontColor(this.themeManager.colors.primaryTextColor)
+        TextArea({ placeholder: '省 / 市 / 区 / 街道 / 小区 / 楼栋门牌', text: this.detail })
+          .fontColor(this.themeManager.colors.primaryTextColor).backgroundColor(this.themeManager.colors.secondaryBackgroundColor)
+          .placeholderColor(this.themeManager.colors.secondaryTextColor)
+          .height(104).maxLength(300).fontSize(15).onChange((value: string): void => { this.detail = value; })
+          .onFocus((): void => { this.inputFocused = true; }).onBlur((): void => { this.inputFocused = false; })
+      }.width('100%').alignItems(HorizontalAlign.Start)
+      Row() {
+        Text('设为默认住处').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.makeDefault }).selectedColor('#2563eb')
+          .accessibilityText('设为默认住处').enabled(!this.busy && this.addresses.length > 0)
+          .onChange((value: boolean): void => { this.makeDefault = value; })
+      }.width('100%').height(48)
+    }.width('100%').padding(16).alignItems(HorizontalAlign.Start).enabled(!this.busy)
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(SURFACE_RADIUS)
   }
 
   build() {
     NavDestination() {
       Column() {
-        this.GradientHeader()
+        this.PageHeader()
         Scroll() {
-          Column() {
-            if (this.isLoading) {
-              Column() { LoadingProgress().width(36).height(36) }
-                .width('100%').height(200).justifyContent(FlexAlign.Center)
-            } else if (this.isEditing) {
+          Column({ space: 14 }) {
+            if (this.loading) {
+              Column({ space: 12 }) {
+                LoadingProgress().width(38).height(38)
+                Text('正在读取常用地址').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+              }.width('100%').height(200).justifyContent(FlexAlign.Center)
+            } else if (this.editing) {
               this.EditForm()
-            } else if (this.originalAddress !== '') {
-              this.AddressCard()
             } else {
-              this.EmptyState()
+              if (this.loadError !== '') {
+                Text(this.addresses.length > 0 ? '离线副本 · 联网刷新后可保存和设置默认住处' : this.loadError)
+                  .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
+              }
+              if (this.addresses.length === 0) {
+                Column({ space: 12 }) {
+                  Image($r('app.media.ic_map_pin_green')).width(48).height(48).objectFit(ImageFit.Contain)
+                  Text(this.loadError === '' ? '还没有保存常用住处' : '暂时无法读取地址').fontSize(18).fontWeight(FontWeight.Medium)
+                    .fontColor(this.themeManager.colors.primaryTextColor)
+                  Text(this.loadError === '' ? '填写详细地址，保存后可设为默认住处。' : '请联网后点击右上角刷新。').fontSize(13)
+                    .fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
+                }.width('100%').height(230).justifyContent(FlexAlign.Center)
+              } else {
+                Text(`已保存 ${this.addresses.length} / 20 个住处`).fontSize(13)
+                  .fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
+                ForEach(this.addresses, (address: SavedAddress) => { this.AddressCard(address) },
+                  (address: SavedAddress): string => `${address.id}-${address.version}`)
+              }
+              Button('添加常用住处', { type: ButtonType.Normal }).width('100%').height(50).fontSize(16)
+                .backgroundColor('#2563eb').fontColor('#ffffff').borderRadius(12)
+                .enabled(!this.busy && !this.offline && this.addresses.length < 20)
+                .onClick((): void => { this.beginAdd(); })
             }
-            Column().height(40)
-          }
-          .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
-        }
-        .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring).width('100%')
-      }
-      .width('100%').height('100%')
-    }
-    .hideTitleBar(true)
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .onBackPressed(() => {
-      // 编辑态且有改动 → 退回卡片视图而非直接退页
-      if (this.isEditing && this.address.trim() !== this.originalAddress) {
-        this.cancelEdit();
-        return true;
-      }
-      return false;
-    })
-    .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
+          }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 16, right: 16, top: 16, bottom: 28 })
+        }.layoutWeight(1).width('100%').align(Alignment.Top)
+          .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+      }.width('100%').height('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    }.hideTitleBar(true)
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      .onBackPressed((): boolean => {
+        if (this.inputFocused) { this.finishInput(); return true; }
+        if (this.busy) return true;
+        if (this.editing) { this.leaveEdit(); return true; }
+        return false;
+      })
+      .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
   }
 }

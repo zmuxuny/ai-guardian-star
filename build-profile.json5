@@ -1,25 +1,10 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "storeFile": "E:/key/guardianstar.p12",
-          "storePassword": "0000001C8DC27F92B2E253663099F2511EFB69BA4E7AC3F22DD71C5AFBF0A704E83576E876514C7DF2B16ECF",
-          "keyAlias": "guardianstar",
-          "keyPassword": "0000001C6B40DFE548408F80AE64737871FEC9A25972D96361A7AD2C2633AE49571C76AE72C849EBC34EBA21",
-          "signAlg": "SHA256withECDSA",
-          "profile": "D:/16228/Dmowload/guardianstar无ACLRelease.p7b",
-          "certpath": "D:/16228/Dmowload/guardianstar.cer"
-        }
-      }
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
-      "targetSdkVersion": "6.1.1(24)",
+        "targetSdkVersion": "6.1.1(24)",
         "compatibleSdkVersion": "6.1.1(24)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {

@@ -25,6 +25,9 @@ from email.message import EmailMessage
 
 from security_utils import hash_password, password_needs_rehash, verify_password
 from mqtt_access import allowed_users, create_schema as create_mqtt_schema, issue_grant
+from address_service import create_address_schema, register_address_routes
+from ai_permissions import (create_ai_schema, register_ai_permission_routes, require_permission,
+                            validate_context, validate_history, redact_sensitive_text, AiPermissionError)
 
 app = Flask(__name__)
 
@@ -177,6 +180,8 @@ def get_db():
         "ON t_contact_challenge(requester_ip, sent_at)"
     )
     create_mqtt_schema(conn)
+    create_address_schema(conn)
+    create_ai_schema(conn)
     conn.commit()
     return conn
 
@@ -406,6 +411,11 @@ def bearer_required(function):
         return function(*args, **kwargs)
     return wrapper
 
+
+from recording_api import register_recording_routes
+register_recording_routes(app, bearer_required)
+register_address_routes(app, bearer_required, get_db)
+register_ai_permission_routes(app, bearer_required, get_db)
 
 # ─── 账号接口 ──────────────────────────────────────────────────
 
@@ -1551,9 +1561,15 @@ def _local_crisis_response(text):
 
 
 def _redact_sensitive_text(text):
-    text = re.sub(r'(?<!\d)1\d{10}(?!\d)', '[手机号已隐藏]', text)
-    text = re.sub(r'(?<!\w)[1-9]\d{16}[0-9Xx](?!\w)', '[身份证号已隐藏]', text)
-    return re.sub(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', '[邮箱已隐藏]', text)
+    return redact_sensitive_text(text)
+
+
+def _check_ai_permission(version):
+    conn = get_db()
+    try:
+        return require_permission(conn, g.current_username, version)
+    finally:
+        conn.close()
 
 
 def _local_output_unsafe(text):
@@ -1617,14 +1633,19 @@ def ai_chat():
     if not ALIYUN_MODERATION_ENABLED:
         return jsonify({"error": "内容安全检查尚未启用"}), 503
     try:
-        data = request.get_json(force=True) or {}
-        user_message = data.get('message', '').strip()
-        context = data.get('context', {})
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict) or not isinstance(data.get('message'), str):
+            raise AiPermissionError('问题格式无效')
+        policy = _check_ai_permission(data.get('policyVersion'))
+        user_message = data['message'].strip()
+        context = validate_context(data.get('context', {}), policy['accessLevel'])
+        history = validate_history(data.get('history', []))
 
         if not user_message:
             return jsonify({"error": "message 不能为空"}), 400
         if len(user_message) > AI_MAX_MESSAGE_LENGTH:
             return jsonify({"error": "消息过长，请缩短后重试"}), 413
+        user_message = _redact_sensitive_text(user_message)
 
         crisis_reply = _local_crisis_response(user_message)
         if crisis_reply:
@@ -1634,22 +1655,23 @@ def ai_chat():
                 "timestamp": int(time.time())
             })
 
-        input_result = _moderate_text('llm_query_moderation', user_message)
-        if input_result['advice']:
-            return jsonify({
-                "reply": input_result['advice'],
-                "model": "aliyun-safety",
-                "timestamp": int(time.time())
-            })
-        if input_result['risk_level'] in ('high', 'medium'):
-            return jsonify({"error": "该问题暂时无法由 AI 助手处理"}), 422
-
         # ── 按用户选择的 AI 数据权限拼接监护上下文 ──────────────
         context_summary = _build_context_summary(context)
         if context_summary:
             full_text = f"[当前监护摘要]\n{context_summary}\n\n[家属提问]\n{user_message}"
         else:
             full_text = user_message
+        if history:
+            # Treat prior turns as quoted conversation data, never as system roles.
+            full_text = ('[历史对话，仅供理解上下文]\n' +
+                         json.dumps(history, ensure_ascii=False) + '\n\n' + full_text)
+
+        combined_result = _moderate_text('llm_query_moderation', full_text)
+        if combined_result['advice']:
+            return jsonify(reply=combined_result['advice'], model='aliyun-safety', timestamp=int(time.time()))
+        if combined_result['risk_level'] in ('high', 'medium'):
+            return jsonify({"error": "对话上下文未通过安全检查，请开始新的对话"}), 422
+        _check_ai_permission(policy['version'])
 
         # ── 官方文档要求的正确请求体格式 ─────────────────────────
         payload = {
@@ -1682,12 +1704,15 @@ def ai_chat():
             stream=True
         )
         resp.raise_for_status()
-
-        ai_reply = _parse_sse_response(resp)
+        try:
+            ai_reply = _redact_sensitive_text(_parse_sse_response(resp))
+        finally:
+            resp.close()
 
         output_result = _moderate_text('llm_response_moderation', ai_reply)
         if output_result['risk_level'] in ('high', 'medium') or _local_output_unsafe(ai_reply):
             return jsonify({"error": "AI 回复未通过安全检查"}), 422
+        _check_ai_permission(policy['version'])
 
         return jsonify({
             "reply": ai_reply,
@@ -1695,6 +1720,8 @@ def ai_chat():
             "timestamp": int(time.time())
         })
 
+    except AiPermissionError as error:
+        return jsonify({"error": error.message}), error.status
     except ModerationUnavailable:
         return jsonify({"error": "内容安全检查暂时不可用，请稍后重试"}), 503
     except requests.exceptions.Timeout:

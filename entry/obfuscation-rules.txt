@@ -59,6 +59,30 @@
     kind
     value
 
+# AI consent and chat JSON fields cross the native/server boundary.
+-keep-property-name
+    enabled
+    settings
+    version
+    accessLevel
+    policyVersion
+    context
+    history
+    role
+    content
+    fallCount7d
+    sedentaryCount7d
+    lastFallDaysAgo
+    deviceOnline
+    deviceConnected
+    currentStatus
+    latestFallRecord
+    latestSedentaryRecord
+    reply
+    model
+    timestamp
+    error
+
 # ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
 -keep-property-name
     id

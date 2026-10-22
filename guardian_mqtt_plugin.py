@@ -1,6 +1,7 @@
 """AMQTT 0.11.3 authentication/authorization; no App shared password."""
 
 from dataclasses import dataclass
+import asyncio
 
 from amqtt.plugins.authentication import FileAuthPlugin
 from amqtt.plugins.base import BaseTopicPlugin
@@ -40,6 +41,20 @@ class GuardianAuthPlugin(FileAuthPlugin):
 
 class GuardianTopicPlugin(BaseTopicPlugin):
     Config = GuardianConfig
+
+    async def on_broker_message_received(self, *, client_id, message):
+        # Receipt hooks run before topic filtering: explicitly require the authenticated
+        # board session and the fixed alert namespace. App publishers never enter here.
+        session = self.context.get_session(client_id)
+        if not session or session.username != 'ascend_board' or message is None:
+            return
+        if not permitted_topic(message.topic, 'receive'):
+            return
+        from recording_store import ingest_alert
+        try:
+            await asyncio.to_thread(ingest_alert, bytes(message.data))
+        except Exception:
+            self.context.logger.error('recording event index unavailable')
 
     async def topic_filtering(self, *, session=None, topic=None, action=None):
         if is_app(session):

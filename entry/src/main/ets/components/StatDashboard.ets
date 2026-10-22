@@ -2,6 +2,7 @@
  * StatDashboard.ets — 个人中心统计数据展示（已监护天数 + 预警次数）
  */
 import { ThemeManager } from '../common/ThemeManager';
+import { SURFACE_RADIUS } from './GradientHeader';
 
 @Component
 export struct StatDashboard {
@@ -36,7 +37,7 @@ export struct StatDashboard {
     .padding({ top: 20, bottom: 20 })
     .margin({ top: 0 })
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-    .borderRadius("4%")
-    .shadow({ radius: 12, color: "#1A3b82f6", offsetY: 6 })
+    .border({ width: 1, color: this.themeManager.colors.borderColor })
+    .borderRadius(SURFACE_RADIUS)
   }
 }

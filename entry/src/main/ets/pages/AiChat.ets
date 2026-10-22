@@ -6,8 +6,8 @@
 import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
 import { MqttManager } from './MqttManager';
-import { GradientHeader } from '../components/GradientHeader';
-import { STORE_KEY_AI_ACCESS_LEVEL } from '../config';
+import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { STORE_KEY_AI_ACCESS_LEVEL, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 
 const QUICK_QUESTIONS: string[] = [
@@ -34,6 +34,8 @@ export struct AiChat {
   @State isRequesting: boolean = false;
   @State dotPhase: number = 0;
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
+  @StorageProp(STORE_KEY_AI_POLICY_STAMP) @Watch('onPolicyChanged') policyStamp: string = '';
+  @StorageProp(STORE_KEY_AI_POLICY_READY) @Watch('onPolicyReadinessChanged') policyReady: boolean = false;
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   // 当前视口宽度，用于快捷提问在大屏折行铺开
   @State viewportWidth: number = 360;
@@ -41,6 +43,20 @@ export struct AiChat {
   private scroller: Scroller = new Scroller();
   private msgIdCounter: number = 0;
   private dotTimer: number = -1;
+  private requestGeneration: number = 0;
+
+  private onPolicyChanged(): void {
+    this.requestGeneration++;
+    this.stopDotAnimation();
+    this.messages = [];
+    this.inputText = '';
+    this.isRequesting = false;
+    this.pushAssistantMsg('AI 权限已更新，之前的对话已清空。请重新提问。');
+  }
+
+  private onPolicyReadinessChanged(): void {
+    if (!this.policyReady) this.onPolicyChanged();
+  }
 
   aboutToAppear(): void {
     const accessText = this.aiAccessLevel === 'full' ? '完整监护状态'
@@ -48,11 +64,12 @@ export struct AiChat {
     this.pushAssistantMsg(
       '你好！我是智护星 AI 健康助手 👋\n\n' +
       `当前模式：${accessText}，` +
-      '可以帮你分析健康风险、解答护理疑问。'
+      '可以帮你分析健康风险、解答护理疑问。\n\n问题和最近对话会交给云端 AI。常见手机号、身份证号和邮箱会自动隐藏；请勿输入姓名或住址。切换权限会清空对话。'
     );
   }
 
   aboutToDisappear(): void {
+    this.requestGeneration++;
     if (this.dotTimer !== -1) {
       clearInterval(this.dotTimer);
       this.dotTimer = -1;
@@ -109,7 +126,8 @@ export struct AiChat {
 
   private async sendMessage(text: string): Promise<void> {
     const trimmed = text.trim();
-    if (!trimmed || this.isRequesting) return;
+    if (!trimmed || this.isRequesting || !this.policyReady) return;
+    const generation = ++this.requestGeneration;
 
     this.inputText = '';
     this.isRequesting = true;
@@ -135,9 +153,9 @@ export struct AiChat {
       reply = await WenxinService.getInstance().chat(trimmed, history);
     } catch (e) {
       reply = '请求出现异常，请稍后重试';
-      console.error('[AiChat] sendMessage error:', JSON.stringify(e));
+      console.error('[AiChat] sendMessage failed');
     }
-
+    if (generation !== this.requestGeneration) return;
     this.replaceLoadingMsg(loadingId, reply);
     this.stopDotAnimation();
     this.isRequesting = false;
@@ -149,12 +167,12 @@ export struct AiChat {
     GradientHeader() {
       Row() {
         Text('AI 健康助手')
-          .fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
         Blank()
         Row({ space: 6 }) {
           Circle({ width: 8, height: 8 }).fill('#4ade80')
           Text(
-            `AI 在线 · ${this.aiAccessLevel === 'full' ? '深度照护'
+            `云端 AI · ${this.aiAccessLevel === 'full' ? '深度照护'
               : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
           ).fontSize(12).fontColor('#E0F2FE')
         }
@@ -162,7 +180,7 @@ export struct AiChat {
         .backgroundColor('#33FFFFFF').borderRadius(100)
       }
       .width('100%')
-      .padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 34 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 16, bottom: 20 })
     }
   }
 
@@ -176,7 +194,7 @@ export struct AiChat {
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
 
       Column() {
         Text('久坐提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
@@ -185,21 +203,25 @@ export struct AiChat {
       }
       .layoutWeight(1).padding({ top: 20, bottom: 20 })
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .borderRadius('10%').shadow({ radius: 12, color: '#0A000000', offsetY: 6 })
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
     }
     .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
   }
 
   @Builder
   LoadingDots(): void {
-    Row({ space: 5 }) {
-      ForEach([0, 1, 2], (i: number) => {
-        Circle({ width: 8, height: 8 })
-          .fill(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
-          .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
-          .animation({ duration: 350, curve: Curve.EaseInOut })
-      })
-    }.padding({ left: 4, right: 4, top: 6, bottom: 6 })
+    Column({ space: 4 }) {
+      Text('正在整理建议…')
+        .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+      Row({ space: 5 }) {
+        ForEach([0, 1, 2], (i: number) => {
+          Circle({ width: 7, height: 7 })
+            .fill(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+            .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
+            .animation({ duration: 350, curve: Curve.EaseInOut })
+        })
+      }
+    }.padding({ left: 4, right: 4, top: 4, bottom: 4 })
   }
 
   @Builder
@@ -238,7 +260,7 @@ export struct AiChat {
         .padding({ left: 14, right: 14, top: 10, bottom: 10 })
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
         .borderRadius({ topLeft: 4, topRight: 16, bottomLeft: 16, bottomRight: 16 })
-        .shadow({ radius: 6, color: '#08000000', offsetY: 2 })
+        .border({ width: 1, color: this.themeManager.colors.borderColor })
         .constraintSize({ maxWidth: '72%' })
         Blank()
       }
@@ -304,6 +326,7 @@ export struct AiChat {
   InputBar(): void {
     Row({ space: 12 }) {
       TextInput({ text: this.inputText, placeholder: '问点什么…' })
+        .maxLength(2000)
         .layoutWeight(1).height(46).fontSize(15)
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
         .borderRadius(23).padding({ left: 16, right: 16 })
@@ -312,7 +335,7 @@ export struct AiChat {
         .fontColor(this.themeManager.colors.primaryTextColor)
         .onChange((val: string): void => { this.inputText = val; })
         .onSubmit((): void => { this.sendMessage(this.inputText); })
-        .enabled(!this.isRequesting)
+        .enabled(!this.isRequesting && this.policyReady)
       Stack() {
         if (this.isRequesting) {
           LoadingProgress().width(22).height(22).color('#ffffff')

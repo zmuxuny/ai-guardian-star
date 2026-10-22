@@ -4,7 +4,7 @@
  */
 import { ThemeManager, ThemeMode } from "../common/ThemeManager";
 import { MqttManager } from "./MqttManager";
-import { GradientHeader } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
 import { StatDashboard } from '../components/StatDashboard';
 import { MenuRow } from '../components/MenuRow';
 import { showDialog, showToast } from '../common/UiFeedback';
@@ -24,9 +24,12 @@ import fs from "@ohos.file.fs";
 import http from "@ohos.net.http";
 import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
+import { AiPermissionService } from '../common/AiPermissionService';
+import { STORE_KEY_AI_POLICY_READY } from '../config';
 import { fileUri } from "@kit.CoreFileKit";
 import { util } from "@kit.ArkTS";
 import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
+import { CacheManager } from '../common/CacheManager';
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -158,19 +161,37 @@ export struct person {
   @State useDays: number = 128;
   @State totalAlertCount: number = 0;
   @StorageLink(STORAGE_KEY_RETENTION) retentionDays: number = FREE_RETENTION_DAYS;
-  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = true;
+  @StorageLink(STORE_KEY_AI_ENABLED) aiEnabled: boolean = false;
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
+  @StorageProp(STORE_KEY_AI_POLICY_READY) aiPolicyReady: boolean = false;
+  @State aiSaving: boolean = false;
   @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   // 当前视口宽度，用于按断点取尺寸档位
   @State viewportWidth: number = 360;
   // 各菜单行按压状态
   @State pressedRow: string = "";
+  @State cacheBusy: boolean = false;
+  @State cacheSummary: string = '查看临时文件占用并释放空间';
+  private cacheManager: CacheManager = CacheManager.getInstance();
   // 退出登录按钮缩放
   @State logoutScale: number = 1.0;
   // 注销验证用的联系方式，来自本地用户表
   @State bindPhone: string = '';
   @State bindEmail: string = '';
   private deleteChallengeId: string = '';
+  private async saveAiPermission(enabled: boolean, level: string): Promise<void> {
+    if (this.aiSaving) return;
+    this.aiSaving = true;
+    try {
+      await AiPermissionService.getInstance().save(enabled, level);
+      showToast(this.getUIContext(), { message: enabled ? 'AI 权限已保存到云端' : 'AI 助手已关闭' });
+    } catch (error) {
+      await AiPermissionService.getInstance().sync();
+      showToast(this.getUIContext(), { message: (error as Error).message || '保存失败，请联网后重试' });
+    } finally {
+      this.aiSaving = false;
+    }
+  }
   // 导航路径栈
   pathStack: NavPathStack = new NavPathStack();
 
@@ -315,6 +336,7 @@ export struct person {
     }
 
     const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
+    await this.cacheManager.retain(sandboxPath);
     let httpRequest = http.createHttp();
 
     try {
@@ -408,14 +430,60 @@ export struct person {
       } catch (e) {
         // 忽略
       }
+      this.cacheManager.release(sandboxPath);
     }
   }
 
   aboutToAppear(): void {
     this.loadUserInfo();
+    this.refreshCacheSize();
+    AiPermissionService.getInstance().sync();
     // 监听 Profile 页保存后的 AppStorage 广播，实时刷新昵称和头像
     AppStorage.setOrCreate<string>(STORE_KEY_NICKNAME, AppStorage.get<string>(STORE_KEY_NICKNAME) ?? '');
     AppStorage.setOrCreate<string>(STORE_KEY_AVATAR, AppStorage.get<string>(STORE_KEY_AVATAR) ?? '');
+  }
+
+  private async refreshCacheSize(): Promise<void> {
+    if (this.cacheBusy) return;
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const stats = await this.cacheManager.measure(context);
+      if (!this.cacheBusy) this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(stats.bytes)} · 临时文件`;
+    } catch (_error) { this.cacheSummary = '缓存占用暂不可用，点击重试'; }
+  }
+
+  private async clearAppCache(): Promise<void> {
+    if (this.cacheBusy) return;
+    this.cacheBusy = true;
+    this.cacheSummary = '正在统计缓存…';
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const stats = await this.cacheManager.measure(context);
+      const choice = await showDialog(this.getUIContext(), {
+        title: '清理缓存',
+        message: `可清理临时文件 ${this.cacheManager.formatBytes(stats.bytes)}（${stats.files}个）。\n同时清理网页资源缓存。账号、头像、设置、历史记录和服务器录像都会保留；正在使用的文件会跳过。`,
+        buttons: [
+          { text: '取消', color: this.themeManager.colors.secondaryTextColor },
+          { text: '立即清理', color: '#2563eb' },
+        ],
+      });
+      if (choice === undefined || choice.index !== 1) {
+        this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(stats.bytes)} · 临时文件`;
+        return;
+      }
+      this.cacheSummary = '正在清理缓存…';
+      const result = await this.cacheManager.clear(context);
+      const released = this.cacheManager.formatBytes(result.releasedBytes);
+      this.cacheSummary = `可清理 ${this.cacheManager.formatBytes(result.remaining.bytes)} · 本次释放 ${released}`;
+      const message = result.failed > 0 || result.remaining.failed > 0
+        ? `已释放 ${released}，部分缓存未清理，请稍后重试`
+        : result.deletedFiles > 0 ? `已释放 ${released}，清理 ${result.deletedFiles} 个临时文件`
+        : '暂无可清理的临时文件，网页资源缓存已提交清理';
+      showToast(this.getUIContext(), { message: message, duration: 3000 });
+    } catch (_error) {
+      this.cacheSummary = '清理未完成，点击重试';
+      showToast(this.getUIContext(), { message: '清理未完成，请稍后重试' });
+    } finally { this.cacheBusy = false; }
   }
 
   /** 手机号加密处理：只显示前 3 位和后 4 位，中间用 * 替代 */
@@ -529,9 +597,9 @@ export struct person {
         Column() {
           Column() {
             Text("服务设置")
-              .fontSize(12)
+              .fontSize(13).fontWeight(FontWeight.Medium)
               .fontColor(this.themeManager.colors.secondaryTextColor)
-              .margin({ left: "6%", bottom: "3%", top: "6%" })
+              .margin({ left: '4%', bottom: 10, top: 24 })
               .alignSelf(ItemAlign.Start)
             Column() {
               MenuRow({
@@ -565,7 +633,7 @@ export struct person {
                 bgColorLight: "#f0fdf4",
                 bgColorDark: "#14302a",
                 title: "常用地址",
-                subTitle: "管理家庭地址及位置信息",
+                subTitle: "保存详细地址，设置默认住处",
                 onClickAction: (): void => this.safePush("MyAddress"),
               })
               Divider()
@@ -584,17 +652,6 @@ export struct person {
               // Divider()
               //   .margin({ left: "15%", right: "4%" })
               //   .color(this.themeManager.colors.separatorColor)
-              MenuRow({
-                imgRes: $r("app.media.ic_list_blue"),
-                bgColorLight: "#eff6ff",
-                bgColorDark: "#1e3a5f",
-                title: "历史记录",
-                subTitle: `查看并导出近 ${this.retentionDays} 天健康事件`,
-                onClickAction: (): void => this.safePush("HealthHistory"),
-              })
-              Divider()
-                .margin({ left: "15%", right: "4%" })
-                .color(this.themeManager.colors.separatorColor)
               MenuRow({
                 imgRes: $r("app.media.ic_shield_blue"),
                 bgColorLight: "#eff6ff",
@@ -616,15 +673,15 @@ export struct person {
             }
             .width("92%")
             .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-            .borderRadius("4%")
+            .border({ width: 1, color: this.themeManager.colors.borderColor })
+            .borderRadius(SURFACE_RADIUS)
             .clip(true)
-            .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
           }.width("100%")
           Column() {
             Text("系统偏好")
-              .fontSize(12)
+              .fontSize(13).fontWeight(FontWeight.Medium)
               .fontColor(this.themeManager.colors.secondaryTextColor)
-              .margin({ left: "6%", bottom: "3%", top: "5%" })
+              .margin({ left: '4%', bottom: 10, top: 24 })
               .alignSelf(ItemAlign.Start)
             Column() {
               Row() {
@@ -633,8 +690,8 @@ export struct person {
                     ? $r("app.media.ic_shield_light")
                     : $r("app.media.ic_shield_gray"),
                 )
-                  .width(36)
-                  .height(36)
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
                   .objectFit(ImageFit.Contain)
                   .padding(8)
                   .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
@@ -691,8 +748,8 @@ export struct person {
                 .color(this.themeManager.colors.separatorColor)
               Row() {
                 Image($r("app.media.tab_ai_active"))
-                  .width(36)
-                  .height(36)
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
                   .objectFit(ImageFit.Contain)
                   .padding(7)
                   .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
@@ -712,14 +769,9 @@ export struct person {
                 .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.aiEnabled })
                   .selectedColor("#2563eb")
+                  .enabled(!this.aiSaving)
                   .onChange((enabled: boolean): void => {
-                    this.aiEnabled = enabled;
-                    DatabaseHelper.getInstance().saveSetting(
-                      UserManager.getInstance().getCurrentUsername(),
-                      STORE_KEY_AI_ENABLED,
-                      enabled ? 'true' : 'false',
-                    );
-                    showToast(this.getUIContext(), { message: enabled ? "AI 助手已开启" : "AI 助手已关闭" });
+                    if (enabled !== this.aiEnabled) this.saveAiPermission(enabled, this.aiAccessLevel);
                   })
               }
               .width("100%")
@@ -734,8 +786,8 @@ export struct person {
                     ? $r("app.media.ic_shield_light")
                     : $r("app.media.ic_shield_blue"),
                 )
-                  .width(36)
-                  .height(36)
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
                   .objectFit(ImageFit.Contain)
                   .padding(8)
                   .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
@@ -746,7 +798,8 @@ export struct person {
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.themeManager.colors.primaryTextColor)
-                  Text(this.aiEnabled ? "选择 AI 可读取的监护数据范围" : "开启 AI 助手后可设置")
+                  Text(this.aiSaving ? '正在保存到云端…' : !this.aiPolicyReady ? '权限未同步，点击重试'
+                    : '管理共享范围；切换后清空当前对话')
                     .fontSize(12)
                     .fontColor(this.themeManager.colors.secondaryTextColor)
                     .margin({ top: "2%" })
@@ -767,12 +820,17 @@ export struct person {
               .width("100%")
               .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
               .constraintSize({ minHeight: 64 })
-              .opacity(this.aiEnabled ? 1 : 0.5)
-              .enabled(this.aiEnabled)
+              .enabled(!this.aiSaving)
               .onClick((): void => {
+                if (!this.aiPolicyReady) {
+                  AiPermissionService.getInstance().sync().then((success: boolean) => {
+                    showToast(this.getUIContext(), { message: success ? '权限已同步，请再次点击设置' : '同步失败，请检查网络后重试' });
+                  });
+                  return;
+                }
                 showDialog(this.getUIContext(), {
                   title: "AI 分析权限",
-                  message: "深度照护：完整监护状态与精确记录\n隐私保护：仅脱敏统计摘要（默认）\n基础问答：不读取任何监护状态",
+                  message: '深度照护：统计、当前监护状态与最近事件精确时间\n隐私保护（默认）：近7天次数、距摔倒天数与设备在线状态\n基础问答：不附带监护数据\n\n问题和最近对话会经服务器交给云端 AI。自动隐藏常见手机号、身份证号和邮箱；请勿输入姓名、住址等私人信息。不会自动上传视频、人脸或地址。切换权限会清空当前对话。',
                   buttons: [
                     { text: "深度照护", color: "#2563eb" },
                     { text: "隐私保护", color: "#2563eb" },
@@ -783,13 +841,7 @@ export struct person {
                   const levels: string[] = ['full', 'privacy', 'basic'];
                   const selected = levels[result.index];
                   if (selected === undefined) return;
-                  this.aiAccessLevel = selected;
-                  DatabaseHelper.getInstance().saveSetting(
-                    UserManager.getInstance().getCurrentUsername(),
-                    STORE_KEY_AI_ACCESS_LEVEL,
-                    selected,
-                  );
-                  showToast(this.getUIContext(), { message: "AI 分析权限已更新" });
+                  if (selected !== this.aiAccessLevel) this.saveAiPermission(this.aiEnabled, selected);
                 });
               })
               Divider()
@@ -801,8 +853,8 @@ export struct person {
                     ? $r("app.media.ic_refresh_light")
                     : $r("app.media.ic_refresh_gray"),
                 )
-                  .width(36)
-                  .height(36)
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
                   .objectFit(ImageFit.Contain)
                   .padding(8)
                   .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
@@ -813,7 +865,7 @@ export struct person {
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.themeManager.colors.primaryTextColor)
-                  Text("释放存储空间，优化运行速度")
+                  Text(this.cacheSummary)
                     .fontSize(12)
                     .fontColor(this.themeManager.colors.secondaryTextColor)
                     .margin({ top: "2%" })
@@ -845,10 +897,9 @@ export struct person {
                   }, 150);
                 }
               })
-              .onClick((): void => {
-                this.mqttManager.clearAllCache();
-                showToast(this.getUIContext(), { message: "清理完成" });
-              })
+              .enabled(!this.cacheBusy)
+              .accessibilityText(this.cacheBusy ? '正在清理缓存，请稍候' : `清理缓存，${this.cacheSummary}`)
+              .onClick((): void => { this.clearAppCache(); })
               Divider()
                 .margin({ left: "15%", right: "4%" })
                 .color(this.themeManager.colors.separatorColor)
@@ -859,8 +910,8 @@ export struct person {
                     ? $r("app.media.ic_shield_light")
                     : $r("app.media.ic_shield_blue"),
                 )
-                  .width(36)
-                  .height(36)
+                  .width(ICON_FRAME_SIZE)
+                  .height(ICON_FRAME_SIZE)
                   .objectFit(ImageFit.Contain)
                   .padding(8)
                   .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
@@ -934,9 +985,9 @@ export struct person {
             }
             .width("92%")
             .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-            .borderRadius("4%")
+            .border({ width: 1, color: this.themeManager.colors.borderColor })
+            .borderRadius(SURFACE_RADIUS)
             .clip(true)
-            .shadow({ radius: 8, color: "#0000000F", offsetY: 4 })
           }.width("100%")
           Column({ space: 12 }) {
             Button("退出登录", { type: ButtonType.Capsule })

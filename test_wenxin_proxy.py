@@ -193,6 +193,13 @@ class AccountSessionSecurityTest(unittest.TestCase):
     def bearer(token):
         return {"Authorization": f"Bearer {token}"}
 
+    def ai_consent(self, tokens):
+        response = self.client.post('/api/ai/settings/save', headers=self.bearer(tokens['accessToken']),
+                                    json={'enabled': True, 'accessLevel': 'privacy', 'version': 0})
+        self.assertEqual(response.status_code, 200)
+        return {'policyVersion': response.get_json()['settings']['version'],
+                'context': {'accessLevel': 'privacy'}}
+
     def test_registration_is_closed_without_touching_database(self):
         send = self.client.post(
             "/api/otp/send",
@@ -989,7 +996,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
             response = self.client.post(
                 "/ai/chat",
                 headers=self.bearer(tokens["accessToken"]),
-                json={"message": "我想自杀"},
+                json={"message": "我想自杀", **self.ai_consent(tokens)},
             )
 
         self.assertEqual(response.status_code, 200)
@@ -1011,7 +1018,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
             response = self.client.post(
                 "/ai/chat",
                 headers=self.bearer(tokens["accessToken"]),
-                json={"message": "测试高风险输入"},
+                json={"message": "测试高风险输入", **self.ai_consent(tokens)},
             )
 
         self.assertEqual(response.status_code, 422)
@@ -1043,7 +1050,7 @@ class AccountSessionSecurityTest(unittest.TestCase):
             response = self.client.post(
                 "/ai/chat",
                 headers=self.bearer(tokens["accessToken"]),
-                json={"message": "如何改善睡眠"},
+                json={"message": "如何改善睡眠", **self.ai_consent(tokens)},
             )
 
         self.assertEqual(response.status_code, 200)
