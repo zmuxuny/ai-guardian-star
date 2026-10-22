@@ -69,6 +69,56 @@ class CleanupSchedulerTests(unittest.TestCase):
         self.assertTrue(media.exists())
         self.assertIsNotNone(self.store.get_recording("old-1"))
 
+    def continuous_store(self):
+        """独立 24 小时库：retention_hours=24 才会走滚动窗口口径。"""
+        root = Path(self.temp.name) / "continuous"
+        config = RecordingConfig(
+            enabled=True, data_root=root, storage_quota_bytes=64 * 1024 * 1024,
+            min_free_bytes=1, retention_hours=24)
+        initialize_storage(config)
+        store = HistoryStore(config)
+        self.addCleanup(store.close)
+        return config, store
+
+    def test_simulated_clock_proves_the_rolling_24_hour_window(self):
+        """离线验证 24 小时滚动淘汰：推进模拟时钟，不需要等一天。"""
+        config, store = self.continuous_store()
+        relpath = "recordings/2026-10-22/live.mp4"
+        store.start_segment("live-1", relpath, OLD_STARTED_AT)
+        media = config.data_root / relpath
+        media.parent.mkdir(parents=True, exist_ok=True)
+        media.write_bytes(b"SEGMENT")
+        store.finish_segment("live-1", OLD_STARTED_AT + 59, media.stat().st_size,
+                             relpath=relpath, duration_seconds=59.0)
+
+        simulated = [OLD_STARTED_AT + 60 * 60 * 23]  # 录制后 23 小时：未到期
+        scheduler = CleanupScheduler(store, 60, trusted_probe=lambda: True,
+                                     clock=lambda: simulated[0])
+        self.assertEqual(scheduler.run_once()["deleted"], 0)
+        self.assertTrue(media.exists())
+
+        simulated[0] = OLD_STARTED_AT + 60 * 60 * 25  # 录制后 25 小时：到期
+        self.assertEqual(scheduler.run_once()["deleted"], 1)
+        self.assertFalse(media.exists())
+
+    def test_simulated_clock_never_deletes_a_leased_segment(self):
+        config, store = self.continuous_store()
+        relpath = "recordings/2026-10-22/leased.mp4"
+        store.start_segment("leased-1", relpath, OLD_STARTED_AT)
+        media = config.data_root / relpath
+        media.parent.mkdir(parents=True, exist_ok=True)
+        media.write_bytes(b"SEGMENT")
+        store.finish_segment("leased-1", OLD_STARTED_AT + 59, media.stat().st_size,
+                             relpath=relpath, duration_seconds=59.0)
+        store.lease_recording("leased-1", 3600)
+        with store._write_lock, store._connection() as db:
+            db.execute("UPDATE recordings SET lease_until=? WHERE id=?",
+                       (OLD_STARTED_AT + 60 * 60 * 26, "leased-1"))
+        scheduler = CleanupScheduler(store, 60, trusted_probe=lambda: True,
+                                     clock=lambda: OLD_STARTED_AT + 60 * 60 * 25)
+        self.assertEqual(scheduler.run_once()["deleted"], 0)
+        self.assertTrue(media.exists())
+
     def test_start_and_stop_cycle(self):
         scheduler = CleanupScheduler(self.store, 60, trusted_probe=lambda: False)
         self.assertTrue(scheduler.start())

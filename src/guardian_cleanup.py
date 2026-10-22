@@ -33,11 +33,14 @@ class CleanupScheduler:
     """One daemon thread; failures are recorded, never raised into the service."""
 
     def __init__(self, store, interval_seconds, trusted_probe=system_clock_trusted,
-                 monotonic=time.monotonic):
+                 monotonic=time.monotonic, clock=time.time):
         self.store = store
         self.interval_seconds = max(10, int(interval_seconds))
         self._trusted_probe = trusted_probe
         self._monotonic = monotonic
+        # Injectable wall clock so retention can be verified offline by
+        # advancing simulated time instead of waiting 24 real hours.
+        self._clock = clock
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._wake = threading.Event()
@@ -81,7 +84,8 @@ class CleanupScheduler:
         from guardian_storage import cleanup_expired
         trusted = bool(self._trusted_probe())
         try:
-            summary = cleanup_expired(self.store, time_trusted=trusted, dry_run=dry_run)
+            summary = cleanup_expired(self.store, now=self._clock(),
+                                      time_trusted=trusted, dry_run=dry_run)
         except Exception as exc:
             summary = {"error": type(exc).__name__}
         with self._lock:
