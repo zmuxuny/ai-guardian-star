@@ -11,7 +11,7 @@
 | 安装与启动 | 上述 HAP 使用 `hdc install -r` 安装成功；`aa start` 成功并显示智护星主页。模拟器停止后重新启动，应用再次启动成功 | 通过 |
 | 基础页面 | 主页显示设备未连接；“记录”页可打开，提示当前账号未获准访问监护设备；“个人”页可打开 | 页面导航通过，设备业务未覆盖 |
 | 客户端认证契约 | `python -m unittest -q test_client_auth_contract.py`，21 项通过 | 通过 |
-| 其他 Python 测试 | `test_ai_permissions.py` 缺少本机 Python 包 `flask`，未能运行 | 未验证 |
+| AI 权限接口测试 | 使用临时 uv 环境安装 Flask、Flask-CORS、Requests 后运行 `test_ai_permissions.py`，22 项通过；测试使用隔离 SQLite 和模拟的模型调用 | 通过（离线测试） |
 | 签名 | `signingConfigs` 为空，模拟器允许安装未签名 HAP | 本次模拟器验收不要求正式签名 |
 | 权限、弱网及端到端 | 未取得可访问监护设备的测试账号/设备与后端环境；相机、麦克风权限和弱网业务链路未验收 | 未验证 |
 
