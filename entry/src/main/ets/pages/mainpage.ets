@@ -177,7 +177,7 @@ export struct mainPage {
   private showDeviceStatus(): void {
     this.getUIContext().showAlertDialog({
       title: '家中设备',
-      message: `视频服务：${this.deviceOnline ? '可访问' : '暂不可用'}\n告警通道：${this.mqttManager.isConnected ? '已连接' : '未连接'}\n设备消息：${this.mqttManager.deviceOnline ? '近期有更新' : '暂未收到近期消息'}`,
+      message: `视频服务：${this.deviceOnline ? '可访问' : '暂不可用'}\n告警通道：${this.mqttManager.isConnected ? '已连接' : '未连接'}\n开发板：${this.mqttManager.deviceOnline ? '在线' : '离线'}`,
       primaryButton: { value: '检查连接', action: (): void => { this.runHealthCheck(true); } },
       secondaryButton: { value: '关闭', action: (): void => {} },
     });

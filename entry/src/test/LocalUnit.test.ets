@@ -1,5 +1,6 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 import { getWindowSizeClass } from '../main/ets/common/ResponsiveLayout';
+import { EventType, parseAlert } from '../main/ets/common/MqttParser';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -36,6 +37,11 @@ export default function localUnitTest() {
       expect(getWindowSizeClass(600)).assertEqual('medium');
       expect(getWindowSizeClass(839)).assertEqual('medium');
       expect(getWindowSizeClass(840)).assertEqual('expanded');
+    });
+    it('classifies heartbeat without treating it as a normal monitoring event', 0, () => {
+      const heartbeat = parseAlert('{"event":"heartbeat","deviceId":"ascend_board"}');
+      expect(heartbeat.type).assertEqual(EventType.HEARTBEAT);
+      expect(heartbeat.raw).assertEqual('heartbeat');
     });
   });
 }

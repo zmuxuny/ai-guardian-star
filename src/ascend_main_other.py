@@ -28,6 +28,7 @@ if current_file_dir not in sys.path:
 
 # 导入本地模块
 from ascend_video_stream import start_stream, update_frame
+from guardian_heartbeat import MqttHeartbeatPublisher, heartbeat_interval
 from guardian_runtime import StationaryTimer, create_mqtt_client
 from guardian_face_quality import (assess_face_image, enhance_face_image, expire_face_wait,
                                    SAMPLE_INTERVAL, BEST_CROP_TTL)
@@ -93,6 +94,10 @@ STRANGER_ALERT_TOPIC = "ai_guardian/alerts/stranger"
 SIT_ALERT_TOPIC = "ai_guardian/alerts/sit"
 RECORD_READY_TOPIC = "ai_guardian/recordings/ready"
 FACE_ALERT_TOPIC = "ai_guardian/alerts/face"
+HEARTBEAT_TOPIC = "ai_guardian/alerts/heartbeat"
+HEARTBEAT_INTERVAL_SECONDS = heartbeat_interval(
+    os.environ.get("AI_GUARDIAN_HEARTBEAT_SECONDS", "10")
+)
 DEVICE_ID = "ascend_board"
 KNOWN_FACE_DIR = os.path.join(current_file_dir, "known_faces")
 FACE_DEBUG_DIR = os.path.join(current_file_dir, "debug_faces")
@@ -2715,10 +2720,23 @@ def run_stream_and_infer(camera_index=0, model_path=None):
     # 3. 初始化推理与MQTT
     mqtt_client = MQTTAlertClient()
     detector = AclLiteStreamDetector(model_path=model_path or MODEL_PATH, camera_index=camera_index)
+    heartbeat = None
 
     if not detector.init():
         detector.release_acl()
         return
+
+    heartbeat = MqttHeartbeatPublisher(
+        mqtt_client.client,
+        HEARTBEAT_TOPIC,
+        DEVICE_ID,
+        lambda: {
+            "cameraConnected": detector.camera_is_live(),
+            "aiRunning": detector.running and detector.inference_enabled,
+        },
+        interval_seconds=HEARTBEAT_INTERVAL_SECONDS,
+    )
+    heartbeat.start()
 
     # 4. 主循环：只负责视频推理，音频在后台线程跑
     print("🚀 Main Inference Loop Started...")
@@ -2739,6 +2757,8 @@ def run_stream_and_infer(camera_index=0, model_path=None):
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
+        if heartbeat is not None:
+            heartbeat.stop()
         detector.stop()
         detector.release_acl()
         audio_hw.stop_audio_service()

@@ -49,6 +49,11 @@
     password
     clientId
     topic
+    event
+    deviceId
+    sequence
+    cameraConnected
+    aiRunning
     avatarVersion
     challengeId
     hasAvatar

@@ -5,6 +5,7 @@ export enum EventType {
   FALL = 'fall',
   SEDENTARY = 'sedentary',
   STRANGER = 'stranger',
+  HEARTBEAT = 'heartbeat',
   NORMAL = 'normal',
   UNKNOWN = 'unknown',
 }
@@ -33,8 +34,11 @@ export function parseAlert(payload: string | ArrayBuffer): AlertResult {
   if (!content) return { type: EventType.UNKNOWN, raw: '' };
 
   try {
-    const data = JSON.parse(content) as Record<string, string | number>;
+    const data = JSON.parse(content) as Record<string, string | number | boolean>;
     const eventField = String(data.event ?? data.alert_type ?? data.type ?? '').toLowerCase().trim();
+    if (eventField === 'heartbeat') {
+      return { type: EventType.HEARTBEAT, raw: eventField };
+    }
     if (eventField === '' || eventField === 'null' || eventField === 'none') {
       return { type: EventType.NORMAL, raw: eventField };
     }

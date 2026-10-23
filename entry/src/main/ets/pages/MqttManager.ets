@@ -39,7 +39,7 @@ export class MqttManager {
   private mqttClient: MqttClient | null = null;
 
   @Track public isConnected: boolean = false;
-  @Track public deviceOnline: boolean = false; // 开发板是否在线（20秒超时）
+  @Track public deviceOnline: boolean = false; // 开发板是否在线（30秒心跳超时）
   @Track public latestMessage: string = "正在启动...";
   @Track public isFallDetected: boolean = false;
   @Track public fallTimestamp: number = 0;
@@ -59,7 +59,7 @@ export class MqttManager {
   private lastRecordedFallTimestamp: number = 0;
   private lastRecordedSedentaryTimestamp: number = 0;
   private lastDeviceActivity: number = 0;
-  private readonly DEVICE_TIMEOUT_MS: number = 20000; // 20秒无消息视为离线
+  private readonly DEVICE_TIMEOUT_MS: number = 30000; // 连续错过三次10秒心跳后视为离线
   private deviceCheckTimer: number = -1; // 用于定期检查设备在线状态
 
   private reconnectTimer: number = -1;
@@ -301,10 +301,6 @@ export class MqttManager {
   }
 
   private handleMessage(topic: string, payload: string | ArrayBuffer) {
-    if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
-      this.lastDeviceActivity = Date.now();
-    }
-
     const content = payloadToString(payload);
     if (!content) {
       console.warn('[mqtt]: 解码失败:', topic);
@@ -313,6 +309,12 @@ export class MqttManager {
 
     const alert = parseAlert(content);
     if (alert.type === EventType.UNKNOWN) return;
+
+    if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
+      this.lastDeviceActivity = Date.now();
+      this.deviceOnline = true;
+    }
+    if (alert.type === EventType.HEARTBEAT) return;
 
     try {
       if (alert.type === EventType.FALL) {
