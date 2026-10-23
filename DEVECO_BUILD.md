@@ -11,20 +11,23 @@
 
 ## 2. 当前机器与项目配置
 
-- 项目目录：`E:\caringSystem`
-- DevEco Studio：`E:\DevEco Studio`
-- Hvigor：`E:\DevEco Studio\tools\hvigor\bin\hvigorw.bat`
-- Hvigor 版本：`6.24.3`
-- SDK：`E:\DevEco Studio\sdk`
-- HarmonyOS SDK：`6.1.1(24)` / API 24（2026-09-08 用户确认目标与最低兼容版本统一为 24）
+- 项目目录：`C:\Users\Yang\Documents\ChatGPT\zhihuixing`
+- DevEco Studio：`C:\Program Files\Huawei\DevEco Studio`
+- Hvigor：`C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat`
+- Hvigor 版本：`6.26.8`
+- SDK：`C:\Program Files\Huawei\DevEco Studio\sdk`
+- Java：`C:\Program Files\Huawei\DevEco Studio\jbr\bin\java.exe`
+- 项目目标与最低兼容版本：`6.1.1(24)` / API 24（2026-09-08 用户确认）；本机当前检测到的 SDK 为 API 26，尚未检测到 API 24。
 - 应用版本：读取 `AppScope/app.json5` 中的 `versionName` 和 `versionCode`
 - 签名：读取根目录 `build-profile.json5` 的 `default` 配置
+
+当前合并候选的已提交版本缺少 Hvigor 项目文件、页面配置和部分资源。2026-10-23 已从仓库历史恢复这些文件到本机备份工作区，并用本机 API 26 SDK 成功构建目标 API 24 的 **未签名** Release HAP；`signingConfigs` 仍为空。该 HAP 已在 API 24 模拟器安装、启动并完成基础导航检查。正式发布前仍需配置有效签名，`Circle.fill` 的 API 24 兼容性也尚待覆盖相关页面验证；详见 `docs/HARMONY_ACCEPTANCE_20261023.md`。
 
 换电脑时只替换 DevEco、项目和签名材料路径，不要改构建任务名。签名密码、私钥、Profile、证书内容禁止输出到聊天、日志或提交到 Git。
 
 ## 3. DevEco Studio 图形界面流程
 
-1. 用 DevEco Studio 打开 `E:\caringSystem`。
+1. 用 DevEco Studio 打开 `C:\Users\Yang\Documents\ChatGPT\zhihuixing`。
 2. 执行 `File > Sync and Refresh Project`，等待同步成功。
 3. 确认 Product 为 `default`，Build Mode 为 `release`，签名配置无红色报错。
 4. 构建 HAP：`Build > Build Hap(s)/APP(s) > Build Hap(s)`。
@@ -42,14 +45,16 @@
 以下整块原样粘贴：
 
 ```powershell
-$DevEcoHome = 'E:\DevEco Studio'
-$ProjectRoot = 'E:\caringSystem'
+$DevEcoHome = 'C:\Program Files\Huawei\DevEco Studio'
+$ProjectRoot = 'C:\Users\Yang\Documents\ChatGPT\zhihuixing'
 $Node = Join-Path $DevEcoHome 'tools\node\node.exe'
 $Ohpm = Join-Path $DevEcoHome 'tools\ohpm\bin\pm-cli.js'
 $Hvigor = Join-Path $DevEcoHome 'tools\hvigor\bin\hvigorw.bat'
 $env:DEVECO_SDK_HOME = Join-Path $DevEcoHome 'sdk'
+$env:JAVA_HOME = Join-Path $DevEcoHome 'jbr'
+$env:Path = (Join-Path $env:JAVA_HOME 'bin') + ';' + $env:Path
 
-foreach ($Tool in @($Node, $Ohpm, $Hvigor, $env:DEVECO_SDK_HOME)) {
+foreach ($Tool in @($Node, $Ohpm, $Hvigor, $env:DEVECO_SDK_HOME, (Join-Path $env:JAVA_HOME 'bin\java.exe'))) {
   if (-not (Test-Path -LiteralPath $Tool)) { throw "缺少构建工具或 SDK：$Tool" }
 }
 
