@@ -21,7 +21,7 @@
 - 应用版本：读取 `AppScope/app.json5` 中的 `versionName` 和 `versionCode`
 - 签名：读取根目录 `build-profile.json5` 的 `default` 配置
 
-当前合并候选的已提交版本缺少 Hvigor 项目文件、页面配置和部分资源。2026-10-23 已从仓库历史恢复这些文件到本机备份工作区，并用本机 API 26 SDK 成功构建目标 API 24 的 **未签名** Release HAP；`signingConfigs` 仍为空。该 HAP 已在 API 24 模拟器安装、启动并完成基础导航检查。正式发布前仍需配置有效签名，`Circle.fill` 的 API 24 兼容性也尚待覆盖相关页面验证；详见 `docs/HARMONY_ACCEPTANCE_20261023.md`。
+当前合并候选的已提交版本原先缺少 Hvigor 项目文件、页面配置和部分资源。2026-10-23 已从仓库历史恢复这些文件到本机备份工作区，并用本机 API 26 SDK 成功构建目标 API 24 的 **未签名** Release HAP；`signingConfigs` 仍为空。该 HAP 已在 API 24 模拟器安装、启动并完成基础导航检查。已替换要求 API 26 的 `Circle.fill` 用法并重新构建；AI、音频和设备业务路径仍需单独验收。正式发布前还需配置有效签名；详见 `docs/HARMONY_ACCEPTANCE_20261023.md`。
 
 换电脑时只替换 DevEco、项目和签名材料路径，不要改构建任务名。签名密码、私钥、Profile、证书内容禁止输出到聊天、日志或提交到 Git。
 

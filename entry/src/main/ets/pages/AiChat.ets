@@ -170,7 +170,7 @@ export struct AiChat {
           .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
         Blank()
         Row({ space: 6 }) {
-          Circle({ width: 8, height: 8 }).fill('#4ade80')
+          Text(' ').width(8).height(8).backgroundColor('#4ade80').borderRadius(4)
           Text(
             `云端 AI · ${this.aiAccessLevel === 'full' ? '深度照护'
               : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
@@ -215,8 +215,8 @@ export struct AiChat {
         .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
       Row({ space: 5 }) {
         ForEach([0, 1, 2], (i: number) => {
-          Circle({ width: 7, height: 7 })
-            .fill(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+          Text(' ').width(7).height(7)
+            .backgroundColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8').borderRadius(4)
             .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
             .animation({ duration: 350, curve: Curve.EaseInOut })
         })

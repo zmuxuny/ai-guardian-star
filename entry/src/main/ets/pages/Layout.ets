@@ -61,7 +61,7 @@ export struct Layout {
         .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Medium)
         .opacity(1.0)
         .animation({ duration: 220, curve: Curve.EaseOut })
-      Circle({ width: 4, height: 4 }).fill("#2563eb")
+      Text(' ').width(4).height(4).backgroundColor("#2563eb").borderRadius(2)
         .margin({ top: 3 })
         .scale({ x: this.currentIndex === index ? 1.0 : 0.0,
                  y: this.currentIndex === index ? 1.0 : 0.0 })
