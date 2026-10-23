@@ -10,21 +10,12 @@ export const ECS_VIDEO_PORT = 6001;
 export const ECS_MQTT_PORT = 8883;
 export const ECS_WS_PORT = 6000;
 
-// ── 局域网开发板 ────────────────────────────────────────────
-export const LAN_HOST = "192.168.137.100";
-export const LAN_UPLOAD_PORT = 8080;
-
 // ── 派生 URL ───────────────────────────────────────────────
 export const ECS_BASE_URL = "https://api.aistar.asia";
 export const VIDEO_FEED_URL = `${ECS_BASE_URL}/video_feed`;
 export const HEALTH_CHECK_URL = `${ECS_BASE_URL}/api/stats`;
 export const BROKER_URL = `ssl://${ECS_HOST}:${ECS_MQTT_PORT}`;
 export const WS_INTERCOM_URL = "wss://api.aistar.asia/ws/intercom";
-export const BOARD_UPLOAD_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/upload`;
-export const BOARD_FACE_ENROLL_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/enroll`;
-export const BOARD_FACE_LIST_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/list`;
-export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face`;
-
 // ── MQTT ────────────────────────────────────────────────────
 export const ALERT_TOPIC = "ai_guardian/alerts/#";
 // MQTT 登录后领取仅订阅告警的短期凭据；只驻留内存，退出即清理。

@@ -20,6 +20,8 @@ required=(
     admin_panel.html
     security_utils.py
     mqtt_access.py
+    face_api.py
+    board_face_bridge.py
     requirements-production.txt
     requirements-moderation.txt
     requirements-sms.txt
@@ -61,6 +63,13 @@ if [[ -f /root/mqtt_access.py ]]; then
 else
     touch "$rollback_dir/mqtt_access.py.missing"
 fi
+for file in face_api.py board_face_bridge.py; do
+    if [[ -f "/root/$file" ]]; then
+        cp -a "/root/$file" "$rollback_dir/$file"
+    else
+        touch "$rollback_dir/$file.missing"
+    fi
+done
 cp -a /etc/systemd/system/wenxin.service "$rollback_dir/wenxin.service"
 cp -a /etc/systemd/system/wenxin-sqlite-backup.service "$rollback_dir/wenxin-sqlite-backup.service"
 cp -a /etc/systemd/system/wenxin-sqlite-backup.timer "$rollback_dir/wenxin-sqlite-backup.timer"
@@ -95,6 +104,13 @@ rollback() {
     else
         cp -a "$rollback_dir/mqtt_access.py" /root/mqtt_access.py
     fi
+    for file in face_api.py board_face_bridge.py; do
+        if [[ -f "$rollback_dir/$file.missing" ]]; then
+            rm -f "/root/$file"
+        else
+            cp -a "$rollback_dir/$file" "/root/$file"
+        fi
+    done
     cp -a "$rollback_dir/wenxin.service" /etc/systemd/system/wenxin.service
     cp -a "$rollback_dir/wenxin-sqlite-backup.service" /etc/systemd/system/wenxin-sqlite-backup.service
     cp -a "$rollback_dir/wenxin-sqlite-backup.timer" /etc/systemd/system/wenxin-sqlite-backup.timer
@@ -121,6 +137,7 @@ trap rollback ERR
 
 python3 -m py_compile "$release_dir/wenxin_proxy.py" \
     "$release_dir/security_utils.py" "$release_dir/mqtt_access.py" \
+    "$release_dir/face_api.py" "$release_dir/board_face_bridge.py" \
     "$release_dir/deploy/sqlite_maintenance.py"
 python3 -m pip install --disable-pip-version-check \
     --requirement "$release_dir/requirements-production.txt"
@@ -129,6 +146,8 @@ install -m 644 "$release_dir/wenxin_proxy.py" /root/wenxin_proxy.py
 install -m 644 "$release_dir/admin_panel.html" /root/admin_panel.html
 install -m 644 "$release_dir/security_utils.py" /root/security_utils.py
 install -m 644 "$release_dir/mqtt_access.py" /root/mqtt_access.py
+install -m 644 "$release_dir/face_api.py" /root/face_api.py
+install -m 644 "$release_dir/board_face_bridge.py" /root/board_face_bridge.py
 install -d -m 755 /usr/local/lib/wenxin
 install -m 755 "$release_dir/deploy/sqlite_maintenance.py" \
     /usr/local/lib/wenxin/sqlite_maintenance.py

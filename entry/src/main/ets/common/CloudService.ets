@@ -30,6 +30,9 @@ export interface CloudResult {
   mimeType?: string;
   updatedAt?: number;
   credentials?: MqttCredentials;
+  recognitionStatus?: string;
+  photoCount?: number;
+  hint?: string;
 }
 
 export interface MqttCredentials {
@@ -317,6 +320,59 @@ export class CloudService {
 
   public async authenticatedPost(path: string, body: Object, readTimeout: number = 10000): Promise<CloudHttpResponse> {
     return this.requestRaw(path, http.RequestMethod.POST, body, true, readTimeout, true);
+  }
+
+  private async requestFaceEnrollment(name: string, image: ArrayBuffer,
+    retryAfterRefresh: boolean): Promise<CloudHttpResponse> {
+    const token = this.accessToken;
+    if (token === '') return { responseCode: 401, result: '{"success":false,"message":"未登录"}' };
+    const boundary = 'GuardianBoundary' + Date.now().toString();
+    const encoder = new util.TextEncoder();
+    const namePart = encoder.encodeInto('--' + boundary + '\r\n'
+      + 'Content-Disposition: form-data; name="name"\r\n\r\n' + name + '\r\n').buffer as ArrayBuffer;
+    const fileHeader = encoder.encodeInto('--' + boundary + '\r\n'
+      + 'Content-Disposition: form-data; name="file"; filename="face.jpg"\r\n'
+      + 'Content-Type: image/jpeg\r\n\r\n').buffer as ArrayBuffer;
+    const tail = encoder.encodeInto('\r\n--' + boundary + '--\r\n').buffer as ArrayBuffer;
+    const merged = new Uint8Array(namePart.byteLength + fileHeader.byteLength + image.byteLength + tail.byteLength);
+    let offset = 0;
+    for (const part of [namePart, fileHeader, image, tail]) {
+      merged.set(new Uint8Array(part), offset);
+      offset += part.byteLength;
+    }
+
+    const req = http.createHttp();
+    let response: CloudHttpResponse;
+    try {
+      const raw = await req.request(ECS_BASE_URL + '/api/face/enroll', {
+        method: http.RequestMethod.POST,
+        header: {
+          'Content-Type': 'multipart/form-data; boundary=' + boundary,
+          'Authorization': 'Bearer ' + token,
+        },
+        extraData: merged.buffer as ArrayBuffer,
+        connectTimeout: 10000,
+        readTimeout: 45000,
+        expectDataType: http.HttpDataType.STRING,
+      });
+      response = { responseCode: raw.responseCode, result: raw.result as string };
+    } catch (_e) {
+      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}' };
+    } finally {
+      req.destroy();
+    }
+    if (response.responseCode === 401 && retryAfterRefresh && await this.refreshSession(token)) {
+      return this.requestFaceEnrollment(name, image, false);
+    }
+    if (response.responseCode === 401 && !retryAfterRefresh) {
+      await this.clearPersistedSession();
+      this.clearSession();
+    }
+    return response;
+  }
+
+  public async enrollFace(name: string, image: ArrayBuffer): Promise<CloudResult> {
+    return this.parseResult(await this.requestFaceEnrollment(name, image, true));
   }
 
   /** Download only the recording API into a private app cache file; tokens stay in memory. */

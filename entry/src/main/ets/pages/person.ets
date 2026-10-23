@@ -21,13 +21,11 @@ import { UserManager } from "../common/UserManager";
 import cameraPicker from "@ohos.multimedia.cameraPicker";
 import camera from "@ohos.multimedia.camera";
 import fs from "@ohos.file.fs";
-import http from "@ohos.net.http";
-import { BOARD_UPLOAD_URL, BOARD_FACE_ENROLL_URL, STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
+import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
 import { AiPermissionService } from '../common/AiPermissionService';
 import { STORE_KEY_AI_POLICY_READY } from '../config';
 import { fileUri } from "@kit.CoreFileKit";
-import { util } from "@kit.ArkTS";
 import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
 import { CacheManager } from '../common/CacheManager';
 @Builder
@@ -337,7 +335,6 @@ export struct person {
 
     const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
     await this.cacheManager.retain(sandboxPath);
-    let httpRequest = http.createHttp();
 
     try {
       // Step 2: 预创建沙箱文件
@@ -367,63 +364,28 @@ export struct person {
         fs.closeSync(file);
         throw new Error('照片文件为空');
       }
+      if (fileStat.size > 8 * 1024 * 1024) {
+        fs.closeSync(file);
+        showToast(this.getUIContext(), { message: '照片不能超过 8 MiB' });
+        return;
+      }
       let buffer = new ArrayBuffer(fileStat.size);
       fs.readSync(file.fd, buffer);
       fs.closeSync(file);
 
       showToast(this.getUIContext(), { message: '正在上传人脸信息...' });
-
-      // Step 5: 构造 multipart/form-data 手动拼装
-      // ArkTS http 模块不支持 FormData，手动拼 boundary
-      const boundary = 'GuardianBoundary' + Date.now().toString();
-      const nameField = '--' + boundary + '\r\n'
-        + 'Content-Disposition: form-data; name="name"\r\n\r\n'
-        + enrollName + '\r\n';
-      const userIdField = '--' + boundary + '\r\n'
-        + 'Content-Disposition: form-data; name="user_id"\r\n\r\n'
-        + (this.userName ?? 'unknown') + '\r\n';
-      const fileHeader = '--' + boundary + '\r\n'
-        + 'Content-Disposition: form-data; name="file"; filename="face.jpg"\r\n'
-        + 'Content-Type: image/jpeg\r\n\r\n';
-      const tail = '\r\n--' + boundary + '--\r\n';
-
-      // 编码各部分为 Uint8Array 再合并
-      const encoder = new util.TextEncoder();
-      const namePart = encoder.encodeInto(nameField).buffer as ArrayBuffer;
-      const userIdPart = encoder.encodeInto(userIdField).buffer as ArrayBuffer;
-      const headerPart = encoder.encodeInto(fileHeader).buffer as ArrayBuffer;
-      const tailPart = encoder.encodeInto(tail).buffer as ArrayBuffer;
-
-      const totalLen = namePart.byteLength + userIdPart.byteLength
-        + headerPart.byteLength + buffer.byteLength + tailPart.byteLength;
-      const merged = new Uint8Array(totalLen);
-      let offset = 0;
-      for (const part of [namePart, userIdPart, headerPart, buffer, tailPart]) {
-        merged.set(new Uint8Array(part), offset);
-        offset += part.byteLength;
-      }
-
-      // Step 6: 发送到板子
-      let response = await httpRequest.request(BOARD_FACE_ENROLL_URL, {
-        method: http.RequestMethod.POST,
-        header: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
-        extraData: merged.buffer as ArrayBuffer,
-        connectTimeout: 10000,
-        readTimeout: 10000,
-      });
-
-      if (response.responseCode === 200) {
+      const result = await CloudService.getInstance().enrollFace(enrollName, buffer);
+      if (result.success) {
         showToast(this.getUIContext(), { message: '人脸录入成功！开发板已更新识别库' });
         console.log('[person]: 人脸录入成功 name=' + enrollName);
       } else {
-        showToast(this.getUIContext(), { message: '上传失败，状态码: ' + response.responseCode });
-        console.warn('[person]: 人脸上传失败 code=' + response.responseCode + ' body=' + response.result);
+        showToast(this.getUIContext(), { message: result.message || '人脸录入失败，请重试' });
+        console.warn('[person]: 人脸上传失败 message=' + result.message);
       }
     } catch (error) {
       console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
       showToast(this.getUIContext(), { message: '操作失败，请重试' });
     } finally {
-      httpRequest.destroy();
       try {
         fs.unlinkSync(sandboxPath);
         console.log('[person]: 人脸临时文件已销毁');

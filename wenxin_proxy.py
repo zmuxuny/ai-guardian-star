@@ -413,7 +413,9 @@ def bearer_required(function):
 
 
 from recording_api import register_recording_routes
+from face_api import register_face_routes
 register_recording_routes(app, bearer_required)
+register_face_routes(app, bearer_required)
 register_address_routes(app, bearer_required, get_db)
 register_ai_permission_routes(app, bearer_required, get_db)
 
