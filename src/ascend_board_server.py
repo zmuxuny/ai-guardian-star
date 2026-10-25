@@ -28,6 +28,7 @@ from guardian_continuous import ContinuousCaptureSink
 from guardian_ffmpeg_backend import create_backend
 from guardian_cleanup import CleanupScheduler
 from guardian_history_api import create_history_router
+from guardian_heartbeat import MqttHeartbeatPublisher, heartbeat_interval
 try:
     import ascend_voice_stream as audio_hw
 except Exception:
@@ -51,6 +52,7 @@ history_store = None
 event_cache = None
 cleanup_scheduler = None
 alert_mqtt = None
+heartbeat_publisher = None
 continuous_store = None
 continuous_recorder = None
 continuous_cleanup = None
@@ -710,11 +712,14 @@ def udp_receive_thread():
 
 
 def cleanup_system():
-    global system_detector, shutdown_started, udp_socket
+    global system_detector, shutdown_started, udp_socket, heartbeat_publisher
     with shutdown_lock:
         if shutdown_started:
             return
         shutdown_started = True
+    if heartbeat_publisher is not None:
+        heartbeat_publisher.stop()
+        heartbeat_publisher = None
     if system_detector is not None:
         try:
             system_detector.stop()
@@ -873,7 +878,7 @@ def run_system():
         continuous_store = continuous_recorder = continuous_cleanup = None
 
     def inference_loop():
-        global system_detector, video_frame_started_at
+        global system_detector, video_frame_started_at, heartbeat_publisher
         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
         if continuous_recorder is not None:
             detector.on_captured_frame = ContinuousCaptureSink(
@@ -882,6 +887,19 @@ def run_system():
         mqtt_client = MQTTAlertClient()
         global alert_mqtt
         alert_mqtt = mqtt_client
+        heartbeat_publisher = MqttHeartbeatPublisher(
+            mqtt_client.client,
+            "ai_guardian/alerts/heartbeat",
+            "ascend_board",
+            lambda: {
+                "cameraConnected": detector.camera_is_live(),
+                "aiRunning": detector.running and detector.inference_enabled,
+            },
+            interval_seconds=heartbeat_interval(
+                os.environ.get("AI_GUARDIAN_HEARTBEAT_SECONDS", "10")
+            ),
+        )
+        heartbeat_publisher.start()
         _fps_count = 0
         _fps_timer = time.time()
         event_tracker = AlertEpisodeTracker()

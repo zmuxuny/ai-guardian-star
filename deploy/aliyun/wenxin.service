@@ -8,6 +8,7 @@ Type=simple
 WorkingDirectory=/opt/wenxin/app
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/etc/wenxin/admin.env
+EnvironmentFile=-/etc/wenxin/board-recording.env
 EnvironmentFile=-/etc/wenxin/aliyun-moderation.env
 EnvironmentFile=-/etc/wenxin/aliyun-sms.env
 EnvironmentFile=-/etc/wenxin/coze.env
