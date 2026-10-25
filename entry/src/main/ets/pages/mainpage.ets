@@ -66,6 +66,7 @@ export struct mainPage {
   private healthCheckTimer: number = -1;
   private readonly healthCheckUrl: string = HEALTH_CHECK_URL;
   private webController: webview.WebviewController = new webview.WebviewController();
+  private videoFitAttempt: number = 0;
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
   private context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
 
@@ -85,6 +86,46 @@ export struct mainPage {
   }
   onPageShow(): void {
     this.loadHomeEvents();
+  }
+
+  /** 实时画面是裸 MJPEG 文档，浏览器按图像原始像素居中显示，四周留黑边；这里让它铺满预留画面区。 */
+  private fitVideoDocument(): void {
+    const script = `(() => {
+      const body = document.body;
+      const image = document.querySelector('img');
+      if (!body || !image) return 'wait';
+      const root = document.documentElement;
+      root.style.margin = '0';
+      root.style.padding = '0';
+      root.style.overflow = 'hidden';
+      root.style.background = '#0f172a';
+      body.style.margin = '0';
+      body.style.padding = '0';
+      body.style.overflow = 'hidden';
+      body.style.height = '100vh';
+      body.style.background = '#0f172a';
+      image.style.display = 'block';
+      image.style.width = '100vw';
+      image.style.height = '100vh';
+      image.style.maxWidth = 'none';
+      image.style.maxHeight = 'none';
+      image.style.margin = '0';
+      image.style.objectFit = 'cover';
+      return 'ok';
+    })()`;
+    this.webController.runJavaScript(script).then((result: string): void => {
+      if (result === 'ok') {
+        this.videoFitAttempt = 0;
+        return;
+      }
+      this.retryFitVideoDocument();
+    }).catch((): void => { this.retryFitVideoDocument(); });
+  }
+
+  private retryFitVideoDocument(): void {
+    if (this.videoFitAttempt >= 25) return;
+    this.videoFitAttempt++;
+    setTimeout((): void => { this.fitVideoDocument(); }, 300);
   }
 
   private async loadHomeEvents(): Promise<void> {
@@ -279,6 +320,10 @@ export struct mainPage {
       if (this.deviceOnline) {
         Web({ src: this.videoUrl, controller: this.webController })
           .width('100%').height('100%').borderRadius(SURFACE_RADIUS)
+          .onPageBegin((): void => {
+            this.videoFitAttempt = 0;
+            this.fitVideoDocument();
+          })
         if (this.compactVideoProgress === 0 || this.expandedVideo) {
         Row({ space: 6 }) {
           Row().width(7).height(7).borderRadius(4).backgroundColor('#60a5fa')
