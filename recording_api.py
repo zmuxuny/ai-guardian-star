@@ -9,6 +9,7 @@ from recording_store import ROOT, DAY, connect, snapshot
 import board_recording_bridge as board_bridge
 
 FFMPEG = os.environ.get('RECORDING_FFMPEG', '/opt/guardian-ffmpeg/bin/ffmpeg')
+RETENTION_MS = 7 * DAY
 
 
 def register_recording_routes(app, bearer_required):
@@ -24,14 +25,14 @@ def register_recording_routes(app, bearer_required):
         if not isinstance(data, dict):
             return jsonify(success=False, message='请求格式无效'), 400
         kind = data.get('filter', 'all')
-        if kind not in ('all', 'fall', 'sedentary'):
+        if kind not in ('all', 'fall', 'sedentary', 'stranger'):
             return jsonify(success=False, message='录像筛选类型无效'), 400
         try:
             as_of = int(data.get('asOf', time.time() * 1000))
-            if as_of < int(time.time() * 1000) - DAY:
+            if as_of < int(time.time() * 1000) - RETENTION_MS:
                 raise ValueError()
         except (ValueError, TypeError, OverflowError):
-            return jsonify(success=False, message='请刷新查看最近24小时录像'), 400
+            return jsonify(success=False, message='请刷新查看近7天异常录像'), 400
         try:
             result = board_bridge.snapshot(as_of, kind) if board_bridge.configured() else snapshot(as_of, kind)
         except board_bridge.BoardRecordingUnavailable:
@@ -50,7 +51,7 @@ def register_recording_routes(app, bearer_required):
             return jsonify(success=False, message='请求格式无效'), 400
         try:
             kind = data['filter']
-            if kind not in ('all', 'fall', 'sedentary'):
+            if kind not in ('all', 'fall', 'sedentary', 'stranger'):
                 raise ValueError()
             result = (board_bridge.snapshot(int(data['asOf']), kind)
                       if board_bridge.configured() else snapshot(int(data['asOf']), kind))
@@ -61,6 +62,8 @@ def register_recording_routes(app, bearer_required):
             clip = None
         if not clip:
             return jsonify(success=False, message='录像已过期或不在筛选范围，请刷新'), 404
+        if not clip.get('downloadable', True) or not clip.get('segmentId'):
+            return jsonify(success=False, message='异常视频正在生成，请稍后刷新'), 429
         if board_bridge.configured():
             try:
                 source = board_bridge.open_media(clip['segmentId'])

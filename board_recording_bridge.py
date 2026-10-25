@@ -13,6 +13,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 DAY = 86_400_000
+RETENTION_MS = 7 * DAY
 PAGE = 200
 MAX_PAGES = 12
 
@@ -68,8 +69,10 @@ def _ms(value):
     return int(datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp() * 1000)
 
 
-def _pages(path, start, end):
+def _pages(path, start, end, extra=None):
     query = {'start': _iso(start), 'end': _iso(end), 'limit': PAGE}
+    if extra:
+        query.update(extra)
     for page in range(MAX_PAGES):
         query['offset'] = page * PAGE
         result = _get_json(path, query)
@@ -85,52 +88,53 @@ def _pages(path, start, end):
 def snapshot(as_of, kind):
     now = int(time.time() * 1000)
     as_of = min(int(as_of), now)
-    available_start = max(as_of - DAY, now - DAY)
+    available_start = max(as_of - RETENTION_MS, now - RETENTION_MS)
     end = as_of
     if end <= available_start:
-        return {'success': True, 'asOf': as_of, 'windowStart': as_of - DAY,
+        return {'success': True, 'asOf': as_of, 'windowStart': as_of - RETENTION_MS,
                 'windowEnd': end, 'status': 'waiting', 'clips': [], 'eventCount': 0,
-                'wholeSegments': True}
-    status = _get_json('/api/continuous/status')
-    rows = list(_pages('/api/continuous/recordings', available_start, end))
-    events = list(_pages('/api/history/events', available_start - 60_000, end)) if kind != 'all' else []
+                'wholeSegments': False}
+    status = _get_json('/api/history/status')
     target_kind = 'sit' if kind == 'sedentary' else kind
-    windows = []
+    query = {} if kind == 'all' else {'kind': target_kind}
+    events = list(_pages('/api/history/events', available_start, end, query))
+    clips = []
     for event in events:
-        if event.get('kind') != target_kind:
-            continue
         try:
             start_ms = _ms(event['started_at'])
             end_ms = _ms(event['ended_at']) if event.get('ended_at') else start_ms
-            windows.append((start_ms - 60_000, end_ms + 60_000))
-        except (KeyError, TypeError, ValueError):
-            continue
-    clips = []
-    for row in rows:
-        if row.get('state') != 'complete':
-            continue
-        try:
-            start_ms, end_ms = _ms(row['started_at']), _ms(row['ended_at'])
-            clip_id = row['id']
-            if not isinstance(clip_id, str) or not clip_id.isascii() or not clip_id.isalnum():
+            event_id = event['id']
+            event_kind = event['kind']
+            if (not isinstance(event_id, str) or not event_id.isascii()
+                    or not all(character.isalnum() or character in '_-' for character in event_id)
+                    or event_kind not in ('fall', 'sit', 'stranger')):
                 continue
         except (KeyError, TypeError, ValueError):
             continue
-        # Never expose a complete segment that crosses the 24-hour boundary.
-        if start_ms < available_start or end_ms > end or end_ms <= start_ms:
+        try:
+            detail = _get_json('/api/history/events/' + event_id)
+        except BoardRecordingUnavailable:
             continue
-        if kind != 'all' and not any(start_ms < right and end_ms > left for left, right in windows):
-            continue
-        clips.append({'id': clip_id, 'segmentId': clip_id, 'startTime': start_ms,
-                      'endTime': end_ms, 'eventType': kind, 'endUnconfirmed': False})
-    return {'success': True, 'asOf': as_of, 'windowStart': as_of - DAY,
+        linked = detail.get('recordings')
+        complete = next((row for row in linked or [] if row.get('state') == 'complete'), None)
+        recording_id = complete.get('id') if isinstance(complete, dict) else ''
+        if (recording_id and (not isinstance(recording_id, str) or not recording_id.isascii()
+                or not all(character.isalnum() or character in '_-' for character in recording_id))):
+            recording_id = ''
+        clips.append({'id': event_id, 'segmentId': recording_id,
+                      'startTime': start_ms, 'endTime': max(start_ms, end_ms),
+                      'eventType': 'sedentary' if event_kind == 'sit' else event_kind,
+                      'endUnconfirmed': not bool(event.get('ended_at')),
+                      'downloadable': bool(recording_id)})
+    return {'success': True, 'asOf': as_of, 'windowStart': as_of - RETENTION_MS,
             'windowEnd': end,
             'status': 'recording' if status.get('state') == 'running' else status.get('state', 'waiting'),
-            'clips': sorted(clips, key=lambda row: row['startTime']),
-            'eventCount': len(windows), 'wholeSegments': True}
+            'clips': sorted(clips, key=lambda row: row['startTime'], reverse=True),
+            'eventCount': len(clips), 'wholeSegments': False}
 
 
 def open_media(clip_id):
-    if not isinstance(clip_id, str) or not clip_id.isascii() or not clip_id.isalnum():
+    if (not isinstance(clip_id, str) or not clip_id.isascii()
+            or not all(character.isalnum() or character in '_-' for character in clip_id)):
         raise BoardRecordingUnavailable('invalid clip id')
-    return _open('/api/continuous/recordings/' + clip_id + '/video', timeout=30)
+    return _open('/api/history/recordings/' + clip_id + '/video', timeout=30)

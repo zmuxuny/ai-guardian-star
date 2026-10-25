@@ -39,12 +39,12 @@ class CaptureSinkTests(unittest.TestCase):
 
 
 class RollingRetentionTests(unittest.TestCase):
-    def test_continuous_is_24_hours_while_events_remain_seven_days(self):
+    def test_continuous_is_24_hours_while_events_expire_after_168_hours(self):
         now = 1_800_000_000
         continuous = RecordingConfig(retention_hours=24)
-        events = RecordingConfig()
+        events = RecordingConfig(retention_hours=168)
         self.assertEqual(retention_cutoff(continuous, now), now - 86400)
-        self.assertLess(retention_cutoff(events, now), now - 6 * 86400)
+        self.assertEqual(retention_cutoff(events, now), now - 7 * 86400)
 
     def test_continuous_config_is_independent_of_event_config(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -61,32 +61,46 @@ class RollingRetentionTests(unittest.TestCase):
 
 
 class BoardBridgeTests(unittest.TestCase):
-    def test_boundary_segment_is_not_exposed_and_event_filter_matches(self):
+    def test_lists_event_summary_and_only_complete_clip_is_downloadable(self):
         now = 1_800_000_000_000
-        start = now - bridge.DAY
-        rows = [
-            {'id': 'crosses', 'state': 'complete', 'started_at': bridge._iso(start - 1000),
-             'ended_at': bridge._iso(start + 59000)},
-            {'id': 'fallclip', 'state': 'complete', 'started_at': bridge._iso(start + 60000),
-             'ended_at': bridge._iso(start + 120000)},
-            {'id': 'normalclip', 'state': 'complete', 'started_at': bridge._iso(start + 300000),
-             'ended_at': bridge._iso(start + 360000)},
+        start = now - bridge.RETENTION_MS
+        events = [
+            {'id': 'fall-event', 'kind': 'fall', 'started_at': bridge._iso(start + 60000),
+             'ended_at': bridge._iso(start + 61000)},
+            {'id': 'sit-event', 'kind': 'sit', 'started_at': bridge._iso(start + 120000),
+             'ended_at': None},
         ]
-        events = [{'kind': 'fall', 'started_at': bridge._iso(start + 90000),
-                   'ended_at': bridge._iso(start + 90000)}]
 
-        def pages(path, _start, _end):
-            return events if path.endswith('/events') else rows
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            if path.endswith('fall-event'):
+                return {'recordings': [{'id': 'fall-video', 'state': 'complete'}]}
+            if path.endswith('sit-event'):
+                return {'recordings': [{'id': 'sit-video', 'state': 'recording'}]}
+            raise AssertionError(path)
 
         with patch.object(bridge.time, 'time', return_value=now / 1000), \
+                patch.object(bridge, '_get_json', side_effect=get_json), \
+                patch.object(bridge, '_pages', return_value=iter(events)):
+            result = bridge.snapshot(now, 'all')
+        self.assertEqual([item['id'] for item in result['clips']], ['sit-event', 'fall-event'])
+        self.assertEqual(result['clips'][0]['eventType'], 'sedentary')
+        self.assertFalse(result['clips'][0]['downloadable'])
+        self.assertEqual(result['clips'][1]['segmentId'], 'fall-video')
+        self.assertTrue(result['clips'][1]['downloadable'])
+        self.assertEqual(result['windowStart'], now - bridge.RETENTION_MS)
+        self.assertEqual(result['status'], 'recording')
+        self.assertFalse(result['wholeSegments'])
+
+    def test_event_filter_is_forwarded_to_board(self):
+        now = 1_800_000_000_000
+        with patch.object(bridge.time, 'time', return_value=now / 1000), \
                 patch.object(bridge, '_get_json', return_value={'state': 'running'}), \
-                patch.object(bridge, '_pages', side_effect=pages):
-            all_result = bridge.snapshot(now, 'all')
-            fall_result = bridge.snapshot(now, 'fall')
-        self.assertEqual([item['id'] for item in all_result['clips']], ['fallclip', 'normalclip'])
-        self.assertEqual([item['id'] for item in fall_result['clips']], ['fallclip'])
-        self.assertEqual(all_result['status'], 'recording')
-        self.assertTrue(fall_result['wholeSegments'])
+                patch.object(bridge, '_pages', return_value=iter([])) as pages:
+            bridge.snapshot(now, 'stranger')
+        self.assertEqual(pages.call_args.args[0], '/api/history/events')
+        self.assertEqual(pages.call_args.args[3], {'kind': 'stranger'})
 
     def test_requires_loopback_and_server_side_token(self):
         with patch.dict(os.environ, {'BOARD_RECORDING_BASE_URL': 'http://evil.example',
