@@ -12,7 +12,7 @@
 | T-20261025-04 | 协作机制落地与首次双向交接 | deepseek | 本地 `zy` | 已完成（骨架） | 2026-10-25 |
 | T-20261025-05 | 仓库大文件/历史清理评估 | 待认领 | — | 待认领 | 2026-10-25 |
 | T-20261025-06 | 开发板 `ascend_voice_stream.py` 旧版与 `origin/zy` 对齐（待授权） | deepseek | 本地 `zy` | 待验证 | 2026-10-25 |
-| T-20261025-07 | DSH headless 包装脚本（Codex 直接调用 DeepSeek） | deepseek | 本地 `zy` | 已完成 | 2026-10-25 |
+| T-20261025-07 | DSH headless 包装脚本（Codex 直接调用 DeepSeek） | deepseek | 本地 `zy` @ `345613c` | 已完成 | 2026-10-25 |
 
 ## 备注
 

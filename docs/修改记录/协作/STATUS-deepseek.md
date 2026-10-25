@@ -6,7 +6,7 @@
 
 ## 2026-10-25 10:32 · deepseek · T-20261025-07 · 已完成
 
-> 分支：本地 `zy`（push 由 Codex 统一执行） · 基于：`564fbc3`
+> 提交：`345613c` · 分支：本地 `zy`（push 由 Codex 统一执行） · 基于：`564fbc3`
 > 下一步：Codex 用 `tools/dsh-headless.ps1` 跑一次只读 smoke test，确认凭据与审批，再派首个 headless 任务。
 
 ### 目标
