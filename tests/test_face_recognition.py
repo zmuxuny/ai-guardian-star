@@ -184,6 +184,31 @@ class LibraryTests(unittest.TestCase):
             self.assertEqual(len(library.entries), 1)
             self.namespace["build_face_embedding"].assert_not_called()
 
+    def test_arcface_gallery_keeps_one_photo_count_and_matches_crop_variant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            person = Path(directory) / "Yang"
+            person.mkdir()
+            (person / "one.jpg").write_bytes(b"fake image")
+            original = np.zeros((80, 60, 3), np.uint8)
+            cropped = np.ones((48, 48, 3), np.uint8)
+
+            def infer(image):
+                return (np.array([0, 1], np.float32)
+                        if float(np.mean(image)) > 0.5
+                        else np.array([1, 0], np.float32))
+
+            arcface = SimpleNamespace(enabled=True, infer=Mock(side_effect=infer))
+            self.namespace["cv2"] = SimpleNamespace(imread=lambda path: original)
+            library = self.Library(directory, arcface)
+            with patch.object(self.Library, "_extract_face_gray", return_value=None), \
+                 patch.object(self.Library, "_arcface_gallery_variants", create=True,
+                              side_effect=lambda image: [image, cropped]):
+                library._load()
+
+            self.assertEqual(library.registered_sample_count, 1)
+            self.assertEqual(len(library.entries), 2)
+            self.assertEqual(library.recognize(cropped)[0], "known:Yang")
+
     def test_failed_reload_preserves_complete_old_library(self):
         library = self.arc_library()
         old_entries, old_centroids = library.entries, library.centroids

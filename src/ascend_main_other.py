@@ -601,6 +601,53 @@ class FaceLibrary:
             return None
         return crop
 
+    def _arcface_gallery_variants(self, image):
+        """Keep the uploaded crop and add stable face-scale variants in memory."""
+        if image is None or image.size == 0:
+            return []
+        variants = [image]
+        try:
+            self._ensure_detector()
+            if self.face_cascade is None:
+                return variants
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            faces = self.face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=4,
+                minSize=(36, 36),
+            )
+            if len(faces) == 0:
+                return variants
+
+            x, y, width, height = max(faces, key=lambda item: item[2] * item[3])
+            image_h, image_w = image.shape[:2]
+            full_rect = (0, 0, image_w, image_h)
+            seen_rects = {full_rect}
+            for pad_ratio in (0.30, 0.45):
+                pad_x = int(width * pad_ratio)
+                pad_y = int(height * pad_ratio)
+                rect = (
+                    max(0, x - pad_x),
+                    max(0, y - pad_y),
+                    min(image_w, x + width + pad_x),
+                    min(image_h, y + height + pad_y),
+                )
+                if rect in seen_rects:
+                    continue
+                seen_rects.add(rect)
+                x1, y1, x2, y2 = rect
+                crop = image[y1:y2, x1:x2].copy()
+                if crop.size != 0 and min(crop.shape[:2]) >= 24:
+                    variants.append(crop)
+        except Exception as exc:
+            self._log_diag(
+                "arcface_gallery_variant_failed",
+                f"[FaceDiag] gallery face-scale variants unavailable: {exc}",
+            )
+        return variants
+
     def _extract_face_gray(self, image):
         face_bgr = self._extract_face_bgr(image)
         if face_bgr is None:
@@ -656,31 +703,32 @@ class FaceLibrary:
                 if image is None or image.size == 0 or min(image.shape[:2]) < 24:
                     print(f"[FaceDiag] skip unreadable or undersized sample: {img_path}")
                     continue
-                face_bgr = image if use_arcface else self._extract_face_bgr(image)
                 face_gray = self._extract_face_gray(image)
-                embedding = None
+                embeddings = []
                 if use_arcface:
-                    if face_bgr is None:
-                        print(f"[FaceDiag] skip sample, no usable face crop: {img_path}")
-                        continue
-                    embedding = self.arcface.infer(enhance_face_image(face_bgr, cv2))
-                    if embedding is None:
-                        print("[FaceDiag] ACL recognizer failed; rebuild the entire library with CPU features")
-                        return self._load(use_arcface=False)
-                if embedding is None:
+                    for face_bgr in self._arcface_gallery_variants(image):
+                        embedding = self.arcface.infer(enhance_face_image(face_bgr, cv2))
+                        if embedding is None:
+                            print("[FaceDiag] ACL recognizer failed; rebuild the entire library with CPU features")
+                            return self._load(use_arcface=False)
+                        embeddings.append(embedding)
+                else:
                     embedding = (
                         build_face_embedding_from_gray(face_gray)
                         if face_gray is not None
                         else None
                     )
-                if embedding is None:
+                    if embedding is not None:
+                        embeddings.append(embedding)
+                if not embeddings:
                     print(f"[Face] Skip invalid face sample: {img_path}")
                     continue
-                self.entries.append({
-                    "name": person_name,
-                    "embedding": embedding,
-                    "path": img_path,
-                })
+                for embedding in embeddings:
+                    self.entries.append({
+                        "name": person_name,
+                        "embedding": embedding,
+                        "path": img_path,
+                    })
                 if face_gray is not None:
                     train_images.append(face_gray)
                     train_labels.append((label_id, person_name))
