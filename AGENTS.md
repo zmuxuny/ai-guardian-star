@@ -9,7 +9,17 @@
 ## AI 协作（Codex / DeepSeek）
 
 - 开工先读 `docs/修改记录/协作/README.md`、`TASKS.md` 和对方 `STATUS` 的最新一条；收工前更新自己的 `STATUS` 与 `TASKS`。
-- 未验证代码放 `wip/<agent>-<date>` 分支；`zy` 只接收已验证合并和协作文档。当前阶段只做本地提交，由用户统一 push。
+- 未验证代码放 `wip/<agent>-<date>` 分支；`zy` 只接收已验证合并和协作文档。当前阶段只做本地提交，由 Codex 统一 push。
 - 记录写分支、提交 SHA、影响文件、验证结果、未验证项、下一步；不贴大段代码，不写密钥和个人信息。
 - 各自使用独立 worktree，禁止在对方工作区提交或覆盖未提交改动；不要用 `git add -A`。
 - 一次逻辑改动一次 commit，提交信息用完整中文，并加 `AI-Agent: <agent>`。
+
+## 环境与权限（用户长期设定，2026-10-25）
+
+- 仓库 `https://github.com/zmuxuny/ai-guardian-star`。`zy` 是用户（硬件负责人）维护的开发分支；`feature/hjb-ascend-voice` 是旧硬件分支，末次提交 2025-12-18，已包含在 `zy` 中。**未经用户授权不得合并 `main` 或其他分支到 `zy`。**
+- 推送统一由 Codex 执行；DeepSeek 只做本地提交，不 push。
+- 生产服务器：阿里云 `47.108.167.0:22`，root，应用 `/opt/wenxin/app`（部署副本，非 git 仓库），服务 `wenxin.service`。
+- 开发板：`47.108.167.0:6022`，root，代码 `/root/ai_guardian`（部署副本，非 git 仓库），服务 `guardian-board.service`。
+- 两台机器的私钥只保存在操作机本地，不写入仓库、不粘贴进记录。
+- 本机到 github.com:443 被阻断：git 需经 `ssh -N -D 127.0.0.1:1080 root@47.108.167.0` 隧道，并设 `http.sslBackend=openssl`；该配置已写入本仓库 `.git/config`。
+- 交付顺序：先备份（本地回退点/远端备份目录）→ 最小修改 → 本地验证 → 由 Codex push → 再部署服务器或开发板。
