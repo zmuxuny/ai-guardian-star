@@ -3,11 +3,11 @@
 ## 1. 验收对象
 
 - 本地仓库：`C:\Users\Yang\Documents\ChatGPT\zhihuixing`
-- 分支基线：`zy`，部署前远端提交 `e4c16fc`
+- 分支基线：`zy`，当前本地与远端提交 `b6b3ec8`
 - 开发板：Orange Pi AI Pro，`aarch64`，本次 DHCP 地址 `192.168.137.184`
 - 开发板服务：`guardian-board.service`
 - 云端服务：`wenxin.service`、`frps.service`、`amqtt.service`
-- App：HarmonyOS API 24 模拟器产物此前已构建和安装；本次验收时模拟器未运行，因此没有新增 UI 层证据。
+- App：HarmonyOS 6.1.1（API 24）模拟器 `Huawei_phone`，安装包为 `entry-default-unsigned.hap`。
 
 真实令牌、账号凭据、图片内容和已有人员信息均未写入本文或命令输出。
 
@@ -75,11 +75,34 @@
 - 通过板端管理接口删除 `test` 验收人脸及其全部样本；
 - 确认测试用户不再存在，板端人脸总数恢复到验收前的 1。
 
-## 5. 最终运行状态与边界
+## 5. HarmonyOS 模拟器 UI 在线/离线证据
+
+模拟器保留的登录账号有效且未冻结，但首次请求 `/api/mqtt/credentials` 返回 HTTP 403。核对后确认该账号不在 `/etc/wenxin/mqtt-users.json` 的设备访问白名单中，因此 App 能访问视频服务，但不能订阅 MQTT 心跳；这不是 30 秒超时判断本身的故障。
+
+处理与回滚点：
+
+- 将当前验收账号（本文仅记录掩码 `135****1720`）加入设备访问白名单；
+- 修改前备份：`/etc/wenxin/mqtt-users.json.bak-20261025T092241`；
+- 未修改账号密码、登录令牌或 MQTT 共享密钥；
+- 修改后凭据接口由 HTTP 403 变为 HTTP 200，App 三项状态由“设备未连接”自动变为“监测中”。
+
+随后在 App 保持前台时执行真实断线与恢复：
+
+| 观测点 | 模拟器 UI | 板端状态 |
+| --- | --- | --- |
+| 停止前 | 摔倒监测、人脸监测、久坐识别均为“监测中” | `active` |
+| 停止后约 31.7 秒 | 仍为“监测中” | `inactive` |
+| 停止后约 37.8 秒 | 三项均变为“设备未连接” | `inactive` |
+| 重新启动后约 5.4 秒 | 三项均恢复为“监测中” | `active` |
+
+结论：模拟器 UI 已实际证明“连续错过三次 10 秒心跳后，在 30～40 秒检查窗口内显示离线”，并能在板端恢复心跳后自动恢复在线。由于客户端每 5 秒检查一次，加上停止动作相对最近一条心跳的相位差，本次观察到 37.8 秒符合设计边界。
+
+## 6. 最终运行状态与边界
 
 - 开发板：`guardian-board.service=active`，`frpc-aliyun.service=active`。
 - 相机：`camera_connected=true`，实测约 `7.6 FPS`。
 - 云端：`wenxin.service=active`、`frps.service=active`，内网与公网 `/health` 均通过。
 - Nginx：`/api/face/enroll` 使用 9 MiB 上限、60 秒上传超时和 45 秒代理超时，配置检查通过。
 - 已证明真实板端心跳、断线缺报、恢复重发和云端人脸代理完整链路。
-- 本次没有在 HarmonyOS 模拟器界面观察 30 秒后“设备离线”文字变化；该项仍需启动 API 24 模拟器、登录授权账号后补充 UI 层证据。协议解析和 30 秒判断已有本地测试，但不能替代实际界面验收。
+- HarmonyOS API 24 模拟器已补充 UI 层在线、超时离线和恢复在线证据。
+- 本次使用未签名 HAP 和模拟器，以上结果不等同于正式签名发布包验收或 HarmonyOS 真机验收。
