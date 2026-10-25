@@ -13,7 +13,7 @@ export struct record {
       Row() {
         Column() {
           Text('历史记录').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-          Text('回看家人的监护录像').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
+          Text('异常类型、时间与按需下载').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
         }.alignItems(HorizontalAlign.Start)
         Blank()
 

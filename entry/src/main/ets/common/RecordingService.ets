@@ -7,6 +7,7 @@ export interface RecordingClip {
   endTime: number;
   eventType: string;
   endUnconfirmed: boolean;
+  downloadable?: boolean;
 }
 
 export interface RecordingResult {
