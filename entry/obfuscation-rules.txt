@@ -88,6 +88,23 @@
     timestamp
     error
 
+# 异常录像按需下载接口字段跨网络边界，Release 混淆会改名导致服务端取不到。
+-keep-property-name
+    clipId
+    asOf
+    filter
+    segmentId
+    eventType
+    startTime
+    endTime
+    endUnconfirmed
+    downloadable
+    clips
+    eventCount
+    wholeSegments
+    windowStart
+    windowEnd
+
 # ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
 -keep-property-name
     id

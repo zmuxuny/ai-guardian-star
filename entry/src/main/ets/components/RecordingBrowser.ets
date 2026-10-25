@@ -4,6 +4,8 @@ import { RecordingClip, RecordingQuery, RecordingPlaybackRequest, queryRecording
 import { SURFACE_RADIUS } from './GradientHeader';
 import { common } from '@kit.AbilityKit';
 import fs from '@ohos.file.fs';
+import { media } from '@kit.MediaKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { CacheManager } from '../common/CacheManager';
 
 /** Shared by the navigation tab and the personal/history destination. */
@@ -13,7 +15,7 @@ export struct RecordingBrowser {
   @State filter: string = 'all';
   @State clips: RecordingClip[] = [];
   @State asOf: number = Date.now();
-  @State windowStart: number = Date.now() - 86400000;
+  @State windowStart: number = Date.now() - 7 * 86400000;
   @State status: string = 'waiting';
   @State wholeSegments: boolean = false;
   @State loading: boolean = true;
@@ -21,9 +23,16 @@ export struct RecordingBrowser {
   @State preparing: boolean = false;
   @State playbackError: string = '';
   @State videoSource: string = '';
+  @State playing: boolean = false;
+  @State videoReady: boolean = false;
+  @State playPosition: number = 0;
+  @State duration: number = 0;
   @State selectedId: string = '';
   @State selectedLabel: string = '';
-  private controller: VideoController = new VideoController();
+  private xController: XComponentController = new XComponentController();
+  private avPlayer: media.AVPlayer | undefined = undefined;
+  private surfaceId: string = '';
+  private mediaLength: number = 0;
   private openFile: fs.File | undefined = undefined;
   private cacheFile: string = '';
   private queryVersion: number = 0;
@@ -40,16 +49,109 @@ export struct RecordingBrowser {
 
   private releaseVideo(): void {
     this.videoSource = '';
-    try { this.controller.stop(); } catch (_error) {}
+    this.stopPlayback();
     if (this.openFile !== undefined) {
       try { fs.closeSync(this.openFile); } catch (_error) {}
       this.openFile = undefined;
     }
+    this.mediaLength = 0;
     if (this.cacheFile !== '') {
       try { fs.unlinkSync(this.cacheFile); } catch (_error) {}
       CacheManager.getInstance().release(this.cacheFile);
       this.cacheFile = '';
     }
+  }
+
+  /** ArkUI Video 不接受沙箱文件（fd:// 与裸路径都会停在 PLAYER_IDLE），改用 AVPlayer.fdSrc。 */
+  private async startPlayback(): Promise<void> {
+    const file = this.openFile;
+    if (file === undefined || this.surfaceId === '' || this.mediaLength <= 0) return;
+    this.stopPlayback();
+    const version = this.playbackVersion;
+    try {
+      const player = await media.createAVPlayer();
+      if (this.disposed || version !== this.playbackVersion) {
+        player.release().catch((): void => {});
+        return;
+      }
+      this.avPlayer = player;
+      player.on('error', (_error: BusinessError): void => {
+        this.videoReady = false;
+        this.playbackError = '播放失败，请重新下载';
+      });
+      player.on('stateChange', (state: media.AVPlayerState): void => { this.onPlayerState(state); });
+      player.on('timeUpdate', (time: number): void => { this.playPosition = time; });
+      const source: media.AVFileDescriptor = { fd: file.fd, offset: 0, length: this.mediaLength };
+      player.fdSrc = source;
+    } catch (_error) {
+      this.playbackError = '播放失败，请重新下载';
+    }
+  }
+
+  private async onPlayerState(state: media.AVPlayerState): Promise<void> {
+    const player = this.avPlayer;
+    if (player === undefined) return;
+    try {
+      if (state === 'initialized') {
+        if (this.surfaceId === '') return;
+        player.surfaceId = this.surfaceId;
+        await player.prepare();
+      } else if (state === 'prepared') {
+        this.duration = player.duration;
+        this.videoReady = true;
+        await player.play();
+      } else if (state === 'playing') {
+        this.playing = true;
+      } else if (state === 'paused') {
+        this.playing = false;
+      } else if (state === 'completed') {
+        this.playing = false;
+        this.playPosition = this.duration;
+      }
+    } catch (_error) {
+      this.videoReady = false;
+      this.playbackError = '播放失败，请重新下载';
+    }
+  }
+
+  private stopPlayback(): void {
+    const player = this.avPlayer;
+    this.avPlayer = undefined;
+    this.playing = false;
+    this.videoReady = false;
+    this.playPosition = 0;
+    this.duration = 0;
+    if (player === undefined) return;
+    try {
+      player.off('stateChange');
+      player.off('timeUpdate');
+      player.off('error');
+    } catch (_error) {}
+    player.release().catch((): void => {});
+  }
+
+  private togglePlay(): void {
+    const player = this.avPlayer;
+    if (player === undefined || !this.videoReady) return;
+    if (this.playing) player.pause().catch((): void => {});
+    else {
+      if (this.duration > 0 && this.playPosition >= this.duration - 200) player.seek(0);
+      player.play().catch((): void => {});
+    }
+  }
+
+  private seekTo(value: number): void {
+    const player = this.avPlayer;
+    if (player === undefined || !this.videoReady) return;
+    player.seek(value);
+    this.playPosition = value;
+  }
+
+  private clock(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(total / 60);
+    const seconds = total % 60;
+    return `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   }
 
   private async reload(refresh: boolean): Promise<void> {
@@ -70,7 +172,7 @@ export struct RecordingBrowser {
       this.windowStart = result.windowStart;
       this.status = result.status;
       this.wholeSegments = result.wholeSegments === true;
-      this.clips = result.clips.sort((a: RecordingClip, b: RecordingClip): number => a.startTime - b.startTime);
+      this.clips = result.clips.sort((a: RecordingClip, b: RecordingClip): number => b.startTime - a.startTime);
     } catch (error) {
       if (this.disposed || version !== this.queryVersion) return;
       this.clips = [];
@@ -78,12 +180,6 @@ export struct RecordingBrowser {
     } finally {
       if (!this.disposed && version === this.queryVersion) this.loading = false;
     }
-  }
-
-  private chooseFilter(value: string): void {
-    if (this.filter === value) return;
-    this.filter = value;
-    this.reload(false);
   }
 
   private format(timestamp: number, includeDate: boolean = false): string {
@@ -98,13 +194,21 @@ export struct RecordingBrowser {
   }
 
   private statusText(): string {
-    if (this.status === 'disk_full') return '服务器存储不足，录制已暂停';
-    if (this.status === 'recording') return '正在持续录像 · 最新片段完成后可查看';
-    if (this.status === 'connecting') return '正在尝试连接摄像头';
-    return '摄像头未连接 · 正在等待视频源';
+    if (this.status === 'disk_full') return '硬件存储不足，异常录像已暂停';
+    if (this.status === 'idle' || this.status === 'running' || this.status === 'recording') {
+      return '异常检测中 · 视频保存在硬件端7天，点击下载后才传到本机';
+    }
+    return '硬件录像服务暂不可用，请稍后刷新';
   }
 
-  private async play(clip: RecordingClip): Promise<void> {
+  private eventLabel(type: string): string {
+    if (type === 'fall') return '摔倒';
+    if (type === 'sedentary') return '久坐';
+    if (type === 'stranger') return '陌生人';
+    return '异常行为';
+  }
+
+  private async download(clip: RecordingClip): Promise<void> {
     if (this.preparing) return;
     const version = ++this.playbackVersion;
     this.preparing = true;
@@ -132,45 +236,64 @@ export struct RecordingBrowser {
     this.cacheFile = destination;
     try {
       this.openFile = fs.openSync(destination, fs.OpenMode.READ_ONLY);
-      this.videoSource = `fd://${this.openFile.fd}`;
-    } catch (_error) { this.playbackError = '录像无法打开，请重新播放'; }
-  }
-
-  private playNext(): void {
-    const index = this.clips.findIndex((clip: RecordingClip): boolean => clip.id === this.selectedId);
-    if (index >= 0 && index + 1 < this.clips.length) this.play(this.clips[index + 1]);
-  }
-
-  @Builder
-  Filter(label: string, value: string): void {
-    Text(label).fontSize(15).fontWeight(this.filter === value ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.filter === value ? '#ffffff' : this.themeManager.colors.primaryTextColor)
-      .height(46).textAlign(TextAlign.Center).layoutWeight(1).borderRadius(12)
-      .backgroundColor(this.filter === value ? '#2563eb' : this.themeManager.colors.cardBackgroundColor)
-      .accessibilityText(`${label}录像${this.filter === value ? '，已选中' : ''}`)
-      .onClick((): void => { this.chooseFilter(value); })
+      this.mediaLength = fs.statSync(destination).size;
+      this.videoSource = destination;
+      if (this.surfaceId !== '') this.startPlayback();
+    } catch (_error) { this.playbackError = '录像无法打开，请重新下载'; }
   }
 
   @Builder
   Playback(): void {
     Column({ space: 8 }) {
       if (this.videoSource !== '') {
-        Video({ src: this.videoSource, controller: this.controller })
-          .width('100%').aspectRatio(4 / 3).objectFit(ImageFit.Contain)
-          .autoPlay(true).controls(true)
-          .onFinish((): void => { this.playNext(); })
-          .onError((): void => { this.playbackError = '播放失败，请重新选择片段'; })
+        Column({ space: 6 }) {
+          XComponent({ id: 'recording_surface', type: XComponentType.SURFACE, controller: this.xController })
+            .width('100%').height(150)
+            .onLoad((): void => {
+              this.surfaceId = this.xController.getXComponentSurfaceId();
+              this.startPlayback();
+            })
+            .onDestroy((): void => {
+              this.surfaceId = '';
+              this.stopPlayback();
+            })
+          Row({ space: 8 }) {
+            Button(this.playing ? '暂停' : '播放').height(36).fontSize(13).backgroundColor('#2563eb')
+              .enabled(this.videoReady)
+              .onClick((): void => { this.togglePlay(); })
+            Text(this.clock(this.playPosition)).fontSize(11)
+              .fontColor(this.themeManager.colors.secondaryTextColor).width(40)
+            Slider({
+              value: this.playPosition,
+              min: 0,
+              max: this.duration > 0 ? this.duration : 1,
+              step: 100,
+              style: SliderStyle.OutSet
+            }).layoutWeight(1).enabled(this.videoReady)
+              .onChange((value: number, mode: SliderChangeMode): void => {
+                if (mode === SliderChangeMode.End) this.seekTo(value);
+              })
+            Text(this.clock(this.duration)).fontSize(11)
+              .fontColor(this.themeManager.colors.secondaryTextColor).width(40)
+          }.width('100%')
+          if (!this.videoReady && this.playbackError === '') {
+            Text('正在准备播放…').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+          }
+          if (this.playbackError !== '') {
+            Text(this.playbackError).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+          }
+        }.width('100%')
       } else {
         Column({ space: 10 }) {
           if (this.preparing) { LoadingProgress().width(32).height(32).color('#2563eb') }
           else { Image($r('app.media.ic_camera')).width(36).height(36).objectFit(ImageFit.Contain) }
-          Text(this.preparing ? '正在准备录像…' : this.playbackError !== '' ? this.playbackError : '选择下方片段开始回放')
+          Text(this.preparing ? '正在从硬件下载录像…' : this.playbackError !== '' ? this.playbackError : '录像下载完成后可在这里播放')
             .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
           if (this.playbackError !== '' && this.selectedId !== '') {
-            Button('重试播放').height(44).backgroundColor('#2563eb')
+            Button('重新下载').height(44).backgroundColor('#2563eb')
               .onClick((): void => {
                 const selected = this.clips.find((clip: RecordingClip): boolean => clip.id === this.selectedId);
-                if (selected !== undefined) this.play(selected);
+                if (selected !== undefined) this.download(selected);
               })
           }
         }.width('100%').height(140).justifyContent(FlexAlign.Center)
@@ -187,22 +310,15 @@ export struct RecordingBrowser {
     Column({ space: 12 }) {
       Row() {
         Column({ space: 4 }) {
-          Text('最近24小时录像').fontSize(17).fontWeight(FontWeight.Bold)
+          Text('近7天异常录像').fontSize(17).fontWeight(FontWeight.Bold)
             .fontColor(this.themeManager.colors.primaryTextColor)
           Text(`${this.format(this.windowStart, true)} — ${this.format(this.asOf, true)}`)
             .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor).maxLines(2)
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Button('刷新').height(44).fontSize(14).backgroundColor('#2563eb')
-          .accessibilityText('以当前时间刷新最近24小时录像').onClick((): void => { this.reload(true); })
+          .accessibilityText('刷新近7天异常录像').onClick((): void => { this.reload(true); })
       }.width('100%')
-      Row({ space: 8 }) {
-        this.Filter('全部', 'all')
-        this.Filter('摔倒', 'fall')
-        this.Filter('久坐', 'sedentary')
-      }.width('100%')
-      Text(this.filter === 'all' ? '展示范围内所有可用录像 · 按时间顺序连续播放'
-        : this.wholeSegments ? '展示与事件时间重叠的完整录像分段'
-        : '保留事件开始前1分钟至结束后1分钟 · 重叠片段合并')
+      Text('仅显示异常类型和发生时间；点击下载后才从硬件获取对应视频')
         .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%').maxLines(2)
       if (this.loading) {
         Column({ space: 12 }) {
@@ -219,15 +335,17 @@ export struct RecordingBrowser {
         if (this.clips.length === 0) {
           Column({ space: 10 }) {
             Image($r('app.media.ic_camera_off')).width(48).height(48).objectFit(ImageFit.Contain)
-            Text(this.filter === 'all' ? '这24小时内暂无可用录像' : `这24小时内暂无${this.filter === 'fall' ? '摔倒' : '久坐'}相关录像`)
+            Text('近7天暂无异常录像')
               .fontSize(17).fontWeight(FontWeight.Medium).fontColor(this.themeManager.colors.primaryTextColor)
               .textAlign(TextAlign.Center)
-            Text('设备联网后自动录制，已有录像不会因手机退出而中断。未录制的时段无法补回。')
+            Text('检测到摔倒、久坐或陌生人后，硬件会保存对应片段；超过7天自动删除。')
               .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
           }.layoutWeight(1).justifyContent(FlexAlign.Center).padding(20).width('100%')
         } else {
+          if (this.selectedId !== '') {
+            this.Playback()
+          }
           List({ space: 8 }) {
-            ListItem() { this.Playback() }
             ForEach(this.clips, (clip: RecordingClip, index: number) => {
               ListItem() {
                 Column({ space: 6 }) {
@@ -238,20 +356,21 @@ export struct RecordingBrowser {
                   Row({ space: 10 }) {
                     Image($r('app.media.ic_camera')).width(28).height(28).objectFit(ImageFit.Contain)
                     Column({ space: 4 }) {
-                      Text(`${this.format(clip.startTime)} — ${this.format(clip.endTime)}`)
-                        .fontSize(14).fontWeight(FontWeight.Medium).fontColor(this.themeManager.colors.primaryTextColor)
-                      Text(`${this.filter === 'all' ? '连续录像' : this.filter === 'fall' ? '摔倒相关' : '久坐相关'} · ${Math.ceil((clip.endTime - clip.startTime) / 1000)}秒${clip.endUnconfirmed ? ' · 结束时间待确认' : ''}`)
+                      Text(this.eventLabel(clip.eventType))
+                        .fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
+                      Text(`${this.format(clip.startTime)}${clip.endUnconfirmed ? ' · 持续中' : ''}`)
                         .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
                     }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-                    Text(this.selectedId === clip.id ? '已选择' : '播放').fontSize(14).fontColor('#2563eb')
+                    Button(clip.downloadable === false ? '生成中' :
+                      this.preparing && this.selectedId === clip.id ? '下载中' :
+                      this.videoSource !== '' && this.selectedId === clip.id ? '已下载' : '下载')
+                      .height(42).fontSize(14).backgroundColor('#2563eb')
+                      .enabled(clip.downloadable !== false && !this.preparing)
+                      .accessibilityText(`下载${this.eventLabel(clip.eventType)}视频`)
+                      .onClick((): void => { this.download(clip); })
                   }.width('100%').padding(14).borderRadius(SURFACE_RADIUS)
                     .backgroundColor(this.selectedId === clip.id ? (this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe')
                       : this.themeManager.colors.cardBackgroundColor)
-                    .onClick((): void => { this.play(clip); })
-                  if (index > 0 && clip.startTime - this.clips[index - 1].endTime > 1500 && this.filter === 'all') {
-                    Text('前一片段与此片段之间存在录像缺口').fontSize(11)
-                      .fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
-                  }
                 }.width('100%')
               }
             }, (clip: RecordingClip): string => clip.id)
