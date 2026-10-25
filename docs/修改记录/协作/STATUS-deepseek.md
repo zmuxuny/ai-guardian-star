@@ -4,6 +4,43 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-10-25 10:32 · deepseek · T-20261025-07 · 已完成
+
+> 分支：本地 `zy`（push 由 Codex 统一执行） · 基于：`564fbc3`
+> 下一步：Codex 用 `tools/dsh-headless.ps1` 跑一次只读 smoke test，确认凭据与审批，再派首个 headless 任务。
+
+### 目标
+
+让 Codex 能直接启动一次性 DeepSeek headless 会话，执行/验证后再由 Codex 审核并 push。
+
+### 改动
+
+- 新增 `tools/dsh-headless.ps1`：封装 DSH CLI，支持 `-Task` / `-TaskFile`、`-Workdir`、`-Mode`、`-Json`、`-SessionId`、`-DryRun`。
+- 默认 `read-only`；`workspace-write` 才允许改工作区；`danger-full-access` 必须显式 `-AllowDangerFullAccess`。
+- 协作 README 增加第 9 节；`AGENTS.md`、`CLAUDE.md` 增加入口；`TASKS.md` 增加 `T-20261025-07`。
+
+### 验证
+
+- `Get-Help tools/dsh-headless.ps1 -Full` 正常显示参数与示例。
+- `-DryRun -Task ...` 与 `-DryRun -TaskFile ...` 均输出解析后的 JSON；`Workdir`、`Mode`、`DSH_HOME` 正确。
+- `-Mode danger-full-access` 未加 `-AllowDangerFullAccess` 时拒绝执行。
+- 未调用模型：只验证了包装脚本和 DSH CLI 帮助，未消耗模型 token。
+
+### 未验证 / 风险
+
+- 实际 headless 任务未跑；首次需只读 smoke test，确认凭据、审批和输出。
+- 无人值守时 `approval=ask` 可能阻塞；优先 `read-only` 或工作区内操作，不要默认 `danger-full-access`。
+- 本机沙箱不能写 `~/.dsh`；Codex 在正常终端运行不受此限制。
+
+### 下一步
+
+- Codex：`.\tools\dsh-headless.ps1 -Task "只回复 OK，不要读取或修改任何文件。"` 做首次连通性测试。
+- 通过后按任务卡调用；DSH 只本地提交，Codex 审核并 push。
+
+### 回滚
+
+- `git revert <本提交>`；或删除 `tools/dsh-headless.ps1` 与 README 第 9 节。
+
 ## 2026-10-25 10:30 · deepseek · T-20261025-06 · 待验证
 
 > 分支：本地 `zy`（push 由 Codex 统一执行） · 基于：`1df1070`

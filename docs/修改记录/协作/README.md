@@ -100,3 +100,34 @@ git commit -m "记录：<一句话说明>"
 - `TASKS.md` 冲突：保留双方行，按 ID 排序。
 - 代码冲突：以 `zy` 为基线 rebase；不要 force push 共享分支。
 - 记录冲突：各自文件不会冲突；如果 `TASKS.md` 冲突，保留双方任务再合并。
+
+## 9. Codex 直接调用 DeepSeek（headless）
+
+DSH 自带 `headless` CLI，Codex 可以启动一个**一次性**的 DeepSeek 会话。项目提供包装脚本 `tools/dsh-headless.ps1`：
+
+```powershell
+# 只读分析/审核（默认）
+.\tools\dsh-headless.ps1 -Task "读取 TASKS.md 和 STATUS-deepseek.md，汇报待办；不要改文件。"
+
+# 允许修改当前工作区
+.\tools\dsh-headless.ps1 -Mode workspace-write -TaskFile .\task.md
+
+# 机器可读
+.\tools\dsh-headless.ps1 -Json -Task "..."
+
+# 续接已存在的会话
+.\tools\dsh-headless.ps1 -SessionId <id> -Task "继续..."
+
+# 只预演，不调用模型
+.\tools\dsh-headless.ps1 -DryRun -Task "smoke test"
+```
+
+规则：
+
+- 默认 `read-only`；要改代码显式 `-Mode workspace-write`；`danger-full-access` 必须再加 `-AllowDangerFullAccess`。
+- `-Workdir` 默认当前目录，并成为 DSH 的 workspaceRoot；要让它改哪个 worktree，就先切到那里，或传 `-Workdir`。
+- 这是**新的 headless 会话**，不是当前 GUI 对话；上下文靠 `AGENTS.md`、协作区和 git 传递。
+- DSH 只做本地提交，不 push；审核和 push 仍由 Codex 做。
+- 任务用文件或短句，不要把整段聊天记录塞进 prompt。
+- 第一次先跑只读 smoke test，确认凭据和审批行为；无人值守时 `approval=ask` 可能阻塞，优先 `read-only` 或工作区内操作。
+- `--json` 输出 NDJSON；会话 ID 从事件或 `~/.dsh/sessions` 取，不要自己编。

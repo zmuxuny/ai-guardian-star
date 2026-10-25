@@ -5,6 +5,7 @@
 - 保留无关改动，不顺手重构；优先复用现有代码。缺少影响结果的关键决策时询问，常规实现选择自行处理。
 - 修复以实际复现和相应验证为准；已通过且代码未变的检查不重复执行。
 - AI 协作按 `docs/修改记录/协作/README.md` 执行：开工读 `TASKS.md` 与对方 `STATUS` 最新一条，收工更新自己的 `STATUS`；未验证代码走 WIP 分支，不用 `git add -A`。
+- Codex 可直接用 `tools/dsh-headless.ps1` 启动 headless DeepSeek 会话；默认 `read-only`，改代码用 `-Mode workspace-write`。
 
 ## 环境与权限（用户长期设定，2026-10-25）
 

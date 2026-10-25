@@ -13,6 +13,7 @@
 - 记录写分支、提交 SHA、影响文件、验证结果、未验证项、下一步；不贴大段代码，不写密钥和个人信息。
 - 各自使用独立 worktree，禁止在对方工作区提交或覆盖未提交改动；不要用 `git add -A`。
 - 一次逻辑改动一次 commit，提交信息用完整中文，并加 `AI-Agent: <agent>`。
+- Codex 可直接用 `tools/dsh-headless.ps1` 启动 headless DeepSeek 会话；默认 `read-only`，改代码用 `-Mode workspace-write`，不要默认 `danger-full-access`。
 
 ## 环境与权限（用户长期设定，2026-10-25）
 
