@@ -46,12 +46,17 @@ def _settings():
     return base, token
 
 
-def _open(path, query=None, timeout=8):
+def stream_secret():
+    """在线播放签名用的服务端密钥来源；未配置时抛 BoardRecordingUnavailable。"""
+    return _settings()[1]
+
+
+def _open(path, query=None, timeout=8, headers=None):
     base, token = _settings()
     url = base + path
     if query:
         url += '?' + urlencode(query)
-    request = Request(url, headers={'Authorization': 'Bearer ' + token})
+    request = Request(url, headers={**(headers or {}), 'Authorization': 'Bearer ' + token})
     try:
         return urlopen(request, timeout=timeout)
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
@@ -177,8 +182,13 @@ def snapshot(as_of, kind, window_start=None, window_end=None):
             'eventCount': len(clips), 'wholeSegments': False}
 
 
-def open_media(clip_id):
+def open_media(clip_id, range_header=None):
     if (not isinstance(clip_id, str) or not clip_id.isascii()
             or not all(character.isalnum() or character in '_-' for character in clip_id)):
         raise BoardRecordingUnavailable('invalid clip id')
-    return _open('/api/history/recordings/' + clip_id + '/video', timeout=30)
+    headers = {}
+    # 只透传形如 bytes=a-b 的单段 Range，供播放器拖动进度。
+    if (isinstance(range_header, str) and range_header.startswith('bytes=')
+            and len(range_header) < 64 and ',' not in range_header):
+        headers['Range'] = range_header
+    return _open('/api/history/recordings/' + clip_id + '/video', timeout=30, headers=headers)

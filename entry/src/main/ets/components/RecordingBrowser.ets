@@ -7,14 +7,15 @@ import {
   RecordingPlaybackRequest,
   RECORDING_RETENTION_MS,
   buildRecordingDays,
-  queryRecordings
+  queryRecordings,
+  requestStreamUrl
 } from '../common/RecordingService';
 import { SURFACE_RADIUS } from './GradientHeader';
 import { common } from '@kit.AbilityKit';
-import fs from '@ohos.file.fs';
+import picker from '@ohos.file.picker';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { CacheManager } from '../common/CacheManager';
+import { showToast } from '../common/UiFeedback';
 
 /** 一个日期分组在页面生命周期内的缓存状态；只有展开过的日期才会去查询。 */
 interface RecordingDay {
@@ -49,12 +50,10 @@ export struct RecordingBrowser {
   @State duration: number = 0;
   @State selectedId: string = '';
   @State selectedLabel: string = '';
+  @State downloadingId: string = '';
   private xController: XComponentController = new XComponentController();
   private avPlayer: media.AVPlayer | undefined = undefined;
   private surfaceId: string = '';
-  private mediaLength: number = 0;
-  private openFile: fs.File | undefined = undefined;
-  private cacheFile: string = '';
   private dayTokens: Map<string, number> = new Map<string, number>();
   private playbackVersion: number = 0;
   private disposed: boolean = false;
@@ -200,22 +199,12 @@ export struct RecordingBrowser {
   private releaseVideo(): void {
     this.videoSource = '';
     this.stopPlayback();
-    if (this.openFile !== undefined) {
-      try { fs.closeSync(this.openFile); } catch (_error) {}
-      this.openFile = undefined;
-    }
-    this.mediaLength = 0;
-    if (this.cacheFile !== '') {
-      try { fs.unlinkSync(this.cacheFile); } catch (_error) {}
-      CacheManager.getInstance().release(this.cacheFile);
-      this.cacheFile = '';
-    }
   }
 
-  /** ArkUI Video 不接受沙箱文件（fd:// 与裸路径都会停在 PLAYER_IDLE），改用 AVPlayer.fdSrc。 */
+  /** 在线播放：AVPlayer 直接拉云端签名地址（支持 Range 拖动），不在本机落地文件。 */
   private async startPlayback(): Promise<void> {
-    const file = this.openFile;
-    if (file === undefined || this.surfaceId === '' || this.mediaLength <= 0) return;
+    const url = this.videoSource;
+    if (url === '' || this.surfaceId === '') return;
     this.stopPlayback();
     const version = this.playbackVersion;
     try {
@@ -227,14 +216,13 @@ export struct RecordingBrowser {
       this.avPlayer = player;
       player.on('error', (_error: BusinessError): void => {
         this.videoReady = false;
-        this.playbackError = '播放失败，请重新下载';
+        this.playbackError = '播放失败，请重新播放';
       });
       player.on('stateChange', (state: media.AVPlayerState): void => { this.onPlayerState(state); });
       player.on('timeUpdate', (time: number): void => { this.playPosition = time; });
-      const source: media.AVFileDescriptor = { fd: file.fd, offset: 0, length: this.mediaLength };
-      player.fdSrc = source;
+      player.url = url;
     } catch (_error) {
-      this.playbackError = '播放失败，请重新下载';
+      this.playbackError = '播放失败，请重新播放';
     }
   }
 
@@ -260,7 +248,7 @@ export struct RecordingBrowser {
       }
     } catch (_error) {
       this.videoReady = false;
-      this.playbackError = '播放失败，请重新下载';
+      this.playbackError = '播放失败，请重新播放';
     }
   }
 
@@ -322,7 +310,7 @@ export struct RecordingBrowser {
   private statusText(): string {
     if (this.status === 'disk_full') return '硬件存储不足，异常录像已暂停';
     if (this.status === 'idle' || this.status === 'running' || this.status === 'recording') {
-      return '异常检测中 · 视频保存在硬件端7天，点击下载后才传到本机';
+      return '异常检测中 · 视频保存在硬件端7天，在线播放不占手机空间';
     }
     return '硬件录像服务暂不可用，请稍后刷新';
   }
@@ -334,20 +322,10 @@ export struct RecordingBrowser {
     return '异常行为';
   }
 
-  private async download(clip: RecordingClip): Promise<void> {
-    if (this.preparing) return;
+  /** 请求必须带上该事件所属日期的窗口，云端才不会为找一个 clip 重新扫描七天。 */
+  private clipRequest(clip: RecordingClip): RecordingPlaybackRequest | undefined {
     const day = this.days.find((item: RecordingDay): boolean => item.key === this.expandedKey);
-    if (day === undefined) return;
-    const version = ++this.playbackVersion;
-    this.preparing = true;
-    this.playbackError = '';
-    this.releaseVideo();
-    this.selectedId = clip.id;
-    this.selectedLabel = `${this.format(clip.startTime, true)} — ${this.format(clip.endTime, true)}`;
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const destination = `${context.cacheDir}/recording-${Date.now()}-${version}.mp4`;
-    await CacheManager.getInstance().retain(destination);
-    // 下载时必须带上该事件所属日期的窗口，云端才不会为找一个 clip 重新扫描七天。
+    if (day === undefined) return undefined;
     const body: RecordingPlaybackRequest = {
       asOf: day.windowEnd,
       filter: this.filter,
@@ -355,33 +333,74 @@ export struct RecordingBrowser {
       windowStart: day.windowStart,
       windowEnd: day.windowEnd
     };
-    const message = await CloudService.getInstance().downloadRecording(body, destination);
-    if (this.disposed || version !== this.playbackVersion) {
-      try { fs.unlinkSync(destination); } catch (_error) {}
-      CacheManager.getInstance().release(destination);
-      return;
-    }
-    this.preparing = false;
-    if (message !== '') {
-      try { fs.unlinkSync(destination); } catch (_error) {}
-      CacheManager.getInstance().release(destination);
-      this.playbackError = message;
-      return;
-    }
-    this.cacheFile = destination;
-    try {
-      this.openFile = fs.openSync(destination, fs.OpenMode.READ_ONLY);
-      this.mediaLength = fs.statSync(destination).size;
-      this.videoSource = destination;
-      if (this.surfaceId !== '') this.startPlayback();
-    } catch (_error) { this.playbackError = '录像无法打开，请重新下载'; }
+    return body;
   }
 
-  private retrySelectedDownload(): void {
+  /** 点击片段：换取签名地址后在线播放，不下载到本机。 */
+  private async play(clip: RecordingClip): Promise<void> {
+    if (clip.downloadable === false) {
+      this.toast('异常视频正在生成，请稍后刷新');
+      return;
+    }
+    const body = this.clipRequest(clip);
+    if (body === undefined) return;
+    const version = ++this.playbackVersion;
+    this.preparing = true;
+    this.playbackError = '';
+    this.releaseVideo();
+    this.selectedId = clip.id;
+    this.selectedLabel = `${this.eventLabel(clip.eventType)} · ${this.format(clip.startTime, true)}`;
+    try {
+      const url = await requestStreamUrl(body);
+      if (this.disposed || version !== this.playbackVersion) return;
+      this.preparing = false;
+      this.videoSource = url;
+      if (this.surfaceId !== '') this.startPlayback();
+    } catch (error) {
+      if (this.disposed || version !== this.playbackVersion) return;
+      this.preparing = false;
+      this.playbackError = (error as Error).message || '录像暂不可用，请重试';
+    }
+  }
+
+  /** 下载按钮：先让用户选保存位置，再从云端取完整片段写进去。 */
+  private async saveClip(clip: RecordingClip): Promise<void> {
+    if (this.downloadingId !== '' || clip.downloadable === false) return;
+    const body = this.clipRequest(clip);
+    if (body === undefined) return;
+    const time = new Date(clip.startTime);
+    const pad = (value: number): string => `${value}`.padStart(2, '0');
+    const name = `守护星${this.eventLabel(clip.eventType)}_${time.getFullYear()}${pad(time.getMonth() + 1)}` +
+      `${pad(time.getDate())}_${pad(time.getHours())}${pad(time.getMinutes())}${pad(time.getSeconds())}.mp4`;
+    let uri = '';
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const uris = await new picker.DocumentViewPicker(context).save({
+        newFileNames: [name],
+        fileSuffixChoices: ['MP4 视频|.mp4']
+      });
+      if (uris.length === 0) return;
+      uri = uris[0];
+    } catch (_error) {
+      this.toast('无法打开保存位置，请重试');
+      return;
+    }
+    this.downloadingId = clip.id;
+    const message = await CloudService.getInstance().downloadRecording(body, uri);
+    if (this.disposed) return;
+    this.downloadingId = '';
+    this.toast(message === '' ? '视频已保存' : message);
+  }
+
+  private toast(message: string): void {
+    showToast(this.getUIContext(), { message: message });
+  }
+
+  private retrySelected(): void {
     const day = this.days.find((item: RecordingDay): boolean => item.key === this.expandedKey);
     if (day === undefined) return;
     const selected = day.clips.find((clip: RecordingClip): boolean => clip.id === this.selectedId);
-    if (selected !== undefined) this.download(selected);
+    if (selected !== undefined) this.play(selected);
   }
 
   @Builder
@@ -419,7 +438,7 @@ export struct RecordingBrowser {
               .fontColor(this.themeManager.colors.secondaryTextColor).width(40)
           }.width('100%')
           if (!this.videoReady && this.playbackError === '') {
-            Text('正在准备播放…').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+            Text('正在缓冲…').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
           }
           if (this.playbackError !== '') {
             Text(this.playbackError).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
@@ -429,11 +448,11 @@ export struct RecordingBrowser {
         Column({ space: 10 }) {
           if (this.preparing) { LoadingProgress().width(32).height(32).color('#2563eb') }
           else { Image($r('app.media.ic_camera')).width(36).height(36).objectFit(ImageFit.Contain) }
-          Text(this.preparing ? '正在从硬件下载录像…' : this.playbackError !== '' ? this.playbackError : '录像下载完成后可在这里播放')
+          Text(this.preparing ? '正在连接硬件录像…' : this.playbackError !== '' ? this.playbackError : '点击下方片段即可在线播放')
             .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
           if (this.playbackError !== '' && this.selectedId !== '') {
-            Button('重新下载').height(44).backgroundColor('#2563eb')
-              .onClick((): void => { this.retrySelectedDownload(); })
+            Button('重新播放').height(44).backgroundColor('#2563eb')
+              .onClick((): void => { this.retrySelected(); })
           }
         }.width('100%').height(140).justifyContent(FlexAlign.Center)
       }
@@ -499,16 +518,16 @@ export struct RecordingBrowser {
               Text(`${this.format(clip.startTime)}${clip.endUnconfirmed ? ' · 持续中' : ''}`)
                 .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            Button(clip.downloadable === false ? '生成中' :
-              this.preparing && this.selectedId === clip.id ? '下载中' :
-              this.videoSource !== '' && this.selectedId === clip.id ? '已下载' : '下载')
+            Button(clip.downloadable === false ? '生成中' : this.downloadingId === clip.id ? '下载中' : '下载')
               .height(42).fontSize(14).backgroundColor('#2563eb')
-              .enabled(clip.downloadable !== false && !this.preparing)
-              .accessibilityText(`下载${this.eventLabel(clip.eventType)}视频`)
-              .onClick((): void => { this.download(clip); })
+              .enabled(clip.downloadable !== false && this.downloadingId === '')
+              .accessibilityText(`把${this.eventLabel(clip.eventType)}视频保存到手机`)
+              .onClick((): void => { this.saveClip(clip); })
           }.width('100%').padding(14).borderRadius(SURFACE_RADIUS)
             .backgroundColor(this.selectedId === clip.id ? (this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe')
               : this.themeManager.colors.cardBackgroundColor)
+            .accessibilityText(`在线播放${this.eventLabel(clip.eventType)}视频`)
+            .onClick((): void => { this.play(clip); })
         }, (clip: RecordingClip): string => clip.id)
       }
     }.width('100%')
@@ -526,7 +545,7 @@ export struct RecordingBrowser {
         Button('刷新').height(44).fontSize(14).backgroundColor('#2563eb')
           .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
       }.width('100%')
-      Text('仅显示异常类型和发生时间；点击下载后才从硬件获取对应视频')
+      Text('点击片段在线播放；点“下载”保存到手机')
         .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%').maxLines(2)
       if (this.selectedId !== '') {
         this.Playback()

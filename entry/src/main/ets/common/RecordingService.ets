@@ -1,4 +1,5 @@
 import { CloudService } from './CloudService';
+import { ECS_BASE_URL } from '../config';
 
 export interface RecordingClip {
   id: string;
@@ -118,4 +119,27 @@ export async function queryRecordings(query: RecordingQuery): Promise<RecordingR
   }
   if (response.responseCode !== 200 || !result.success) throw new Error(result.message || '录像加载失败');
   return result;
+}
+
+interface StreamUrlResult {
+  success: boolean;
+  message?: string;
+  path?: string;
+  expires?: number;
+}
+
+/** 向云端换取 10 分钟有效的签名播放地址；播放器直接拉流，不落地到本机。 */
+export async function requestStreamUrl(body: RecordingPlaybackRequest): Promise<string> {
+  const response = await CloudService.getInstance().authenticatedPost('/api/recordings/stream-url', body, 30000);
+  if (response.responseCode === 0) throw new Error(recordingQueryErrorText(0, response.errorCode));
+  let result: StreamUrlResult;
+  try {
+    result = JSON.parse(response.result) as StreamUrlResult;
+  } catch (_error) {
+    throw new Error('录像暂不可用，请重试');
+  }
+  if (response.responseCode !== 200 || !result.success || !result.path) {
+    throw new Error(result.message || '录像暂不可用，请重试');
+  }
+  return ECS_BASE_URL + result.path;
 }

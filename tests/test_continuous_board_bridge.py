@@ -393,6 +393,8 @@ class RecordingApiStatusTests(unittest.TestCase):
                 return function
             return decorator
 
+        get = post
+
     def setUp(self):
         self.api = load_recording_api_for_test()
         self.app = self.FakeApp()
@@ -498,6 +500,89 @@ class RecordingApiStatusTests(unittest.TestCase):
                 'windowStart': 1000, 'windowEnd': 2000})
         self.assertEqual(status, 503)
         self.assertIn('开发板', body['message'])
+
+
+class RecordingStreamTests(RecordingApiStatusTests):
+    """在线播放：签名地址只能播放签发的那段录像，过期或篡改即拒绝，Range 原样透传。"""
+
+    clip = {'success': True, 'clips': [
+        {'id': 'event-a', 'segmentId': 'rec-1', 'downloadable': True}], 'eventCount': 1}
+    env = {'BOARD_RECORDING_BASE_URL': 'http://127.0.0.1:5000', 'BOARD_RECORDING_TOKEN': 'secret'}
+
+    class FakeSource:
+        status = 206
+        headers = {'Content-Length': '4', 'Content-Range': 'bytes 0-3/10'}
+
+        def __init__(self):
+            self.chunks = [b'abcd', b'']
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _size):
+            return self.chunks.pop(0)
+
+    def setUp(self):
+        super().setUp()
+        self.api.Response = lambda body, status=200, mimetype=None: types.SimpleNamespace(
+            body=body, status=status, headers={})
+        self.api.stream_with_context = lambda generator: b''.join(generator)
+
+    def issue(self):
+        with patch.dict(os.environ, self.env), \
+                patch.object(self.api, '_snapshot', return_value=self.clip):
+            self.api.request.get_json = lambda silent=True: {
+                'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
+                'windowStart': 1000, 'windowEnd': 2000}
+            return self.app.routes['/api/recordings/stream-url']()
+
+    def stream(self, recording_id, query, range_header=None):
+        self.api.request.args = query
+        self.api.request.headers = {'Range': range_header} if range_header else {}
+        with patch.dict(os.environ, self.env), \
+                patch.object(bridge, 'open_media', return_value=self.FakeSource()) as opened:
+            result = self.app.routes['/api/recordings/stream/<recording_id>'](recording_id)
+        return result, opened
+
+    def signed_query(self, body):
+        query = body['path'].split('?', 1)[1]
+        return dict(item.split('=', 1) for item in query.split('&'))
+
+    def test_signed_url_streams_with_range_forwarded(self):
+        body = self.issue()
+        self.assertTrue(body['success'])
+        self.assertTrue(body['path'].startswith('/api/recordings/stream/rec-1?'))
+        result, opened = self.stream('rec-1', self.signed_query(body), 'bytes=0-3')
+        opened.assert_called_once_with('rec-1', 'bytes=0-3')
+        self.assertEqual(result.status, 206)
+        self.assertEqual(result.body, b'abcd')
+        self.assertEqual(result.headers['Content-Range'], 'bytes 0-3/10')
+
+    def test_signature_is_bound_to_one_recording(self):
+        query = self.signed_query(self.issue())
+        (body, status), opened = self.stream('rec-2', query)
+        self.assertEqual(status, 403)
+        opened.assert_not_called()
+
+    def test_expired_or_tampered_url_is_rejected(self):
+        query = self.signed_query(self.issue())
+        tampered = dict(query, sig='0' * 64)
+        (_body, status), _opened = self.stream('rec-1', tampered)
+        self.assertEqual(status, 403)
+        with patch.object(self.api.time, 'time', return_value=time.time() + 601):
+            (_body, status), _opened = self.stream('rec-1', query)
+        self.assertEqual(status, 403)
+
+    def test_only_single_byte_ranges_reach_the_board(self):
+        with patch.dict(os.environ, self.env), \
+                patch.object(bridge, '_open', return_value='response') as raw:
+            bridge.open_media('rec-1', 'bytes=0-1,5-6')
+            bridge.open_media('rec-1', 'bytes=100-')
+        self.assertEqual(raw.call_args_list[0].kwargs['headers'], {})
+        self.assertEqual(raw.call_args_list[1].kwargs['headers'], {'Range': 'bytes=100-'})
 
 
 if __name__ == '__main__':

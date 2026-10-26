@@ -1,5 +1,6 @@
 """Authenticated recording queries and bounded MP4 playback downloads."""
 import hashlib
+import hmac
 import os
 import subprocess
 import time
@@ -11,6 +12,15 @@ import board_recording_bridge as board_bridge
 FFMPEG = os.environ.get('RECORDING_FFMPEG', '/opt/guardian-ffmpeg/bin/ffmpeg')
 RETENTION_MS = 7 * DAY
 KINDS = ('all', 'fall', 'sedentary', 'stranger')
+# 在线播放地址有效期：够看完一个 15 秒片段并来回拖动，过期后重新点击即可。
+STREAM_TTL_SECONDS = 600
+
+
+def _stream_signature(recording_id, expires):
+    """用开发板令牌派生的密钥签名播放地址；令牌本身不离开云端。"""
+    key = hashlib.sha256(b'recording-stream:' + board_bridge.stream_secret().encode()).digest()
+    message = f'{recording_id}:{int(expires)}'.encode()
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
 def _requested_window(data):
@@ -91,36 +101,102 @@ def register_recording_routes(app, bearer_required):
         response.headers['Cache-Control'] = 'no-store'
         return response
 
-    @app.post('/api/recordings/media')
-    @bearer_required
-    def recording_media():
+    def requested_clip():
+        """校验录像请求并在快照中找到目标片段；失败时返回 (None, 错误响应)。"""
         if not authorized():
-            return jsonify(success=False, message='当前账号未获准访问监护设备'), 403
+            return None, (jsonify(success=False, message='当前账号未获准访问监护设备'), 403)
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
-            return jsonify(success=False, message='请求格式无效'), 400
+            return None, (jsonify(success=False, message='请求格式无效'), 400)
         kind = data.get('filter')
         if kind not in KINDS:
-            return jsonify(success=False, message='录像筛选类型无效'), 400
+            return None, (jsonify(success=False, message='录像筛选类型无效'), 400)
         clip_id = data.get('clipId')
         if not isinstance(clip_id, str) or clip_id == '':
-            return jsonify(success=False, message='请求格式无效'), 400
+            return None, (jsonify(success=False, message='请求格式无效'), 400)
         try:
             as_of = int(data['asOf'])
             window_start, window_end = _requested_window(data)
         except (ValueError, KeyError, TypeError, OverflowError):
-            return jsonify(success=False, message='请求格式无效'), 400
+            return None, (jsonify(success=False, message='请求格式无效'), 400)
         try:
             result = _snapshot(as_of, kind, window_start, window_end)
         except ValueError:
-            return jsonify(success=False, message='录像时间范围无效'), 400
+            return None, (jsonify(success=False, message='录像时间范围无效'), 400)
         except board_bridge.BoardRecordingUnavailable:
-            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+            return None, (jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503)
         clip = next((item for item in result.get('clips', []) if item['id'] == clip_id), None)
         if not clip:
-            return jsonify(success=False, message='录像已过期或不在筛选范围，请刷新'), 404
+            return None, (jsonify(success=False, message='录像已过期或不在筛选范围，请刷新'), 404)
         if not clip.get('downloadable', True) or not clip.get('segmentId'):
-            return jsonify(success=False, message='异常视频正在生成，请稍后刷新'), 429
+            return None, (jsonify(success=False, message='异常视频正在生成，请稍后刷新'), 429)
+        return clip, None
+
+    @app.post('/api/recordings/stream-url')
+    @bearer_required
+    def recording_stream_url():
+        """签发短时播放地址：播放器直接拉流，不需要携带账号令牌。"""
+        clip, error = requested_clip()
+        if error:
+            return error
+        if not board_bridge.configured():
+            return jsonify(success=False, message='在线播放暂不可用，请下载后观看'), 503
+        expires = int(time.time()) + STREAM_TTL_SECONDS
+        try:
+            signature = _stream_signature(clip['segmentId'], expires)
+        except board_bridge.BoardRecordingUnavailable:
+            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+        response = jsonify(success=True, expires=expires,
+                           path=f"/api/recordings/stream/{clip['segmentId']}?exp={expires}&sig={signature}")
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.get('/api/recordings/stream/<recording_id>')
+    def recording_stream(recording_id):
+        """校验签名后把开发板录像按 Range 透传给播放器（支持拖动进度）。"""
+        try:
+            expires = int(request.args.get('exp', ''))
+        except (TypeError, ValueError):
+            return jsonify(success=False, message='播放地址无效'), 403
+        signature = request.args.get('sig', '')
+        now = int(time.time())
+        if expires < now or expires > now + STREAM_TTL_SECONDS:
+            return jsonify(success=False, message='播放地址已过期，请重新点击播放'), 403
+        try:
+            expected = _stream_signature(recording_id, expires)
+        except board_bridge.BoardRecordingUnavailable:
+            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+        if not isinstance(signature, str) or not hmac.compare_digest(signature, expected):
+            return jsonify(success=False, message='播放地址无效'), 403
+        try:
+            source = board_bridge.open_media(recording_id, request.headers.get('Range'))
+        except board_bridge.BoardRecordingUnavailable:
+            return jsonify(success=False, message='开发板录像暂不可用，请稍后重试'), 503
+
+        def generate():
+            with source:
+                while True:
+                    chunk = source.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        response = Response(stream_with_context(generate()),
+                            status=getattr(source, 'status', 200), mimetype='video/mp4')
+        for name in ('Content-Length', 'Content-Range'):
+            value = source.headers.get(name)
+            if value:
+                response.headers[name] = value
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.post('/api/recordings/media')
+    @bearer_required
+    def recording_media():
+        clip, error = requested_clip()
+        if error:
+            return error
         if board_bridge.configured():
             try:
                 source = board_bridge.open_media(clip['segmentId'])

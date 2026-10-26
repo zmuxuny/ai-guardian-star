@@ -69,6 +69,29 @@
 ### 回滚
 
 - 仅回退 Codex 两次修复：依次 `git revert 0b3da26 a6c2561`。
+## 2026-10-26 08:00 · codex · T-20261026-01-net · 已完成
+
+> 分支：`zy` @ `920b038`；仅更新本文件与 `TASKS.md`，未提交、未 push。
+> 下一步：无线周期重连原因需进一步验证；改变路由或重启网络前先安排本地回退入口。
+
+### 结论与验证
+
+- 用户报告 FinalShell 断线、桌面 Wi-Fi 重连、网页与手机画面不稳定。
+- 已通过本地私钥连接云端与开发板；未修改远端配置、未重启任何服务，未记录密码。
+- 云端 `wenxin.service` / `frps.service`、板端 `guardian-board.service` / `frpc-aliyun.service` 均 active。
+- 板端默认路由优先 eth0（metric 100），经电脑共享网关；Wi-Fi 为 metric 600。
+- 板端本次启动内核多次出现 wlan0 link becomes ready，相邻约 58～64 秒；无线周期重连有内核证据。
+- 云端既有 FRP 日志存在多轮约 40 秒后重连，SSH/video 同时报 work connection timeout；不能仅归因于播放器。
+- 当前 eth0 到云端 60 次 ping 无丢包，均值 27.4ms；板内 HTTP 15/15、云端经 FRP HTTP 10/10 返回 200。
+- 分别绑定网卡和源地址后，eth0/wlan0 到云端 22/7000 各 3 次 TCP 连接均成功；Wi-Fi ping 失败不视为断网证据。
+- FRP TCP 采样有重传与乱序；初见高 load，CPU 采样仍 86～89% idle，存在多条驱动 D 状态线程，不能直接认定 CPU 满载。
+
+### 未验证 / 边界
+
+- 尚未确定 Wi-Fi 重连由驱动、省电、热点还是认证触发；板端 NetworkManager journal 无可用事件。
+- 当前采样稳定不代表长期恢复；Wi-Fi 重连与优先 eth0 的 FRP 断线尚未建立因果关系。
+- 未运行应用功能、设备完整验收或长时间网络观察；没有代码提交或部署回滚需求。
+- 后续（claude，2026-10-26 20:52）：根因是 7 月遗留的 `wifi-reconnect.timer` 每 60 秒 `radio wifi on` 并强制切回 `mortis`；已备份到板端 `/root/backup/wifi-reconnect-20261026/` 后删除。另发现 unity-greeter 空闲 1200 秒触发系统休眠，正在屏蔽 sleep 目标。
 
 ## 2026-10-25 15:18 · codex · T-20261025-10 · 已完成
 
