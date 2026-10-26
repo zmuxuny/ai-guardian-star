@@ -6,7 +6,7 @@
 
 ## 2026-10-26 20:17 · codex · T-20261026-02 · 待验证
 
-> 分支：`wip/deepseek-20261026-recording-day-lazy` @ `a6c2561` · 基于：`zy@920b038`
+> 分支：`wip/deepseek-20261026-recording-day-lazy` @ `0b3da26` · 基于：`zy@920b038`
 > 下一步：在兼容云端部署后做模拟器按日展开、下载和七天边界端到端验收；验收前不合入 `zy`。
 
 ### 目标
@@ -17,13 +17,14 @@
 
 - `board_recording_bridge.py` — 事件严格限制在请求日窗口；合法但已过期窗口返回空快照。
 - `recording_api.py` — 本地回退按请求窗口、留存窗口与 `asOf` 的交集过滤。
-- `tests/test_continuous_board_bridge.py` — 增加跨日、过期及媒体 400/404/429/503 回归测试。
+- `tests/test_continuous_board_bridge.py` — 增加跨日、未来、过期及 query/media × board/local 状态码回归测试。
 
 ### 验证
 
-- `python -m unittest tests.test_continuous_board_bridge -v`：22/22 通过。
+- `python -m unittest tests.test_continuous_board_bridge -v`：27/27 通过。
 - `python -m py_compile board_recording_bridge.py recording_api.py`：通过。
 - release HAP：BUILD SUCCESSFUL；24,377,390 字节；SHA-256 `D6E15541…1EC83`；未签名。
+- 模拟器：未签名 HAP 安装成功，冷启动进入前台；未连接兼容云端做下载验收。
 
 ### 未验证 / 风险
 
@@ -32,7 +33,7 @@
 
 ### 回滚
 
-- 仅回退本次修复：`git revert a6c2561`。
+- 仅回退 Codex 两次修复：依次 `git revert 0b3da26 a6c2561`。
 
 ## 2026-10-25 15:18 · codex · T-20261025-10 · 已完成
 
