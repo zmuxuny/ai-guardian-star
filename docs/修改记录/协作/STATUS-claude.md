@@ -2,6 +2,28 @@
 
 > 由 Claude 维护；只保留最近 3 条，最新在上。格式见 `TEMPLATE.md`。
 
+## 2026-10-27 · claude · T-20261027-c01 · 已完成（已部署）
+
+> 分支：`feature/jyx-home` 提交 `ac48605`（性能），并合入 `origin/ysh@8267c85`（`1fecb55`）。
+> 下一步：真机复测记录页；观察 wenxin.service 内存上限是否被触发（`journalctl -u wenxin.service | grep -i oom`）。
+
+### 改动
+
+- 板端 `guardian_history.py` 新增 `list_recordings_for_events()`（一条 SQL）；`guardian_history_api.py` 的 `/api/history/events` 列表附带每个事件的 `recordings`（加字段，旧客户端不受影响）。
+- 云端 `board_recording_bridge.py`：事件自带 `recordings` 时不再逐个请求详情；旧版板端没有该字段时自动回退原逻辑。
+- 云端 `wenxin.service` 新增 drop-in `/etc/systemd/system/wenxin.service.d/memory.conf`：`MemoryHigh=600M`、`MemoryMax=768M`，超限只重启本服务，不拖垮整机。
+
+### 验证
+
+- 云端测试 39/39；板端历史接口与存储测试 41/41（本机临时 venv 装 fastapi/httpx 跑，含新增批量用例）；ysh 带来的两组 node 测试各 12/12。
+- 生产实测：两天 614 个事件查询 0.55 s，访问板端 9 次（原先每个事件一次，约 600+ 次）。
+- 合并后签名 Release HAP 装模拟器：主页、记录页正常，当天 14 个事件加载成功。
+
+### 回滚
+
+- 板端：`/root/backup/history-batch-202610261238/` 两个文件拷回 `/root/ai_guardian/` 后 `systemctl restart guardian-board.service`。
+- 云端：`/root/backup/history-batch-202610270039/board_recording_bridge.py` 拷回 `/opt/wenxin/app/`；删除 `wenxin.service.d/memory.conf` 后 `systemctl daemon-reload && systemctl restart wenxin.service`。
+
 ## 2026-10-26 · claude · T-20261026-13（原 -06，与 codex 撞号后改）· 已验证（模拟器）
 
 > 分支：`feature/jyx-home`，基于 `wip/deepseek-20261026-recording-day-lazy` 合入后的 `e7ebed9`；追加 `2f7a015`（日期卡“正在读取”）。
