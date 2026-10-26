@@ -55,6 +55,11 @@
       "data": {
         "description": "Full-screen live camera"
       }
+    },
+    {
+      "name": "TodayEvents",
+      "pageSourceFile": "src/main/ets/pages/TodayEvents.ets",
+      "buildFunction": "TodayEventsBuilder"
     }
   ]
 }

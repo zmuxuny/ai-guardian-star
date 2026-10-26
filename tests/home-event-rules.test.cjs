@@ -21,6 +21,31 @@ function loadRules(name) {
 const rules = loadRules('HomeEventRules');
 const parser = loadRules('MqttParser');
 
+test('today includes midnight and excludes adjacent calendar dates', () => {
+  const now = new Date(2026, 9, 26, 18).getTime();
+  const start = new Date(2026, 9, 26).getTime();
+  const end = new Date(2026, 9, 27).getTime();
+  assert.equal(rules.isTodayHomeEvent('fall', start, now), true);
+  assert.equal(rules.isTodayHomeEvent('stranger', end - 1, now), true);
+  assert.equal(rules.isTodayHomeEvent('sedentary', start - 1, now), false);
+  assert.equal(rules.isTodayHomeEvent('fall', end, now), false);
+});
+
+test('today is a calendar day rather than the previous 24 hours', () => {
+  const now = new Date(2026, 9, 26, 1).getTime();
+  assert.equal(rules.isTodayHomeEvent('stranger', now - 2 * 3600000, now), false);
+  assert.equal(rules.isTodayHomeEvent('heartbeat', now, now), false);
+  assert.equal(rules.isTodayHomeEvent('fall', NaN, now), false);
+});
+
+test('today changes correctly across midnight and year end', () => {
+  const before = new Date(2026, 11, 31, 23, 59, 59).getTime();
+  const after = new Date(2027, 0, 1).getTime();
+  assert.equal(rules.isTodayHomeEvent('sedentary', before, before), true);
+  assert.equal(rules.isTodayHomeEvent('sedentary', before, after), false);
+  assert.equal(rules.isTodayHomeEvent('stranger', after, after), true);
+});
+
 test('homepage includes stranger alongside fall and sedentary events', () => {
   assert.deepEqual(['fall', 'sedentary', 'stranger', 'heartbeat', 'normal', 'unknown']
     .filter(rules.isHomeEventType), ['fall', 'sedentary', 'stranger']);

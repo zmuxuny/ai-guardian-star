@@ -2,9 +2,12 @@ import { MqttManager } from './MqttManager';
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
 import { UserManager } from '../common/UserManager';
-import { isHomeEventType, homeEventTitle } from '../common/HomeEventRules';
+import { isHomeEventType, homeEventTitle, homeEventAccent, homeEventSurface } from '../common/HomeEventRules';
 import { CameraStreamView } from '../components/CameraStreamView';
 import { SURFACE_RADIUS } from '../components/GradientHeader';
+import { AudioTransferManager } from '../common/AudioTransferManager';
+import { abilityAccessCtrl, common } from '@kit.AbilityKit';
+import { showToast } from '../common/UiFeedback';
 
 @Component
 export struct mainPage {
@@ -16,17 +19,28 @@ export struct mainPage {
   @State homeLoading: boolean = true;
   @State homeLoadFailed: boolean = false;
   @State viewportWidth: number = 360;
+  @State isTalking: boolean = false;
+  @State callBusy: boolean = false;
+  private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
+  private homeVisible: boolean = false;
   private homeDataTimer: number = -1;
   private homeDataLoading: boolean = false;
   private homeDataUser: string = '';
 
   aboutToAppear(): void {
+    this.homeVisible = true;
     this.mqttManager.connectAndSubscribe();
     this.loadHomeEvents();
-    this.homeDataTimer = setInterval((): void => { this.loadHomeEvents(); }, 2000) as number;
+    this.homeDataTimer = setInterval((): void => {
+      this.loadHomeEvents();
+      this.isTalking = this.audioManager.isCallActive();
+    }, 2000) as number;
   }
 
   aboutToDisappear(): void {
+    this.homeVisible = false;
+    this.audioManager.stopCall();
+    this.isTalking = false;
     if (this.homeDataTimer !== -1) clearInterval(this.homeDataTimer);
     this.homeDataTimer = -1;
   }
@@ -38,22 +52,66 @@ export struct mainPage {
     this.pathStack.pushPathByName('CameraFullscreen', null);
   }
 
+  private async toggleCall(): Promise<void> {
+    if (this.callBusy) return;
+    this.callBusy = true;
+    try {
+      if (this.isTalking || this.audioManager.isCallActive()) {
+        await this.audioManager.stopCall();
+        this.isTalking = false;
+        return;
+      }
+      if (!this.mqttManager.deviceOnline) {
+        showToast(this.getUIContext(), { message: '设备未连接，无法发起通话' });
+        return;
+      }
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const permission = await abilityAccessCtrl.createAtManager()
+        .requestPermissionsFromUser(context, ['ohos.permission.MICROPHONE']);
+      if (!this.homeVisible) return;
+      if (permission.authResults[0] !== 0) {
+        showToast(this.getUIContext(), { message: '需要麦克风权限才能通话' });
+        return;
+      }
+      await this.audioManager.startCall();
+      if (!this.homeVisible) { await this.audioManager.stopCall(); return; }
+      this.isTalking = this.audioManager.isCallActive();
+    } catch (_) {
+      this.isTalking = false;
+      if (this.homeVisible) showToast(this.getUIContext(), { message: '通话连接失败，请稍后重试' });
+    } finally {
+      this.callBusy = false;
+    }
+  }
+
   @Builder
   CameraHeader(): void {
     Row({ space: 16 }) {
-      Button({ type: ButtonType.Normal }) {
-        Column({ space: 8 }) {
-          Image($r('app.media.ic_camera_round_solid')).width(72).height(80)
+      Column({ space: 8 }) {
+        Button({ type: ButtonType.Normal }) {
+          Column({ space: 6 }) {
+          Image($r('app.media.ic_camera_round_solid')).width(64).height(72)
             .fillColor(this.mqttManager.isConnected ? this.themeManager.colors.successTextColor
               : this.themeManager.colors.dangerTextColor)
           Text(this.mqttManager.isConnected ? '通道正常' : '通道异常').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor(this.mqttManager.isConnected ? this.themeManager.colors.successTextColor
               : this.themeManager.colors.dangerTextColor)
-          Text('点击全屏').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
-      }.width(96).height(132).padding(0).borderRadius(16).backgroundColor(Color.Transparent)
+      }.width(112).height(108).padding(0).borderRadius(16).backgroundColor(Color.Transparent)
         .accessibilityText(`点击全屏查看摄像头，告警通道${this.mqttManager.isConnected ? '正常' : '异常'}`)
         .onClick((): void => { this.openCamera(); })
+        Button({ type: ButtonType.Capsule }) {
+          Row({ space: 6 }) {
+            Image(this.isTalking ? $r('app.media.ic_call_end') : $r('app.media.ic_phone_white'))
+              .width(20).height(20)
+            Text(this.callBusy ? (this.isTalking ? '结束中' : '连接中') : this.isTalking ? '挂断' : '通话')
+              .fontSize(14).fontWeight(FontWeight.Medium).fontColor('#ffffff')
+          }
+        }.width(100).height(44).backgroundColor(this.isTalking ? '#dc2626' : '#2563eb')
+          .enabled(!this.callBusy).opacity(this.callBusy ? 0.7 : 1)
+          .accessibilityText(this.isTalking ? '结束语音通话' : '发起语音通话')
+          .onClick((): void => { this.toggleCall(); })
+      }.width(112)
 
       Stack() {
         if (!this.cameraFullscreenActive) {
@@ -137,15 +195,12 @@ export struct mainPage {
   }
 
   private eventAccent(event: HealthEvent): string {
-    if (event.eventType === 'fall') return this.themeManager.isDarkMode ? '#fca5a5' : '#b91c1c';
-    if (event.eventType === 'stranger') return this.themeManager.isDarkMode ? '#fcd34d' : '#946200';
-    return this.themeManager.isDarkMode ? '#93c5fd' : '#2563eb';
+    return homeEventAccent(event.eventType, this.themeManager.isDarkMode);
   }
 
   private eventSurface(event: HealthEvent): string {
-    if (event.eventType === 'fall') return this.themeManager.isDarkMode ? '#3b2028' : '#fff1f2';
-    if (event.eventType === 'stranger') return this.themeManager.isDarkMode ? '#352d18' : '#fff8db';
-    return this.themeManager.colors.cardBackgroundColor;
+    return event.eventType === 'sedentary' ? this.themeManager.colors.cardBackgroundColor
+      : homeEventSurface(event.eventType, this.themeManager.isDarkMode);
   }
 
   private eventTime(timestamp: number): string {
@@ -163,7 +218,7 @@ export struct mainPage {
   }
 
   private openHistory(): void {
-    this.pathStack.pushPathByName('HealthHistory', null);
+    this.pathStack.pushPathByName('TodayEvents', null);
   }
 
   private showEventDetails(event: HealthEvent): void {
@@ -171,7 +226,7 @@ export struct mainPage {
       title: this.eventTitle(event),
       message: `${this.eventWhen(event)}\n${event.isHandled === 1 ? '已处理' : '待处理'}${event.remark ? `\n${event.remark}` : ''}`,
       primaryButton: { value: '关闭', action: (): void => {} },
-      secondaryButton: { value: '全部记录', action: (): void => { this.openHistory(); } },
+      secondaryButton: { value: '当天记录', action: (): void => { this.openHistory(); } },
     });
   }
 
