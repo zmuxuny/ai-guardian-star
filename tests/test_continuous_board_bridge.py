@@ -1,9 +1,11 @@
 import os
 import json
+import importlib.util
 import sys
 import tempfile
 import threading
 import time
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +18,21 @@ import board_recording_bridge as bridge
 from guardian_continuous import ContinuousCaptureSink
 from guardian_recording_config import RecordingConfig
 from guardian_storage import retention_cutoff
+
+
+def load_recording_api_for_test():
+    """Load recording_api without requiring the production Flask package on Windows."""
+    flask = types.ModuleType('flask')
+    for name in ('request', 'jsonify', 'g', 'send_file', 'Response', 'stream_with_context'):
+        setattr(flask, name, object())
+    mqtt_access = types.ModuleType('mqtt_access')
+    mqtt_access.allowed_users = lambda _path: set()
+    module_name = 'recording_api_under_test'
+    spec = importlib.util.spec_from_file_location(module_name, ROOT / 'recording_api.py')
+    module = importlib.util.module_from_spec(spec)
+    with patch.dict(sys.modules, {'flask': flask, 'mqtt_access': mqtt_access}):
+        spec.loader.exec_module(module)
+    return module
 
 
 class CaptureSinkTests(unittest.TestCase):
@@ -151,8 +168,9 @@ class BoundedDayQueryTests(unittest.TestCase):
     def test_window_is_clipped_to_rolling_retention_and_drops_stale_events(self):
         stale = self.event('stale-event', self.retention_start - 60_000)
         fresh = self.event('fresh-event', self.retention_start + 60_000)
+        after_requested_day = self.event('next-day-event', self.now - 60_000)
         result, pages = self.run_snapshot(
-            events=[stale, fresh],
+            events=[stale, fresh, after_requested_day],
             window_start=self.now - 10 * bridge.DAY,
             window_end=self.now - bridge.DAY)
         self.assertEqual(pages.call_args.args[1], self.retention_start)
@@ -161,16 +179,23 @@ class BoundedDayQueryTests(unittest.TestCase):
         self.assertEqual(result['windowEnd'], self.now - bridge.DAY)
         self.assertEqual([clip['id'] for clip in result['clips']], ['fresh-event'])
 
-    def test_reverse_degenerate_and_expired_ranges_are_rejected(self):
+    def test_reverse_and_degenerate_ranges_are_rejected(self):
         with self.assertRaises(ValueError):
             bridge.snapshot(self.now, 'all', self.now, self.now - 1_000)
         with self.assertRaises(ValueError):
             bridge.snapshot(self.now, 'all', self.now - 1_000, self.now - 1_000)
         with self.assertRaises(ValueError):
             bridge.snapshot(self.now, 'unknown')
-        with self.assertRaises(ValueError):
-            bridge.snapshot(self.now, 'all',
-                            self.now - 9 * bridge.DAY, self.now - 8 * bridge.DAY)
+
+    def test_well_formed_window_that_aged_out_returns_an_empty_snapshot(self):
+        result, pages = self.run_snapshot(
+            window_start=self.now - 9 * bridge.DAY,
+            window_end=self.now - 8 * bridge.DAY)
+        self.assertEqual(result['clips'], [])
+        self.assertEqual(result['eventCount'], 0)
+        self.assertEqual(result['windowStart'], self.retention_start)
+        self.assertEqual(result['windowEnd'], self.retention_start)
+        pages.assert_not_called()
 
     def test_event_details_are_fetched_concurrently(self):
         events = [self.event('event-%d' % index, self.now - (index + 1) * 60_000)
@@ -298,6 +323,103 @@ class BoundedDayQueryTests(unittest.TestCase):
             events=[], kind='all',
             window_start=self.now - 3_600_000, window_end=self.now)
         self.assertEqual(pages_all.call_args.args[3], {})
+
+
+class RecordingApiFallbackTests(unittest.TestCase):
+    def setUp(self):
+        self.api = load_recording_api_for_test()
+        self.now = 1_800_000_000_000
+
+    def fallback_result(self):
+        return {'success': True, 'asOf': self.now,
+                'windowStart': self.now - bridge.DAY, 'windowEnd': self.now,
+                'status': 'recording',
+                'clips': [
+                    {'id': 'older', 'startTime': self.now - 3_600_000},
+                    {'id': 'inside', 'startTime': self.now - 1_800_000},
+                    {'id': 'later', 'startTime': self.now - 60_000},
+                ],
+                'eventCount': 3, 'wholeSegments': False}
+
+    def test_local_fallback_uses_the_intersection_of_store_and_requested_windows(self):
+        with patch.object(self.api.board_bridge, 'configured', return_value=False), \
+                patch.object(self.api, 'snapshot', return_value=self.fallback_result()):
+            result = self.api._snapshot(
+                self.now, 'all', self.now - 2_000_000, self.now - 1_000_000)
+        self.assertEqual([clip['id'] for clip in result['clips']], ['inside'])
+        self.assertEqual(result['windowStart'], self.now - 2_000_000)
+        self.assertEqual(result['windowEnd'], self.now - 1_000_000)
+        self.assertEqual(result['eventCount'], 1)
+
+    def test_local_fallback_returns_empty_when_a_valid_window_has_aged_out(self):
+        with patch.object(self.api.board_bridge, 'configured', return_value=False), \
+                patch.object(self.api, 'snapshot', return_value=self.fallback_result()):
+            result = self.api._snapshot(
+                self.now, 'all', self.now - 3 * bridge.DAY, self.now - 2 * bridge.DAY)
+        self.assertEqual(result['clips'], [])
+        self.assertEqual(result['eventCount'], 0)
+        self.assertEqual(result['windowStart'], self.now - bridge.DAY)
+        self.assertEqual(result['windowEnd'], self.now - bridge.DAY)
+
+
+class RecordingApiStatusTests(unittest.TestCase):
+    class FakeApp:
+        def __init__(self):
+            self.routes = {}
+
+        def post(self, path):
+            def decorator(function):
+                self.routes[path] = function
+                return function
+            return decorator
+
+    def setUp(self):
+        self.api = load_recording_api_for_test()
+        self.app = self.FakeApp()
+        self.api.request = types.SimpleNamespace(get_json=lambda silent=True: {})
+        self.api.g = types.SimpleNamespace(current_username='allowed-user')
+        self.api.jsonify = lambda **values: values
+        self.api.allowed_users = lambda _path: {'allowed-user'}
+        self.api.register_recording_routes(self.app, lambda function: function)
+
+    def call_media(self, data):
+        self.api.request.get_json = lambda silent=True: data
+        return self.app.routes['/api/recordings/media']()
+
+    def test_media_rejects_a_malformed_window_with_400(self):
+        body, status = self.call_media({
+            'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
+            'windowStart': 2000, 'windowEnd': 1000})
+        self.assertEqual(status, 400)
+        self.assertEqual(body['message'], '请求格式无效')
+
+    def test_media_returns_404_when_a_valid_window_has_naturally_expired(self):
+        empty = {'success': True, 'clips': [], 'eventCount': 0}
+        with patch.object(self.api, '_snapshot', return_value=empty):
+            body, status = self.call_media({
+                'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
+                'windowStart': 1000, 'windowEnd': 2000})
+        self.assertEqual(status, 404)
+        self.assertIn('已过期', body['message'])
+
+    def test_media_keeps_429_for_a_clip_that_is_still_being_generated(self):
+        pending = {'success': True, 'clips': [
+            {'id': 'event-a', 'segmentId': '', 'downloadable': False}], 'eventCount': 1}
+        with patch.object(self.api, '_snapshot', return_value=pending):
+            body, status = self.call_media({
+                'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
+                'windowStart': 1000, 'windowEnd': 2000})
+        self.assertEqual(status, 429)
+        self.assertIn('正在生成', body['message'])
+
+    def test_media_keeps_503_for_an_unavailable_board_bridge(self):
+        with patch.object(self.api, '_snapshot',
+                          side_effect=bridge.BoardRecordingUnavailable('down')):
+            body, status = self.call_media({
+                'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
+                'windowStart': 1000, 'windowEnd': 2000})
+        self.assertEqual(status, 503)
+        self.assertIn('开发板', body['message'])
 
 
 if __name__ == '__main__':

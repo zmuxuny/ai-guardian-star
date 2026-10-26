@@ -33,12 +33,22 @@ def _snapshot(as_of, kind, window_start, window_end):
     result = snapshot(as_of, kind)
     if window_start is None:
         return result
+    available_start = max(window_start, result.get('windowStart', window_start))
+    available_end = min(window_end, result.get('windowEnd', window_end), as_of)
+    if available_start >= available_end:
+        boundary = min(max(available_end, result.get('windowStart', available_end)),
+                       result.get('windowEnd', available_end))
+        result['clips'] = []
+        result['eventCount'] = 0
+        result['windowStart'] = boundary
+        result['windowEnd'] = boundary
+        return result
     clips = [clip for clip in result.get('clips', [])
-             if window_start <= clip['startTime'] < window_end]
+             if available_start <= clip['startTime'] < available_end]
     result['clips'] = clips
     result['eventCount'] = len(clips)
-    result['windowStart'] = max(window_start, result.get('windowStart', window_start))
-    result['windowEnd'] = min(window_end, result.get('windowEnd', window_end))
+    result['windowStart'] = available_start
+    result['windowEnd'] = available_end
     return result
 
 

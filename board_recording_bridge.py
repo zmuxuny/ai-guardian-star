@@ -142,10 +142,17 @@ def snapshot(as_of, kind, window_start=None, window_end=None):
         requested_end = int(window_end)
     except (TypeError, ValueError, OverflowError):
         raise ValueError('invalid window') from None
+    if requested_start >= requested_end:
+        raise ValueError('invalid window')
     available_start = max(requested_start, retention_start)
     end = min(requested_end, as_of, now)
     if available_start >= end:
-        raise ValueError('empty window')
+        # 请求格式有效但整个窗口已随 168 小时滚动留存自然过期。
+        # query 应得到空列表，media 会因找不到 clip 保持既有 404 语义。
+        boundary = min(max(end, retention_start), now)
+        return {'success': True, 'asOf': as_of, 'windowStart': boundary,
+                'windowEnd': boundary, 'status': 'waiting', 'clips': [],
+                'eventCount': 0, 'wholeSegments': False}
     status = _get_json('/api/history/status')
     target_kind = 'sit' if kind == 'sedentary' else kind
     query = {} if kind == 'all' else {'kind': target_kind}
@@ -155,7 +162,8 @@ def snapshot(as_of, kind, window_start=None, window_end=None):
             clips = [clip for clip in pool.map(_clip_from_event, events) if clip is not None]
     else:
         clips = []
-    clips = [clip for clip in clips if clip['startTime'] >= retention_start]
+    # 不依赖板端端点的边界包含规则；日期分组统一按 startTime 属于 [start, end)。
+    clips = [clip for clip in clips if available_start <= clip['startTime'] < end]
     return {'success': True, 'asOf': as_of, 'windowStart': available_start,
             'windowEnd': end,
             'status': 'recording' if status.get('state') == 'running' else status.get('state', 'waiting'),
