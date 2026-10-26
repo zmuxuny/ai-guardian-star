@@ -563,7 +563,9 @@ export struct RecordingBrowser {
               }
             }.width('100%')
           }
-        }, (day: RecordingDay): string => day.key)
+        // key 必须包含加载状态：patchDay 生成新对象，只用日期作 key 时 ForEach 不会重建该项，界面会卡在“正在读取”。
+        }, (day: RecordingDay): string =>
+          `${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}`)
       }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
     }.width('100%').height('100%').padding({ left: 16, right: 16, top: 14, bottom: 12 })
       .backgroundColor(this.themeManager.colors.backgroundColor)
