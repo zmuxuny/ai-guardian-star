@@ -4,6 +4,42 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-10-26 20:05 · deepseek · T-20261026-02 · 待验证
+
+> 分支：`wip/deepseek-20261026-recording-day-lazy` @ `629ac48`（本地提交，未 push）· 基于：`zy` @ `920b038`
+> 提交：`d2939a5` 云端日期窗口+并发详情、`629ac48` App 按日懒加载+超时区分
+> 下一步：Codex 审核；部署云端后实测单日查询耗时；模拟器/真机验收。
+
+### 目标
+
+异常录像页 10 秒读取超时（云端 ~23 秒）且被误报为“网络不可用”；改为按本地自然日懒加载，并区分“服务端超时”和“断网”。
+
+### 改动
+
+- `board_recording_bridge.py` —— `snapshot(as_of, kind, window_start, window_end)`：窗口与 `[now-168h, now]` 取交集，空/反向/过期区间抛 `ValueError`；详情抽 `_clip_from_event` + 固定 8 线程池并发，单条失败只跳过该事件，结果仍按 `startTime` 倒序。
+- `recording_api.py` —— query/media 解析并校验 `windowStart/windowEnd`；media 只在同一日窗口内复核 `clipId`；400/503 语义不变。
+- `RecordingService.ets` —— `RecordingQuery` 增加窗口字段；新增纯函数 `buildRecordingDays`、`recordingQueryErrorText`（2300028 → 超时文案）；只有录像查询用 30 秒读取超时。
+- `CloudService.ets` —— `CloudHttpResponse.errorCode` 保留 `BusinessError.code`；401 刷新重试继续沿用调用方 readTimeout。
+- `RecordingBrowser.ets` —— 日期手风琴（今天默认展开、单日缓存、单日错误隔离、刷新只重查当前展开日、下载带该日窗口、切换日期释放播放器与临时文件）。
+
+### 验证
+
+- Python：`python -m unittest tests.test_continuous_board_bridge -v` → **15 项全部通过**（原有 6 项 + 新增 9 项）；RED 阶段 9 项 ERROR（`snapshot() takes 2 positional arguments`）。
+- ArkTS：release `assembleHap` → **BUILD SUCCESSFUL**；`entry-default-unsigned.hap` 24,377,390 B，SHA-256 `D6E1554…1EC83`。
+- Hypium 断言未执行：本机 hvigor 无 `Test/UnitTest` 任务，`UnitTestBuild` 不编译 `src/test`（故意写入语法错误后仍 BUILD SUCCESSFUL）；改用临时主源 import 探针编译 `LocalUnit.test.ets`：实现前报 `has no exported member 'buildRecordingDays'`，实现后 BUILD SUCCESSFUL，探针已还原。
+
+### 未验证 / 风险
+
+- 未部署云端、未重启 `wenxin.service`；板端真实单日查询耗时仍待实测。
+- 未做模拟器/真机界面验收（本机无启动的 Huawei_phone）。
+- `recording_api.py` 仅做 `py_compile`；本机无 Flask，`test_board_recording_api.py` 未运行。
+- STATUS 现有 4 条，最老一条待归档（归档需新增 archive 文件，超出本次允许修改范围）。
+
+### 回滚
+
+- 代码：`git checkout 920b038` 或分别 revert `d2939a5`、`629ac48`。
+- 云端部署前备份 `board_recording_bridge.py`、`recording_api.py`，回滚即还原这两个文件并重启 `wenxin.service`。
+
 ## 2026-10-25 13:20 · deepseek · T-20261025-09 · 待验证
 
 > 分支：`zy` @ `3be8786`（本地提交，未 push）· 基于：`9d42ec4`
@@ -111,4 +147,3 @@
 ### 回滚
 
 - `git revert <本提交>`；或删除 `tools/dsh-headless.ps1` 与 README 第 9 节。
-
