@@ -30,6 +30,10 @@ def _snapshot(as_of, kind, window_start, window_end):
     """开发板模式下把日期窗口交给 bridge；本地回退模式也按窗口裁剪。"""
     if board_bridge.configured():
         return board_bridge.snapshot(as_of, kind, window_start, window_end)
+    if window_start is not None:
+        reference_end = min(int(as_of), int(time.time() * 1000))
+        if window_start >= reference_end:
+            raise ValueError('invalid window')
     result = snapshot(as_of, kind)
     if window_start is None:
         return result
@@ -69,14 +73,14 @@ def register_recording_routes(app, bearer_required):
             return jsonify(success=False, message='录像筛选类型无效'), 400
         try:
             as_of = int(data.get('asOf', time.time() * 1000))
-            if as_of < int(time.time() * 1000) - RETENTION_MS:
-                raise ValueError()
         except (ValueError, TypeError, OverflowError):
             return jsonify(success=False, message='请刷新查看近7天异常录像'), 400
         try:
             window_start, window_end = _requested_window(data)
         except (ValueError, KeyError, TypeError, OverflowError):
             return jsonify(success=False, message='录像时间范围无效'), 400
+        if window_start is None and as_of < int(time.time() * 1000) - RETENTION_MS:
+            return jsonify(success=False, message='请刷新查看近7天异常录像'), 400
         try:
             result = _snapshot(as_of, kind, window_start, window_end)
         except ValueError:

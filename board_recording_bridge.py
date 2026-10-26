@@ -126,7 +126,8 @@ def snapshot(as_of, kind, window_start=None, window_end=None):
     """只返回 [retention_start, now] 与请求窗口交集内的事件。
 
     调用方可以只传 as_of（旧客户端，覆盖整个留存窗口），也可以传一个自然日范围。
-    空区间、反向区间和未知类型都抛 ValueError，由 API 层转成 HTTP 400。
+    反向、零长度、未来以及完全晚于 asOf 的窗口抛 ValueError。
+    格式合法但已经滚出留存范围的窗口返回空快照。
     """
     if kind not in KINDS:
         raise ValueError('unknown kind')
@@ -144,11 +145,16 @@ def snapshot(as_of, kind, window_start=None, window_end=None):
         raise ValueError('invalid window') from None
     if requested_start >= requested_end:
         raise ValueError('invalid window')
+    if requested_start >= as_of:
+        raise ValueError('invalid window')
+    if requested_end <= retention_start:
+        return {'success': True, 'asOf': as_of, 'windowStart': retention_start,
+                'windowEnd': retention_start, 'status': 'waiting', 'clips': [],
+                'eventCount': 0, 'wholeSegments': False}
     available_start = max(requested_start, retention_start)
     end = min(requested_end, as_of, now)
     if available_start >= end:
-        # 请求格式有效但整个窗口已随 168 小时滚动留存自然过期。
-        # query 应得到空列表，media 会因找不到 clip 保持既有 404 语义。
+        # asOf 本身已早于当前留存起点时，不再访问板端，只返回空快照。
         boundary = min(max(end, retention_start), now)
         return {'success': True, 'asOf': as_of, 'windowStart': boundary,
                 'windowEnd': boundary, 'status': 'waiting', 'clips': [],

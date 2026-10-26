@@ -187,6 +187,13 @@ class BoundedDayQueryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             bridge.snapshot(self.now, 'unknown')
 
+    def test_future_and_post_as_of_windows_are_rejected(self):
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now, 'all', self.now + 1_000, self.now + 2_000)
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now - bridge.DAY, 'all',
+                            self.now - bridge.DAY + 1_000, self.now - bridge.DAY + 2_000)
+
     def test_well_formed_window_that_aged_out_returns_an_empty_snapshot(self):
         result, pages = self.run_snapshot(
             window_start=self.now - 9 * bridge.DAY,
@@ -343,7 +350,8 @@ class RecordingApiFallbackTests(unittest.TestCase):
 
     def test_local_fallback_uses_the_intersection_of_store_and_requested_windows(self):
         with patch.object(self.api.board_bridge, 'configured', return_value=False), \
-                patch.object(self.api, 'snapshot', return_value=self.fallback_result()):
+                patch.object(self.api, 'snapshot', return_value=self.fallback_result()), \
+                patch.object(self.api.time, 'time', return_value=self.now / 1000):
             result = self.api._snapshot(
                 self.now, 'all', self.now - 2_000_000, self.now - 1_000_000)
         self.assertEqual([clip['id'] for clip in result['clips']], ['inside'])
@@ -353,13 +361,25 @@ class RecordingApiFallbackTests(unittest.TestCase):
 
     def test_local_fallback_returns_empty_when_a_valid_window_has_aged_out(self):
         with patch.object(self.api.board_bridge, 'configured', return_value=False), \
-                patch.object(self.api, 'snapshot', return_value=self.fallback_result()):
+                patch.object(self.api, 'snapshot', return_value=self.fallback_result()), \
+                patch.object(self.api.time, 'time', return_value=self.now / 1000):
             result = self.api._snapshot(
                 self.now, 'all', self.now - 3 * bridge.DAY, self.now - 2 * bridge.DAY)
         self.assertEqual(result['clips'], [])
         self.assertEqual(result['eventCount'], 0)
         self.assertEqual(result['windowStart'], self.now - bridge.DAY)
         self.assertEqual(result['windowEnd'], self.now - bridge.DAY)
+
+    def test_local_fallback_rejects_future_and_post_as_of_windows(self):
+        with patch.object(self.api.board_bridge, 'configured', return_value=False), \
+                patch.object(self.api, 'snapshot', return_value=self.fallback_result()), \
+                patch.object(self.api.time, 'time', return_value=self.now / 1000):
+            with self.assertRaises(ValueError):
+                self.api._snapshot(
+                    self.now, 'all', self.now + 1_000, self.now + 2_000)
+            with self.assertRaises(ValueError):
+                self.api._snapshot(
+                    self.now - 3_600_000, 'all', self.now - 3_599_000, self.now - 3_598_000)
 
 
 class RecordingApiStatusTests(unittest.TestCase):
@@ -378,13 +398,71 @@ class RecordingApiStatusTests(unittest.TestCase):
         self.app = self.FakeApp()
         self.api.request = types.SimpleNamespace(get_json=lambda silent=True: {})
         self.api.g = types.SimpleNamespace(current_username='allowed-user')
-        self.api.jsonify = lambda **values: values
+        class FakeJsonResponse(dict):
+            def __init__(self, values):
+                super().__init__(values)
+                self.headers = {}
+        self.api.jsonify = lambda *args, **values: FakeJsonResponse(args[0] if args else values)
         self.api.allowed_users = lambda _path: {'allowed-user'}
         self.api.register_recording_routes(self.app, lambda function: function)
 
     def call_media(self, data):
         self.api.request.get_json = lambda silent=True: data
         return self.app.routes['/api/recordings/media']()
+
+    def call_query(self, data):
+        self.api.request.get_json = lambda silent=True: data
+        return self.app.routes['/api/recordings/query']()
+
+    def test_query_allows_an_explicit_aged_out_window_to_return_empty(self):
+        now = 1_800_000_000_000
+        empty = {'success': True, 'asOf': now - 8 * bridge.DAY,
+                 'windowStart': now - 7 * bridge.DAY,
+                 'windowEnd': now - 7 * bridge.DAY,
+                 'clips': [], 'eventCount': 0}
+        with patch.object(self.api.time, 'time', return_value=now / 1000), \
+                patch.object(self.api, '_snapshot', return_value=empty) as snapshot_call:
+            response = self.call_query({
+                'asOf': now - 8 * bridge.DAY, 'filter': 'all',
+                'windowStart': now - 9 * bridge.DAY,
+                'windowEnd': now - 8 * bridge.DAY})
+        self.assertEqual(response, empty)
+        snapshot_call.assert_called_once()
+
+    def test_query_rejects_future_window_through_board_and_local_paths(self):
+        now = 1_800_000_000_000
+        data = {'asOf': now, 'filter': 'all',
+                'windowStart': now + 1_000, 'windowEnd': now + 2_000}
+        fallback = {'success': True, 'asOf': now,
+                    'windowStart': now - bridge.DAY, 'windowEnd': now,
+                    'status': 'recording', 'clips': [], 'eventCount': 0}
+        for configured in (True, False):
+            with self.subTest(configured=configured), \
+                    patch.object(self.api.board_bridge, 'configured', return_value=configured), \
+                    patch.object(self.api.time, 'time', return_value=now / 1000), \
+                    patch.object(bridge.time, 'time', return_value=now / 1000), \
+                    patch.object(self.api, 'snapshot', return_value=fallback):
+                body, status = self.call_query(data)
+            self.assertEqual(status, 400)
+            self.assertEqual(body['message'], '录像时间范围无效')
+
+    def test_media_returns_404_for_expired_window_through_board_and_local_paths(self):
+        now = 1_800_000_000_000
+        data = {'asOf': now, 'filter': 'all', 'clipId': 'event-a',
+                'windowStart': now - 9 * bridge.DAY,
+                'windowEnd': now - 8 * bridge.DAY}
+        fallback = {'success': True, 'asOf': now,
+                    'windowStart': now - bridge.DAY, 'windowEnd': now,
+                    'status': 'recording', 'clips': [], 'eventCount': 0}
+        for configured in (True, False):
+            with self.subTest(configured=configured), \
+                    patch.object(self.api.board_bridge, 'configured', return_value=configured), \
+                    patch.object(self.api.time, 'time', return_value=now / 1000), \
+                    patch.object(bridge.time, 'time', return_value=now / 1000), \
+                    patch.object(self.api, 'snapshot', return_value=fallback):
+                body, status = self.call_media(data)
+            self.assertEqual(status, 404)
+            self.assertIn('已过期', body['message'])
 
     def test_media_rejects_a_malformed_window_with_400(self):
         body, status = self.call_media({
