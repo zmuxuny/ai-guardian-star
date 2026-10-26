@@ -46,6 +46,8 @@ export interface MqttCredentials {
 export interface CloudHttpResponse {
   responseCode: number;
   result: string;
+  /** 原生网络栈错误码（例如 2300028 读取超时）；HTTP 有响应状态码时为 undefined。 */
+  errorCode?: number;
 }
 
 interface LoginRequest {
@@ -251,8 +253,11 @@ export class CloudService {
         expectDataType: http.HttpDataType.STRING,
       });
       response = { responseCode: raw.responseCode, result: raw.result as string };
-    } catch (_e) {
-      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}' };
+    } catch (e) {
+      // 只保留原始错误码用于分类文案；不记录 token，也不打印请求头。
+      const error = e as BusinessError;
+      const code: number = typeof error.code === 'number' ? error.code : 0;
+      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}', errorCode: code };
     } finally {
       req.destroy();
     }
