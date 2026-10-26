@@ -525,25 +525,26 @@ export struct person {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ useHomeStyle: true }) {
       Column() {
         if (this.userAvatarPath !== '') {
           Image(fileUri.getUriFromPath(this.userAvatarPath))
             .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
-            .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
+            .border({ width: 2.5, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
             .clip(true)
         } else {
           Column() {
-            Image($r("app.media.ic_user")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
+            Image($r("app.media.ic_user_blue")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
           }
           .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
-          .backgroundColor("rgba(255,255,255,0.2)")
-          .border({ width: 2, color: "rgba(255,255,255,0.6)" })
+          .backgroundColor(this.themeManager.isDarkMode ? '#20365a' : '#e1ebff')
+          .border({ width: 2, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         }
         Text(this.userNickname || this.userName)
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: 14 })
+          .fontSize(22).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.colors.primaryTextColor).margin({ top: 14 })
       }
       .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
     }

@@ -334,15 +334,6 @@ export struct mainPage {
         .borderRadius(100)
         .align(Alignment.TopStart)
         .margin({ left: 12, top: 12 })
-        Row({ space: 6 }) {
-          Row().width(7).height(7).borderRadius(4).backgroundColor('#34d399')
-          Text('在线').fontSize(12).fontWeight(FontWeight.Medium).fontColor('#ffffff')
-        }
-        .padding({ left: 10, right: 10, top: 7, bottom: 7 })
-        .backgroundColor('#b31e293b')
-        .borderRadius(100)
-        .align(Alignment.BottomStart)
-        .margin({ left: 12, bottom: 12 })
         if (getWindowSizeClass(this.viewportWidth) === 'compact') {
           Button({ type: ButtonType.Normal }) {
             Image($r('app.media.ic_home_expand')).width(21).height(21)
@@ -412,23 +403,6 @@ export struct mainPage {
           color: this.themeManager.isDarkMode ? '#2d4a7a' : '#d6e4ff'
         })
         .borderRadius(SURFACE_RADIUS)
-      }
-      if (this.compactVideoProgress === 0 || this.expandedVideo || getWindowSizeClass(this.viewportWidth) !== 'compact') {
-        Button({ type: ButtonType.Normal }) {
-          Row({ space: 6 }) {
-            Image($r('app.media.ic_home')).width(18).height(18)
-            Text('家中设备').fontSize(13).fontWeight(FontWeight.Medium)
-              .fontColor(this.themeManager.colors.primaryTextColor)
-            Image($r('app.media.ic_chevron_right')).width(14).height(14)
-          }
-          .height('100%')
-          .alignItems(VerticalAlign.Center)
-          .justifyContent(FlexAlign.Center)
-        }.height(40).padding({ left: 12, right: 12 }).borderRadius(20)
-          .backgroundColor(this.themeManager.isDarkMode ? '#20365a' : '#ffffff')
-          .align(Alignment.TopEnd).margin({ right: 12, top: 12 })
-          .accessibilityText('查看家中设备连接状态')
-          .onClick((): void => { this.showDeviceStatus(); })
       }
     }
     .width(frameWidth)

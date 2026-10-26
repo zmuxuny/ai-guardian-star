@@ -164,23 +164,24 @@ export struct AiChat {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ useHomeStyle: true }) {
       Row() {
         Text('AI 健康助手')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.colors.primaryTextColor)
         Blank()
         Row({ space: 6 }) {
-          Text(' ').width(8).height(8).backgroundColor('#4ade80').borderRadius(4)
+          Text(' ').width(8).height(8).backgroundColor(this.themeManager.colors.successTextColor).borderRadius(4)
           Text(
             `云端 AI · ${this.aiAccessLevel === 'full' ? '深度照护'
               : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
-          ).fontSize(12).fontColor('#E0F2FE')
+          ).fontSize(12).fontColor(this.themeManager.colors.linkTextColor)
         }
         .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-        .backgroundColor('#33FFFFFF').borderRadius(100)
+        .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe').borderRadius(100)
       }
       .width('100%')
-      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 16, bottom: 20 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 20 })
     }
   }
 
