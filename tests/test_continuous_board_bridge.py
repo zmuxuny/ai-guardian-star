@@ -2,6 +2,8 @@ import os
 import json
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -107,6 +109,195 @@ class BoardBridgeTests(unittest.TestCase):
                                      'BOARD_RECORDING_TOKEN': 'secret'}):
             with self.assertRaises(bridge.BoardRecordingUnavailable):
                 bridge.open_media('abc123')
+
+
+class BoundedDayQueryTests(unittest.TestCase):
+    """Assert on snapshot() behaviour, never only on mock call counts."""
+
+    now = 1_800_000_000_000
+
+    @property
+    def retention_start(self):
+        return self.now - bridge.RETENTION_MS
+
+    def event(self, event_id, started_at, kind='fall', ended_at=None):
+        return {'id': event_id, 'kind': kind, 'started_at': bridge._iso(started_at),
+                'ended_at': bridge._iso(ended_at) if ended_at is not None else None}
+
+    def run_snapshot(self, events=(), kind='all', window_start=None, window_end=None,
+                     get_json=None):
+        if get_json is None:
+            def get_json(path, _query=None):
+                if path == '/api/history/status':
+                    return {'state': 'running'}
+                return {'recordings': []}
+        with patch.object(bridge.time, 'time', return_value=self.now / 1000), \
+                patch.object(bridge, '_get_json', side_effect=get_json), \
+                patch.object(bridge, '_pages', return_value=iter(list(events))) as pages:
+            result = bridge.snapshot(self.now, kind, window_start, window_end)
+        return result, pages
+
+    def test_requested_day_window_reaches_board_event_query(self):
+        window_start = self.now - 5 * 3_600_000
+        window_end = self.now - 3_600_000
+        result, pages = self.run_snapshot(window_start=window_start, window_end=window_end)
+        self.assertEqual(pages.call_args.args[0], '/api/history/events')
+        self.assertEqual(pages.call_args.args[1], window_start)
+        self.assertEqual(pages.call_args.args[2], window_end)
+        self.assertEqual(result['windowStart'], window_start)
+        self.assertEqual(result['windowEnd'], window_end)
+        self.assertEqual(result['asOf'], self.now)
+
+    def test_window_is_clipped_to_rolling_retention_and_drops_stale_events(self):
+        stale = self.event('stale-event', self.retention_start - 60_000)
+        fresh = self.event('fresh-event', self.retention_start + 60_000)
+        result, pages = self.run_snapshot(
+            events=[stale, fresh],
+            window_start=self.now - 10 * bridge.DAY,
+            window_end=self.now - bridge.DAY)
+        self.assertEqual(pages.call_args.args[1], self.retention_start)
+        self.assertEqual(pages.call_args.args[2], self.now - bridge.DAY)
+        self.assertEqual(result['windowStart'], self.retention_start)
+        self.assertEqual(result['windowEnd'], self.now - bridge.DAY)
+        self.assertEqual([clip['id'] for clip in result['clips']], ['fresh-event'])
+
+    def test_reverse_degenerate_and_expired_ranges_are_rejected(self):
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now, 'all', self.now, self.now - 1_000)
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now, 'all', self.now - 1_000, self.now - 1_000)
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now, 'unknown')
+        with self.assertRaises(ValueError):
+            bridge.snapshot(self.now, 'all',
+                            self.now - 9 * bridge.DAY, self.now - 8 * bridge.DAY)
+
+    def test_event_details_are_fetched_concurrently(self):
+        events = [self.event('event-%d' % index, self.now - (index + 1) * 60_000)
+                  for index in range(6)]
+        lock = threading.Lock()
+        state = {'active': 0, 'maxActive': 0}
+
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            with lock:
+                state['active'] += 1
+                state['maxActive'] = max(state['maxActive'], state['active'])
+            time.sleep(0.08)
+            with lock:
+                state['active'] -= 1
+            return {'recordings': [{'id': 'segment-' + path.rsplit('/', 1)[-1],
+                                    'state': 'complete'}]}
+
+        result, _pages_mock = self.run_snapshot(
+            events=events, window_start=self.now - 3_600_000, window_end=self.now,
+            get_json=get_json)
+        self.assertGreater(state['maxActive'], 1)
+        self.assertEqual(len(result['clips']), 6)
+        self.assertTrue(all(clip['downloadable'] for clip in result['clips']))
+
+    def test_detail_concurrency_has_a_fixed_upper_bound(self):
+        events = [self.event('event-%d' % index, self.now - (index + 1) * 60_000)
+                  for index in range(12)]
+        lock = threading.Lock()
+        state = {'active': 0, 'maxActive': 0}
+
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            with lock:
+                state['active'] += 1
+                state['maxActive'] = max(state['maxActive'], state['active'])
+            time.sleep(0.05)
+            with lock:
+                state['active'] -= 1
+            return {'recordings': []}
+
+        result, _pages_mock = self.run_snapshot(
+            events=events, window_start=self.now - 3_600_000, window_end=self.now,
+            get_json=get_json)
+        self.assertGreater(state['maxActive'], 1)
+        self.assertLessEqual(state['maxActive'], 8)
+        self.assertEqual(len(result['clips']), 12)
+
+    def test_clips_stay_newest_first_when_details_finish_out_of_order(self):
+        events = [self.event('event-%d' % index, self.now - (10 - index) * 60_000)
+                  for index in range(6)]
+
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            index = int(path.rsplit('-', 1)[-1])
+            time.sleep(0.01 * (5 - index))
+            return {'recordings': []}
+
+        result, _pages_mock = self.run_snapshot(
+            events=events, window_start=self.now - 3_600_000, window_end=self.now,
+            get_json=get_json)
+        self.assertEqual([clip['id'] for clip in result['clips']],
+                         ['event-5', 'event-4', 'event-3', 'event-2', 'event-1', 'event-0'])
+        starts = [clip['startTime'] for clip in result['clips']]
+        self.assertEqual(starts, sorted(starts, reverse=True))
+
+    def test_one_failed_detail_does_not_drop_other_events(self):
+        events = [self.event('event-a', self.now - 180_000),
+                  self.event('event-b', self.now - 120_000),
+                  self.event('event-c', self.now - 60_000)]
+
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            if path.endswith('event-b'):
+                raise bridge.BoardRecordingUnavailable('detail down')
+            return {'recordings': [{'id': 'segment-' + path.rsplit('/', 1)[-1],
+                                    'state': 'complete'}]}
+
+        result, _pages_mock = self.run_snapshot(
+            events=events, window_start=self.now - 3_600_000, window_end=self.now,
+            get_json=get_json)
+        self.assertEqual([clip['id'] for clip in result['clips']], ['event-c', 'event-a'])
+        self.assertTrue(all(clip['downloadable'] for clip in result['clips']))
+
+    def test_malformed_events_are_skipped_without_failing_the_day(self):
+        events = [self.event('event-ok', self.now - 60_000),
+                  {'id': 'event-no-start', 'kind': 'fall'},
+                  {'id': 'event-bad-kind', 'kind': 'noise',
+                   'started_at': bridge._iso(self.now - 120_000)},
+                  {'id': '../escape', 'kind': 'fall',
+                   'started_at': bridge._iso(self.now - 180_000)}]
+        result, _pages_mock = self.run_snapshot(
+            events=events, window_start=self.now - 3_600_000, window_end=self.now)
+        self.assertEqual([clip['id'] for clip in result['clips']], ['event-ok'])
+
+    def test_kind_filter_and_event_semantics_survive_day_windows(self):
+        events = [self.event('sit-event', self.now - 60_000, kind='sit'),
+                  self.event('stranger-event', self.now - 120_000, kind='stranger'),
+                  self.event('fall-event', self.now - 180_000, kind='fall',
+                             ended_at=self.now - 170_000)]
+
+        def get_json(path, _query=None):
+            if path == '/api/history/status':
+                return {'state': 'running'}
+            return {'recordings': [{'id': 'segment-' + path.rsplit('/', 1)[-1],
+                                    'state': 'complete'}]}
+
+        result, pages = self.run_snapshot(
+            events=events, kind='sedentary',
+            window_start=self.now - 3_600_000, window_end=self.now,
+            get_json=get_json)
+        self.assertEqual(pages.call_args.args[3], {'kind': 'sit'})
+        by_id = {clip['id']: clip for clip in result['clips']}
+        self.assertEqual(by_id['sit-event']['eventType'], 'sedentary')
+        self.assertEqual(by_id['stranger-event']['eventType'], 'stranger')
+        self.assertEqual(by_id['fall-event']['eventType'], 'fall')
+        self.assertFalse(by_id['fall-event']['endUnconfirmed'])
+        self.assertTrue(by_id['sit-event']['endUnconfirmed'])
+        self.assertTrue(all(clip['downloadable'] for clip in result['clips']))
+        _result_all, pages_all = self.run_snapshot(
+            events=[], kind='all',
+            window_start=self.now - 3_600_000, window_end=self.now)
+        self.assertEqual(pages_all.call_args.args[3], {})
 
 
 if __name__ == '__main__':
