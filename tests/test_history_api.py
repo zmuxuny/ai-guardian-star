@@ -113,6 +113,20 @@ class HistoryApiTests(unittest.TestCase):
         self.assertNotIn("relpath", recordings.text)
         self.assertNotIn("part.mp4", recordings.text)
 
+    def test_event_list_embeds_linked_recordings_in_one_batch(self):
+        other = self.store.add_event("sit", START + 30, ended_at=START + 31)
+        self.store.link_event_recording(self.event_id, "segment-1", START + 11)
+        response = self.client.get("/api/history/events", params=WINDOW, headers=AUTH)
+        self.assertEqual(response.status_code, 200)
+        items = {row["id"]: row for row in response.json()["items"]}
+        self.assertEqual([clip["id"] for clip in items[self.event_id]["recordings"]], ["segment-1"])
+        self.assertEqual(items[other]["recordings"], [])
+        self.assertNotIn("part.mp4", response.text)
+        with patch.object(self.store, "list_event_recordings",
+                          side_effect=AssertionError("list must not query per event")):
+            self.assertEqual(self.client.get("/api/history/events", params=WINDOW,
+                                             headers=AUTH).status_code, 200)
+
     def test_detail_filters_private_metadata_and_paths(self):
         self.store.add_event("fall", START, event_id="private-event", payload={
             "credential": TOKEN, "a": "relative/file.mp4", "b": "/etc/private",

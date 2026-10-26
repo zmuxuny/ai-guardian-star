@@ -107,11 +107,14 @@ def _clip_from_event(event):
     if (event_kind not in EVENT_KINDS or not isinstance(event_id, str) or not event_id.isascii()
             or not all(character.isalnum() or character in '_-' for character in event_id)):
         return None
-    try:
-        detail = _get_json('/api/history/events/' + event_id)
-    except BoardRecordingUnavailable:
-        return None
-    linked = detail.get('recordings') if isinstance(detail, dict) else None
+    # 新版板端在事件列表里直接带 recordings；旧版没有时才逐个请求详情。
+    linked = event.get('recordings')
+    if not isinstance(linked, list):
+        try:
+            detail = _get_json('/api/history/events/' + event_id)
+        except BoardRecordingUnavailable:
+            return None
+        linked = detail.get('recordings') if isinstance(detail, dict) else None
     if not isinstance(linked, list):
         linked = []
     complete = next((row for row in linked

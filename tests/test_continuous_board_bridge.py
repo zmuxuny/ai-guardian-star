@@ -112,6 +112,30 @@ class BoardBridgeTests(unittest.TestCase):
         self.assertEqual(result['status'], 'recording')
         self.assertFalse(result['wholeSegments'])
 
+    def test_embedded_recordings_skip_per_event_detail_requests(self):
+        now = 1_800_000_000_000
+        start = now - bridge.RETENTION_MS
+        events = [
+            {'id': 'fall-event', 'kind': 'fall', 'started_at': bridge._iso(start + 60000),
+             'ended_at': bridge._iso(start + 61000),
+             'recordings': [{'id': 'fall-video', 'state': 'complete'}]},
+            {'id': 'sit-event', 'kind': 'sit', 'started_at': bridge._iso(start + 120000),
+             'ended_at': None, 'recordings': []},
+        ]
+        paths = []
+
+        def get_json(path, _query=None):
+            paths.append(path)
+            return {'state': 'running'}
+
+        with patch.object(bridge.time, 'time', return_value=now / 1000), \
+                patch.object(bridge, '_get_json', side_effect=get_json), \
+                patch.object(bridge, '_pages', return_value=iter(events)):
+            result = bridge.snapshot(now, 'all')
+        self.assertEqual(paths, ['/api/history/status'])
+        self.assertEqual([clip['segmentId'] for clip in result['clips']], ['', 'fall-video'])
+        self.assertEqual([clip['downloadable'] for clip in result['clips']], [False, True])
+
     def test_event_filter_is_forwarded_to_board(self):
         now = 1_800_000_000_000
         with patch.object(bridge.time, 'time', return_value=now / 1000), \

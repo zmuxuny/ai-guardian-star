@@ -292,6 +292,25 @@ class HistoryStore:
                 return None
         return deadline
 
+    def list_recordings_for_events(self, event_ids):
+        """一次查出多个事件的关联录像，返回 {event_id: [recording, ...]}，避免逐个事件查询。"""
+        ids = list(dict.fromkeys(event_ids))
+        for event_id in ids:
+            validate_history_id(event_id)
+        linked = {event_id: [] for event_id in ids}
+        if not ids:
+            return linked
+        rows = self._query(
+            "SELECT er.event_id AS linked_event_id, r.* FROM recordings r "
+            "JOIN event_recordings er ON er.recording_id=r.id "
+            "WHERE er.event_id IN (" + ",".join("?" * len(ids)) + ") "
+            "ORDER BY r.started_at, r.id", tuple(ids))
+        for row in rows:
+            row = dict(row)
+            event_id = row.pop("linked_event_id")
+            linked[event_id].append(self._decode(row))
+        return linked
+
     def list_event_recordings(self, event_id):
         validate_history_id(event_id)
         rows = self._query(

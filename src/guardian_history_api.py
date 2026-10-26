@@ -229,6 +229,13 @@ def create_history_router(config: Any, store: Any = None, recorder: Any = None,
         try:
             rows = backend.list_events(**query) if events else backend.list_recordings(**query)
             items = [_public_row(row, events, token) for row in rows]
+            batch = getattr(backend, "list_recordings_for_events", None) if events else None
+            if callable(batch) and items:
+                # Additive: 列表直接带上每个事件的录像，云端不必再逐个请求事件详情。
+                linked = batch([row["id"] for row in rows])
+                for row, item in zip(rows, items):
+                    item["recordings"] = [_public_row(clip, False, token)
+                                          for clip in linked.get(row["id"], [])]
         except Exception:
             # SQLite/filesystem errors can contain SQL or absolute device paths.
             # Do not return or log them from a public endpoint.
