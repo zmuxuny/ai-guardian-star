@@ -47,6 +47,19 @@
       "data": {
         "description": "this is HealthHistory"
       }
+    },
+    {
+      "name": "CameraFullscreen",
+      "pageSourceFile": "src/main/ets/pages/CameraFullscreen.ets",
+      "buildFunction": "CameraFullscreenBuilder",
+      "data": {
+        "description": "Full-screen live camera"
+      }
+    },
+    {
+      "name": "TodayEvents",
+      "pageSourceFile": "src/main/ets/pages/TodayEvents.ets",
+      "buildFunction": "TodayEventsBuilder"
     }
   ]
 }
