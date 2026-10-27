@@ -300,6 +300,11 @@ export struct RecordingBrowser {
     return includeDate ? `${date.getMonth() + 1}月${date.getDate()}日 ${time}` : time;
   }
 
+  private formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
   private rangeStart(): number {
     if (this.days.length > 0) return this.days[this.days.length - 1].windowStart;
     return this.asOf - RECORDING_RETENTION_MS;
@@ -319,7 +324,7 @@ export struct RecordingBrowser {
 
   private eventLabel(type: string): string {
     if (type === 'fall') return '摔倒';
-    if (type === 'sedentary') return '久坐';
+    if (type === 'sedentary') return '久坐提醒';
     if (type === 'stranger') return '陌生人';
     return '异常行为';
   }
@@ -517,7 +522,8 @@ export struct RecordingBrowser {
             Column({ space: 4 }) {
               Text(this.eventLabel(clip.eventType))
                 .fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-              Text(`${this.format(clip.startTime)}${clip.endUnconfirmed ? ' · 持续中' : ''}`)
+              // 板端暂未写事件结束时间，endUnconfirmed 恒为 true，不再显示“持续中”
+              Text(this.format(clip.startTime))
                 .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
             Button(clip.downloadable === false ? '生成中' : this.downloadingId === clip.id ? '下载中' : '下载')
@@ -541,7 +547,7 @@ export struct RecordingBrowser {
         Column({ space: 4 }) {
           Text('近7天异常录像').fontSize(17).fontWeight(FontWeight.Bold)
             .fontColor(this.themeManager.colors.primaryTextColor)
-          Text(`${this.format(this.rangeStart(), true)} — ${this.format(this.asOf, true)}`)
+          Text(`${this.formatDate(this.rangeStart())} — ${this.formatDate(this.asOf)}`)
             .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor).maxLines(2)
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Button('刷新').height(44).fontSize(14).backgroundColor('#2563eb')

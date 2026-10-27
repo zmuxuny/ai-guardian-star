@@ -251,7 +251,7 @@ export struct mainPage {
         Column({ space: 8 }) {
           Row({ space: 8 }) {
             Image($r('app.media.ic_shield_blue')).width(30).height(30)
-            Text('今日告警').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+            Text('今日提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
           }
           Row({ space: 4 }) {
             Text(this.todayCount()).fontSize(34).fontWeight(FontWeight.Bold)
