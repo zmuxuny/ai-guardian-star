@@ -27,7 +27,7 @@ export struct StatDashboard {
         Text(`${this.totalAlertCount}`)
           .fontSize(28).fontWeight(FontWeight.Bold)
           .fontColor(this.themeManager.isDarkMode ? '#60A5FA' : '#1E40AF')
-        Text("次·已预警")
+        Text("次·摔倒预警")
           .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
           .margin({ top: 6 })
       }.layoutWeight(1)

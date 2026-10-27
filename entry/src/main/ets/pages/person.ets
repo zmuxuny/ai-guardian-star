@@ -650,8 +650,8 @@ export struct person {
               Row() {
                 Image(
                   this.themeManager.isDarkMode
-                    ? $r("app.media.ic_shield_light")
-                    : $r("app.media.ic_shield_gray"),
+                    ? $r("app.media.ic_theme_light")
+                    : $r("app.media.ic_theme_gray"),
                 )
                   .width(ICON_FRAME_SIZE)
                   .height(ICON_FRAME_SIZE)
