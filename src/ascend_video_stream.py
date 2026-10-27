@@ -6,7 +6,8 @@ _stats_lock = threading.Lock()
 _stats = {
     "fps": 0.0, "detections": 0, "fall_count": 0,
     "status": "正常", "mqtt_connected": True,
-    "start_time": time.time(),
+    # 板子无 RTC，开机后 NTP 校时会让 time.time() 跳变，运行时长用单调时钟
+    "start_time": time.monotonic(),
     "keypoint_scores": None, "last_fall_time": None,
     "frame_count": 0,
     "face_label": None, "face_score": None,

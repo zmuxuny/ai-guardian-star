@@ -329,7 +329,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
     <!-- 系统信息（贴底，不撑大） -->
     <div class="card" style="flex-shrink:0;">
         <div class="card-title">⚙️ 系统信息</div>
-        <div class="si-row"><span class="si-k">硬件平台</span><span class="si-v">Atlas 200I DK A2</span></div>
+        <div class="si-row"><span class="si-k">硬件平台</span><span class="si-v">香橙派 AIpro（昇腾 310B4）</span></div>
         <div class="si-row"><span class="si-k">推理框架</span><span class="si-v">AscendCL · ACLLite</span></div>
         <div class="si-row"><span class="si-k">检测模型</span><span class="si-v">YOLOv8-Pose .om</span></div>
         <div class="si-row"><span class="si-k">通信协议</span><span class="si-v">MQTT · WebSocket</span></div>
@@ -341,7 +341,8 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
 </main>
 
 <script>
-const startTs = Date.now();
+// 以服务端 uptime_seconds 为准，拿到之前先按页面打开时间计
+let startTs = Date.now();
 function fmtTime(ms){
     const s=Math.floor(ms/1000);
     return String(Math.floor(s/3600)).padStart(2,'0')+':'+
@@ -410,8 +411,11 @@ async function fetchStats(){
         el.textContent=st;
         el.className='status-badge '+(st.includes('摔倒')?'danger':st.includes('久坐')?'warn':'ok');
         document.getElementById('det-persons').textContent=d.detections!=null?d.detections:'--';
+        if(d.uptime_seconds!=null)startTs=Date.now()-d.uptime_seconds*1000;
         const fps=d.fps??0;
         if(fps>0){
+            // 部分浏览器的 MJPEG 流不触发 onload，有帧率即视为流正常
+            if(!streamOk)videoEl.onload();
             const fpsStr=fps.toFixed(1);
             document.getElementById('det-fps2').textContent=fpsStr;
             document.getElementById('r-fps').textContent=fpsStr+' fps';
@@ -614,7 +618,7 @@ async def api_stats():
         "fall_count":      s["fall_count"],
         "status":          s["status"],
         "mqtt_connected":  s["mqtt_connected"],
-        "uptime_seconds":  int(time.time() - s["start_time"]),
+        "uptime_seconds":  int(time.monotonic() - s["start_time"]),
         "last_fall_time":  s.get("last_fall_time"),
         "keypoint_scores": s.get("keypoint_scores"),
         "frame_count":     s.get("frame_count", 0),
