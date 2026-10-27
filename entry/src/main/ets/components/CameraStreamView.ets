@@ -1,5 +1,6 @@
 import webview from '@ohos.web.webview';
-import { VIDEO_FEED_URL } from '../config';
+import { ECS_BASE_URL } from '../config';
+import { buildMjpegPage } from './MjpegPage';
 
 /** One live MJPEG view; the fullscreen page replaces the preview connection. */
 @Component
@@ -13,39 +14,42 @@ export struct CameraStreamView {
   private attempts: number = 0;
   private disposed: boolean = false;
 
-  aboutToAppear(): void { this.disposed = false; this.scheduleFit(); }
+  aboutToAppear(): void { this.disposed = false; this.schedulePoll(); }
   aboutToDisappear(): void {
     this.disposed = true;
     if (this.timer !== -1) clearTimeout(this.timer);
     this.timer = -1;
   }
 
-  private scheduleFit(): void {
-    if (this.disposed) return;
-    if (this.timer !== -1) clearTimeout(this.timer);
-    this.timer = setTimeout((): void => { this.timer = -1; this.fit(); }, 250);
+  private loadPage(): void {
+    // baseUrl 设为云端地址，页面与视频同源，页面内 fetch 才能读取流。
+    const html = buildMjpegPage('/video_feed', this.fullscreen ? 'contain' : 'cover');
+    try {
+      this.controller.loadData(html, 'text/html', 'UTF-8', `${ECS_BASE_URL}/`, `${ECS_BASE_URL}/`);
+    } catch (e) {
+      console.error(`CameraStreamView loadData failed: ${JSON.stringify(e)}`);
+    }
   }
 
-  private fit(): void {
+  private schedulePoll(): void {
+    if (this.disposed) return;
+    if (this.timer !== -1) clearTimeout(this.timer);
+    this.timer = setTimeout((): void => { this.timer = -1; this.poll(); }, 500);
+  }
+
+  // 只等第一帧；之后的断流由页面自己重连并提示。
+  private poll(): void {
     if (this.disposed || this.ready) return;
-    if (this.attempts++ >= 40) { this.unavailable = true; return; }
+    // 约 10 秒还没画面就提示，但页面仍在后台重连，出画面后自动切回。
+    if (this.attempts++ >= 20) this.unavailable = true;
     const version = this.streamVersion;
-    const fit = this.fullscreen ? 'contain' : 'cover';
-    const script = `(() => {
-      const image = document.querySelector('img');
-      if (!image || image.naturalWidth === 0) return 'waiting';
-      document.documentElement.style.cssText = 'margin:0;width:100%;height:100%;overflow:hidden;background:#0f172a';
-      document.body.style.cssText = 'margin:0;width:100vw;height:100vh;overflow:hidden;background:#0f172a';
-      image.style.cssText = 'display:block;width:100vw;height:100vh;max-width:none;max-height:none;margin:0;object-fit:${fit}';
-      return 'ready';
-    })()`;
-    this.controller.runJavaScript(script).then((result: string): void => {
+    this.controller.runJavaScript('document.body ? document.body.dataset.state : ""').then((result: string): void => {
       if (this.disposed || version !== this.streamVersion) return;
       // Web engines may serialize JavaScript string results as JSON strings.
-      if (result === 'ready' || result === '"ready"') { this.ready = true; this.unavailable = false; }
-      else this.scheduleFit();
+      if (result === 'live' || result === '"live"') { this.ready = true; this.unavailable = false; }
+      else this.schedulePoll();
     }).catch((): void => {
-      if (!this.disposed && version === this.streamVersion) this.scheduleFit();
+      if (!this.disposed && version === this.streamVersion) this.schedulePoll();
     });
   }
 
@@ -56,21 +60,26 @@ export struct CameraStreamView {
     this.unavailable = false;
     this.attempts = 0;
     this.streamVersion++;
-    this.scheduleFit();
+    this.schedulePoll();
   }
 
   build() {
     Stack() {
       ForEach([this.streamVersion], (version: number) => {
-        Web({ src: VIDEO_FEED_URL, controller: this.controller })
+        Web({ src: 'about:blank', controller: this.controller })
           .width('100%').height('100%')
-          .onPageBegin((): void => { this.scheduleFit(); })
+          .backgroundColor('#0f172a')
+          // 等 about:blank 加载完再换成画面页；在 onControllerAttached 里加载会被初始导航中止（ERR_ABORTED）。
+          .onPageEnd((event: OnPageEndEvent): void => {
+            if (event.url === 'about:blank') this.loadPage();
+          })
       }, (version: number): string => `${version}`)
       if (!this.ready) {
         Column({ space: 8 }) {
           if (this.unavailable) {
             Image($r('app.media.ic_camera_off')).width(30).height(30)
             Text('暂时无法获取画面').fontSize(12).fontColor('#cbd5e1')
+            // 首页小预览上面盖着"点按全屏"的点击层，按钮只放在全屏页。
             if (this.fullscreen) {
               Button('重新连接').height(44).fontSize(14).backgroundColor('#2563eb')
                 .onClick((): void => { this.retry(); })

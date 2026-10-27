@@ -211,6 +211,24 @@ VLM_MAX_SUMMARY_LENGTH = int(os.getenv("AI_GUARDIAN_VLM_MAX_SUMMARY_LENGTH", "80
 VLM_RETRY_INTERVAL_SECONDS = float(os.getenv("AI_GUARDIAN_VLM_RETRY_SECONDS", "5.0"))
 VLM_PERIODIC_ENABLED = os.getenv("AI_GUARDIAN_VLM_PERIODIC_ENABLED", "1").lower() not in ("0", "false", "off", "no")
 VLM_PERIODIC_INTERVAL_SECONDS = float(os.getenv("AI_GUARDIAN_VLM_PERIODIC_SECONDS", "5.0"))
+CAMERA_FPS = int(os.getenv("AI_GUARDIAN_CAMERA_FPS", "30"))
+# exposure_auto_priority=0：帧率不随曝光下降；power_line_frequency=1：国内 50 Hz 防闪烁。
+CAMERA_V4L2_CONTROLS = os.getenv("AI_GUARDIAN_CAMERA_CONTROLS",
+                                 "exposure_auto_priority=0,power_line_frequency=1")
+
+
+def _apply_camera_controls(idx):
+    """尽力设置摄像头控制项；摄像头不支持或缺少 v4l2-ctl 时只打印，不影响开流。"""
+    if not CAMERA_V4L2_CONTROLS or not isinstance(idx, int):
+        return
+    import subprocess
+    try:
+        r = subprocess.run(["v4l2-ctl", "-d", f"/dev/video{idx}", "-c", CAMERA_V4L2_CONTROLS],
+                           capture_output=True, text=True, timeout=3)
+        if r.returncode:
+            print(f"[Camera] v4l2 controls not applied: {r.stderr.strip()[:200]}")
+    except Exception as e:
+        print(f"[Camera] v4l2 controls not applied: {e}")
 
 
 def ensure_dir(path):
@@ -1698,12 +1716,15 @@ class AclLiteStreamDetector:
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            cap.set(cv2.CAP_PROP_FPS, 30)
+            # 这只摄像头实际出帧约为设定值的一半（设 30 实测 15）。推理次数受推理耗时限制（约 7.5 次/秒），
+            # 与摄像头帧率无关；多出的帧只用于实时画面。
+            cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             if not cap.isOpened():
                 cap.release()
                 continue
+            _apply_camera_controls(idx)
 
             ok, _ = cap.read()
             if not ok:

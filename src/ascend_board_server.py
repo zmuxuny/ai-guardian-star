@@ -17,7 +17,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
 import ascend_video_stream as video_hw
-from ascend_main_other import AclLiteStreamDetector, MQTTAlertClient, MODEL_PATH
+from ascend_main_other import AclLiteStreamDetector, MQTTAlertClient, MODEL_PATH, draw_results
 from guardian_runtime import AlertEpisodeTracker
 from guardian_recording_config import RecordingConfig
 from guardian_storage import initialize_storage
@@ -225,7 +225,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
             <div class="tag" id="fps_tag">FPS: --</div>
             <div class="tag">POSE_ENG_V4</div>
         </div>
-        <img id="videoFeed" src="/video_feed" alt="">
+        <img id="videoFeed" alt="">
     </div>
     <div class="log-box" id="logBox">
         <div class="log-line">
@@ -368,23 +368,49 @@ function addLog(cat,msg,color='var(--muted)'){
 
 const videoEl=document.getElementById('videoFeed');
 let streamOk=false;
-// MJPEG 流 onload 只触发一次，FPS 完全由服务端 d.fps 提供，onload 仅用于流状态
-videoEl.onload=()=>{
-    if(!streamOk){
-        streamOk=true;
-        document.getElementById('hd-stream').textContent='运行中';
-        document.getElementById('hd-stream').style.color='var(--success)';
-        addLog('VIDEO','视频流连接成功','var(--success)');
+function setStreamOk(ok){
+    if(ok===streamOk)return;
+    streamOk=ok;
+    const el=document.getElementById('hd-stream');
+    el.textContent=ok?'运行中':'重连中';
+    el.style.color=ok?'var(--success)':'var(--warning)';
+    addLog('VIDEO',ok?'视频流连接成功':'视频流断开，重连中...',ok?'var(--success)':'var(--warning)');
+}
+// 用 fetch 逐帧读 MJPEG：<img src> 断流后不会自己恢复；超过 6 秒无新帧就断开重连。
+(function(){
+    let ctrl=null,last=0,shown=null,pending=false;
+    const find=(b,m,from)=>{for(let i=from;i<b.length-1;i++){if(b[i]===255&&b[i+1]===m)return i;}return -1;};
+    const show=bytes=>{
+        last=Date.now();
+        const url=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));
+        const old=shown;shown=url;videoEl.src=url;
+        if(old)setTimeout(()=>URL.revokeObjectURL(old),1000);
+        setStreamOk(true);
+    };
+    const retry=()=>{if(pending)return;pending=true;setStreamOk(false);setTimeout(()=>{pending=false;run();},2000);};
+    async function run(){
+        const c=ctrl=new AbortController();last=Date.now();
+        try{
+            const r=await fetch('/video_feed?t='+Date.now(),{cache:'no-store',signal:c.signal});
+            if(!r.ok||!r.body)throw new Error('http '+r.status);
+            const rd=r.body.getReader();let buf=new Uint8Array(0);
+            for(;;){
+                const x=await rd.read();if(x.done)break;
+                const nb=new Uint8Array(buf.length+x.value.length);nb.set(buf);nb.set(x.value,buf.length);buf=nb;
+                for(;;){
+                    const s=find(buf,216,0);
+                    if(s<0){buf=buf.slice(Math.max(0,buf.length-1));break;}
+                    const e=find(buf,217,s+2);
+                    if(e<0){if(s>0)buf=buf.slice(s);break;}
+                    show(buf.slice(s,e+2));buf=buf.slice(e+2);
+                }
+            }
+        }catch(_){}
+        if(c===ctrl)retry();
     }
-};
-videoEl.onerror=()=>{
-    if(streamOk){
-        streamOk=false;
-        document.getElementById('hd-stream').textContent='重连中';
-        document.getElementById('hd-stream').style.color='var(--warning)';
-        addLog('VIDEO','视频流断开，重连中...','var(--warning)');
-    }
-};
+    setInterval(()=>{if(ctrl&&!pending&&Date.now()-last>6000){const c=ctrl;ctrl=null;c.abort();retry();}},1000);
+    run();
+})();
 
 // 人脸日志限频：每个标签独立计时，2分钟内只记录一次
 const _faceLogTimes={};
@@ -886,9 +912,24 @@ def run_system():
     def inference_loop():
         global system_detector, video_frame_started_at, heartbeat_publisher
         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
+        continuous_sink = None
         if continuous_recorder is not None:
-            detector.on_captured_frame = ContinuousCaptureSink(
+            continuous_sink = ContinuousCaptureSink(
                 continuous_recorder, continuous_recorder.config.record_fps)
+        # 实时画面直接取摄像头帧（15 帧），叠加最近一次推理的框；推理本身仍按原节奏运行。
+        latest_overlay = {"alerts": [], "at": 0.0}
+
+        def on_captured(frame, captured_at, monotonic_at):
+            global video_frame_started_at
+            if continuous_sink is not None:
+                continuous_sink(frame, captured_at, monotonic_at)
+            alerts = latest_overlay["alerts"]
+            if alerts and monotonic_at - latest_overlay["at"] <= 1.0:
+                frame = draw_results(frame.copy(), alerts)
+            video_hw.update_frame(frame)
+            video_frame_started_at = monotonic_at
+
+        detector.on_captured_frame = on_captured
         system_detector = detector
         mqtt_client = MQTTAlertClient()
         global alert_mqtt
@@ -923,16 +964,13 @@ def run_system():
                         time.sleep(0.015)
                         continue
                     if res is None:
-                        raw_frame = detector.get_latest_raw_frame()
-                        if raw_frame is not None:
-                            video_hw.update_frame(raw_frame)
-                            video_frame_started_at = frame_started_at
                         time.sleep(0.015)
                         continue
 
                     frame, alerts = res
-                    video_hw.update_frame(frame)
-                    video_frame_started_at = frame_started_at
+                    if detector.last_frame_inferred:
+                        latest_overlay["alerts"] = alerts
+                        latest_overlay["at"] = time.monotonic()
                     # Raw/throttled frames do not establish an empty or recovered scene.
                     if not detector.last_frame_inferred:
                         continue

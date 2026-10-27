@@ -2,6 +2,27 @@
 
 > 由 Claude 维护；只保留最近 3 条，最新在上。格式见 `TEMPLATE.md`。
 
+## 2026-10-27 · claude · T-20261027-c02 · 已完成（已部署板端，模拟器验证）
+
+> 分支：`feature/jyx-home`。下一步：真机看首页/全屏画面；关注手机热点上行带宽（每路约 3 Mbps）。
+
+### 改动
+
+- 摄像头关闭曝光优先、防闪烁改 50 Hz（`ascend_main_other.py` 开流后调 `v4l2-ctl`，环境变量可改）；该摄像头实际出帧约为设定值一半，设 30 实测 15。
+- 推流 320×240 质量 35 → 640×480 质量 65（`ascend_video_stream.py`，`AI_GUARDIAN_STREAM_SIZE/QUALITY` 可调）。
+- 实时画面改为摄像头线程直接出帧并叠加最近一次（1 s 内）推理框；推理、告警、事件录像仍用原推理帧，未改阈值（告警均按秒计时）。
+- App `CameraStreamView` 与板端网页改用 fetch 逐帧读 MJPEG，6 s 无新帧自动断开重连；之前流断后停在黑屏/最后一帧不恢复，且模拟器首页预览一直黑屏。
+
+### 验证
+
+- 公网 `/video_feed`：7.4 → 14.1 fps，每帧约 6 KB → 27 KB；推理仍 7.3～7.8 次/s。
+- 模拟器（签名 Release HAP）首页出画面带框；重启板端服务后约 12 s 自动恢复。网页 `/device/` 重启后约 9 s 自动恢复。
+- `tests/` 下人脸/运行时测试 36 项通过（heartbeat 需在仓库根目录跑）。
+
+### 回滚
+
+- 板端：`/root/backup/stream-quality-202610271718/` 三个文件拷回 `/root/ai_guardian/` 后重启 `guardian-board.service`。
+
 ## 2026-10-27 · claude · T-20261027-c01 · 已完成（已部署）
 
 > 分支：`feature/jyx-home` 提交 `ac48605`（性能），并合入 `origin/ysh@8267c85`（`1fecb55`）。
