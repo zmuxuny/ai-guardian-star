@@ -5,8 +5,7 @@
 
 import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
-import { MqttManager } from './MqttManager';
-import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE } from '../components/GradientHeader';
 import { STORE_KEY_AI_ACCESS_LEVEL, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 
@@ -28,7 +27,6 @@ interface BubbleMsg {
 @Component
 export struct AiChat {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @State mqttManager: MqttManager = MqttManager.getInstance();
   @State messages: BubbleMsg[] = [];
   @State inputText: string = '';
   @State isRequesting: boolean = false;
@@ -186,30 +184,6 @@ export struct AiChat {
   }
 
   @Builder
-  HealthOverview(): void {
-    Row({ space: 15 }) {
-      Column() {
-        Text('摔倒告警').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
-        Text(`${this.mqttManager.fallRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.dangerTextColor)
-      }
-      .layoutWeight(1).padding({ top: 20, bottom: 20 })
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
-
-      Column() {
-        Text('久坐提醒').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
-        Text(`${this.mqttManager.sedentaryRecords.length}`)
-          .fontSize(28).fontWeight(FontWeight.Bold).margin({ top: 8 }).fontColor(this.themeManager.colors.warningTextColor)
-      }
-      .layoutWeight(1).padding({ top: 20, bottom: 20 })
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
-    }
-    .width('92%').constraintSize({ maxWidth: 640 }).margin({ top: -14 })
-  }
-
-  @Builder
   LoadingDots(): void {
     Column({ space: 4 }) {
       Text('正在整理建议…')
@@ -358,7 +332,6 @@ export struct AiChat {
   build() {
     Column() {
       this.GradientHeader()
-      this.HealthOverview()
       Scroll(this.scroller) {
         Column({ space: 0 }) {
           ForEach(this.messages, (msg: BubbleMsg) => {
