@@ -460,7 +460,9 @@ async function fetchStats(){
             const now=Date.now();
             if(now-_lastSitLog>120000){
                 _lastSitLog=now;
-                addLog('久坐','连续静止 '+Math.floor(sitDur)+' 分钟','var(--warning)');
+                // sit_duration 单位是分钟，阈值只有 10 秒，不足 1 分钟按秒显示
+                const sitTxt=sitDur>=1?Math.floor(sitDur)+' 分钟':Math.round(sitDur*60)+' 秒';
+                addLog('久坐','连续静止 '+sitTxt,'var(--warning)');
             }
         }
 
