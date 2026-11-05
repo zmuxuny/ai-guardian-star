@@ -2,6 +2,11 @@ import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from
 import { getWindowSizeClass } from '../main/ets/common/ResponsiveLayout';
 import { EventType, parseAlert } from '../main/ets/common/MqttParser';
 import { buildRecordingDays, recordingQueryErrorText } from '../main/ets/common/RecordingService';
+import {
+  normalizeFaceEnrollmentName,
+  validateFaceEnrollmentName,
+} from '../main/ets/face/FaceEnrollmentName';
+import { advanceFaceEnrollmentFromName } from '../main/ets/face/FaceEnrollmentFlow';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -98,6 +103,45 @@ export default function localUnitTest() {
       expect(recordingQueryErrorText(0, 2300028)).assertEqual('录像服务响应超时，请重试');
       expect(recordingQueryErrorText(0, 2300007)).assertEqual('网络不可用，请检查连接');
       expect(recordingQueryErrorText(0, undefined)).assertEqual('网络不可用，请检查连接');
+    });
+  });
+
+  describe('faceEnrollmentName', () => {
+    it('accepts a trimmed name and preserves the 64 character boundary', 0, () => {
+      expect(normalizeFaceEnrollmentName('  张三  ')).assertEqual('张三');
+      expect(validateFaceEnrollmentName('张三').isValid).assertTrue();
+      expect(validateFaceEnrollmentName('a'.repeat(64)).isValid).assertTrue();
+    });
+
+    it('rejects missing and oversized names with actionable feedback', 0, () => {
+      expect(validateFaceEnrollmentName('   ').isValid).assertFalse();
+      expect(validateFaceEnrollmentName('   ').message).assertEqual('请填写人脸用户姓名');
+      expect(validateFaceEnrollmentName('a'.repeat(65)).isValid).assertFalse();
+      expect(validateFaceEnrollmentName('a'.repeat(65)).message).assertEqual('姓名不能超过64个字符');
+    });
+
+    it('rejects path and control characters before upload', 0, () => {
+      expect(validateFaceEnrollmentName('张/三').isValid).assertFalse();
+      expect(validateFaceEnrollmentName('张\\三').isValid).assertFalse();
+      expect(validateFaceEnrollmentName(`张${String.fromCharCode(0)}三`).isValid).assertFalse();
+      expect(validateFaceEnrollmentName(`张${String.fromCharCode(31)}三`).message)
+        .assertEqual('姓名不能包含路径符号或控制字符');
+    });
+  });
+
+  describe('faceEnrollmentFlow', () => {
+    it('keeps an invalid name on the name step with recovery text', 0, () => {
+      const transition = advanceFaceEnrollmentFromName('   ');
+      expect(transition.step).assertEqual('name');
+      expect(transition.normalizedName).assertEqual('');
+      expect(transition.message).assertEqual('请填写人脸用户姓名');
+    });
+
+    it('advances a valid trimmed name to the capture step', 0, () => {
+      const transition = advanceFaceEnrollmentFromName('  张三  ');
+      expect(transition.step).assertEqual('capture');
+      expect(transition.normalizedName).assertEqual('张三');
+      expect(transition.message).assertEqual('');
     });
   });
 }
