@@ -4,6 +4,22 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-05 · codex · T-20261105-10 · 已完成
+
+> 分支：`wip/codex-20261105-camera-black` @ `1fbabac`；模拟器黑屏已实际复现并修复，首页/全屏/返回及手机首页均已看到画面。
+> 下一步：GitHub可用时补推；未合并zy。云端/开发板本轮未修改。
+
+- 回退 `backup/camera-black-before-20261105@10cc779`；保留原有四处本机改动。
+- 黑屏时Web仍输出约8～11fps解码指标；网络已收到JPEG，模拟器截图却为纯黑。Web渲染模式、尺寸及固定画布尝试无效，均已撤回；未确认具体GPU/驱动内部原因。
+- 改为 `CameraFrameClient.ets` 原生HTTP取帧、ImageKit解码、ArkUI Image显示，绕过模拟器Web显示链路；ready由原生Image完成事件确认。
+- `CameraStreamView.ets` 保留最新帧序号去重、单请求调度、隐藏/退出取消、过期请求失效、断流重试；保留前两帧直到新图附着，退出释放位图。
+- 新增 `tests/camera-native-frame.test.cjs`：7/7通过（正常解码/资源释放、重复帧、204、坏图、网络失败、取消、超大响应）。
+- 最终签名Release构建成功；HAP 24,697,840B，2026-11-05 16:56:05；SHA256 `04D9DA0A97A0C119E0F63EED3AB2D1C03F7145DAF0C5073E12A03D1CC5B3C6C9`。
+- API24模拟器已覆盖安装、启动；首页、全屏、返回首页实际截图已看，最终首页正常；API26手机覆盖安装/启动及首页截图正常，无卸载/清数据。
+- 最终抽样模拟器8.7～8.9fps、取帧49～55ms、解码4～5ms；手机6.7～8.3fps、取帧40～45ms、解码7～10ms；属短窗口指标，不代表精确物理端到端延迟。
+- 两端日志无FATAL/JS_ERROR/Unhandled/ERR_标记；本地证据 `.tmp/simulator/camera-black-20261105/` 已忽略，不提交私有画面或原始日志。
+- 工具沿用DevEco26.0.0.821/SDK26.0.0.105/Hvigor6.26.4/HDC3.2.0f；default/entry@default/release，API24目标；未升级依赖。
+
 ## 2026-11-05 · codex · T-20261105-09 · 已完成
 
 > 分支：`wip/codex-20261105-camera-smoothness`；调度/连接复用 `d0cfcf3` 已push，共享最新帧 `b0289d0` 待补推；云端部署/两端更新完成，用户确认“卡顿明显改善，可以接受”。
@@ -38,20 +54,3 @@
 - 部署顺序：回退点/配置备份→本地测试/签名构建→push WIP→云端最小补丁→安装手机/模拟器→用户复测；首次部署脚本因远端Python3.6参数不兼容未reload，已恢复配置、修正脚本后成功部署。
 - 开发板 SSH 认证未通过，未改板端；所有截图与私有画面仅在被忽略的 `.tmp/simulator/home-latency-20261105/`，不提交。
 - 回滚：恢复上述 nginx 备份并 `nginx -t` 后 reload；App 可回退此前 HAP/代码。未卸载或清数据，未发起通话或上传人脸。
-
-## 2026-11-05 · codex · T-20261105-07 · 待验证
-
-> 分支：`wip/codex-20261105-face-preview-ratio` @ `3647e19`；修复人脸预览随手机/模拟器窗口非等比拉伸，签名 HAP 已覆盖安装两端。
-> 下一步：用户解锁手机复测正脸比例；拍照后的确认图、重拍和上传链路未实测，保留 WIP，未合并 zy、未 push。
-
-- 回退点 `backup/face-preview-before-20261105@e7c83ef`；复用 Codex 工作区，保留原有四处本机改动。
-- 影响：`FaceEnrollment.ets`、`face/FacePreviewGeometry.ets`、`tests/face-preview-geometry.test.cjs`。
-- 锁定 Surface 方向，使用相机实际预览旋转角交换流宽高，再等比居中裁切；响应窗口尺寸变化，取景椭圆按可用空间同比缩小。
-- 照片输出优先匹配预览宽高比，并指定相机计算的拍照方向；未对上传原图做拉伸。
-- Node 几何回归 6/6 通过（长屏、短屏、0/90/180/270°、横屏、正方形及竖向流）；diff --check 通过。
-- DevEco 26.0.0.821 / SDK 26.0.0.105 / Hvigor 6.26.4 / HDC 3.2.0f；default/entry@default/release，签名构建成功（既有警告）。
-- HAP：`entry/build/default/outputs/default/entry-default-signed.hap`，24,691,293 B，2026-11-05 15:41:49；SHA256 `766C6914E08DF478884B279200E2D1FDBE1F81BC2E95AFEEDECE6B7C217DBF7A`。
-- API 24 模拟器覆盖安装/启动成功；沿用现有登录会话进入个人/人脸信息，用临时测试姓名进入采集页；相机已授权，无权限弹窗操作。
-- 预览实际可用、按钮可用，取景框完整，截图已查看；按进程日志无 FATAL/JS_ERROR/Unhandled/相机启动及调整失败标记。已返回姓名页释放相机，未拍照或上传。
-- USB 手机 API 26 覆盖安装成功；启动因锁屏返回 10106102，未解锁，真机比例未验收。
-- 本地证据 `.tmp/simulator/face-ratio-20261105/` 被忽略，含私人画面，不提交/不分享。

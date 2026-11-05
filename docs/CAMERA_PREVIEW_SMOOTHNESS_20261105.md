@@ -31,3 +31,7 @@
 源码为 `deploy/camera_frame_relay.py`，服务文件为 `deploy/aliyun/guardian-camera-preview.service`；部署副本在 `/opt/wenxin/app/camera_frame_relay.py`、`/etc/systemd/system/guardian-camera-preview.service`。
 
 HAP：`entry/build/default/outputs/default/entry-default-signed.hap`，24,697,163 B，2026-11-05 16:34:36，SHA256 `5111B4DC0BD58034D6DA24DDF7BE8AFB03EFEA8141E7ABC136C99D02CE581A0D`。
+
+## 后续：模拟器Web黑屏修复
+
+2026-11-05后续验证发现模拟器Web虽持续解码但显示黑屏，网络请求正常。现已改用 `CameraFrameClient.ets` + ArkUI原生Image；继续使用本文的云端共享最新帧接口和67ms目标调度，原Web页面不再用于App摄像头显示。原生HTTP客户端7项测试通过，模拟器首页/全屏/返回与手机首页均已实际出图。详情见协作任务 T-20261105-10。
