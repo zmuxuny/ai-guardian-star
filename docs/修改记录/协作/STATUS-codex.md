@@ -4,6 +4,23 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-05 · codex · T-20261105-07 · 待验证
+
+> 分支：`wip/codex-20261105-face-preview-ratio` @ `3647e19`；修复人脸预览随手机/模拟器窗口非等比拉伸，签名 HAP 已覆盖安装两端。
+> 下一步：用户解锁手机复测正脸比例；拍照后的确认图、重拍和上传链路未实测，保留 WIP，未合并 zy、未 push。
+
+- 回退点 `backup/face-preview-before-20261105@e7c83ef`；复用 Codex 工作区，保留原有四处本机改动。
+- 影响：`FaceEnrollment.ets`、`face/FacePreviewGeometry.ets`、`tests/face-preview-geometry.test.cjs`。
+- 锁定 Surface 方向，使用相机实际预览旋转角交换流宽高，再等比居中裁切；响应窗口尺寸变化，取景椭圆按可用空间同比缩小。
+- 照片输出优先匹配预览宽高比，并指定相机计算的拍照方向；未对上传原图做拉伸。
+- Node 几何回归 6/6 通过（长屏、短屏、0/90/180/270°、横屏、正方形及竖向流）；diff --check 通过。
+- DevEco 26.0.0.821 / SDK 26.0.0.105 / Hvigor 6.26.4 / HDC 3.2.0f；default/entry@default/release，签名构建成功（既有警告）。
+- HAP：`entry/build/default/outputs/default/entry-default-signed.hap`，24,691,293 B，2026-11-05 15:41:49；SHA256 `766C6914E08DF478884B279200E2D1FDBE1F81BC2E95AFEEDECE6B7C217DBF7A`。
+- API 24 模拟器覆盖安装/启动成功；沿用现有登录会话进入个人/人脸信息，用临时测试姓名进入采集页；相机已授权，无权限弹窗操作。
+- 预览实际可用、按钮可用，取景框完整，截图已查看；按进程日志无 FATAL/JS_ERROR/Unhandled/相机启动及调整失败标记。已返回姓名页释放相机，未拍照或上传。
+- USB 手机 API 26 覆盖安装成功；启动因锁屏返回 10106102，未解锁，真机比例未验收。
+- 本地证据 `.tmp/simulator/face-ratio-20261105/` 被忽略，含私人画面，不提交/不分享。
+
 ## 2026-11-05 · codex · T-20261105-06 · 已完成
 
 > 分支：`wip/codex-20261105-zy-app-sync@cd7e6f7`；将与模拟器一致的最新 zy 签名 HAP 覆盖同步到 USB 手机，安装和启动成功。
@@ -26,16 +43,3 @@
 - 应用进程日志 319 行无 FATAL/JS_ERROR/Unhandled 标记；登录页截图已查看，证据 `.tmp/simulator/zy-sync-20261105/home.jpeg` 及布局/过滤日志均本地忽略。
 - 未登录、未授予权限、未采集或上传人脸；未验证登录后页面、实时视频、录像或通话。
 - 工具沿用 DevEco 26.0.0.821 / SDK 26.0.0.105 / Hvigor 6.26.4 / HDC 3.2.0f，default/entry@default/release，兼容及目标 API 24。
-
-## 2026-11-05 · codex · T-20261105-04 · 已完成
-
-> 分支：`wip/codex-20261105-zy-app-sync`；整合 `origin/zy@d903e20` 与本地 `ysh@3acec5e`，代码和路由与远端 zy 一致。
-> 下一步：用户解锁手机后启动，验收个人页/人脸信息/姓名页；相机、三姿态采集及上传需用户参与；保留在 WIP 分支直至实际验收。
-
-- 已同步人脸姓名与独立采集页、严格姿态门禁、板端探针等 23 个文件；业务代码无冲突，无额外源码修改，双方协作记录均保留归档。
-- Release 签名构建成功；HAP `entry/build/default/outputs/default/entry-default-signed.hap`，24,686,693 B，2026-11-05 15:21:29。
-- SHA-256 `553D7101112155E483F4E8C6B3948DED130E097491ED6DD90C2E36D238936B59`；USB 手机覆盖安装返回 install bundle successfully，未卸载或清数据。
-- 启动返回 10106102（手机锁屏，开发者模式不允许自动解锁）；未操作锁屏、登录、相机/麦克风权限、采集或上传，未做真机功能通过声明。
-- 业务源码与远端一致；远端记录的 Node 15 项和 Python 78 项已通过，本轮未重复执行；合并冲突解决后 diff --check 通过。
-- 回退分支 `backup/ysh-before-zy-app-sync-20261105@3acec5e`；签名配置、笔记及补丁已在本机私有目录备份，原有四处本机改动保留。
-- 未 push、未部署服务器或开发板；本地记录 `.tmp/zy-sync-20261105/` 被忽略，不保存锁屏截图。
