@@ -1,7 +1,7 @@
 /**
- * 实时画面页面：用 fetch 逐帧读取 MJPEG，超过 6 秒没有新帧就断开重连。
- * 直接把 MJPEG 地址交给 Web 时，流断开后画面会停在黑屏或最后一帧，且不会自行恢复。
- * body.dataset.state：connecting / live / reconnecting，供 ArkTS 侧判断是否已出画面。
+ * Latest-frame transport: one finite request/decode at a time, never a queued MJPEG stream.
+ * Keep the exported name for existing callers; path now points to /video_frame.
+ * body.dataset.state: connecting / live / reconnecting.
  */
 export function buildMjpegPage(path: string, fit: string): string {
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -13,39 +13,62 @@ img{display:block;width:100vw;height:100vh;object-fit:${fit}}
 <script>
 (function(){
   var img=document.getElementById('v'),tip=document.getElementById('tip');
-  var ctrl=null,last=0,shown=null,pending=false;
+  var ctrl=null,timer=null,deadline=null,shown=null,candidate=null,stopped=false,generation=0;
   function setState(s){document.body.dataset.state=s;tip.style.display=(s==='reconnecting'&&shown)?'block':'none';}
-  function find(b,m,from){for(var i=from;i<b.length-1;i++){if(b[i]===255&&b[i+1]===m)return i;}return -1;}
-  function show(bytes){
-    last=Date.now();
-    var url=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));
-    var old=shown;shown=url;img.src=url;
-    if(old)setTimeout(function(){URL.revokeObjectURL(old);},1000);
-    if(document.body.dataset.state!=='live')setState('live');
+  function revoke(url){if(url)URL.revokeObjectURL(url);}
+  function schedule(delay){
+    if(stopped||document.hidden)return;
+    clearTimeout(timer);timer=setTimeout(run,delay);
   }
-  function retry(){if(pending)return;pending=true;setState(shown?'reconnecting':'connecting');setTimeout(function(){pending=false;run();},2000);}
   function run(){
-    ctrl=new AbortController();last=Date.now();
-    var c=ctrl;
+    if(stopped||document.hidden||ctrl)return;
+    var c=ctrl=new AbortController(),g=generation;
+    function current(){return !stopped&&g===generation&&ctrl===c;}
+    function finish(ok){
+      if(!current())return;
+      clearTimeout(deadline);deadline=null;
+      img.onload=null;img.onerror=null;
+      if(!ok){
+        c.abort();
+        if(candidate){img.src=shown||'';revoke(candidate);candidate=null;}
+        setState(shown?'reconnecting':'connecting');
+      }
+      ctrl=null;schedule(ok?80:800);
+    }
+    // A slow or stuck request is cancelled; another request never waits behind it.
+    deadline=setTimeout(function(){finish(false);},5000);
     fetch('${path}?t='+Date.now(),{cache:'no-store',signal:c.signal}).then(function(r){
-      if(!r.ok||!r.body)throw new Error('http '+r.status);
-      var rd=r.body.getReader(),buf=new Uint8Array(0);
-      function pump(){return rd.read().then(function(x){
-        if(x.done)throw new Error('closed');
-        var nb=new Uint8Array(buf.length+x.value.length);nb.set(buf);nb.set(x.value,buf.length);buf=nb;
-        for(;;){
-          var s=find(buf,216,0);
-          if(s<0){buf=buf.slice(Math.max(0,buf.length-1));break;}
-          var e=find(buf,217,s+2);
-          if(e<0){if(s>0)buf=buf.slice(s);break;}
-          show(buf.slice(s,e+2));buf=buf.slice(e+2);
-        }
-        return pump();
-      });}
-      return pump();
-    }).catch(function(){if(c===ctrl)retry();});
+      if(!current())return null;
+      if(r.status!==200)throw new Error('no current frame');
+      return r.blob();
+    }).then(function(blob){
+      if(!current()||!blob)return;
+      if(!blob.size||blob.type.indexOf('image/jpeg')!==0)throw new Error('invalid frame');
+      candidate=URL.createObjectURL(blob);
+      img.onload=function(){
+        if(!current())return;
+        revoke(shown);shown=candidate;candidate=null;
+        setState('live');finish(true);
+      };
+      img.onerror=function(){finish(false);};
+      img.src=candidate;
+    }).catch(function(){finish(false);});
   }
-  setInterval(function(){if(ctrl&&!pending&&Date.now()-last>6000){var c=ctrl;ctrl=null;c.abort();retry();}},1000);
+  function stop(){
+    stopped=true;generation++;
+    clearTimeout(timer);clearTimeout(deadline);timer=null;deadline=null;
+    if(ctrl)ctrl.abort();ctrl=null;
+    img.onload=null;img.onerror=null;img.removeAttribute('src');
+    revoke(candidate);revoke(shown);candidate=null;shown=null;
+  }
+  function resume(){
+    if(document.hidden)return;
+    stopped=false;setState('connecting');schedule(0);
+  }
+  window.stopCameraPreview=stop;
+  document.addEventListener('visibilitychange',function(){if(document.hidden)stop();else resume();});
+  window.addEventListener('pagehide',stop);
+  window.addEventListener('pageshow',resume);
   run();
 })();
 </script></body></html>`;

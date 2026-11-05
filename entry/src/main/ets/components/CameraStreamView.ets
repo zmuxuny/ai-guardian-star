@@ -2,7 +2,7 @@ import webview from '@ohos.web.webview';
 import { ECS_BASE_URL } from '../config';
 import { buildMjpegPage } from './MjpegPage';
 
-/** One live MJPEG view; the fullscreen page replaces the preview connection. */
+/** One latest-frame view; fullscreen replaces the preview connection. */
 @Component
 export struct CameraStreamView {
   @Prop fullscreen: boolean = false;
@@ -19,11 +19,13 @@ export struct CameraStreamView {
     this.disposed = true;
     if (this.timer !== -1) clearTimeout(this.timer);
     this.timer = -1;
+    this.controller.runJavaScript('window.stopCameraPreview && window.stopCameraPreview()').catch((): void => {});
   }
 
   private loadPage(): void {
-    // baseUrl 设为云端地址，页面与视频同源，页面内 fetch 才能读取流。
-    const html = buildMjpegPage('/video_feed', this.fullscreen ? 'contain' : 'cover');
+    // 同源请求最新帧；单次请求完成后再取下一帧，避免弱网下旧视频积压。
+    const html = buildMjpegPage(this.fullscreen ? '/video_preview_full' : '/video_preview',
+      this.fullscreen ? 'contain' : 'cover');
     try {
       this.controller.loadData(html, 'text/html', 'UTF-8', `${ECS_BASE_URL}/`, `${ECS_BASE_URL}/`);
     } catch (e) {
