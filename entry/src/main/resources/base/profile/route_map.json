@@ -41,6 +41,14 @@
       }
     },
     {
+      "name": "FaceEnrollment",
+      "pageSourceFile": "src/main/ets/pages/FaceEnrollment.ets",
+      "buildFunction": "FaceEnrollmentBuilder",
+      "data": {
+        "description": "face enrollment name and capture flow"
+      }
+    },
+    {
       "name": "HealthHistory",
       "pageSourceFile": "src/main/ets/pages/HealthHistory.ets",
       "buildFunction": "HealthHistoryBuilder",
