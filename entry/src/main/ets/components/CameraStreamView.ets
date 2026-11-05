@@ -1,92 +1,116 @@
-import webview from '@ohos.web.webview';
+import { image } from '@kit.ImageKit';
 import { ECS_BASE_URL } from '../config';
-import { buildMjpegPage } from './MjpegPage';
+import { CameraFrameClient } from '../common/CameraFrameClient';
 
-/** One latest-frame view; fullscreen replaces the preview connection. */
+/** Native latest-frame preview; no Web surface or Blob image lifecycle. */
 @Component
 export struct CameraStreamView {
   @Prop fullscreen: boolean = false;
+  @State frame?: image.PixelMap = undefined;
   @State ready: boolean = false;
   @State unavailable: boolean = false;
-  @State streamVersion: number = 0;
-  private controller: webview.WebviewController = new webview.WebviewController();
+  private client: CameraFrameClient = new CameraFrameClient();
   private timer: number = -1;
-  private attempts: number = 0;
-  private disposed: boolean = false;
+  private generation: number = 0;
+  private disposed: boolean = true;
+  private visible: boolean = true;
+  private sequence: string = '';
+  private retired: image.PixelMap[] = [];
+  private startedAt: number = 0;
+  private statsAt: number = 0;
+  private frames: number = 0;
+  private requestMs: number = 0;
+  private decodeMs: number = 0;
 
-  aboutToAppear(): void { this.disposed = false; this.schedulePoll(); }
+  aboutToAppear(): void {
+    this.disposed = false;
+    this.startedAt = Date.now();
+    this.statsAt = Date.now();
+    this.schedule(0);
+  }
+
   aboutToDisappear(): void {
     this.disposed = true;
+    this.suspend();
+    if (this.frame !== undefined) this.retired.push(this.frame);
+    this.frame = undefined;
+    for (const pixels of this.retired) pixels.release();
+    this.retired = [];
+  }
+
+  private suspend(): void {
+    this.generation++;
     if (this.timer !== -1) clearTimeout(this.timer);
     this.timer = -1;
-    this.controller.runJavaScript('window.stopCameraPreview && window.stopCameraPreview()').catch((): void => {});
+    this.client.cancel();
   }
 
-  private loadPage(): void {
-    // 同源请求最新帧；单次请求完成后再取下一帧，避免弱网下旧视频积压。
-    const html = buildMjpegPage(this.fullscreen ? '/video_preview_full' : '/video_preview',
-      this.fullscreen ? 'contain' : 'cover');
-    try {
-      this.controller.loadData(html, 'text/html', 'UTF-8', `${ECS_BASE_URL}/`, `${ECS_BASE_URL}/`);
-    } catch (e) {
-      console.error(`CameraStreamView loadData failed: ${JSON.stringify(e)}`);
-    }
-  }
-
-  private schedulePoll(): void {
-    if (this.disposed) return;
+  private schedule(delay: number): void {
+    if (this.disposed || !this.visible) return;
     if (this.timer !== -1) clearTimeout(this.timer);
-    this.timer = setTimeout((): void => { this.timer = -1; this.poll(); }, 500);
+    this.timer = setTimeout((): void => { this.timer = -1; this.loadFrame(); }, delay);
   }
 
-  // 只等第一帧；之后的断流由页面自己重连并提示。
-  private poll(): void {
-    if (this.disposed || this.ready) return;
-    // 约 10 秒还没画面就提示，但页面仍在后台重连，出画面后自动切回。
-    if (this.attempts++ >= 20) this.unavailable = true;
-    const version = this.streamVersion;
-    this.controller.runJavaScript('document.body ? document.body.dataset.state : ""').then((result: string): void => {
-      if (this.disposed || version !== this.streamVersion) return;
-      // Web engines may serialize JavaScript string results as JSON strings.
-      if (result === 'live' || result === '"live"') { this.ready = true; this.unavailable = false; }
-      else this.schedulePoll();
-    }).catch((): void => {
-      if (!this.disposed && version === this.streamVersion) this.schedulePoll();
-    });
+  private async loadFrame(): Promise<void> {
+    if (this.disposed || !this.visible) return;
+    const version = this.generation;
+    const started = Date.now();
+    let delay = 0;
+    try {
+      const path = this.fullscreen ? '/video_preview_full' : '/video_preview';
+      const result = await this.client.fetch(`${ECS_BASE_URL}${path}?t=${started}`, this.sequence);
+      if (this.disposed || version !== this.generation) {
+        if (result !== undefined) await result.pixels.release();
+        return;
+      }
+      if (result !== undefined) {
+        this.sequence = result.sequence;
+        if (this.frame !== undefined) this.retired.push(this.frame);
+        this.frame = result.pixels;
+        // Retain two previous bitmaps until ArkUI has attached the new image.
+        if (this.retired.length > 2) await this.retired.shift()?.release();
+        this.unavailable = false;
+        this.frames++;
+        this.requestMs += result.requestMs;
+        this.decodeMs += result.decodeMs;
+        const elapsed = Date.now() - this.statsAt;
+        if (elapsed >= 5000) {
+          console.info(`[CameraPreviewNative] fps=${(this.frames * 1000 / elapsed).toFixed(1)}, ` +
+            `requestMs=${Math.round(this.requestMs / this.frames)}, decodeMs=${Math.round(this.decodeMs / this.frames)}`);
+          this.statsAt = Date.now(); this.frames = 0; this.requestMs = 0; this.decodeMs = 0;
+        }
+      }
+      delay = Math.max(0, 67 - (Date.now() - started));
+    } catch (_error) {
+      if (version !== this.generation || this.disposed) return;
+      if (this.frame !== undefined || Date.now() - this.startedAt >= 10000) this.unavailable = true;
+      delay = 800;
+    }
+    if (version === this.generation) this.schedule(delay);
   }
 
   private retry(): void {
-    if (this.timer !== -1) clearTimeout(this.timer);
-    this.timer = -1;
-    this.ready = false;
+    this.suspend();
+    this.sequence = '';
     this.unavailable = false;
-    this.attempts = 0;
-    this.streamVersion++;
-    this.schedulePoll();
+    this.startedAt = Date.now();
+    this.schedule(0);
   }
 
   build() {
-    Stack() {
-      ForEach([this.streamVersion], (version: number) => {
-        Web({ src: 'about:blank', controller: this.controller })
+    Stack({ alignContent: Alignment.Center }) {
+      if (this.frame !== undefined) {
+        Image(this.frame)
           .width('100%').height('100%')
-          .backgroundColor('#0f172a')
-          .onConsole((event: OnConsoleEvent): boolean => {
-            const message = event.message.getMessage();
-            if (message.startsWith('[CameraPreviewMetrics]')) console.info(message);
-            return false;
-          })
-          // 等 about:blank 加载完再换成画面页；在 onControllerAttached 里加载会被初始导航中止（ERR_ABORTED）。
-          .onPageEnd((event: OnPageEndEvent): void => {
-            if (event.url === 'about:blank') this.loadPage();
-          })
-      }, (version: number): string => `${version}`)
+          .objectFit(this.fullscreen ? ImageFit.Contain : ImageFit.Cover)
+          .onComplete((): void => { this.ready = true; })
+          .onError((): void => { this.unavailable = true; })
+      }
       if (!this.ready) {
         Column({ space: 8 }) {
           if (this.unavailable) {
             Image($r('app.media.ic_camera_off')).width(30).height(30)
             Text('暂时无法获取画面').fontSize(12).fontColor('#cbd5e1')
-            // 首页小预览上面盖着"点按全屏"的点击层，按钮只放在全屏页。
             if (this.fullscreen) {
               Button('重新连接').height(44).fontSize(14).backgroundColor('#2563eb')
                 .onClick((): void => { this.retry(); })
@@ -95,9 +119,16 @@ export struct CameraStreamView {
             LoadingProgress().width(24).height(24).color('#93c5fd')
             Text('正在连接摄像头').fontSize(12).fontColor('#cbd5e1')
           }
-        }.width('100%').height('100%').justifyContent(FlexAlign.Center)
-          .backgroundColor('#0f172a')
+        }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor('#0f172a')
+      } else if (this.unavailable) {
+        Text('画面中断，正在重连…').fontSize(12).fontColor('#cbd5e1')
+          .padding(8).backgroundColor('#cc0f172a').align(Alignment.Bottom)
       }
     }.width('100%').height('100%').backgroundColor('#0f172a')
+      .onVisibleAreaChange([0, 1], (isVisible: boolean): void => {
+        if (this.visible === isVisible) return;
+        this.visible = isVisible;
+        if (isVisible) this.schedule(0); else this.suspend();
+      })
   }
 }
