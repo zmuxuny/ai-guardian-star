@@ -2,6 +2,8 @@ import { abilityAccessCtrl, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
 import camera from '@ohos.multimedia.camera';
+import display from '@ohos.display';
+import { facePreviewCoverRect } from '../face/FacePreviewGeometry';
 import { CloudService } from '../common/CloudService';
 import { ThemeManager } from '../common/ThemeManager';
 import { showToast } from '../common/UiFeedback';
@@ -37,6 +39,12 @@ export struct FaceEnrollment {
   @State cameraMessage: string = '正在启动相机…';
   @State capturedPreview?: image.PixelMap = undefined;
   @State inputFocused: boolean = false;
+  @State guideWidth: number = 260;
+  @State guideHeight: number = 340;
+  private previewWidth: number = 0;
+  private previewHeight: number = 0;
+  private previewProfile?: camera.Profile;
+  private previewConfigured: boolean = false;
   pathStack: NavPathStack = new NavPathStack();
   private xController: XComponentController = new XComponentController();
   private cameraInput?: camera.CameraInput;
@@ -45,6 +53,16 @@ export struct FaceEnrollment {
   private photoSession?: camera.PhotoSession;
   private capturedBytes?: ArrayBuffer;
   private capturedSource?: image.ImageSource;
+
+  private updatePreviewGeometry(): void {
+    if (!this.previewConfigured || this.previewOutput === undefined || this.previewProfile === undefined ||
+      this.previewWidth <= 0 || this.previewHeight <= 0) return;
+    const rotation = this.previewOutput.getPreviewRotation(display.getDefaultDisplaySync().rotation * 90);
+    this.previewOutput.setPreviewRotation(rotation, true);
+    this.xController.setXComponentSurfaceRect(facePreviewCoverRect(
+      this.previewWidth, this.previewHeight,
+      this.previewProfile.size.width, this.previewProfile.size.height, rotation));
+  }
 
   private finishInput(): void {
     this.getUIContext().getFocusController().clearFocus();
@@ -99,10 +117,20 @@ export struct FaceEnrollment {
         throw new Error('摄像头不支持拍照输出');
       }
 
+      // Keep preview and photo on the same aspect ratio to avoid a framing jump.
+      this.previewProfile = capability.previewProfiles[0];
+      let photoProfile = capability.photoProfiles[0];
+      const previewRatio = this.previewProfile.size.width / this.previewProfile.size.height;
+      for (const candidate of capability.photoProfiles) {
+        if (Math.abs(candidate.size.width / candidate.size.height - previewRatio) <
+          Math.abs(photoProfile.size.width / photoProfile.size.height - previewRatio)) {
+          photoProfile = candidate;
+        }
+      }
       this.cameraInput = cameraManager.createCameraInput(frontCamera);
       await this.cameraInput.open();
-      this.previewOutput = cameraManager.createPreviewOutput(capability.previewProfiles[0], surfaceId);
-      this.photoOutput = cameraManager.createPhotoOutput(capability.photoProfiles[0]);
+      this.previewOutput = cameraManager.createPreviewOutput(this.previewProfile, surfaceId);
+      this.photoOutput = cameraManager.createPhotoOutput(photoProfile);
       this.photoOutput.on('photoAvailable', (error: BusinessError, photo: camera.Photo): void => {
         this.handlePhotoAvailable(error, photo);
       });
@@ -115,6 +143,8 @@ export struct FaceEnrollment {
       if (!this.photoSession.canAddOutput(this.photoOutput)) throw new Error('无法创建拍照输出');
       this.photoSession.addOutput(this.photoOutput);
       await this.photoSession.commitConfig();
+      this.previewConfigured = true;
+      this.updatePreviewGeometry();
       await this.photoSession.start();
       this.cameraReady = true;
       this.cameraMessage = '';
@@ -208,7 +238,8 @@ export struct FaceEnrollment {
     if (!this.cameraReady || this.photoOutput === undefined || this.busy) return;
     this.busy = true;
     try {
-      await this.photoOutput.capture();
+      const rotation = this.photoOutput.getPhotoRotation(display.getDefaultDisplaySync().rotation * 90);
+      await this.photoOutput.capture({ rotation });
     } catch (error) {
       console.error(`[FaceEnrollment] capture failed: ${JSON.stringify(error)}`);
       this.busy = false;
@@ -218,6 +249,7 @@ export struct FaceEnrollment {
 
   private async releaseCamera(): Promise<void> {
     this.cameraReady = false;
+    this.previewConfigured = false;
     try { if (this.photoSession !== undefined) await this.photoSession.stop(); } catch (_error) {}
     try { if (this.photoSession !== undefined) await this.photoSession.release(); } catch (_error) {}
     try { if (this.previewOutput !== undefined) await this.previewOutput.release(); } catch (_error) {}
@@ -225,6 +257,7 @@ export struct FaceEnrollment {
     try { if (this.cameraInput !== undefined) await this.cameraInput.close(); } catch (_error) {}
     this.photoSession = undefined;
     this.previewOutput = undefined;
+    this.previewProfile = undefined;
     this.photoOutput = undefined;
     this.cameraInput = undefined;
   }
@@ -359,7 +392,24 @@ export struct FaceEnrollment {
       XComponent({ id: 'face_capture_surface', type: XComponentType.SURFACE, controller: this.xController })
         .width('100%').height('100%')
         .onLoad((): void => {
+          this.xController.setXComponentSurfaceRotation({ lock: true });
           this.startCamera(this.xController.getXComponentSurfaceId());
+        })
+        .onAreaChange((_oldArea: Area, area: Area): void => {
+          const width = Number(area.width);
+          const height = Number(area.height);
+          this.previewWidth = this.getUIContext().vp2px(width);
+          this.previewHeight = this.getUIContext().vp2px(height);
+          const guideScale = Math.max(0, Math.min(1, (width - 32) / 260, (height - 24) / 340));
+          this.guideWidth = 260 * guideScale;
+          this.guideHeight = 340 * guideScale;
+          try {
+            this.updatePreviewGeometry();
+          } catch (error) {
+            console.error(`[FaceEnrollment] resize preview failed: ${JSON.stringify(error)}`);
+            this.cameraMessage = '预览调整失败，请返回后重试';
+            this.releaseCamera();
+          }
         })
         .onDestroy((): void => { this.releaseCamera(); })
       if (this.capturedPreview !== undefined) {
@@ -368,11 +418,11 @@ export struct FaceEnrollment {
       }
       Stack({ alignContent: Alignment.Center }) {
         Rect().width('100%').height('100%').fill('#FFFFFF')
-        Ellipse().width(260).height(340).fill('#000000').blendMode(BlendMode.DST_OUT)
+        Ellipse().width(this.guideWidth).height(this.guideHeight).fill('#000000').blendMode(BlendMode.DST_OUT)
       }
       .width('100%').height('100%')
       .blendMode(BlendMode.SRC_OVER, BlendApplyType.OFFSCREEN)
-      Ellipse().width(260).height(340).fill(Color.Transparent)
+      Ellipse().width(this.guideWidth).height(this.guideHeight).fill(Color.Transparent)
         .stroke('#2563EB').strokeWidth(3)
       if (!this.cameraReady && this.capturedPreview === undefined) {
         Column({ space: 10 }) {
