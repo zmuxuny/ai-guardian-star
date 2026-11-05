@@ -45,7 +45,7 @@ git log --oneline -8
 
 ## 3. 收工顺序
 
-1. 提交代码：已验证的进 `zy`；未验证的进 `wip/<agent>-<date>`；**当前阶段只做本地提交，由用户统一 push**。
+1. 提交代码：已验证的进 `zy`；未验证的进 `wip/<agent>-<date>`；**2026-11-05 起谁改谁推：Claude、Codex 验证后自行 push 到各自分支；DeepSeek 只做本地提交**。
 2. 在 `STATUS-<agent>.md` 顶部追加一条（不超过 40 行，格式见 `TEMPLATE.md`）。
 3. 更新 `TASKS.md` 的状态和分支/提交。
 4. 只提交协作目录：
