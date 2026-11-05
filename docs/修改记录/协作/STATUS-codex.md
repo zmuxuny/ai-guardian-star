@@ -4,6 +4,22 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-05 · codex · T-20261105-09 · 已完成
+
+> 分支：`wip/codex-20261105-camera-smoothness`；调度/连接复用 `d0cfcf3` 已push，共享最新帧 `b0289d0` 待补推；云端部署/两端更新完成，用户确认“卡顿明显改善，可以接受”。
+> 下一步：GitHub恢复后补推；保留当前参数，仍可能受板端/公网瞬时停顿影响。细节及回滚见 `docs/CAMERA_PREVIEW_SMOOTHNESS_20261105.md`。
+
+- 回退 `backup/camera-smoothness-before-20261105@43e2fdd`；保留原有四处本机改动，未合并zy。
+- 手机到云端ping 6/6、15～18ms无丢包；云端流抽样14.03～14.37fps；逐帧取图偶发数百ms～数秒，解码稳定约10～15ms。
+- 去掉每帧后固定80ms等待；仅保留一个请求，按总耗时调度；源序号去重；新增聚合性能日志（无个人/画面数据）。
+- 云端独立标准库服务复用一条MJPEG连接并只保留最新JPEG，回环6011供两种轻量预览读取；过期204、断流清空重连；原始视频与识别/录像逻辑未改。
+- Python 4项、Node 11项通过；Release签名构建和两端覆盖安装/启动通过；手机首页已检查，日志无FATAL/JS_ERROR/Unhandled/ERR_。
+- 真机多窗口实测9.3～10.5不同源帧/秒，请求48～64ms、解码9～13ms；后续仍采到一次2337ms源停顿，未宣称完全消除网络波动或精确物理端到端延迟。
+- HAP 24,697,163B，2026-11-05 16:34:36；SHA256 `5111B4DC0BD58034D6DA24DDF7BE8AFB03EFEA8141E7ABC136C99D02CE581A0D`。
+- 云端备份 `/root/backup/camera-shared-frame-20261105-163750/`；unit校验、nginx -t/reload成功；预览服务/Nginx/wenxin均active，预览服务约10MB、4线程、NRestarts=0。
+- GitHub经现有SSH隧道及替代IP均超时；用户明确允许先部署再补推。新代码已本地提交，记录推送结果以最终回复为准。
+- 所有截图、私有画面和原始设备日志仅在被忽略的 `.tmp/simulator/camera-smoothness-20261105/`；未发起通话或上传人脸。
+
 ## 2026-11-05 · codex · T-20261105-08 · 已完成
 
 > 分支：`wip/codex-20261105-home-camera-latency` @ `0157966`（已 push）；手机已更新，用户挥手复测确认“明显改善，已能接受”。
@@ -39,14 +55,3 @@
 - 预览实际可用、按钮可用，取景框完整，截图已查看；按进程日志无 FATAL/JS_ERROR/Unhandled/相机启动及调整失败标记。已返回姓名页释放相机，未拍照或上传。
 - USB 手机 API 26 覆盖安装成功；启动因锁屏返回 10106102，未解锁，真机比例未验收。
 - 本地证据 `.tmp/simulator/face-ratio-20261105/` 被忽略，含私人画面，不提交/不分享。
-
-## 2026-11-05 · codex · T-20261105-06 · 已完成
-
-> 分支：`wip/codex-20261105-zy-app-sync@cd7e6f7`；将与模拟器一致的最新 zy 签名 HAP 覆盖同步到 USB 手机，安装和启动成功。
-> 下一步：用户在手机登录后从个人/人脸信息检查新流程；相机授权、姿态采集、上传与真实设备链路尚未验收。
-
-- 手机 MIA-AL00/nova 14 Pro（API 26），明确使用 USB 目标；未操作模拟器，未卸载或清数据。
-- HAP SHA-256 `553D7101112155E483F4E8C6B3948DED130E097491ED6DD90C2E36D238936B59`，24,686,693 B；源码和包未变，复用此前成功构建，不重复构建或测试。
-- 覆盖安装返回 install bundle successfully；EntryAbility 返回 start ability successfully，当前可达登录页，进程存在，按进程读取日志无 FATAL/JS_ERROR/Unhandled 标记。
-- 本地布局 `.tmp/phone-validation-20261105/resync-layout.json` 被忽略；未截取个人资料，未登录、授权相机/麦克风或上传数据。
-- 保留现有四处本机改动；仅本地协作记录提交，未 push 或部署服务器/开发板。
