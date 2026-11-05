@@ -14,7 +14,7 @@ img{display:block;width:100vw;height:100vh;object-fit:${fit}}
 (function(){
   var img=document.getElementById('v'),tip=document.getElementById('tip');
   var ctrl=null,timer=null,deadline=null,shown=null,candidate=null,stopped=false,generation=0;
-  var statsAt=Date.now(),frames=0,requestMs=0,decodeMs=0,lastShownAt=0,maxGapMs=0;
+  var statsAt=Date.now(),frames=0,requestMs=0,decodeMs=0,lastShownAt=0,maxGapMs=0,lastSequence=null;
   function recordFrame(started,received){
     var now=Date.now();frames++;requestMs+=received-started;decodeMs+=now-received;
     if(lastShownAt)maxGapMs=Math.max(maxGapMs,now-lastShownAt);lastShownAt=now;
@@ -32,7 +32,7 @@ img{display:block;width:100vw;height:100vh;object-fit:${fit}}
   }
   function run(){
     if(stopped||document.hidden||ctrl)return;
-    var c=ctrl=new AbortController(),g=generation,started=Date.now(),received=started;
+    var c=ctrl=new AbortController(),g=generation,started=Date.now(),received=started,sequence=null;
     function current(){return !stopped&&g===generation&&ctrl===c;}
     function finish(ok){
       if(!current())return;
@@ -52,16 +52,18 @@ img{display:block;width:100vw;height:100vh;object-fit:${fit}}
     fetch('${path}?t='+Date.now(),{cache:'no-store',signal:c.signal}).then(function(r){
       if(!current())return null;
       if(r.status!==200)throw new Error('no current frame');
+      sequence=r.headers?r.headers.get('X-Camera-Sequence'):null;
       return r.blob();
     }).then(function(blob){
       if(!current()||!blob)return;
+      if(sequence!==null&&sequence===lastSequence){finish(true);return;}
       if(!blob.size||blob.type.indexOf('image/jpeg')!==0)throw new Error('invalid frame');
       received=Date.now();
       candidate=URL.createObjectURL(blob);
       img.onload=function(){
         if(!current())return;
         revoke(shown);shown=candidate;candidate=null;
-        recordFrame(started,received);setState('live');finish(true);
+        lastSequence=sequence;recordFrame(started,received);setState('live');finish(true);
       };
       img.onerror=function(){finish(false);};
       img.src=candidate;
@@ -72,7 +74,7 @@ img{display:block;width:100vw;height:100vh;object-fit:${fit}}
     clearTimeout(timer);clearTimeout(deadline);timer=null;deadline=null;
     if(ctrl)ctrl.abort();ctrl=null;
     img.onload=null;img.onerror=null;img.removeAttribute('src');
-    revoke(candidate);revoke(shown);candidate=null;shown=null;
+    revoke(candidate);revoke(shown);candidate=null;shown=null;lastSequence=null;
   }
   function resume(){
     if(document.hidden)return;

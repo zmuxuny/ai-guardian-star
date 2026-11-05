@@ -63,3 +63,10 @@ test('diagnostics separate fetch and decode time and contain no frame data',asyn
  assert.equal(m.requestMs,5000);assert.equal(m.decodeMs,3);
  assert.deepEqual(Object.keys(m).sort(),['decodeMs','fps','maxGapMs','requestMs']);
 });
+
+test('re-reading the same source sequence does not decode or count a new frame',async()=>{
+ const h=harness();const response=()=>({status:200,headers:{get:()=> '17'},blob:async()=>({size:100,type:'image/jpeg'})});
+ h.requests[0].resolve(response());await flush();h.img.onload();h.fire(67);
+ const shown=h.img.src;h.requests[1].resolve(response());await flush();
+ assert.equal(h.img.src,shown);assert.equal(h.img.onload,null);h.fire(67);assert.equal(h.requests.length,3);
+});
