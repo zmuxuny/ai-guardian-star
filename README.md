@@ -8,7 +8,7 @@
 **English** · [中文](README.zh-CN.md)
 
 [![CI](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml/badge.svg)](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml)
-[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-6.1.1%20%7C%20API%2024-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-26.0.0%20%7C%20API%2026-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![Backend](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB?style=flat-square)](https://flask.palletsprojects.com/)
 [![Release](https://img.shields.io/github/v/release/zmuxuny/ai-guardian-star?include_prereleases&style=flat-square)](https://github.com/zmuxuny/ai-guardian-star/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-2EA44F?style=flat-square)](LICENSE)
@@ -89,7 +89,7 @@ It is intended both as an application and as a reusable engineering reference fo
 
 ### HarmonyOS client
 
-- Native HarmonyOS 6.1 / API 24 application using ArkTS, ArkUI, and the Stage model.
+- Native HarmonyOS 26 / API 26 application using ArkTS, ArkUI, and the Stage model.
 - Responsive phone/tablet layouts and light/dark themes.
 - Account profile, address, password, session, and local preference management.
 - ArkDB persistence for health events, video metadata, settings, and local user data.
@@ -173,7 +173,7 @@ System and functional architecture diagrams are in [docs/architecture/](docs/arc
 ### Requirements
 
 - DevEco Studio 6.0 or newer
-- HarmonyOS SDK 6.1.1 / API 24 (target and minimum compatible version)
+- HarmonyOS SDK 26.0.0 / API 26 (target and minimum compatible version)
 - Python 3.8+ for the backend and tests
 
 ### Build the HarmonyOS app

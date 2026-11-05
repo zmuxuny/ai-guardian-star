@@ -8,7 +8,7 @@
 [English](README.md) · **中文**
 
 [![CI](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml/badge.svg)](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml)
-[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-6.1.1%20%7C%20API%2024-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-26.0.0%20%7C%20API%2026-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![Backend](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB?style=flat-square)](https://flask.palletsprojects.com/)
 [![Release](https://img.shields.io/github/v/release/zmuxuny/ai-guardian-star?include_prereleases&style=flat-square)](https://github.com/zmuxuny/ai-guardian-star/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-2EA44F?style=flat-square)](LICENSE)
@@ -88,7 +88,7 @@
 
 ### HarmonyOS 客户端
 
-- HarmonyOS 6.1 / API 24 原生应用，使用 ArkTS、ArkUI 与 Stage 模型。
+- HarmonyOS 26 / API 26 原生应用，使用 ArkTS、ArkUI 与 Stage 模型。
 - 手机/平板自适应布局，支持深色与浅色主题。
 - 账号资料、地址、密码、会话和本地偏好管理。
 - 使用 ArkDB 保存健康事件、视频元数据、设置及本地用户信息。
@@ -172,7 +172,7 @@ ai-guardian-star/
 ### 环境要求
 
 - DevEco Studio 6.0 或更新版本
-- HarmonyOS SDK 6.1.1 / API 24（目标与最低兼容版本）
+- HarmonyOS SDK 26.0.0 / API 26（目标与最低兼容版本）
 - Python 3.8+（运行后端与测试）
 
 ### 构建 HarmonyOS App

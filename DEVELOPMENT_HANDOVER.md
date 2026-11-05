@@ -10,14 +10,14 @@
 
 1. [README.zh-CN.md](README.zh-CN.md)：项目范围、架构、快速开始。
 2. [AGENTS.md](AGENTS.md)：本仓库工作约定；修改前保留其他人的未提交改动。
-3. [DEVECO_BUILD.md](DEVECO_BUILD.md)：当前 HarmonyOS SDK/API、HAP/APP 构建、产物核验。
+3. AGENTS.md 的“HarmonyOS 构建”一节：当前 SDK 26.0.0、HAP/APP 构建、产物核验。
 4. [docs/aliyun-migration-repair.md](docs/aliyun-migration-repair.md)：当前生产拓扑与最近一次服务/设备验收记录。
 5. [deploy/aliyun/MQTT_ACCESS.md](deploy/aliyun/MQTT_ACCESS.md)：MQTT 临时凭据、设备访问范围、部署和回滚。
 6. [docs/production-operations.md](docs/production-operations.md)：备份、恢复、监控和部署流程。注意其中标为华为云保留环境的命令是历史环境专用，不能直接用于阿里云。
 7. [SECURITY.md](SECURITY.md)、[docs/database-admin-access.md](docs/database-admin-access.md)：安全报告和管理后台边界。
 8. [.wolf/cerebrum.md](.wolf/cerebrum.md) 的 Do-Not-Repeat 与 Decision Log、[.wolf/buglog.json](.wolf/buglog.json)：历次踩坑、根因和已定决策。改相关模块或排障前先搜一遍，很多问题已经有结论。
 
-2026-04 的旧交接文档（华为云、OpenGauss 时期）已于 2026-11-05 删除；以当前代码、`DEVECO_BUILD.md` 和本手册列出的专项文档为准。
+2026-04 的旧交接文档（华为云、OpenGauss 时期）已于 2026-11-05 删除；以当前代码、`AGENTS.md` 和本手册列出的专项文档为准。
 
 ## 2. 系统现状与边界
 
@@ -70,12 +70,12 @@
 
 - 项目启用 ArkTS 严格检查，优先使用明确接口类型、避免 `any`/`unknown` 逃逸；按编译器要求处理异常类型，不照抄旧文档中与当前 SDK 不符的写法。
 - 外部 JSON 字段名是客户端/服务器契约。Release 混淆曾改写 `expiresIn` 导致续期定时器异常；更新请求/响应字段时同步维护混淆保留规则和契约检查，并检查 Release 产物字段。
-- 当前统一目标为 HarmonyOS SDK/API 24，构建基线见 `DEVECO_BUILD.md`。使用 DevEco 自带 Node、OHPM、Hvigor；依赖变化时再安装依赖，勿无故重写锁文件或升级工具链。
+- 当前统一目标为 HarmonyOS SDK 26.0.0（API 26），构建基线见 `AGENTS.md`。使用 DevEco 自带 Node、OHPM、Hvigor；依赖变化时再安装依赖，勿无故重写锁文件或升级工具链。
 - 仓库里没有 `hvigorw.js`，启动器在 DevEco 安装目录 `tools/hvigor/bin/hvigorw.js`；命令行构建必须显式设置 `DEVECO_SDK_HOME`，只设 `DEVECO_STUDIO_HOME` 会报 `Invalid value of 'DEVECO_SDK_HOME'`。签名材料路径在 `build-profile.json5`，文件本身不在仓库，找保管人要。
 - 版本号：`versionCode = 1000000 + major*10000 + minor*100 + patch`（1.0.1 → 1010001），AGC 要求严格递增。改版本时 `AppScope/app.json5` 与两份 README 的版本说明同步。
 - AGC 已批准的 ACL 受限权限会自动写进之后新建的每个 Profile，无法取消，华为答复不影响上架；真正要管住的是 `module.json5` 不声明用不到的权限。
 - HAP 用于安装测试；APP 是 App Pack，不能直接安装。只有找到非空产物、记录 SHA-256 才能称已构建；构建通过不等于真机通过，上架还需 AppGallery Connect 校验。
-- 做设备验收时分开记录构建、模拟器、真机、网络、权限和端到端结果，并以仓库现有专项记录为准。历史上验证过的 API 23 真机认证链路不能替代当前 API 24 与新功能的核验，不要沿用旧结论。
+- 做设备验收时分开记录构建、模拟器、真机、网络、权限和端到端结果，并以仓库现有专项记录为准。历史上验证过的 API 23 真机认证链路不能替代当前 API 26 与新功能的核验，不要沿用旧结论。
 
 ### MQTT 与 AI 隐私
 
@@ -143,7 +143,7 @@
 ## 8. 建议交接清单
 
 - [ ] 本地开发环境：DevEco/SDK、Python、Node/OHPM 版本和当前签名材料保管人已确认。
-- [ ] 明确 API 24 的目标设备与最低兼容版本，完成一次当前分支 Release HAP 构建并归档产物哈希。
+- [ ] 在 SDK 26.0.0 上完成一次当前分支 Release HAP 构建并归档产物哈希。
 - [ ] 确认生产 SSH/云账号由新负责人按团队流程获得；不要通过聊天传递私钥、密码或 Token。
 - [ ] 交接生产服务、数据库备份、监控告警、证书续期、短信/审核/模型供应商账单入口及各自负责人。
 - [ ] 证书到期（2026-11-05 实测）：API 2026-12-15、官网 2026-12-24。certbot 自动续期，到期前后仍要实际确认新证书已生效、Nginx 已 reload。扣子积分余量也要定期看。
@@ -153,7 +153,7 @@
 
 ## 9. 关键文档索引
 
-- 构建：[`DEVECO_BUILD.md`](DEVECO_BUILD.md)
+- 构建与项目规则：[`AGENTS.md`](AGENTS.md)
 - 当前生产迁移和设备验收：[`docs/aliyun-migration-repair.md`](docs/aliyun-migration-repair.md)
 - 生产运行、备份和监控：[`docs/production-operations.md`](docs/production-operations.md)
 - MQTT ACL 与回滚：[`deploy/aliyun/MQTT_ACCESS.md`](deploy/aliyun/MQTT_ACCESS.md)
