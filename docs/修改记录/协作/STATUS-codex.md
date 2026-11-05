@@ -4,6 +4,17 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-05 · codex · T-20261105-06 · 已完成
+
+> 分支：`wip/codex-20261105-zy-app-sync@cd7e6f7`；将与模拟器一致的最新 zy 签名 HAP 覆盖同步到 USB 手机，安装和启动成功。
+> 下一步：用户在手机登录后从个人/人脸信息检查新流程；相机授权、姿态采集、上传与真实设备链路尚未验收。
+
+- 手机 MIA-AL00/nova 14 Pro（API 26），明确使用 USB 目标；未操作模拟器，未卸载或清数据。
+- HAP SHA-256 `553D7101112155E483F4E8C6B3948DED130E097491ED6DD90C2E36D238936B59`，24,686,693 B；源码和包未变，复用此前成功构建，不重复构建或测试。
+- 覆盖安装返回 install bundle successfully；EntryAbility 返回 start ability successfully，当前可达登录页，进程存在，按进程读取日志无 FATAL/JS_ERROR/Unhandled 标记。
+- 本地布局 `.tmp/phone-validation-20261105/resync-layout.json` 被忽略；未截取个人资料，未登录、授权相机/麦克风或上传数据。
+- 保留现有四处本机改动；仅本地协作记录提交，未 push 或部署服务器/开发板。
+
 ## 2026-11-05 · codex · T-20261105-05 · 已完成
 
 > 分支：`wip/codex-20261105-zy-app-sync@298b83c`；复用最新 zy 整合版本签名 HAP，覆盖更新 API 24 模拟器成功。
@@ -28,16 +39,3 @@
 - 业务源码与远端一致；远端记录的 Node 15 项和 Python 78 项已通过，本轮未重复执行；合并冲突解决后 diff --check 通过。
 - 回退分支 `backup/ysh-before-zy-app-sync-20261105@3acec5e`；签名配置、笔记及补丁已在本机私有目录备份，原有四处本机改动保留。
 - 未 push、未部署服务器或开发板；本地记录 `.tmp/zy-sync-20261105/` 被忽略，不保存锁屏截图。
-
-## 2026-11-05 15:10 · codex · T-20261104-01 / T-20261104-02 · 待真机验证
-
-> 分支：`wip/codex-20261105-board-face-to-zy`；App 提交 `c4c490e`、`7f47104`，整合提交 `58abfee`。
-> 下一步：推送至 `origin/zy` 后，在已签名真机包中验收姓名页、应用内相机采集、白色遮罩与三姿态门禁；开发板恢复连接后完成模型转换、角度标定及向量落盘验收。
-
-### App 与板端整合结果
-
-- 将 `feature/jyx-home@843dbe3` 的最新 App 基线、人脸姓名页、应用内采集页、预览确认、严格头姿门禁和板端复验探针统一整合到 `zy` 候选。
-- “人脸信息”现在通过 `pushPathByName('FaceEnrollment')` 进入独立页面，不再调用旧式拍照弹窗；路由、姓名状态流、相机页面与本地单元入口均已纳入 Git。
-- App 头姿/采集逻辑 Node 测试 15/15 通过；板端人脸回归 `unittest` 78/78 通过；`git diff --check` 通过。
-- Release HAP 构建成功，产物为未签名 `entry-default-unsigned.hap`，大小 `24410752` 字节，SHA-256 `82A0A55DB801D7207BBF42425FE80EB335D805E34C29C4300FB49CD919BCFB10`。
-- 构建仍有既有 ArkTS/系统能力警告，且没有签名、未安装到真机、未完成摄像头/姿态/上传删除链路验收；不将构建成功表述为设备验收成功。
