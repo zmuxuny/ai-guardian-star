@@ -41,12 +41,33 @@
       }
     },
     {
+      "name": "FaceEnrollment",
+      "pageSourceFile": "src/main/ets/pages/FaceEnrollment.ets",
+      "buildFunction": "FaceEnrollmentBuilder",
+      "data": {
+        "description": "face enrollment name and capture flow"
+      }
+    },
+    {
       "name": "HealthHistory",
       "pageSourceFile": "src/main/ets/pages/HealthHistory.ets",
       "buildFunction": "HealthHistoryBuilder",
       "data": {
         "description": "this is HealthHistory"
       }
+    },
+    {
+      "name": "CameraFullscreen",
+      "pageSourceFile": "src/main/ets/pages/CameraFullscreen.ets",
+      "buildFunction": "CameraFullscreenBuilder",
+      "data": {
+        "description": "Full-screen live camera"
+      }
+    },
+    {
+      "name": "TodayEvents",
+      "pageSourceFile": "src/main/ets/pages/TodayEvents.ets",
+      "buildFunction": "TodayEventsBuilder"
     }
   ]
 }

@@ -11,6 +11,7 @@ import { UserManager } from "../common/UserManager";
 import { BROKER_URL, ALERT_TOPIC, MQTT_CA_CERT } from '../config';
 import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
 import { CloudService } from '../common/CloudService';
+import { startsStrangerArrival } from '../common/HomeEventRules';
 
 export interface FallRecord {
   time: string;
@@ -49,6 +50,7 @@ export class MqttManager {
   @Track public sedentaryRecords: SedentaryRecord[] = [];
   @Track public isStrangerDetected: boolean = false;
   @Track public strangerTimestamp: number = 0;
+  private lastStrangerActivity: number = 0;
 
   private fallRecoveryTimer: number = -1;
   private sedentaryRecoveryTimer: number = -1;
@@ -346,6 +348,7 @@ export class MqttManager {
         this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
       } else if (alert.type === EventType.STRANGER) {
+        this.recordStrangerArrival(Date.now());
         this.isStrangerDetected = true;
         this.strangerTimestamp = Date.now();
         this.latestMessage = `检测到陌生人`;
@@ -394,6 +397,7 @@ export class MqttManager {
         this.latestMessage = `检测到久坐`;
         this.startSedentaryRecoveryTimer();
       } else if (isStranger) {
+        this.recordStrangerArrival(Date.now());
         this.isStrangerDetected = true;
         this.strangerTimestamp = Date.now();
         this.latestMessage = `检测到陌生人`;
@@ -450,6 +454,25 @@ export class MqttManager {
       .catch((e: Error) => console.error(`[mqtt]:❌ ArkDB 写入摔倒事件失败 ${e.message}`));
   }
 
+  private recordStrangerArrival(timestamp: number): void {
+    const username = this.getCurrentUsername();
+    if (username === '') return;
+    const isArrival = startsStrangerArrival(timestamp, this.lastStrangerActivity);
+    this.lastStrangerActivity = timestamp;
+    if (!isArrival) return;
+    const date = new Date(timestamp);
+    const event: HealthEvent = {
+      eventType: 'stranger', eventTime: timestamp,
+      dateStr: `${date.getFullYear()}.${this.padZero(date.getMonth() + 1)}.${this.padZero(date.getDate())}`,
+      timeStr: `${this.padZero(date.getHours())}:${this.padZero(date.getMinutes())}:${this.padZero(date.getSeconds())}`,
+      severity: 1, isHandled: 0, username: username
+    };
+    DatabaseHelper.getInstance().insertHealthEvent(event).catch((): void => {
+      if (this.lastStrangerActivity === timestamp) this.lastStrangerActivity = 0;
+      console.warn('[mqtt]: 陌生人事件保存失败');
+    });
+  }
+
   private addSedentaryRecord(timestamp: number): void {
     const now = new Date(timestamp);
     const timeStr = `${this.padZero(now.getHours())}:${this.padZero(now.getMinutes())}:${this.padZero(now.getSeconds())}`;
@@ -491,6 +514,7 @@ export class MqttManager {
   }
 
   public resetMqttState(): void {
+    this.lastStrangerActivity = 0;
     this.isFallDetected = false;
     this.fallTimestamp = 0;
     this.isSedentaryDetected = false;

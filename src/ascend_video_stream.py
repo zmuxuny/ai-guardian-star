@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import cv2
@@ -6,7 +7,8 @@ _stats_lock = threading.Lock()
 _stats = {
     "fps": 0.0, "detections": 0, "fall_count": 0,
     "status": "正常", "mqtt_connected": True,
-    "start_time": time.time(),
+    # 板子无 RTC，开机后 NTP 校时会让 time.time() 跳变，运行时长用单调时钟
+    "start_time": time.monotonic(),
     "keypoint_scores": None, "last_fall_time": None,
     "frame_count": 0,
     "face_label": None, "face_score": None,
@@ -43,9 +45,9 @@ def get_stats():
 encoded_frame_bytes = None
 lock = threading.Lock()
 last_encode_time = 0.0
-# 分辨率降低以减少 FRP 隧道缓冲积压，有效降低视频延迟
-JPEG_SIZE = (320, 240)
-JPEG_QUALITY = 35
+# 推流用摄像头原始 640×480；嫌带宽紧可用环境变量调回 320x240 或降质量。
+JPEG_SIZE = tuple(int(v) for v in os.getenv("AI_GUARDIAN_STREAM_SIZE", "640x480").split("x"))
+JPEG_QUALITY = int(os.getenv("AI_GUARDIAN_STREAM_QUALITY", "65"))
 MAX_ENCODE_FPS = 20.0
 
 
@@ -60,7 +62,8 @@ def update_frame(frame):
         return
     last_encode_time = now
 
-    small_frame = cv2.resize(frame, JPEG_SIZE)
+    h, w = frame.shape[:2]
+    small_frame = frame if (w, h) == JPEG_SIZE else cv2.resize(frame, JPEG_SIZE)
     ok, encoded = cv2.imencode('.jpg', small_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
     if not ok:
         return

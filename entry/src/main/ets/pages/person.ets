@@ -16,11 +16,8 @@ import {
   UserInfo,
 } from "../database/DatabaseHelper";
 import { preferences } from "@kit.ArkData";
-import { common, abilityAccessCtrl, Want } from "@kit.AbilityKit";
+import { common, Want } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
-import cameraPicker from "@ohos.multimedia.cameraPicker";
-import camera from "@ohos.multimedia.camera";
-import fs from "@ohos.file.fs";
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
 import { AiPermissionService } from '../common/AiPermissionService';
@@ -293,109 +290,6 @@ export struct person {
     return true;
   }
 
-  private async takePhotoAndSendToBoard(context: common.UIAbilityContext): Promise<void> {
-    // Step 0: 弹窗让用户输入老人姓名
-    let enrollName = '';
-    try {
-      const nameDialog = await showDialog(this.getUIContext(), {
-        title: '录入人脸',
-        message: '请输入被监护人姓名（用于识别显示）',
-        buttons: [
-          { text: '取消', color: '#64748b' },
-          { text: '去拍照', color: '#2563eb' },
-        ],
-      });
-      if (nameDialog?.index !== 1) {
-        return;
-      }
-      // ArkTS 无法弹 TextInput，用当前登录昵称作为默认姓名，后续可扩展
-      enrollName = AppStorage.get<string>('loggedInNickname') ?? this.userName ?? 'unknown';
-      if (!enrollName || enrollName.trim() === '') {
-        enrollName = 'unknown';
-      }
-    } catch (e) {
-      return;
-    }
-
-    // Step 1: 申请相机权限
-    try {
-      const atManager = abilityAccessCtrl.createAtManager();
-      const grantResult = await atManager.requestPermissionsFromUser(
-        context, ['ohos.permission.CAMERA']
-      );
-      if (grantResult.authResults[0] !== 0) {
-        showToast(this.getUIContext(), { message: '需要相机权限才能录入人脸，请在系统设置中开启' });
-        return;
-      }
-    } catch (error) {
-      console.error(`[Person] request camera permission failed: ${JSON.stringify(error)}`);
-      showToast(this.getUIContext(), { message: '相机权限申请失败，请稍后重试' });
-      return;
-    }
-
-    const sandboxPath = context.cacheDir + '/face_upload_temp.jpg';
-    await this.cacheManager.retain(sandboxPath);
-
-    try {
-      // Step 2: 预创建沙箱文件
-      let tempFile = fs.openSync(sandboxPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
-      fs.closeSync(tempFile);
-
-      // Step 3: 调起前置相机
-      const sandboxUri = fileUri.getUriFromPath(sandboxPath);
-      let pickerProfile: cameraPicker.PickerProfile = {
-        cameraPosition: camera.CameraPosition.CAMERA_POSITION_FRONT,
-        saveUri: sandboxUri,
-      };
-      let pickerResult = await cameraPicker.pick(
-        context,
-        [cameraPicker.PickerMediaType.PHOTO],
-        pickerProfile,
-      );
-      if (pickerResult.resultCode !== 0 || pickerResult.resultUri === '') {
-        console.log('[person]: 用户取消拍照');
-        return;
-      }
-
-      // Step 4: 读取图片文件
-      let file = fs.openSync(sandboxPath, fs.OpenMode.READ_ONLY);
-      let fileStat = fs.statSync(file.fd);
-      if (fileStat.size === 0) {
-        fs.closeSync(file);
-        throw new Error('照片文件为空');
-      }
-      if (fileStat.size > 8 * 1024 * 1024) {
-        fs.closeSync(file);
-        showToast(this.getUIContext(), { message: '照片不能超过 8 MiB' });
-        return;
-      }
-      let buffer = new ArrayBuffer(fileStat.size);
-      fs.readSync(file.fd, buffer);
-      fs.closeSync(file);
-
-      showToast(this.getUIContext(), { message: '正在上传人脸信息...' });
-      const result = await CloudService.getInstance().enrollFace(enrollName, buffer);
-      if (result.success) {
-        showToast(this.getUIContext(), { message: '人脸录入成功！开发板已更新识别库' });
-        console.log('[person]: 人脸录入成功 name=' + enrollName);
-      } else {
-        showToast(this.getUIContext(), { message: result.message || '人脸录入失败，请重试' });
-        console.warn('[person]: 人脸上传失败 message=' + result.message);
-      }
-    } catch (error) {
-      console.error('[person]: 人脸录入流程出错', JSON.stringify(error));
-      showToast(this.getUIContext(), { message: '操作失败，请重试' });
-    } finally {
-      try {
-        fs.unlinkSync(sandboxPath);
-        console.log('[person]: 人脸临时文件已销毁');
-      } catch (e) {
-        // 忽略
-      }
-      this.cacheManager.release(sandboxPath);
-    }
-  }
-
   aboutToAppear(): void {
     this.loadUserInfo();
     this.refreshCacheSize();
@@ -525,25 +419,26 @@ export struct person {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ useHomeStyle: true }) {
       Column() {
         if (this.userAvatarPath !== '') {
           Image(fileUri.getUriFromPath(this.userAvatarPath))
             .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
-            .border({ width: 2.5, color: "rgba(255,255,255,0.7)" })
+            .border({ width: 2.5, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
             .clip(true)
         } else {
           Column() {
-            Image($r("app.media.ic_user")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
+            Image($r("app.media.ic_user_blue")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
           }
           .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
-          .backgroundColor("rgba(255,255,255,0.2)")
-          .border({ width: 2, color: "rgba(255,255,255,0.6)" })
+          .backgroundColor(this.themeManager.isDarkMode ? '#20365a' : '#e1ebff')
+          .border({ width: 2, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         }
         Text(this.userNickname || this.userName)
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff").margin({ top: 14 })
+          .fontSize(22).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.colors.primaryTextColor).margin({ top: 14 })
       }
       .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
     }
@@ -584,7 +479,7 @@ export struct person {
                 title: "人脸信息",
                 subTitle: "录入人脸用于开发板识别 (阅后即焚)",
                 onClickAction: (): void => {
-                  this.takePhotoAndSendToBoard(this.getUIContext().getHostContext() as common.UIAbilityContext);
+                  this.pathStack.pushPathByName('FaceEnrollment', null);
                 },
               })
               Divider()

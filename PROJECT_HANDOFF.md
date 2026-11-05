@@ -42,7 +42,7 @@
 | AI 代理服务 | `wenxin_proxy.py`，Flask，端口 `8899`                                     |
 | 终端工具    | FinalShell（**只支持单行 Python 命令**，heredoc 多行会 IndentationError） |
 
-### 2.3 开发板（Atlas 200I DK A2）
+### 2.3 开发板（香橙派 AIpro，昇腾 310B4）
 
 | 项目                 | 值                                                        |
 | -------------------- | --------------------------------------------------------- |
@@ -73,7 +73,7 @@
        │ 检测结果上传 (MQTT/HTTP)          │ 告警推送 (MQTT)
        │ 账号/设置同步                    │ 账号/设置同步
 ┌──────▼──────────────────┐   ┌──────────▼───────────────┐
-│  开发板 (Atlas 200I DK)  │   │   手机 App (HarmonyOS)    │
+│  开发板 (香橙派 AIpro)     │   │   手机 App (HarmonyOS)    │
 │  OpenHarmony             │   │   ArkDB (本地缓存)        │
 │  OpenGauss (人脸特征库)  │   │   账号/个人设置           │
 │  检测缓冲（断网补传）    │   │   检测记录（从云端拉取）  │
@@ -171,7 +171,7 @@ ECS curl 测试 Coze `stream_run` 端点返回空输出。调试中断于此。
 
 ---
 
-## 六、板端代码（Atlas 200I DK · /root/yolo/src/）
+## 六、板端代码（香橙派 AIpro · /root/yolo/src/）
 
 ### 6.1 文件结构
 
@@ -208,7 +208,7 @@ STATIONARY_PIXEL_THRESHOLD = ...  # 质心移动像素阈值（静止判定）
 - **型号**：HLK-LD6002C + HLK-LD60G80G-Kit 底板
 - **功能**：60GHz FMCW 毫米波，独立跌倒检测，不依赖摄像头
 - **接入方式**：串口，115200 baud，TinyFrame 私有协议
-- **板端接线**：LD6002C TX0 → Atlas UART RX，RX0 → Atlas UART TX
+- **板端接线**：LD6002C TX0 → 开发板 UART RX，RX0 → 开发板 UART TX
 - **协议文档**：已在项目 knowledge 中（`LD6002C跌倒检测串口协议文档.pdf`）
 - **当前状态**：硬件已到位，串口解析代码已集成进 `ascend_main_other.py`
 

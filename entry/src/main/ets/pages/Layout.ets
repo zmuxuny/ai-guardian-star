@@ -184,9 +184,7 @@ export struct Layout {
       })
     }
     .hideTitleBar(true)
-    .backgroundColor(this.currentIndex === 0
-      ? this.themeManager.isDarkMode ? '#0f172a' : '#dce9ff'
-      : this.themeManager.colors.cardBackgroundColor)
+    .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#dce9ff')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
     .onReady((context: NavDestinationContext): void => {
       this.pathStack = context.pathStack;

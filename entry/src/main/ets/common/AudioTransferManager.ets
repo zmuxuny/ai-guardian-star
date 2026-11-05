@@ -25,6 +25,8 @@ export class AudioTransferManager {
     return AudioTransferManager.instance;
   }
 
+  public isCallActive(): boolean { return this.isConnected; }
+
   async startCall(): Promise<void> {
     if (this.isConnected) return;
     this.pcmQueue = [];
@@ -100,6 +102,7 @@ export class AudioTransferManager {
       // ---- C. 最后建立 WebSocket 连接 ----
       // 音频设备就绪后再连，避免丢帧
       this.ws = webSocket.createWebSocket();
+      const socket = this.ws;
 
       this.ws.on("open", (_err, _val) => {
         this.isConnected = true;
@@ -107,7 +110,11 @@ export class AudioTransferManager {
       });
 
       this.ws.on("error", (err) => {
-        console.error("[Audio] WebSocket 错误:", JSON.stringify(err));
+        console.warn('[Audio] 通话连接错误');
+        if (this.ws === socket) this.stopCall();
+      });
+      this.ws.on('close', () => {
+        if (this.ws === socket) this.stopCall();
       });
 
       // 收到板子 PCM → 放入队列
@@ -145,10 +152,23 @@ export class AudioTransferManager {
         }
       });
 
-      await this.ws.connect(this.WS_URL);
+      let timeout: number = -1;
+      try {
+        const connected = await Promise.race([
+          socket.connect(this.WS_URL),
+          new Promise<boolean>((_resolve, reject) => {
+            timeout = setTimeout((): void => { reject(new Error('call timeout')); }, 10000);
+          })
+        ]);
+        if (!connected || this.ws !== socket) throw new Error('call connection failed');
+        this.isConnected = true;
+      } finally {
+        if (timeout !== -1) clearTimeout(timeout);
+      }
     } catch (err) {
       console.error("[Audio] 启动失败:", JSON.stringify(err));
       await this.stopCall();
+      throw new Error('通话连接失败');
     }
   }
 
@@ -180,6 +200,7 @@ export class AudioTransferManager {
       this.ws.off("open");
       this.ws.off("message");
       this.ws.off("error");
+      this.ws.off('close');
       try {
         await this.ws.close();
       } catch (_) {}

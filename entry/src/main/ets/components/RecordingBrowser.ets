@@ -1,25 +1,46 @@
 import { ThemeManager } from '../common/ThemeManager';
 import { CloudService } from '../common/CloudService';
-import { RecordingClip, RecordingQuery, RecordingPlaybackRequest, queryRecordings } from '../common/RecordingService';
+import {
+  RecordingClip,
+  RecordingDayRange,
+  RecordingQuery,
+  RecordingPlaybackRequest,
+  RECORDING_RETENTION_MS,
+  buildRecordingDays,
+  queryRecordings,
+  requestStreamUrl
+} from '../common/RecordingService';
 import { SURFACE_RADIUS } from './GradientHeader';
 import { common } from '@kit.AbilityKit';
-import fs from '@ohos.file.fs';
+import picker from '@ohos.file.picker';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { CacheManager } from '../common/CacheManager';
+import { showToast } from '../common/UiFeedback';
+
+/** 一个日期分组在页面生命周期内的缓存状态；只有展开过的日期才会去查询。 */
+interface RecordingDay {
+  key: string;
+  label: string;
+  windowStart: number;
+  windowEnd: number;
+  partial: boolean;
+  loaded: boolean;
+  loading: boolean;
+  error: string;
+  clips: RecordingClip[];
+  status: string;
+}
 
 /** Shared by the navigation tab and the personal/history destination. */
 @Component
 export struct RecordingBrowser {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State filter: string = 'all';
-  @State clips: RecordingClip[] = [];
+  @State days: RecordingDay[] = [];
+  @State expandedKey: string = '';
   @State asOf: number = Date.now();
-  @State windowStart: number = Date.now() - 7 * 86400000;
   @State status: string = 'waiting';
   @State wholeSegments: boolean = false;
-  @State loading: boolean = true;
-  @State error: string = '';
   @State preparing: boolean = false;
   @State playbackError: string = '';
   @State videoSource: string = '';
@@ -29,43 +50,161 @@ export struct RecordingBrowser {
   @State duration: number = 0;
   @State selectedId: string = '';
   @State selectedLabel: string = '';
+  @State downloadingId: string = '';
   private xController: XComponentController = new XComponentController();
   private avPlayer: media.AVPlayer | undefined = undefined;
   private surfaceId: string = '';
-  private mediaLength: number = 0;
-  private openFile: fs.File | undefined = undefined;
-  private cacheFile: string = '';
-  private queryVersion: number = 0;
+  private dayTokens: Map<string, number> = new Map<string, number>();
   private playbackVersion: number = 0;
   private disposed: boolean = false;
 
-  aboutToAppear(): void { this.disposed = false; this.reload(true); }
+  aboutToAppear(): void {
+    this.disposed = false;
+    this.asOf = Date.now();
+    const ranges: RecordingDayRange[] = buildRecordingDays(this.asOf, RECORDING_RETENTION_MS);
+    const days: RecordingDay[] = [];
+    ranges.forEach((range: RecordingDayRange): void => { days.push(this.emptyDay(range)); });
+    this.days = days;
+    if (this.days.length > 0) {
+      this.expandedKey = this.days[0].key;
+      this.loadDay(this.expandedKey, false);
+    }
+  }
+
   aboutToDisappear(): void {
     this.disposed = true;
-    this.queryVersion++;
     this.playbackVersion++;
     this.releaseVideo();
+  }
+
+  private emptyDay(range: RecordingDayRange): RecordingDay {
+    const day: RecordingDay = {
+      key: range.key,
+      label: range.label,
+      windowStart: range.windowStart,
+      windowEnd: range.windowEnd,
+      partial: range.partial,
+      loaded: false,
+      loading: false,
+      error: '',
+      clips: [],
+      status: ''
+    };
+    return day;
+  }
+
+  private patchDay(key: string, windowEnd: number, loaded: boolean, loading: boolean, error: string,
+    clips: RecordingClip[], status: string): void {
+    this.days = this.days.map((day: RecordingDay): RecordingDay => {
+      if (day.key !== key) return day;
+      const next: RecordingDay = {
+        key: day.key,
+        label: day.label,
+        windowStart: day.windowStart,
+        windowEnd: windowEnd,
+        partial: day.partial,
+        loaded: loaded,
+        loading: loading,
+        error: error,
+        clips: clips,
+        status: status
+      };
+      return next;
+    });
+  }
+
+  /** 只查询被展开的那一天；已加载成功的日期在页面生命周期内不再重复请求。 */
+  private async loadDay(key: string, force: boolean): Promise<void> {
+    const index = this.days.findIndex((day: RecordingDay): boolean => day.key === key);
+    if (index < 0) return;
+    const day = this.days[index];
+    if (day.loading) return;
+    if (day.loaded && !force) return;
+    const previous = this.dayTokens.get(key);
+    const token = previous === undefined ? 1 : previous + 1;
+    this.dayTokens.set(key, token);
+    // 今天的时间窗在打开页面后仍会向前走，查询和下载都以本次实际使用的窗口为准。
+    const windowEnd = index === 0 ? Date.now() : day.windowEnd;
+    const query: RecordingQuery = {
+      asOf: windowEnd,
+      filter: this.filter,
+      windowStart: day.windowStart,
+      windowEnd: windowEnd
+    };
+    this.patchDay(key, windowEnd, day.loaded, true, '', day.clips, day.status);
+    try {
+      const result = await queryRecordings(query);
+      if (this.disposed || this.dayTokens.get(key) !== token) return;
+      this.asOf = Math.max(this.asOf, result.asOf);
+      this.status = result.status;
+      this.wholeSegments = result.wholeSegments === true;
+      const clips: RecordingClip[] = result.clips.slice().sort(
+        (left: RecordingClip, right: RecordingClip): number => right.startTime - left.startTime);
+      this.patchDay(key, windowEnd, true, false, '', clips, result.status);
+    } catch (error) {
+      if (this.disposed || this.dayTokens.get(key) !== token) return;
+      const message: string = (error as Error).message || '该日录像加载失败，请重试';
+      this.patchDay(key, windowEnd, day.loaded, false, message, day.clips, day.status);
+    }
+  }
+
+  private toggleDay(key: string): void {
+    if (this.expandedKey === key) {
+      this.expandedKey = '';
+      return;
+    }
+    this.expandedKey = key;
+    this.playbackVersion++;
+    this.preparing = false;
+    this.playbackError = '';
+    this.selectedId = '';
+    this.selectedLabel = '';
+    this.releaseVideo();
+    const day = this.days.find((item: RecordingDay): boolean => item.key === key);
+    if (day !== undefined && !day.loaded) this.loadDay(key, false);
+  }
+
+  /** 刷新只清空并重查当前展开日期，其他日期的缓存保持不变。 */
+  private refreshCurrent(): void {
+    const now = Date.now();
+    const ranges: RecordingDayRange[] = buildRecordingDays(now, RECORDING_RETENTION_MS);
+    let targetKey: string = ranges.length > 0 ? ranges[0].key : '';
+    if (this.expandedKey !== '') {
+      const matched = ranges.find((range: RecordingDayRange): boolean => range.key === this.expandedKey);
+      if (matched !== undefined) targetKey = this.expandedKey;
+    }
+    const cached: Map<string, RecordingDay> = new Map<string, RecordingDay>();
+    this.days.forEach((day: RecordingDay): void => { cached.set(day.key, day); });
+    const days: RecordingDay[] = [];
+    ranges.forEach((range: RecordingDayRange): void => {
+      if (range.key === targetKey) {
+        days.push(this.emptyDay(range));
+        return;
+      }
+      const previous = cached.get(range.key);
+      days.push(previous !== undefined && previous.loaded ? previous : this.emptyDay(range));
+    });
+    this.days = days;
+    this.expandedKey = targetKey;
+    this.asOf = now;
+    this.playbackVersion++;
+    this.preparing = false;
+    this.playbackError = '';
+    this.selectedId = '';
+    this.selectedLabel = '';
+    this.releaseVideo();
+    if (targetKey !== '') this.loadDay(targetKey, true);
   }
 
   private releaseVideo(): void {
     this.videoSource = '';
     this.stopPlayback();
-    if (this.openFile !== undefined) {
-      try { fs.closeSync(this.openFile); } catch (_error) {}
-      this.openFile = undefined;
-    }
-    this.mediaLength = 0;
-    if (this.cacheFile !== '') {
-      try { fs.unlinkSync(this.cacheFile); } catch (_error) {}
-      CacheManager.getInstance().release(this.cacheFile);
-      this.cacheFile = '';
-    }
   }
 
-  /** ArkUI Video 不接受沙箱文件（fd:// 与裸路径都会停在 PLAYER_IDLE），改用 AVPlayer.fdSrc。 */
+  /** 在线播放：AVPlayer 直接拉云端签名地址（支持 Range 拖动），不在本机落地文件。 */
   private async startPlayback(): Promise<void> {
-    const file = this.openFile;
-    if (file === undefined || this.surfaceId === '' || this.mediaLength <= 0) return;
+    const url = this.videoSource;
+    if (url === '' || this.surfaceId === '') return;
     this.stopPlayback();
     const version = this.playbackVersion;
     try {
@@ -77,14 +216,13 @@ export struct RecordingBrowser {
       this.avPlayer = player;
       player.on('error', (_error: BusinessError): void => {
         this.videoReady = false;
-        this.playbackError = '播放失败，请重新下载';
+        this.playbackError = '播放失败，请重新播放';
       });
       player.on('stateChange', (state: media.AVPlayerState): void => { this.onPlayerState(state); });
       player.on('timeUpdate', (time: number): void => { this.playPosition = time; });
-      const source: media.AVFileDescriptor = { fd: file.fd, offset: 0, length: this.mediaLength };
-      player.fdSrc = source;
+      player.url = url;
     } catch (_error) {
-      this.playbackError = '播放失败，请重新下载';
+      this.playbackError = '播放失败，请重新播放';
     }
   }
 
@@ -110,7 +248,7 @@ export struct RecordingBrowser {
       }
     } catch (_error) {
       this.videoReady = false;
-      this.playbackError = '播放失败，请重新下载';
+      this.playbackError = '播放失败，请重新播放';
     }
   }
 
@@ -154,49 +292,25 @@ export struct RecordingBrowser {
     return `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   }
 
-  private async reload(refresh: boolean): Promise<void> {
-    const version = ++this.queryVersion;
-    this.playbackVersion++;
-    this.preparing = false;
-    this.releaseVideo();
-    this.selectedId = '';
-    this.playbackError = '';
-    this.loading = true;
-    this.error = '';
-    if (refresh) this.asOf = Date.now();
-    const query: RecordingQuery = { asOf: this.asOf, filter: this.filter };
-    try {
-      const result = await queryRecordings(query);
-      if (this.disposed || version !== this.queryVersion) return;
-      this.asOf = result.asOf;
-      this.windowStart = result.windowStart;
-      this.status = result.status;
-      this.wholeSegments = result.wholeSegments === true;
-      this.clips = result.clips.sort((a: RecordingClip, b: RecordingClip): number => b.startTime - a.startTime);
-    } catch (error) {
-      if (this.disposed || version !== this.queryVersion) return;
-      this.clips = [];
-      this.error = (error as Error).message || '录像加载失败，请重试';
-    } finally {
-      if (!this.disposed && version === this.queryVersion) this.loading = false;
-    }
-  }
-
   private format(timestamp: number, includeDate: boolean = false): string {
     const date = new Date(timestamp);
     const time = `${`${date.getHours()}`.padStart(2, '0')}:${`${date.getMinutes()}`.padStart(2, '0')}:${`${date.getSeconds()}`.padStart(2, '0')}`;
     return includeDate ? `${date.getMonth() + 1}月${date.getDate()}日 ${time}` : time;
   }
 
-  private day(timestamp: number): string {
-    const date = new Date(timestamp);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  private rangeStart(): number {
+    if (this.days.length > 0) return this.days[this.days.length - 1].windowStart;
+    return this.asOf - RECORDING_RETENTION_MS;
+  }
+
+  private anyDayLoaded(): boolean {
+    return this.days.some((day: RecordingDay): boolean => day.loaded);
   }
 
   private statusText(): string {
     if (this.status === 'disk_full') return '硬件存储不足，异常录像已暂停';
     if (this.status === 'idle' || this.status === 'running' || this.status === 'recording') {
-      return '异常检测中 · 视频保存在硬件端7天，点击下载后才传到本机';
+      return '异常检测中 · 视频保存在硬件端7天，在线播放不占手机空间';
     }
     return '硬件录像服务暂不可用，请稍后刷新';
   }
@@ -208,38 +322,85 @@ export struct RecordingBrowser {
     return '异常行为';
   }
 
-  private async download(clip: RecordingClip): Promise<void> {
-    if (this.preparing) return;
+  /** 请求必须带上该事件所属日期的窗口，云端才不会为找一个 clip 重新扫描七天。 */
+  private clipRequest(clip: RecordingClip): RecordingPlaybackRequest | undefined {
+    const day = this.days.find((item: RecordingDay): boolean => item.key === this.expandedKey);
+    if (day === undefined) return undefined;
+    const body: RecordingPlaybackRequest = {
+      asOf: day.windowEnd,
+      filter: this.filter,
+      clipId: clip.id,
+      windowStart: day.windowStart,
+      windowEnd: day.windowEnd
+    };
+    return body;
+  }
+
+  /** 点击片段：换取签名地址后在线播放，不下载到本机。 */
+  private async play(clip: RecordingClip): Promise<void> {
+    if (clip.downloadable === false) {
+      this.toast('异常视频正在生成，请稍后刷新');
+      return;
+    }
+    const body = this.clipRequest(clip);
+    if (body === undefined) return;
     const version = ++this.playbackVersion;
     this.preparing = true;
     this.playbackError = '';
     this.releaseVideo();
     this.selectedId = clip.id;
-    this.selectedLabel = `${this.format(clip.startTime, true)} — ${this.format(clip.endTime, true)}`;
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const destination = `${context.cacheDir}/recording-${Date.now()}-${version}.mp4`;
-    await CacheManager.getInstance().retain(destination);
-    const body: RecordingPlaybackRequest = { asOf: this.asOf, filter: this.filter, clipId: clip.id };
-    const message = await CloudService.getInstance().downloadRecording(body, destination);
-    if (this.disposed || version !== this.playbackVersion) {
-      try { fs.unlinkSync(destination); } catch (_error) {}
-      CacheManager.getInstance().release(destination);
-      return;
-    }
-    this.preparing = false;
-    if (message !== '') {
-      try { fs.unlinkSync(destination); } catch (_error) {}
-      CacheManager.getInstance().release(destination);
-      this.playbackError = message;
-      return;
-    }
-    this.cacheFile = destination;
+    this.selectedLabel = `${this.eventLabel(clip.eventType)} · ${this.format(clip.startTime, true)}`;
     try {
-      this.openFile = fs.openSync(destination, fs.OpenMode.READ_ONLY);
-      this.mediaLength = fs.statSync(destination).size;
-      this.videoSource = destination;
+      const url = await requestStreamUrl(body);
+      if (this.disposed || version !== this.playbackVersion) return;
+      this.preparing = false;
+      this.videoSource = url;
       if (this.surfaceId !== '') this.startPlayback();
-    } catch (_error) { this.playbackError = '录像无法打开，请重新下载'; }
+    } catch (error) {
+      if (this.disposed || version !== this.playbackVersion) return;
+      this.preparing = false;
+      this.playbackError = (error as Error).message || '录像暂不可用，请重试';
+    }
+  }
+
+  /** 下载按钮：先让用户选保存位置，再从云端取完整片段写进去。 */
+  private async saveClip(clip: RecordingClip): Promise<void> {
+    if (this.downloadingId !== '' || clip.downloadable === false) return;
+    const body = this.clipRequest(clip);
+    if (body === undefined) return;
+    const time = new Date(clip.startTime);
+    const pad = (value: number): string => `${value}`.padStart(2, '0');
+    const name = `守护星${this.eventLabel(clip.eventType)}_${time.getFullYear()}${pad(time.getMonth() + 1)}` +
+      `${pad(time.getDate())}_${pad(time.getHours())}${pad(time.getMinutes())}${pad(time.getSeconds())}.mp4`;
+    let uri = '';
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const uris = await new picker.DocumentViewPicker(context).save({
+        newFileNames: [name],
+        fileSuffixChoices: ['MP4 视频|.mp4']
+      });
+      if (uris.length === 0) return;
+      uri = uris[0];
+    } catch (_error) {
+      this.toast('无法打开保存位置，请重试');
+      return;
+    }
+    this.downloadingId = clip.id;
+    const message = await CloudService.getInstance().downloadRecording(body, uri);
+    if (this.disposed) return;
+    this.downloadingId = '';
+    this.toast(message === '' ? '视频已保存' : message);
+  }
+
+  private toast(message: string): void {
+    showToast(this.getUIContext(), { message: message });
+  }
+
+  private retrySelected(): void {
+    const day = this.days.find((item: RecordingDay): boolean => item.key === this.expandedKey);
+    if (day === undefined) return;
+    const selected = day.clips.find((clip: RecordingClip): boolean => clip.id === this.selectedId);
+    if (selected !== undefined) this.play(selected);
   }
 
   @Builder
@@ -277,7 +438,7 @@ export struct RecordingBrowser {
               .fontColor(this.themeManager.colors.secondaryTextColor).width(40)
           }.width('100%')
           if (!this.videoReady && this.playbackError === '') {
-            Text('正在准备播放…').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
+            Text('正在缓冲…').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
           }
           if (this.playbackError !== '') {
             Text(this.playbackError).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
@@ -287,14 +448,11 @@ export struct RecordingBrowser {
         Column({ space: 10 }) {
           if (this.preparing) { LoadingProgress().width(32).height(32).color('#2563eb') }
           else { Image($r('app.media.ic_camera')).width(36).height(36).objectFit(ImageFit.Contain) }
-          Text(this.preparing ? '正在从硬件下载录像…' : this.playbackError !== '' ? this.playbackError : '录像下载完成后可在这里播放')
+          Text(this.preparing ? '正在连接硬件录像…' : this.playbackError !== '' ? this.playbackError : '点击下方片段即可在线播放')
             .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
           if (this.playbackError !== '' && this.selectedId !== '') {
-            Button('重新下载').height(44).backgroundColor('#2563eb')
-              .onClick((): void => {
-                const selected = this.clips.find((clip: RecordingClip): boolean => clip.id === this.selectedId);
-                if (selected !== undefined) this.download(selected);
-              })
+            Button('重新播放').height(44).backgroundColor('#2563eb')
+              .onClick((): void => { this.retrySelected(); })
           }
         }.width('100%').height(140).justifyContent(FlexAlign.Center)
       }
@@ -306,77 +464,109 @@ export struct RecordingBrowser {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
   }
 
+  @Builder
+  DayRow(day: RecordingDay): void {
+    Row({ space: 8 }) {
+      Column({ space: 3 }) {
+        Row({ space: 6 }) {
+          Text(day.label).fontSize(15).fontWeight(FontWeight.Bold)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+          if (day.partial) {
+            Text('仅保留部分时段').fontSize(11)
+              .fontColor(this.themeManager.colors.secondaryTextColor)
+          }
+        }
+        if (day.loaded) {
+          Text(`${day.clips.length} 个异常事件`).fontSize(11)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+        }
+      }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+      Text(this.expandedKey === day.key ? '▴' : '▾').fontSize(14)
+        .fontColor(this.themeManager.colors.secondaryTextColor)
+    }.width('100%').padding(12).borderRadius(SURFACE_RADIUS)
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .accessibilityText(`${day.label}异常录像，${day.partial ? '仅保留部分时段，' : ''}点击${this.expandedKey === day.key ? '收起' : '展开'}`)
+      .onClick((): void => { this.toggleDay(day.key); })
+  }
+
+  @Builder
+  DayContent(day: RecordingDay): void {
+    Column({ space: 8 }) {
+      if (day.loading) {
+        Row({ space: 8 }) {
+          LoadingProgress().width(20).height(20).color('#2563eb')
+          Text('正在读取该日异常记录…').fontSize(13)
+            .fontColor(this.themeManager.colors.secondaryTextColor)
+        }.width('100%').padding({ left: 12, right: 12, bottom: 8 })
+      } else if (day.error !== '') {
+        Column({ space: 8 }) {
+          Text(day.error).fontSize(13).fontColor(this.themeManager.colors.primaryTextColor)
+            .textAlign(TextAlign.Center)
+          Button('重试').height(40).fontSize(13).backgroundColor('#2563eb')
+            .onClick((): void => { this.loadDay(day.key, true); })
+        }.width('100%').padding({ left: 12, right: 12, bottom: 10 })
+      } else if (day.clips.length === 0) {
+        Text('该日暂无异常').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
+          .width('100%').padding({ left: 12, right: 12, bottom: 10 })
+      } else {
+        ForEach(day.clips, (clip: RecordingClip) => {
+          Row({ space: 10 }) {
+            Image($r('app.media.ic_camera')).width(28).height(28).objectFit(ImageFit.Contain)
+            Column({ space: 4 }) {
+              Text(this.eventLabel(clip.eventType))
+                .fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
+              Text(`${this.format(clip.startTime)}${clip.endUnconfirmed ? ' · 持续中' : ''}`)
+                .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
+            }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+            Button(clip.downloadable === false ? '生成中' : this.downloadingId === clip.id ? '下载中' : '下载')
+              .height(42).fontSize(14).backgroundColor('#2563eb')
+              .enabled(clip.downloadable !== false && this.downloadingId === '')
+              .accessibilityText(`把${this.eventLabel(clip.eventType)}视频保存到手机`)
+              .onClick((): void => { this.saveClip(clip); })
+          }.width('100%').padding(14).borderRadius(SURFACE_RADIUS)
+            .backgroundColor(this.selectedId === clip.id ? (this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe')
+              : this.themeManager.colors.cardBackgroundColor)
+            .accessibilityText(`在线播放${this.eventLabel(clip.eventType)}视频`)
+            .onClick((): void => { this.play(clip); })
+        }, (clip: RecordingClip): string => clip.id)
+      }
+    }.width('100%')
+  }
+
   build() {
     Column({ space: 12 }) {
       Row() {
         Column({ space: 4 }) {
           Text('近7天异常录像').fontSize(17).fontWeight(FontWeight.Bold)
             .fontColor(this.themeManager.colors.primaryTextColor)
-          Text(`${this.format(this.windowStart, true)} — ${this.format(this.asOf, true)}`)
+          Text(`${this.format(this.rangeStart(), true)} — ${this.format(this.asOf, true)}`)
             .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor).maxLines(2)
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
         Button('刷新').height(44).fontSize(14).backgroundColor('#2563eb')
-          .accessibilityText('刷新近7天异常录像').onClick((): void => { this.reload(true); })
+          .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
       }.width('100%')
-      Text('仅显示异常类型和发生时间；点击下载后才从硬件获取对应视频')
+      Text('点击片段在线播放；点“下载”保存到手机')
         .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%').maxLines(2)
-      if (this.loading) {
-        Column({ space: 12 }) {
-          LoadingProgress().width(38).height(38)
-          Text('正在加载录像').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
-        }.layoutWeight(1).justifyContent(FlexAlign.Center).width('100%')
-      } else if (this.error !== '') {
-        Column({ space: 14 }) {
-          Text(this.error).fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).textAlign(TextAlign.Center)
-          Button('重新加载').height(46).backgroundColor('#2563eb').onClick((): void => { this.reload(true); })
-        }.layoutWeight(1).justifyContent(FlexAlign.Center).width('100%')
-      } else {
-        Text(this.statusText()).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
-        if (this.clips.length === 0) {
-          Column({ space: 10 }) {
-            Image($r('app.media.ic_camera_off')).width(48).height(48).objectFit(ImageFit.Contain)
-            Text('近7天暂无异常录像')
-              .fontSize(17).fontWeight(FontWeight.Medium).fontColor(this.themeManager.colors.primaryTextColor)
-              .textAlign(TextAlign.Center)
-            Text('检测到摔倒、久坐或陌生人后，硬件会保存对应片段；超过7天自动删除。')
-              .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
-          }.layoutWeight(1).justifyContent(FlexAlign.Center).padding(20).width('100%')
-        } else {
-          if (this.selectedId !== '') {
-            this.Playback()
-          }
-          List({ space: 8 }) {
-            ForEach(this.clips, (clip: RecordingClip, index: number) => {
-              ListItem() {
-                Column({ space: 6 }) {
-                  if (index === 0 || this.day(clip.startTime) !== this.day(this.clips[index - 1].startTime)) {
-                    Text(this.day(clip.startTime)).fontSize(14).fontWeight(FontWeight.Bold)
-                      .fontColor(this.themeManager.colors.primaryTextColor).width('100%').padding({ top: 8, bottom: 4 })
-                  }
-                  Row({ space: 10 }) {
-                    Image($r('app.media.ic_camera')).width(28).height(28).objectFit(ImageFit.Contain)
-                    Column({ space: 4 }) {
-                      Text(this.eventLabel(clip.eventType))
-                        .fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-                      Text(`${this.format(clip.startTime)}${clip.endUnconfirmed ? ' · 持续中' : ''}`)
-                        .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
-                    }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-                    Button(clip.downloadable === false ? '生成中' :
-                      this.preparing && this.selectedId === clip.id ? '下载中' :
-                      this.videoSource !== '' && this.selectedId === clip.id ? '已下载' : '下载')
-                      .height(42).fontSize(14).backgroundColor('#2563eb')
-                      .enabled(clip.downloadable !== false && !this.preparing)
-                      .accessibilityText(`下载${this.eventLabel(clip.eventType)}视频`)
-                      .onClick((): void => { this.download(clip); })
-                  }.width('100%').padding(14).borderRadius(SURFACE_RADIUS)
-                    .backgroundColor(this.selectedId === clip.id ? (this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe')
-                      : this.themeManager.colors.cardBackgroundColor)
-                }.width('100%')
-              }
-            }, (clip: RecordingClip): string => clip.id)
-          }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
-        }
+      if (this.selectedId !== '') {
+        this.Playback()
       }
+      if (this.anyDayLoaded()) {
+        Text(this.statusText()).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
+      }
+      List({ space: 8 }) {
+        ForEach(this.days, (day: RecordingDay) => {
+          ListItem() {
+            Column({ space: 2 }) {
+              this.DayRow(day)
+              if (this.expandedKey === day.key) {
+                this.DayContent(day)
+              }
+            }.width('100%')
+          }
+        // key 必须包含加载状态：patchDay 生成新对象，只用日期作 key 时 ForEach 不会重建该项，界面会卡在“正在读取”。
+        }, (day: RecordingDay): string =>
+          `${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}`)
+      }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
     }.width('100%').height('100%').padding({ left: 16, right: 16, top: 14, bottom: 12 })
       .backgroundColor(this.themeManager.colors.backgroundColor)
   }

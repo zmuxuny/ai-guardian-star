@@ -1776,10 +1776,19 @@ def _parse_sse_response(resp) -> str:
         except json.JSONDecodeError:
             continue
 
-    reply = "".join(result_parts).strip()
+    reply = _strip_internal_markers("".join(result_parts))
     if not reply:
         raise CozeWorkflowError("empty_response")
     return reply
+
+
+# 上游模型偶尔把 [SILENT_never_used_<hash>] 这类内部哨兵串混进回复，不能显示给用户
+_INTERNAL_MARKER_RE = re.compile(r"\[?\bSILENT_[A-Za-z0-9_]+\]?")
+
+
+def _strip_internal_markers(text: str) -> str:
+    text = _INTERNAL_MARKER_RE.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
 
 
 def _build_context_summary(context: dict) -> str:

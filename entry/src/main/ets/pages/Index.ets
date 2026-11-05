@@ -203,8 +203,8 @@ struct Index {
       .hideNavBar(true).width('100%').height('100%')
       if (this.showSplash) {
         Column() {
-          // Match the system starting window's 72vp icon without a size/shape jump.
-          Image($r('app.media.APPicon')).width(72).height(72)
+          // Use the same rounded asset and 72vp frame as the system starting window.
+          Image($r('app.media.startIconmin')).width(72).height(72)
             .objectFit(ImageFit.Contain)
             .offset({ y: this.getUIContext().px2vp(this.startupLogoOffsetPx) })
             .accessibilityText('智护星正在启动')

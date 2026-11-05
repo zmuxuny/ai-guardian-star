@@ -9,16 +9,18 @@ export struct record {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader() {
+    GradientHeader({ useHomeStyle: true }) {
       Row() {
         Column() {
-          Text('历史记录').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-          Text('异常类型、时间与按需下载').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
+          Text('历史记录').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+          Text('异常类型、时间与按需下载').fontSize(13)
+            .fontColor(this.themeManager.colors.secondaryTextColor).margin({ top: 4 })
         }.alignItems(HorizontalAlign.Start)
         Blank()
 
       }
-      .width('100%').padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 16, bottom: 22 })
+      .width('100%').padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 22 })
     }
   }
 
