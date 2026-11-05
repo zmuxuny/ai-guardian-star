@@ -71,6 +71,11 @@ export struct CameraStreamView {
         Web({ src: 'about:blank', controller: this.controller })
           .width('100%').height('100%')
           .backgroundColor('#0f172a')
+          .onConsole((event: OnConsoleEvent): boolean => {
+            const message = event.message.getMessage();
+            if (message.startsWith('[CameraPreviewMetrics]')) console.info(message);
+            return false;
+          })
           // 等 about:blank 加载完再换成画面页；在 onControllerAttached 里加载会被初始导航中止（ERR_ABORTED）。
           .onPageEnd((event: OnPageEndEvent): void => {
             if (event.url === 'about:blank') this.loadPage();
