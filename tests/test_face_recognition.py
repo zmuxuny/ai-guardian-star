@@ -47,7 +47,7 @@ def face_namespace():
 
 
 class CropGateTests(unittest.TestCase):
-    def run_candidate(self, score=0.9, box=None, front=False, pose_crop=None,
+    def run_candidate(self, score=0.9, box=None, front=True, pose_crop=None,
                       pose_quality=None, detector_enabled=True, reload_during_match=False,
                       face_label="pending"):
         namespace = face_namespace()

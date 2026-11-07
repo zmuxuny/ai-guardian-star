@@ -122,7 +122,7 @@ class TrackAuthenticationTests(unittest.TestCase):
         alerts = method(detector, SimpleNamespace(shape=(480, 640, 3)), [], 110)
         self.assertEqual(calls, [2, 1])
         self.assertEqual([alert["id"] for alert in alerts], [1, 2])
-        self.assertEqual(alerts[1]["face_label"], "stranger")
+        self.assertEqual(alerts[1]["face_label"], "pending")
         self.assertEqual(alerts[1]["face_reason"], "timeout")
 
     def detector(self):

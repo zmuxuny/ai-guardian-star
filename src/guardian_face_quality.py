@@ -27,7 +27,7 @@ WAIT_TIMEOUT_MAX = setting("AI_GUARDIAN_FACE_WAIT_MAX_SECONDS", 60, WAIT_TIMEOUT
 
 
 def expire_face_wait(state, now, active_people=1):
-    """Apply the requested display timeout, independently of match evidence.
+    """Bound the waiting indicator without inventing nonmatch evidence.
 
     A timeout means identity was not established in time, not proof of non-enrollment.
     Matched people do not expire; later successful recognition can replace a timeout.
@@ -37,30 +37,30 @@ def expire_face_wait(state, now, active_people=1):
         state.update(face_wait_started=None, face_wait_seconds=0.0,
                      face_timeout_seconds=0.0, face_timed_out=False)
         return False
+    if label == "stranger":
+        return False
     if state.get("face_timed_out"):
         # Once expired, new people/quality samples cannot reopen the deadline or
         # turn the timeout explanation into evidence-based non-enrollment.
         started = state.get("face_wait_started", now)
         elapsed = max(0.0, now - float(started if started is not None else now))
-        state.update(face_label="stranger", face_reason="timeout", face_score=None,
+        state.update(face_label="pending", face_reason="timeout", face_score=None,
                      face_wait_seconds=elapsed, face_pending=False)
         return True
-    if label == "stranger" and not state.get("face_timed_out"):
-        return False
     started = state.get("face_wait_started")
     if started is None:
         started = state.get("first_seen", now)
         state["face_wait_started"] = started
     quality_reason = state.get("face_quality_reason", state.get("face_reason"))
     poor_quality = quality_reason in ("too_dark", "overexposed", "low_contrast", "blurred",
-                                     "landmarks_unavailable", "no_face", "low_light")
+                                     "landmarks_unavailable", "no_face", "low_light", "non_frontal")
     allowance = WAIT_TIMEOUT_BASE + 4 * max(0, active_people - 1) + (10 if poor_quality else 0)
     # Extend for congestion/quality, never shorten a running deadline; always bounded.
     allowance = min(WAIT_TIMEOUT_MAX, max(allowance, state.get("face_timeout_seconds", 0.0)))
     elapsed = max(0.0, now - float(started))
     state.update(face_wait_seconds=elapsed, face_timeout_seconds=allowance)
     if elapsed >= allowance:
-        state.update(face_label="stranger", face_score=None, face_reason="timeout",
+        state.update(face_label="pending", face_score=None, face_reason="timeout",
                      face_timed_out=True, face_pending=False)
         return True
     return False

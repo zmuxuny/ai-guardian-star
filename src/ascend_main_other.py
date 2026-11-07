@@ -620,14 +620,22 @@ class FaceLibrary:
         return crop
 
     def _arcface_gallery_variants(self, image):
-        """Keep the uploaded crop and add stable face-scale variants in memory."""
+        """Real-photo crops and horizontal mirror views; never synthesize a pose."""
         if image is None or image.size == 0:
             return []
         variants = [image]
+
+        def with_mirrors():
+            views = list(variants)
+            for crop in variants:
+                mirrored = np.ascontiguousarray(crop[:, ::-1])
+                if not np.array_equal(crop, mirrored):
+                    views.append(mirrored)
+            return views
         try:
             self._ensure_detector()
             if self.face_cascade is None:
-                return variants
+                return with_mirrors()
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             gray = cv2.equalizeHist(gray)
             faces = self.face_cascade.detectMultiScale(
@@ -637,13 +645,14 @@ class FaceLibrary:
                 minSize=(36, 36),
             )
             if len(faces) == 0:
-                return variants
+                return with_mirrors()
 
             x, y, width, height = max(faces, key=lambda item: item[2] * item[3])
             image_h, image_w = image.shape[:2]
             full_rect = (0, 0, image_w, image_h)
             seen_rects = {full_rect}
-            for pad_ratio in (0.30, 0.45):
+            # Live detector crops use the tight box, not only padded/full photos.
+            for pad_ratio in (0.0, 0.30, 0.45):
                 pad_x = int(width * pad_ratio)
                 pad_y = int(height * pad_ratio)
                 rect = (
@@ -664,7 +673,7 @@ class FaceLibrary:
                 "arcface_gallery_variant_failed",
                 f"[FaceDiag] gallery face-scale variants unavailable: {exc}",
             )
-        return variants
+        return with_mirrors()
 
     def _extract_face_gray(self, image):
         face_bgr = self._extract_face_bgr(image)
@@ -1510,6 +1519,9 @@ def draw_results(display_image, alerts):
             cv2.rectangle(display_image, (fx1, fy1), (fx2, fy2), (255, 128, 0), 2)
             cv2.putText(display_image, 'FaceDet', (fx1, max(18, fy1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 128, 0), 2)
         face_label = alert.get('face_label', 'pending')
+        display_face_label = ('unverified' if face_label == 'pending'
+                              and alert.get('face_reason') in ('timeout', 'pose_unverified')
+                              else face_label)
         if str(face_label).startswith('known:'):
             face_color = (0, 255, 0)
         elif face_label in ('stranger', 'unknown'):
@@ -1518,7 +1530,7 @@ def draw_results(display_image, alerts):
             face_color = (0, 255, 255)
         label_lines = [
             f"ID:{alert.get('id', -1)} {alert['status']}",
-            f"Face:{face_label}",
+            f"Face:{display_face_label}",
         ]
         for idx, text in enumerate(label_lines):
             y = max(20, box[1] - 10 - idx * 22)
@@ -1937,7 +1949,7 @@ class AclLiteStreamDetector:
         )
         self._last_perf_log = now
 
-    def _apply_face_result(self, person_id, label, score):
+    def _apply_face_result(self, person_id, label, score, allow_stranger=True):
         with self.person_state_lock:
             state = self.person_states.get(person_id)
             if state is None:
@@ -1967,6 +1979,18 @@ class AclLiteStreamDetector:
                     print(f"[Face] person_id={person_id} recognized as {final_label.split(':', 1)[1]} score={final_score:.3f}")
                 else:
                     print(f"[Face] person_id={person_id} labeled as {final_label} score={final_score}")
+                return
+
+            if not allow_stranger and not str(label).startswith("known:"):
+                # A side/partly occluded crop can match a real gallery sample,
+                # but its low similarity is not reliable proof of a stranger.
+                vote_history.clear()
+                state.update(face_label="pending", face_score=None, face_pending=False,
+                             face_candidate=None, face_candidate_hits=0,
+                             face_reason="pose_unverified", face_quality_reason="non_frontal")
+                if str(previous_label).startswith("known:"):
+                    state.update(face_wait_started=time.time(), face_timeout_seconds=0.0,
+                                 face_timed_out=False)
                 return
 
             competing_owner = None
@@ -2046,6 +2070,9 @@ class AclLiteStreamDetector:
 
             if str(state["face_label"]).startswith("known:"):
                 state.update(face_reason="matched", face_wait_started=None,
+                             face_timeout_seconds=0.0, face_wait_seconds=0.0, face_timed_out=False)
+            elif state["face_label"] == "stranger":
+                state.update(face_reason="unmatched", face_wait_started=None,
                              face_timeout_seconds=0.0, face_wait_seconds=0.0, face_timed_out=False)
             else:
                 if str(previous_label).startswith("known:"):
@@ -2476,6 +2503,7 @@ class AclLiteStreamDetector:
         quality_ok = quality_ok and image_quality["usable"]
         rank = quality_score + image_quality["rank"]
         chosen_face = None
+        chosen_can_reject = False
         with self.person_state_lock:
             current_state = self.person_states.get(person_id)
             if current_state is None:
@@ -2487,8 +2515,10 @@ class AclLiteStreamDetector:
             if now_ts - current_state.get("best_face_at", 0.0) > BEST_CROP_TTL:
                 current_state.update(best_face_crop=None, best_face_score=0.0)
             if quality_ok and rank > current_state.get("best_face_score", 0.0):
-                current_state.update(best_face_crop=face_crop, best_face_score=rank, best_face_at=now_ts)
+                current_state.update(best_face_crop=face_crop, best_face_score=rank, best_face_at=now_ts,
+                                     best_face_can_reject=bool(front_face_ok))
             chosen_face = current_state.get("best_face_crop")
+            chosen_can_reject = current_state.get("best_face_can_reject", False)
 
         if chosen_face is None:
             self.face_library._log_diag(
@@ -2527,7 +2557,10 @@ class AclLiteStreamDetector:
                 if recognition_revision != self.face_library.revision:
                     self._sync_face_library_revision()
                     return
-                self._apply_face_result(person_id, label, score)
+                if chosen_can_reject:
+                    self._apply_face_result(person_id, label, score)
+                else:
+                    self._apply_face_result(person_id, label, score, allow_stranger=False)
         except Exception as e:
             print(f"[Face] synchronous recognize failed: {e}")
             with self.person_state_lock:

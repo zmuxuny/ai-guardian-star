@@ -133,11 +133,11 @@ class RecognitionTimeoutTests(unittest.TestCase):
             handle.start()
             self.addCleanup(handle.stop)
 
-    def test_default_deadline_marks_stranger_with_explicit_timeout_reason(self):
+    def test_default_deadline_marks_unverified_with_explicit_timeout_reason(self):
         state = {"first_seen": 100, "face_label": "pending"}
         self.assertFalse(quality_policy.expire_face_wait(state, 119))
         self.assertTrue(quality_policy.expire_face_wait(state, 120))
-        self.assertEqual(state["face_label"], "stranger")
+        self.assertEqual(state["face_label"], "pending")
         self.assertEqual(state["face_reason"], "timeout")
         self.assertIsNone(state["face_score"])
         self.assertTrue(state["face_timed_out"])
@@ -162,7 +162,7 @@ class RecognitionTimeoutTests(unittest.TestCase):
         self.assertIsNone(state["face_score"])
         state["face_label"] = "pending"  # e.g. first of two CPU known-candidate votes
         quality_policy.expire_face_wait(state, 122, 20)
-        self.assertEqual(state["face_label"], "stranger")
+        self.assertEqual(state["face_label"], "pending")
 
     def test_improving_conditions_do_not_shorten_existing_deadline(self):
         state = {"first_seen": 100, "face_label": "pending", "face_quality_reason": "blurred"}
