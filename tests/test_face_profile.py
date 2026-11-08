@@ -8,10 +8,79 @@ import numpy as np
 from test_face_policy import policy_detector
 import test_face_recognition as face_tests
 import test_face_quality as quality_tests
-from guardian_face_quality import expire_face_wait
+from guardian_face_quality import expire_face_wait, hold_face_identity
+import test_face_policy as policy_tests
 
 
 class SideViewDecisionTests(unittest.TestCase):
+    def test_recent_real_match_survives_side_nonmatch_without_refreshing_evidence(self):
+        detector = policy_detector()
+        with patch('time.time', return_value=110):
+            detector._apply_face_result(1, 'known:Yang', 0.8)
+        state = detector.person_states[1]
+        state['last_seen'] = 115
+        with patch('time.time', return_value=115):
+            detector._apply_face_result(1, 'unknown', 0.1, allow_stranger=False)
+        self.assertEqual(state['face_label'], 'known:Yang')
+        self.assertEqual(state['face_reason'], 'tracked')
+        self.assertEqual(state['face_confirmed_at'], 110)
+        state['last_seen'] = 120
+        with patch('time.time', return_value=120):
+            detector._apply_face_result(1, 'unknown', 0.1, allow_stranger=False)
+        self.assertEqual(state['face_label'], 'pending')
+
+    def test_hold_cannot_bridge_missing_track_or_invalid_clock(self):
+        for confirmed, seen, now in ((110, 111, 112), (110, 112, 109),
+                                     (float('nan'), 112, 112), (None, 112, 112)):
+            state = dict(face_label='known:Yang', face_confirmed_at=confirmed, last_seen=seen)
+            self.assertFalse(hold_face_identity(state, now))
+            self.assertEqual(state['face_label'], 'pending')
+
+    def test_lost_landmarks_hold_expires_even_without_a_recognition_crop(self):
+        detector, run = quality_tests.QualityGateIntegrationTests().detector()
+        detector.face_detector.enabled = False
+        state = detector.person_states[1]
+        state.update(face_label='known:Yang', face_score=0.8, face_confirmed_at=105,
+                     last_seen=110)
+        run(quality_tests.textured_face(), 110)
+        self.assertEqual(state['face_label'], 'known:Yang')
+        self.assertEqual(state['face_reason'], 'tracked')
+        state['last_seen'] = 115
+        run(quality_tests.textured_face(), 115)
+        self.assertEqual(state['face_label'], 'pending')
+        detector.face_library.recognize.assert_not_called()
+
+    def test_no_usable_side_crop_does_not_renew_a_recent_name(self):
+        detector, run = quality_tests.QualityGateIntegrationTests().detector()
+        state = detector.person_states[1]
+        state.update(face_label='known:Yang', face_score=0.8, face_confirmed_at=105,
+                     last_seen=110)
+        run(np.zeros((80,80,3), np.uint8), 110)
+        self.assertEqual(state['face_reason'], 'tracked')
+        self.assertEqual(state['face_confirmed_at'], 105)
+        state['last_seen'] = 115
+        run(np.zeros((80,80,3), np.uint8), 115)
+        self.assertEqual(state['face_label'], 'pending')
+
+    def test_frontal_nonmatch_cancels_recent_confirmation(self):
+        detector = policy_detector()
+        state = detector.person_states[1]
+        state.update(face_label='known:Yang', face_confirmed_at=110, last_seen=111)
+        detector._apply_face_result(1, 'unknown', 0.1)
+        self.assertEqual(state['face_confirmed_at'], 0)
+        self.assertEqual(state['face_label'], 'pending')
+
+    def test_gap_weak_association_and_overlap_discard_confirmation(self):
+        for boxes, last_seen in (([[0, 0, 100, 200]], 108),
+                                 ([[60, 0, 160, 200]], 110),
+                                 ([[0, 0, 100, 200], [10, 0, 110, 200]], 110)):
+            detector = policy_tests.TrackAuthenticationTests().detector()
+            detector.person_states[1] = dict(box=[0,0,100,200], face_label='known:Yang',
+                face_score=0.8, face_confirmed_at=109, last_seen=last_seen)
+            result = detector.assign([dict(box=box) for box in boxes], 110)
+            self.assertEqual(result[0][1]['face_label'], 'pending')
+            self.assertEqual(result[0][1]['face_confirmed_at'], 0)
+
     def test_repeated_profile_nonmatches_never_vote_a_person_into_stranger(self):
         detector = policy_detector()
         for _ in range(6):

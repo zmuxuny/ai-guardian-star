@@ -22,8 +22,35 @@ MIN_SHARPNESS = setting("AI_GUARDIAN_FACE_MIN_SHARPNESS", 8, 0, 500)
 LOW_LIGHT_LEVEL = 65.0
 SAMPLE_INTERVAL = 0.5
 BEST_CROP_TTL = 2.0
+IDENTITY_HOLD_SECONDS = 10.0
+IDENTITY_TRACK_MAX_GAP = 0.75
 WAIT_TIMEOUT_BASE = setting("AI_GUARDIAN_FACE_WAIT_SECONDS", 20, 8, 300)
 WAIT_TIMEOUT_MAX = setting("AI_GUARDIAN_FACE_WAIT_MAX_SECONDS", 60, WAIT_TIMEOUT_BASE, 600)
+
+
+def hold_face_identity(state, now):
+    """Briefly continue a verified, uninterrupted body track; never learn a face.
+
+    Callers clear this evidence on weak association, gallery changes or frontal
+    nonmatches. Retaining a label does not refresh its actual match timestamp.
+    """
+    if not str(state.get("face_label", "")).startswith("known:"):
+        return False
+    try:
+        confirmed = float(state.get("face_confirmed_at", 0.0))
+        seen = float(state.get("last_seen", 0.0))
+        fresh = (all(math.isfinite(v) for v in (confirmed, seen, now))
+                 and confirmed > 0 and 0 <= now - confirmed < IDENTITY_HOLD_SECONDS
+                 and 0 <= now - seen <= IDENTITY_TRACK_MAX_GAP)
+    except (TypeError, ValueError):
+        fresh = False
+    if fresh:
+        state.update(face_reason="tracked", face_pending=False)
+        return True
+    state.update(face_label="pending", face_score=None, face_confirmed_at=0.0,
+                 face_reason="pose_unverified", face_wait_started=now,
+                 face_timeout_seconds=0.0, face_timed_out=False)
+    return False
 
 
 def expire_face_wait(state, now, active_people=1):

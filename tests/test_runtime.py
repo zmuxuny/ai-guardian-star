@@ -14,7 +14,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from guardian_runtime import AlertEpisodeTracker, StationaryTimer, create_mqtt_client
-from guardian_face_quality import expire_face_wait
+from guardian_face_quality import expire_face_wait, IDENTITY_TRACK_MAX_GAP
 
 
 def load_definition(file_name, name, namespace, method=None):
@@ -174,7 +174,8 @@ class AudioBroadcastTests(unittest.IsolatedAsyncioTestCase):
 
 class InferenceTests(unittest.TestCase):
     def test_real_tracking_and_alert_flow_times_stillness_and_resets_after_fall(self):
-        namespace = {"deque": deque, "StationaryTimer": StationaryTimer, "expire_face_wait": expire_face_wait}
+        namespace = {"deque": deque, "StationaryTimer": StationaryTimer, "expire_face_wait": expire_face_wait,
+                     "IDENTITY_TRACK_MAX_GAP": IDENTITY_TRACK_MAX_GAP}
         tree = ast.parse((ROOT / "src/ascend_main_other.py").read_text(encoding="utf-8"))
         for node in tree.body:
             if isinstance(node, ast.Assign):

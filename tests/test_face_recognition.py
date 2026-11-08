@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 from test_runtime import ROOT, load_definition
-from guardian_face_quality import expire_face_wait
+from guardian_face_quality import expire_face_wait, hold_face_identity, IDENTITY_TRACK_MAX_GAP
 
 
 def face_namespace():
@@ -26,6 +26,7 @@ def face_namespace():
     # These existing tests isolate matching/geometry. Pixel-quality behavior is
     # covered independently with real image arrays in test_face_quality.py.
     namespace.update(SAMPLE_INTERVAL=0.5, BEST_CROP_TTL=2.0, expire_face_wait=expire_face_wait,
+        hold_face_identity=hold_face_identity, IDENTITY_TRACK_MAX_GAP=IDENTITY_TRACK_MAX_GAP,
         assess_face_image=lambda image: dict(usable=image is not None, reason="ready",
             brightness=100.0, sharpness=100.0, rank=1.0),
         enhance_face_image=lambda image, cv_module=None: image)
@@ -316,7 +317,7 @@ class IdentityRevisionTests(unittest.TestCase):
         namespace = face_namespace()
         method = load_definition("ascend_main_other.py", "AclLiteStreamDetector", namespace,
                                  "_sync_face_library_revision")
-        state = {"face_label": "known:Old", "face_score": 0.8, "fall_confirmed": True,
+        state = {"face_label": "known:Old", "face_score": 0.8, "face_confirmed_at": 100, "fall_confirmed": True,
                  "box": [1, 2, 3, 4], "best_face_crop": object()}
         detector = SimpleNamespace(face_library=SimpleNamespace(revision=2), _face_library_revision=1,
                                    person_state_lock=threading.Lock(), person_states={1: state},
@@ -325,6 +326,7 @@ class IdentityRevisionTests(unittest.TestCase):
         method(detector)
         self.assertEqual(state["face_label"], "pending")
         self.assertIsNone(state["face_score"])
+        self.assertEqual(state["face_confirmed_at"], 0)
         self.assertTrue(state["fall_confirmed"])
         self.assertEqual(state["box"], [1, 2, 3, 4])
         self.assertFalse(detector.recent_known_tracks)

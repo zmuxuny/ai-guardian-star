@@ -31,6 +31,7 @@ from ascend_video_stream import start_stream, update_frame
 from guardian_heartbeat import MqttHeartbeatPublisher, heartbeat_interval
 from guardian_runtime import StationaryTimer, create_mqtt_client
 from guardian_face_quality import (assess_face_image, enhance_face_image, expire_face_wait,
+                                   hold_face_identity, IDENTITY_TRACK_MAX_GAP,
                                    SAMPLE_INTERVAL, BEST_CROP_TTL)
 try:
     import ascend_voice_stream as audio_hw  # 导入音频硬件模块
@@ -1522,6 +1523,8 @@ def draw_results(display_image, alerts):
         display_face_label = ('unverified' if face_label == 'pending'
                               and alert.get('face_reason') in ('timeout', 'pose_unverified')
                               else face_label)
+        if str(face_label).startswith('known:') and alert.get('face_reason') == 'tracked':
+            display_face_label = f"{face_label} (tracked)"
         if str(face_label).startswith('known:'):
             face_color = (0, 255, 0)
         elif face_label in ('stranger', 'unknown'):
@@ -1809,7 +1812,7 @@ class AclLiteStreamDetector:
             return
         with self.person_state_lock:
             for state in self.person_states.values():
-                state.update(face_label="pending", face_score=None, face_pending=False,
+                state.update(face_label="pending", face_score=None, face_pending=False, face_confirmed_at=0.0,
                              face_candidate=None, face_candidate_hits=0, last_face_check=0.0,
                              face_vote_history=deque(maxlen=FACE_VOTE_WINDOW),
                              best_face_crop=None, best_face_score=0.0, best_face_at=0.0,
@@ -1985,6 +1988,10 @@ class AclLiteStreamDetector:
                 # A side/partly occluded crop can match a real gallery sample,
                 # but its low similarity is not reliable proof of a stranger.
                 vote_history.clear()
+                if hold_face_identity(state, time.time()):
+                    state.update(face_candidate=None, face_candidate_hits=0,
+                                 face_quality_reason="non_frontal")
+                    return
                 state.update(face_label="pending", face_score=None, face_pending=False,
                              face_candidate=None, face_candidate_hits=0,
                              face_reason="pose_unverified", face_quality_reason="non_frontal")
@@ -2029,6 +2036,7 @@ class AclLiteStreamDetector:
                 )
                 if strong_known or known_count >= FACE_VOTE_MIN_KNOWN:
                     state["face_label"] = label
+                    state["face_confirmed_at"] = time.time()
                     state["face_candidate"] = label
                     state["face_candidate_hits"] = max(known_count, 1)
                     state["best_face_crop"] = None
@@ -2038,6 +2046,7 @@ class AclLiteStreamDetector:
                     state["face_candidate_hits"] = known_count
                     state["face_label"] = "pending"
             else:
+                state["face_confirmed_at"] = 0.0
                 state["face_candidate"] = None
                 state["face_candidate_hits"] = 0
                 stranger_similarity = (
@@ -2304,12 +2313,16 @@ class AclLiteStreamDetector:
                 weak_reuse = (
                     best_match_iou < FACE_TRACK_REUSE_IOU_STRICT
                     or best_match_norm_dist > FACE_TRACK_REUSE_DIST_STRICT
+                    or now_ts - state.get("last_seen", now_ts) > IDENTITY_TRACK_MAX_GAP
+                    or any(other is not det and compute_iou(det["box"], other["box"]) >= 0.35
+                           for other in detections)
                 )
                 if weak_reuse:
                     if str(state.get("face_label", "")).startswith("known:") or state.get("face_label") == "stranger":
                         state.update(face_wait_started=now_ts, face_timeout_seconds=0.0,
                                      face_wait_seconds=0.0, face_timed_out=False)
                     state["face_label"] = "pending"
+                    state["face_confirmed_at"] = 0.0
                     state["face_score"] = None
                     state["face_det_box"] = None
                     state["face_det_box_ts"] = 0.0
@@ -2446,11 +2459,20 @@ class AclLiteStreamDetector:
         if now_ts - state.get("first_seen", now_ts) < FACE_STABLE_TIME:
             return
         front_face_ok = is_front_face_candidate(det["kpts"])
+        if not front_face_ok or state.get("face_reason") == "tracked":
+            with self.person_state_lock:
+                current_state = self.person_states.get(person_id)
+                if current_state is not None:
+                    hold_face_identity(current_state, now_ts)
+                    state = dict(current_state)
         has_face_detector = self.face_detector is not None and self.face_detector.enabled
         if not front_face_ok and not has_face_detector:
             with self.person_state_lock:
                 current_state = self.person_states.get(person_id)
                 if current_state is not None:
+                    if hold_face_identity(current_state, now_ts):
+                        current_state.update(best_face_crop=None, best_face_score=0.0, best_face_at=0.0)
+                        return
                     if str(current_state.get("face_label", "")).startswith("known:"):
                         current_state.update(face_wait_started=now_ts, face_timeout_seconds=0.0,
                                              face_timed_out=False)
@@ -2510,8 +2532,9 @@ class AclLiteStreamDetector:
                 return
             current_state["face_det_box"] = face_det_box
             current_state["face_det_box_ts"] = now_ts if face_det_box is not None else 0.0
-            current_state["face_reason"] = image_quality["reason"] if face_crop is not None else "no_face"
-            current_state["face_quality_reason"] = current_state["face_reason"]
+            current_state["face_quality_reason"] = image_quality["reason"] if face_crop is not None else "no_face"
+            if current_state.get("face_reason") != "tracked":
+                current_state["face_reason"] = current_state["face_quality_reason"]
             if now_ts - current_state.get("best_face_at", 0.0) > BEST_CROP_TTL:
                 current_state.update(best_face_crop=None, best_face_score=0.0)
             if quality_ok and rank > current_state.get("best_face_score", 0.0):
