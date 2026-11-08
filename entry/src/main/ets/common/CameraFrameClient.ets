@@ -27,9 +27,11 @@ export class CameraFrameClient {
         expectDataType: http.HttpDataType.ARRAY_BUFFER,
         header: { 'Cache-Control': 'no-cache' },
         usingCache: false,
-        connectTimeout: 5000,
-        readTimeout: 5000,
+        connectTimeout: 1500,
+        readTimeout: 1500,
       });
+      // The relay is reachable but waiting for a fresh source frame.
+      if (response.responseCode === 204) return undefined;
       if (response.responseCode !== 200) throw new Error('No fresh camera frame');
       const headers = response.header as Record<string, string>;
       const sequence = headers['x-camera-sequence'] || headers['X-Camera-Sequence'] || '';

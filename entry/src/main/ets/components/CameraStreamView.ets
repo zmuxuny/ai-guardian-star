@@ -21,9 +21,12 @@ export struct CameraStreamView {
   private frames: number = 0;
   private requestMs: number = 0;
   private decodeMs: number = 0;
+  private lastFrameAt: number = 0;
+  private failures: number = 0;
 
   aboutToAppear(): void {
     this.disposed = false;
+    this.failures = 0;
     this.startedAt = Date.now();
     this.statsAt = Date.now();
     this.schedule(0);
@@ -63,7 +66,9 @@ export struct CameraStreamView {
         if (result !== undefined) await result.pixels.release();
         return;
       }
+      this.failures = 0;
       if (result !== undefined) {
+        this.lastFrameAt = Date.now();
         this.sequence = result.sequence;
         if (this.frame !== undefined) this.retired.push(this.frame);
         this.frame = result.pixels;
@@ -80,17 +85,26 @@ export struct CameraStreamView {
           this.statsAt = Date.now(); this.frames = 0; this.requestMs = 0; this.decodeMs = 0;
         }
       }
+      this.checkFreshness();
       delay = Math.max(0, 67 - (Date.now() - started));
     } catch (_error) {
       if (version !== this.generation || this.disposed) return;
-      if (this.frame !== undefined || Date.now() - this.startedAt >= 10000) this.unavailable = true;
-      delay = 800;
+      this.checkFreshness();
+      this.failures = Math.min(this.failures + 1, 4);
+      delay = Math.min(1500, 200 * Math.pow(2, this.failures - 1));
     }
     if (version === this.generation) this.schedule(delay);
   }
 
+  private checkFreshness(): void {
+    const last = this.frame !== undefined ? this.lastFrameAt : this.startedAt;
+    const tolerance = this.frame !== undefined ? 2000 : 10000;
+    if (Date.now() - last >= tolerance) this.unavailable = true;
+  }
+
   private retry(): void {
     this.suspend();
+    this.failures = 0;
     this.sequence = '';
     this.unavailable = false;
     this.startedAt = Date.now();
