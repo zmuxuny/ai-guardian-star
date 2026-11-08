@@ -1,0 +1,3 @@
+# Prepend to the existing root config after checking for conflicting transport keys.
+# Only connection liveness changes; keep all existing auth and proxy settings.
+transport.tcpMuxKeepaliveInterval = 5
