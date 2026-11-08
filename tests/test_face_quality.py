@@ -82,7 +82,7 @@ class QualityGateIntegrationTests(unittest.TestCase):
             _log_diag=Mock(), recognize=Mock(return_value=("unknown", 0.2)),
             can_confirm_nonmatch=lambda image: True)
         detector = SimpleNamespace(face_library_loaded=True, face_detector=SimpleNamespace(enabled=True),
-            face_library=library, person_state_lock=threading.Lock(), face_global_last_check=108,
+            face_library=library, person_state_lock=threading.Lock(), face_global_last_check=111,
             person_states={1: {"first_seen": 100, "face_label": "pending"}}, _face_rec_ms=0,
             _get_face_detection_for_person=lambda body: {"box": [0, 0, 80, 80], "score": 0.9},
             _apply_face_result=Mock(), _sync_face_library_revision=Mock())

@@ -13,6 +13,17 @@ import test_face_policy as policy_tests
 
 
 class SideViewDecisionTests(unittest.TestCase):
+    def test_pending_identity_can_retry_after_short_cooldown_but_not_each_frame(self):
+        detector, run = quality_tests.QualityGateIntegrationTests().detector()
+        image = quality_tests.textured_face()
+        run(image, 112)
+        self.assertEqual(detector.face_library.recognize.call_count, 1)
+        detector.person_states[1]['face_pending'] = False
+        run(image, 113)
+        self.assertEqual(detector.face_library.recognize.call_count, 1)
+        run(image, 113.5)
+        self.assertEqual(detector.face_library.recognize.call_count, 2)
+
     def test_recent_real_match_survives_side_nonmatch_without_refreshing_evidence(self):
         detector = policy_detector()
         with patch('time.time', return_value=110):
