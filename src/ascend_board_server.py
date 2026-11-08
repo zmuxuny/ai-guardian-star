@@ -664,12 +664,15 @@ async def video_feed():
     async def generate():
         last_frame = None
         while True:
-            frame_data = video_hw.get_current_frame() if camera_video_is_live() else None
+            frame_data, captured_at = (video_hw.get_current_frame_packet()
+                                       if camera_video_is_live() else (None, 0.0))
             # 帧去重：只在有新帧时才发送，消除重复帧对 FRP 缓冲的积压
             if frame_data is not None and frame_data is not last_frame:
                 last_frame = frame_data
                 yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+                       b'Content-Type: image/jpeg\r\n'
+                       + f'X-Camera-Captured-Monotonic: {captured_at:.6f}\r\n\r\n'.encode('ascii')
+                       + frame_data + b'\r\n')
                 await asyncio.sleep(0.01)
             else:
                 await asyncio.sleep(0.04)
@@ -926,7 +929,7 @@ def run_system():
             alerts = latest_overlay["alerts"]
             if alerts and monotonic_at - latest_overlay["at"] <= 1.0:
                 frame = draw_results(frame.copy(), alerts)
-            video_hw.update_frame(frame)
+            video_hw.update_frame(frame, captured_at=monotonic_at)
             video_frame_started_at = monotonic_at
 
         detector.on_captured_frame = on_captured

@@ -43,6 +43,7 @@ def get_stats():
         return dict(_stats)
 
 encoded_frame_bytes = None
+encoded_frame_monotonic = 0.0
 lock = threading.Lock()
 last_encode_time = 0.0
 # 推流用摄像头原始 640×480；嫌带宽紧可用环境变量调回 320x240 或降质量。
@@ -51,11 +52,11 @@ JPEG_QUALITY = int(os.getenv("AI_GUARDIAN_STREAM_QUALITY", "65"))
 MAX_ENCODE_FPS = 20.0
 
 
-def update_frame(frame):
+def update_frame(frame, captured_at=None):
     """
     Limit JPEG encoding frequency so the CPU is not dominated by streaming work.
     """
-    global encoded_frame_bytes, last_encode_time
+    global encoded_frame_bytes, encoded_frame_monotonic, last_encode_time
 
     now = time.time()
     if now - last_encode_time < 1.0 / MAX_ENCODE_FPS:
@@ -70,11 +71,18 @@ def update_frame(frame):
 
     with lock:
         encoded_frame_bytes = encoded.tobytes()
+        encoded_frame_monotonic = time.monotonic() if captured_at is None else captured_at
 
 
 def get_current_frame():
     with lock:
         return encoded_frame_bytes
+
+
+def get_current_frame_packet():
+    """Keep JPEG bytes and their capture timestamp from the same frame."""
+    with lock:
+        return encoded_frame_bytes, encoded_frame_monotonic
 
 
 def start_stream():
