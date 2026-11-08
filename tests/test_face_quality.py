@@ -79,7 +79,8 @@ class QualityGateIntegrationTests(unittest.TestCase):
         method = load_definition("ascend_main_other.py", "AclLiteStreamDetector", namespace,
                                  "_maybe_recognize_face")
         library = SimpleNamespace(revision=1, _state_lock=threading.RLock(),
-            _log_diag=Mock(), recognize=Mock(return_value=("unknown", 0.2)))
+            _log_diag=Mock(), recognize=Mock(return_value=("unknown", 0.2)),
+            can_confirm_nonmatch=lambda image: True)
         detector = SimpleNamespace(face_library_loaded=True, face_detector=SimpleNamespace(enabled=True),
             face_library=library, person_state_lock=threading.Lock(), face_global_last_check=108,
             person_states={1: {"first_seen": 100, "face_label": "pending"}}, _face_rec_ms=0,

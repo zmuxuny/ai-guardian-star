@@ -569,6 +569,26 @@ class FaceLibrary:
         cascade = cv2.CascadeClassifier(cascade_path)
         self.face_cascade = cascade if not cascade.empty() else None
 
+    def can_confirm_nonmatch(self, image):
+        """Require an independent visible frontal face before voting stranger.
+
+        The body pose model can hallucinate nose/eye points behind an occluder.
+        Failure here suppresses negative evidence, never a successful match.
+        """
+        try:
+            self._ensure_detector()
+            if self.face_cascade is None or image is None or min(image.shape[:2]) < 36:
+                return False
+            scale = min(1.0, 320.0 / max(image.shape[:2]))
+            if scale < 1.0:
+                image = cv2.resize(image, None, fx=scale, fy=scale)
+            gray = cv2.equalizeHist(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
+            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1,
+                                                       minNeighbors=6, minSize=(36, 36))
+            return len(faces) == 1
+        except Exception:
+            return False
+
     def _rebuild_centroids(self):
         grouped = {}
         for entry in self.entries:
@@ -1468,6 +1488,24 @@ def is_front_face_candidate(kpts):
         return False
 
     return True
+
+
+def is_stranger_evidence_candidate(kpts):
+    """A stricter negative-evidence gate; ordinary matches still allow profiles."""
+    if len(kpts) < 3 or not np.all(np.isfinite(np.asarray(kpts[:3], dtype=np.float32))):
+        return False
+    points = [get_pose_keypoint(kpts, i, 0.65) for i in (0, 1, 2)]
+    if any(p is None or not np.all(np.isfinite(p)) for p in points):
+        return False
+    nose, left, right = points
+    if left[0] > right[0]:
+        left, right = right, left
+    width = right[0] - left[0]
+    if width < 8 or abs(right[1] - left[1]) > width * 0.25:
+        return False
+    nose_x = (nose[0] - left[0]) / width
+    nose_y = (nose[1] - (left[1] + right[1]) * 0.5) / width
+    return 0.35 <= nose_x <= 0.65 and 0.05 <= nose_y <= 0.9
 
 
 def extract_person_roi(frame, box):
@@ -2539,7 +2577,7 @@ class AclLiteStreamDetector:
                 current_state.update(best_face_crop=None, best_face_score=0.0)
             if quality_ok and rank > current_state.get("best_face_score", 0.0):
                 current_state.update(best_face_crop=face_crop, best_face_score=rank, best_face_at=now_ts,
-                                     best_face_can_reject=bool(front_face_ok))
+                                     best_face_can_reject=bool(front_face_ok and is_stranger_evidence_candidate(det["kpts"])))
             chosen_face = current_state.get("best_face_crop")
             chosen_can_reject = current_state.get("best_face_can_reject", False)
 
@@ -2580,7 +2618,8 @@ class AclLiteStreamDetector:
                 if recognition_revision != self.face_library.revision:
                     self._sync_face_library_revision()
                     return
-                if chosen_can_reject:
+                if chosen_can_reject and (str(label).startswith("known:")
+                                          or self.face_library.can_confirm_nonmatch(chosen_face)):
                     self._apply_face_result(person_id, label, score)
                 else:
                     self._apply_face_result(person_id, label, score, allow_stranger=False)

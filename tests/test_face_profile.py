@@ -144,6 +144,40 @@ class SideViewDecisionTests(unittest.TestCase):
 
 
 class SideViewGalleryTests(unittest.TestCase):
+    def test_negative_evidence_requires_one_frontal_detection_and_fails_closed(self):
+        image = np.zeros((80,80,3), np.uint8)
+        for detections, expected in (([],False), ([[10,10,50,50]],True),
+                                      ([[0,0,40,40],[40,0,40,40]],False)):
+            cascade = SimpleNamespace(detectMultiScale=lambda *a, **kw: detections)
+            self.assertEqual(self.fixture(cascade).can_confirm_nonmatch(image),expected)
+        self.assertFalse(self.fixture().can_confirm_nonmatch(image))
+        cascade = SimpleNamespace(detectMultiScale=lambda *a, **kw: (_ for _ in ()).throw(RuntimeError()))
+        self.assertFalse(self.fixture(cascade).can_confirm_nonmatch(image))
+
+    def test_strict_negative_gate_rejects_old_gate_side_pose_and_weak_landmarks(self):
+        namespace = face_tests.face_namespace()
+        from test_runtime import load_definition
+        load_definition('ascend_main_other.py','get_pose_keypoint',namespace)
+        old_gate=load_definition('ascend_main_other.py','is_front_face_candidate',namespace)
+        strict=load_definition('ascend_main_other.py','is_stranger_evidence_candidate',namespace)
+        front=[(50,65,.9),(30,50,.9),(70,50,.9)]
+        self.assertTrue(strict(front))
+        side=[(36,65,.9),(30,50,.9),(70,50,.9)]
+        self.assertTrue(old_gate(side))
+        self.assertFalse(strict(side))
+        self.assertFalse(strict([(50,65,.5),*front[1:]]))
+        self.assertFalse(strict([(50,float('nan'),.9),*front[1:]]))
+        self.assertFalse(strict([(50,65,float('nan')),*front[1:]]))
+
+    def test_independent_frontal_check_blocks_negative_vote_for_occluded_crop(self):
+        namespace = face_tests.face_namespace()
+        with patch.object(quality_tests,'face_namespace',return_value=namespace):
+            detector, run = quality_tests.QualityGateIntegrationTests().detector()
+        namespace['is_front_face_candidate'] = lambda *args: True
+        detector.face_library.can_confirm_nonmatch=lambda image: False
+        run(quality_tests.textured_face(), 112)
+        detector._apply_face_result.assert_called_once_with(1,'unknown',0.2,allow_stranger=False)
+
     def fixture(self, cascade=None):
         fixture = face_tests.LibraryTests()
         fixture.setUp()
