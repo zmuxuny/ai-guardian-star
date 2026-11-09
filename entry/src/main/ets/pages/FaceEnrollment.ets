@@ -15,10 +15,8 @@ import {
   FaceEnrollmentStep,
 } from '../face/FaceEnrollmentFlow';
 import {
-  GradientHeader,
-  ICON_FRAME_SIZE,
-  PAGE_HORIZONTAL_GUTTER,
   PAGE_TITLE_SIZE,
+  SURFACE_PADDING,
   SURFACE_RADIUS,
 } from '../components/GradientHeader';
 
@@ -280,25 +278,27 @@ export struct FaceEnrollment {
 
   @Builder
   PageHeader(): void {
-    GradientHeader({ contentMaxWidth: 640 }) {
-      Row() {
-        Image($r('app.media.ic_chevron_right'))
-          .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
-          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
-          .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
-          .onClick((): void => { this.goBack(); })
-        Text('人脸数据采集')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-          .margin({ left: 12 }).layoutWeight(1)
+    Row({ space: 12 }) {
+      Button({ type: ButtonType.Normal }) {
+        Image(this.themeManager.isDarkMode ? $r('app.media.ic_camera_back') : $r('app.media.ic_nav_back_dark'))
+          .width(20).height(20).objectFit(ImageFit.Contain)
       }
-      .width('100%')
-      .padding({
-        left: PAGE_HORIZONTAL_GUTTER,
-        right: PAGE_HORIZONTAL_GUTTER,
-        top: this.topSafeHeight + 8,
-        bottom: 12,
-      })
+      .width(44).height(44).padding(0).borderRadius(SURFACE_RADIUS)
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .accessibilityText('返回').enabled(!this.busy)
+      .onClick((): void => { this.goBack(); })
+      Text('人脸数据采集')
+        .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
+        .fontColor(this.themeManager.colors.primaryTextColor)
+        .layoutWeight(1)
     }
+    .width('100%').constraintSize({ maxWidth: 640 })
+    .padding({
+      left: SURFACE_PADDING,
+      right: SURFACE_PADDING,
+      top: this.topSafeHeight + 8,
+      bottom: 12,
+    })
   }
 
   @Builder
@@ -363,10 +363,9 @@ export struct FaceEnrollment {
       .backgroundColor(this.themeManager.colors.secondaryBackgroundColor)
       .borderRadius(12)
     }
-    .width('100%').padding(18)
+    .width('100%').padding(SURFACE_PADDING)
     .backgroundColor(this.themeManager.colors.cardBackgroundColor)
     .borderRadius(SURFACE_RADIUS)
-    .border({ width: 1, color: this.themeManager.colors.borderColor })
     .alignItems(HorizontalAlign.Start)
   }
 
@@ -441,14 +440,14 @@ export struct FaceEnrollment {
       if (this.step === 'name') {
         Button('返回', { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#2563EB').borderRadius(12).backgroundColor('#EFF6FF')
-          .border({ width: 1, color: '#BFDBFE' }).enabled(!this.busy)
+          .fontColor(this.themeManager.colors.linkTextColor).borderRadius(SURFACE_RADIUS)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor).enabled(!this.busy)
           .onClick((): void => { this.goBack(); })
       } else {
         Button(this.capturedPreview === undefined ? '返回上一步' : '重拍', { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#2563EB').borderRadius(12).backgroundColor('#EFF6FF')
-          .border({ width: 1, color: '#BFDBFE' }).enabled(!this.busy)
+          .fontColor(this.themeManager.colors.linkTextColor).borderRadius(SURFACE_RADIUS)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor).enabled(!this.busy)
           .onClick((): void => {
             if (this.capturedPreview === undefined) this.goBack(); else this.retakePhoto();
           })
@@ -456,8 +455,8 @@ export struct FaceEnrollment {
       if (this.step === 'name') {
         Button('继续', { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF').borderRadius(12)
-          .backgroundColor(this.canContinue() ? '#2563EB' : '#94A3B8')
+          .fontColor('#FFFFFF').borderRadius(SURFACE_RADIUS)
+          .backgroundColor(this.canContinue() ? this.themeManager.colors.primaryButtonColor : '#64748B')
           .enabled(this.canContinue())
           .accessibilityText(this.canContinue() ? '继续采集人脸' : '请先填写有效姓名')
           .onClick((): void => { this.continueToCapture(); })
@@ -465,9 +464,9 @@ export struct FaceEnrollment {
         Button(this.capturedPreview === undefined ? (this.busy ? '处理中…' : '拍摄')
           : (this.busy ? '上传中…' : '确定上传'), { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF').borderRadius(12)
+          .fontColor('#FFFFFF').borderRadius(SURFACE_RADIUS)
           .backgroundColor((this.cameraReady || this.capturedPreview !== undefined) && !this.busy
-            ? '#2563EB' : '#94A3B8')
+            ? this.themeManager.colors.primaryButtonColor : '#64748B')
           .enabled((this.cameraReady || this.capturedPreview !== undefined) && !this.busy)
           .accessibilityText(this.capturedPreview === undefined ? '拍摄人脸照片' : '确认并上传人脸照片')
           .onClick((): void => {
@@ -476,8 +475,7 @@ export struct FaceEnrollment {
       }
     }
     .width('100%').constraintSize({ maxWidth: 640 })
-    .padding({ left: 16, right: 16, top: 12, bottom: 20 })
-    .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+    .padding({ left: SURFACE_PADDING, right: SURFACE_PADDING, top: 12, bottom: 20 })
   }
 
   build() {
@@ -490,17 +488,22 @@ export struct FaceEnrollment {
               this.NameForm()
             }
             .width('100%').constraintSize({ maxWidth: 640 })
-            .padding({ left: 16, right: 16, top: 20, bottom: 24 })
+            .padding({ left: SURFACE_PADDING, right: SURFACE_PADDING, top: 8, bottom: 24 })
           }
-          .layoutWeight(1).width('100%')
+          .layoutWeight(1).width('100%').align(Alignment.Top)
           .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
         } else {
           Column() {
-            this.CaptureGuide()
-            this.FacePreview()
+            Column() {
+              this.CaptureGuide()
+              this.FacePreview()
+            }
+            .width('100%').layoutWeight(1)
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .borderRadius(SURFACE_RADIUS).clip(true)
           }
           .layoutWeight(1).width('100%').constraintSize({ maxWidth: 640 })
-          .backgroundColor('#FFFFFF')
+          .padding({ left: SURFACE_PADDING, right: SURFACE_PADDING, top: 8 })
         }
         this.BottomActions()
       }
