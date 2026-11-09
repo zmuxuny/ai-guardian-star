@@ -148,6 +148,8 @@ struct DeleteAccountDialog {
 
 @Component
 export struct person {
+  @Prop bottomInset: number = 0;
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State userName: string = "";
@@ -919,7 +921,7 @@ export struct person {
           Text("智护星 v1.0.0")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ bottom: 29 })
+            .margin({ bottom: 29 + this.bottomInset })
         }
         .width("100%")
         .constraintSize({ maxWidth: 640 })
@@ -928,6 +930,7 @@ export struct person {
       .layoutWeight(1)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
+      .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
     }
     .width("100%")
     .height("100%")

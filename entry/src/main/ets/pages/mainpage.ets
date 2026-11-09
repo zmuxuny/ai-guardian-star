@@ -11,6 +11,8 @@ import { showToast } from '../common/UiFeedback';
 
 @Component
 export struct mainPage {
+  @Prop bottomInset: number = 0;
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   pathStack: NavPathStack = new NavPathStack();
   @StorageLink('homeCameraFullscreenActive') cameraFullscreenActive: boolean = false;
   @State mqttManager: MqttManager = MqttManager.getInstance();
@@ -331,9 +333,10 @@ export struct mainPage {
       Column() {
         this.CameraHeader()
         this.StatusCards()
-        Blank().height(24)
+        Blank().height(24 + this.bottomInset)
       }.width('100%').constraintSize({ maxWidth: 640 })
-    }.width('100%').height('100%').scrollBar(BarState.Off)
+    }.width('100%').height('100%').scrollBar(BarState.Off).align(Alignment.Top)
+      .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
       .linearGradient({
         direction: GradientDirection.Bottom,
         colors: this.themeManager.isDarkMode ? [['#0f172a', 0], ['#0f172a', 1]]

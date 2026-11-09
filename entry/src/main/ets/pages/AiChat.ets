@@ -27,6 +27,7 @@ interface BubbleMsg {
 
 @Component
 export struct AiChat {
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State messages: BubbleMsg[] = [];
@@ -368,6 +369,7 @@ export struct AiChat {
         }.width('100%').constraintSize({ maxWidth: 640 }).padding({ top: 12 })
       }
       .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+      .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
       this.QuickQuestions()
       this.AiDisclaimer()
       this.InputBar()

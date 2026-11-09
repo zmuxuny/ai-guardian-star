@@ -34,6 +34,8 @@ interface RecordingDay {
 /** Shared by the navigation tab and the personal/history destination. */
 @Component
 export struct RecordingBrowser {
+  @Prop bottomInset: number = 0;
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State filter: string = 'all';
   @State days: RecordingDay[] = [];
@@ -567,6 +569,7 @@ export struct RecordingBrowser {
         }, (day: RecordingDay): string =>
           `${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}`)
       }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
+        .contentEndOffset(this.bottomInset).onDidScroll(this.onTabScroll)
     }.width('100%').height('100%').padding({ left: 16, right: 16, top: 14, bottom: 12 })
       .backgroundColor(this.themeManager.colors.backgroundColor)
   }

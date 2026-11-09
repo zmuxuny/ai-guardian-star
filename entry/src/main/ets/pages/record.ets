@@ -4,6 +4,8 @@ import { RecordingBrowser } from '../components/RecordingBrowser';
 
 @Component
 export struct record {
+  @Prop bottomInset: number = 0;
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
 
@@ -28,7 +30,7 @@ export struct record {
   build() {
     Column() {
       this.GradientHeader()
-      RecordingBrowser().layoutWeight(1)
+      RecordingBrowser({ bottomInset: this.bottomInset, onTabScroll: this.onTabScroll }).layoutWeight(1)
     }.width('100%').height('100%').backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
   }

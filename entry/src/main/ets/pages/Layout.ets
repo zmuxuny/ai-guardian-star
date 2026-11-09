@@ -5,6 +5,7 @@ import { AiChat } from "./AiChat";
 import { ThemeManager } from "../common/ThemeManager";
 import { getWindowSizeClass } from "../common/ResponsiveLayout";
 import { STORE_KEY_AI_ENABLED } from "../config";
+import { GlassBottomBar, GlassTabItem, GLASS_TAB_CLEARANCE } from "../components/GlassBottomBar";
 
 @Builder
 export function LayoutBuilder(): void {
@@ -13,7 +14,8 @@ export function LayoutBuilder(): void {
 @Component
 export struct Layout {
   @State currentIndex: number = 0;
-  @State pressedTabIndex: number = -1;
+  @State glassCompact: boolean = false;
+  private scrollTravel: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @StorageLink(STORE_KEY_AI_ENABLED) @Watch('onAiEnabledChanged') aiEnabled: boolean = false;
   @State viewportWidth: number = 360;
@@ -23,85 +25,56 @@ export struct Layout {
     if (!this.aiEnabled && this.currentIndex === 2) this.currentIndex = 3;
   }
 
-  private getTabIconResource(index: number): Resource {
-    const active = this.currentIndex === index;
-    switch (index) {
-      case 0: return active ? $r("app.media.tab_home_active")   : $r("app.media.tab_home_inactive");
-      case 1: return active ? $r("app.media.tab_record_active") : $r("app.media.tab_record_inactive");
-      case 2: return active ? $r("app.media.tab_ai_active")     : $r("app.media.tab_ai_inactive");
-      case 3: return active ? $r("app.media.tab_person_active") : $r("app.media.tab_person_inactive");
-      default: return $r("app.media.tab_home_inactive");
-    }
+  private tabs: GlassTabItem[] = [
+    { label: '主页', icon: $r('app.media.tab_home_inactive'), activeIcon: $r('app.media.tab_home_active') },
+    { label: '记录', icon: $r('app.media.tab_record_inactive'), activeIcon: $r('app.media.tab_record_active') },
+    { label: 'AI助手', icon: $r('app.media.tab_ai_inactive'), activeIcon: $r('app.media.tab_ai_active') },
+    { label: '个人', icon: $r('app.media.tab_person_inactive'), activeIcon: $r('app.media.tab_person_active') },
+  ];
+
+  private visibleTabs(): GlassTabItem[] {
+    return this.aiEnabled ? this.tabs : [this.tabs[0], this.tabs[1], this.tabs[3]];
   }
 
-  private getTabText(index: number): string {
-    switch (index) {
-      case 0: return "主页";
-      case 1: return "记录";
-      case 2: return "AI助手";
-      case 3: return "个人";
-      default: return "主页";
-    }
+  private selectGlassTab(slot: number): void {
+    const index = !this.aiEnabled && slot === 2 ? 3 : slot;
+    this.currentIndex = index;
+    this.scrollTravel = 0;
+    this.glassCompact = false;
   }
 
-  @Builder
-  tabItem(index: number): void {
-    Column() {
-      Image(this.getTabIconResource(index))
-        .width(26).height(26)
-        .objectFit(ImageFit.Contain)
-        .scale({ x: this.currentIndex === index ? 1.15 : 1.0,
-                 y: this.currentIndex === index ? 1.15 : 1.0 })
-        .opacity(this.currentIndex === index ? 1.0 : 0.6)
-        .animation({ duration: 220, curve: Curve.EaseOut })
-      Text(this.getTabText(index))
-        .fontSize(12)
-        .margin({ top: 4 })
-        .fontColor(this.currentIndex === index ? "#2563eb" : this.themeManager.colors.secondaryTextColor)
-        .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Medium)
-        .opacity(1.0)
-        .animation({ duration: 220, curve: Curve.EaseOut })
-      Text(' ').width(4).height(4).backgroundColor("#2563eb").borderRadius(2)
-        .margin({ top: 3 })
-        .scale({ x: this.currentIndex === index ? 1.0 : 0.0,
-                 y: this.currentIndex === index ? 1.0 : 0.0 })
-        .opacity(this.currentIndex === index ? 1.0 : 0.0)
-        .animation({ duration: 250, curve: Curve.FastOutSlowIn })
-    }
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .layoutWeight(1)
-    .height('100%')
-    .backgroundColor(this.pressedTabIndex === index
-      ? (this.themeManager.isDarkMode ? '#334155' : '#f1f5f9')
-      : Color.Transparent)
-    .borderRadius(14)
-    .animation({ duration: 90, curve: Curve.EaseOut })
-    .onTouch((event: TouchEvent): void => {
-      if (event.type === TouchType.Down) {
-        this.pressedTabIndex = index;
-      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-        setTimeout((): void => {
-          if (this.pressedTabIndex === index) this.pressedTabIndex = -1;
-        }, 110);
-      }
-    })
-    .onClick((): void => { this.currentIndex = index; })
+  private observeScroll(index: number, delta: number, state: ScrollState): void {
+    if (index !== this.currentIndex || state !== ScrollState.Scroll || delta === 0) return;
+    if (this.scrollTravel * delta < 0) this.scrollTravel = 0;
+    this.scrollTravel += delta;
+    if (Math.abs(this.scrollTravel) < 20) return;
+    const compact = this.scrollTravel > 0;
+    this.scrollTravel = 0;
+    if (this.glassCompact === compact) return;
+    this.getUIContext().animateTo({ duration: 270, curve: Curve.FastOutSlowIn }, () => {
+      this.glassCompact = compact;
+    });
   }
 
   @Builder
-  pageStack(): void {
+  pageStack(bottomInset: number = 0): void {
     Stack() {
-      Column() { mainPage({ pathStack: this.pathStack }) }.width('100%').height('100%')
+      Column() { mainPage({ pathStack: this.pathStack, bottomInset: bottomInset,
+        onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(0, delta, state); } }) }.width('100%').height('100%')
         .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
       if (this.currentIndex === 1) {
-        Column() { record() }.width('100%').height('100%')
+        Column() { record({ bottomInset: bottomInset,
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(1, delta, state); } }) }.width('100%').height('100%')
       }
       if (this.aiEnabled) {
-        Column() { AiChat() }.width('100%').height('100%')
+        Column() { AiChat({
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(2, delta, state); },
+        }) }.width('100%').height('100%').padding({ bottom: bottomInset })
+          .backgroundColor(this.themeManager.colors.backgroundColor)
           .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
       }
-      Column() { person({ pathStack: this.pathStack }) }.width('100%').height('100%')
+      Column() { person({ pathStack: this.pathStack, bottomInset: bottomInset,
+        onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(3, delta, state); } }) }.width('100%').height('100%')
         .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
     }
   }
@@ -109,11 +82,11 @@ export struct Layout {
   @Builder
   railItem(index: number): void {
     Column({ space: 6 }) {
-      Image(this.getTabIconResource(index))
+      Image(this.currentIndex === index ? this.tabs[index].activeIcon : this.tabs[index].icon)
         .width(28).height(28)
         .objectFit(ImageFit.Contain)
         .opacity(this.currentIndex === index ? 1.0 : 0.7)
-      Text(this.getTabText(index))
+      Text(this.tabs[index].label)
         .fontSize(12)
         .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
         .fontColor(this.currentIndex === index ? '#2563EB' : this.themeManager.colors.secondaryTextColor)
@@ -151,21 +124,16 @@ export struct Layout {
     NavDestination() {
       Column() {
         if (getWindowSizeClass(this.viewportWidth) === 'compact') {
-          Column() {
-            this.pageStack()
-          }.layoutWeight(1).width('100%')
-          Row() {
-            this.tabItem(0)
-            this.tabItem(1)
-            if (this.aiEnabled) {
-              this.tabItem(2)
-            }
-            this.tabItem(3)
-          }
-          .width('100%')
-          .height(64)
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-          .border({ width: { top: 0.5 }, color: this.themeManager.colors.borderColor })
+          Stack({ alignContent: Alignment.Bottom }) {
+            this.pageStack(GLASS_TAB_CLEARANCE)
+            GlassBottomBar({
+              items: this.visibleTabs(),
+              selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
+              viewportWidth: this.viewportWidth,
+              compact: this.glassCompact,
+              onSelect: (slot: number): void => { this.selectGlassTab(slot); },
+            }).margin({ bottom: 12 })
+          }.width('100%').height('100%')
         } else {
           Row() {
             this.sideNavigation()
@@ -176,8 +144,7 @@ export struct Layout {
         }
       }
       .width('100%').height('100%')
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      .backgroundColor(this.themeManager.colors.backgroundColor)
       .onAreaChange((_oldValue: Area, newValue: Area): void => {
         const width = Number(newValue.width);
         if (width > 0) this.viewportWidth = width;
