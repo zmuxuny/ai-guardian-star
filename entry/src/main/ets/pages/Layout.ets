@@ -151,8 +151,13 @@ export struct Layout {
       })
     }
     .hideTitleBar(true)
-    .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#dce9ff')
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
+    .linearGradient({
+      direction: GradientDirection.Bottom,
+      colors: this.themeManager.isDarkMode
+        ? [['#0f172a', 0], ['#0f172a', 1]]
+        : [['#dce9ff', 0], ['#f0f4ff', 0.8], ['#f0f4ff', 1]],
+    })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onReady((context: NavDestinationContext): void => {
       this.pathStack = context.pathStack;
     })
