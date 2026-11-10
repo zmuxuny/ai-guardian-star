@@ -21,6 +21,7 @@ export struct mainPage {
   @State homeLoading: boolean = true;
   @State homeLoadFailed: boolean = false;
   @State viewportWidth: number = 360;
+  @State viewportHeight: number = 0;
   @State isTalking: boolean = false;
   @State callBusy: boolean = false;
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
@@ -86,6 +87,13 @@ export struct mainPage {
     }
   }
 
+  // Only distribute surplus space on tall screens with a genuinely empty event list.
+  private emptyLayoutSpace(): number {
+    if (this.bottomInset === 0 || this.viewportWidth < 340 || this.homeLoading ||
+      this.homeLoadFailed || this.homeEvents.length !== 0) return 0;
+    return Math.min(132, Math.max(0, this.viewportHeight - 600));
+  }
+
   @Builder
   CameraHeader(): void {
     Row({ space: 16 }) {
@@ -133,7 +141,11 @@ export struct mainPage {
       }.width(Math.min(220, Math.max(140, this.viewportWidth - 160))).aspectRatio(4 / 3)
         .clip(true).borderRadius(SURFACE_RADIUS).backgroundColor('#0f172a')
     }.width('100%').justifyContent(FlexAlign.SpaceBetween)
-      .padding({ left: 16, right: 16, top: 8, bottom: 20 })
+      .padding({
+        left: 16, right: 16,
+        top: 8 + this.emptyLayoutSpace() * 0.06,
+        bottom: 20 + this.emptyLayoutSpace() * 0.16,
+      })
   }
 
   private async loadHomeEvents(): Promise<void> {
@@ -234,7 +246,7 @@ export struct mainPage {
 
   @Builder
   StatusCards(): void {
-    Column({ space: 14 }) {
+    Column({ space: 14 + this.emptyLayoutSpace() * 0.08 }) {
       Row() {
         Column({ space: 8 }) {
           Row({ space: 8 }) {
@@ -264,7 +276,11 @@ export struct mainPage {
             .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
         }.layoutWeight(1).alignItems(HorizontalAlign.Start)
           .onClick((): void => { this.openHistory(); })
-      }.width('100%').padding(16).borderRadius(SURFACE_RADIUS)
+      }.width('100%').padding({
+        left: 16, right: 16,
+        top: 16 + this.emptyLayoutSpace() * 0.09,
+        bottom: 16 + this.emptyLayoutSpace() * 0.09,
+      }).borderRadius(SURFACE_RADIUS)
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
 
       Column({ space: 14 }) {
@@ -298,7 +314,10 @@ export struct mainPage {
               Text('收到摔倒、久坐或陌生人事件后，会在这里展示').fontSize(12)
                 .fontColor(this.themeManager.colors.secondaryTextColor)
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-          }.width('100%').padding({ top: 12, bottom: 16 })
+          }.width('100%').padding({
+            top: 12 + this.emptyLayoutSpace() * 0.24,
+            bottom: 16 + this.emptyLayoutSpace() * 0.28,
+          })
         } else {
           ForEach(this.homeEvents.slice(0, 3), (event: HealthEvent) => {
             Button({ type: ButtonType.Normal }) {
@@ -345,6 +364,8 @@ export struct mainPage {
       .onAreaChange((_oldArea: Area, area: Area): void => {
         const width = Number(area.width);
         if (width > 0) this.viewportWidth = width;
+        const height = Number(area.height);
+        if (height > 0) this.viewportHeight = height;
       })
   }
 }
