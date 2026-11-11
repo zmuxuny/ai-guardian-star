@@ -226,6 +226,37 @@ box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.
 .slider .dots i{width:4px;height:4px;border-radius:2px;background:rgba(255,255,255,.55)}
 .sheet .hint{text-align:center;margin-top:12px}
 
+/* 浅色阅读页（记录、AI 助手、个人）：同一套玻璃、圆角、动效，底色换成暖白。
+   状态色只留在三处：顶部光带、状态胶囊、悬浮底栏，切页时仍能看出家里的状态。 */
+.page.lt{--paper:#F4F7F5;--on2:rgba(16,35,28,.64);--gl:rgba(255,255,255,.86);--line:rgba(16,35,28,.1);color:var(--ink);
+background:linear-gradient(180deg,color-mix(in srgb,var(--c3) 34%,var(--paper)) 0,var(--paper) 240px) var(--paper)}
+.lt .g{-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:inset 0 1px 0 #fff,0 0 0 1px rgba(16,35,28,.06),0 16px 30px -22px rgba(16,35,28,.45)}
+.lt .g::after{background:radial-gradient(170px circle at var(--lx,28%) var(--ly,-10%),color-mix(in srgb,var(--c3) 40%,transparent),transparent 64%);mix-blend-mode:normal;opacity:.7}
+.lt .row{border-top-color:var(--line)}
+.lt button:focus-visible,.lt [tabindex]:focus-visible{outline-color:var(--solid)}
+.lt .filters button[aria-pressed=true]{background:var(--solid);color:#fff}
+.lt .tag.d{box-shadow:inset 0 0 0 1px rgba(16,35,28,.25)}
+.lt .dl,.lt .ico{background:color-mix(in srgb,var(--c1) 15%,#fff);color:var(--solid);box-shadow:none}
+.lt .th{box-shadow:0 0 0 1px var(--line)}
+.lt .msg.u{background:var(--solid);color:#fff}
+.lt .perm b{color:var(--solid)}
+.lt .inp input{color:var(--ink);caret-color:var(--solid)}
+.lt .inp input::placeholder{color:rgba(16,35,28,.5)}
+.lt .inp input:focus{outline-color:var(--solid)}
+.lt .inp button{background:var(--solid);color:#fff}
+.lt .av{color:var(--solid)}
+.lt .sw{background:rgba(16,35,28,.16);box-shadow:inset 0 1px 3px rgba(16,35,28,.25)}
+.lt .sw[aria-checked=true]{background:var(--c1)}
+.lt .out{color:#B4260F}
+.stc{height:32px;padding:0 12px 0 10px;border-radius:99px;display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;white-space:nowrap;
+background:color-mix(in srgb,var(--c1) 16%,#fff);color:var(--solid);transition:background .6s,color .6s,transform .5s var(--spring)}
+.stc:active{transform:scale(.93)}
+.stc::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c1);box-shadow:0 0 0 3px color-mix(in srgb,var(--c1) 28%,transparent)}
+.screen[data-state=fall] .stc{background:var(--solid);color:#fff}
+.screen[data-state=fall] .stc::before{background:#fff;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.title .r{display:flex;gap:8px;align-items:center}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 html.embed{background:none}
 .embed body{padding:0;min-height:0;display:block}
@@ -350,9 +381,9 @@ html.embed{background:none}
   </section>
 
   <!-- 记录 -->
-  <section class="page" id="records">
+  <section class="page lt" id="records">
     <div class="sb"><span class="num">14:32</span><i></i></div>
-    <div class="title"><h1>记录</h1><button class="ib g press" id="refresh" aria-label="刷新"><svg class="i"><use href="#ref"/></svg></button></div>
+    <div class="title"><h1>记录</h1><span class="r"><button class="stc" data-tab="home">家里平安</button><button class="ib g press" id="refresh" aria-label="刷新"><svg class="i"><use href="#ref"/></svg></button></span></div>
     <p class="note">录像在家里的设备上保存 7 天，在线播放不占手机空间。</p>
     <div class="filters" id="filters">
       <button class="g press" aria-pressed="true" data-f="all">全部 <span class="num">9</span></button>
@@ -365,9 +396,9 @@ html.embed{background:none}
   </section>
 
   <!-- AI 助手 -->
-  <section class="page" id="ai">
+  <section class="page lt" id="ai">
     <div class="sb" style="flex:none"><span class="num">14:32</span><i></i></div>
-    <div class="title" style="flex:none"><h1>AI 健康助手</h1></div>
+    <div class="title" style="flex:none"><h1>AI 健康助手</h1><button class="stc" data-tab="home">家里平安</button></div>
     <button class="perm g press" data-tab="me"><svg class="i s"><use href="#shield"/></svg><span>AI 可参考：<b>监护统计与设备状态</b></span><svg class="i s" style="margin-left:auto"><use href="#chev"/></svg></button>
     <div class="chat" id="chat">
       <div class="msg u">老人最近状态怎么样？</div>
@@ -381,8 +412,9 @@ html.embed{background:none}
   </section>
 
   <!-- 个人 -->
-  <section class="page" id="me">
+  <section class="page lt" id="me">
     <div class="sb"><span class="num">14:32</span><i></i></div>
+    <div class="title"><h1>个人</h1><button class="stc" data-tab="home">家里平安</button></div>
     <div class="me"><span class="av g">周</span><div><b>周女士</b><p>已守护 <span class="num">183</span> 天 · 跌倒预警 <span class="num">8</span> 次</p></div></div>
     <p class="sec">服务设置</p>
     <div class="card g list">
@@ -457,12 +489,12 @@ html.embed{background:none}
 <script src="fx.js"></script>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],scr=$('#screen');
-const ST={ok:{w:'平安',s:'今天没有跌倒<br>最近事件 <span class="num">13:40</span> 久坐提醒',c:'通话',sum:'久坐 2 次 · 陌生人 1 次',img:'#room',wf:'0'},
- remind:{w:'久坐',s:'已经坐了 <span class="num">62</span> 分钟<br><span class="num">13:28</span> 起一直在沙发上',c:'通话提醒',sum:'久坐 3 次 · 陌生人 1 次',img:'#room',wf:'0'},
- fall:{w:'跌倒',s:'<span class="num">14:31</span> 客厅<br>倒地 40 秒未起身',c:'立即通话',sum:'跌倒 1 次 · 久坐 2 次',img:'#floor',wf:'1'}};
+const ST={ok:{t:'家里平安',w:'平安',s:'今天没有跌倒<br>最近事件 <span class="num">13:40</span> 久坐提醒',c:'通话',sum:'久坐 2 次 · 陌生人 1 次',img:'#room',wf:'0'},
+ remind:{t:'久坐 62 分钟',w:'久坐',s:'已经坐了 <span class="num">62</span> 分钟<br><span class="num">13:28</span> 起一直在沙发上',c:'通话提醒',sum:'久坐 3 次 · 陌生人 1 次',img:'#room',wf:'0'},
+ fall:{t:'跌倒 · 立即查看',w:'跌倒',s:'<span class="num">14:31</span> 客厅<br>倒地 40 秒未起身',c:'立即通话',sum:'跌倒 1 次 · 久坐 2 次',img:'#floor',wf:'1'}};
 function replay(el,c){el.classList.remove(c);void el.offsetWidth;el.classList.add(c)}
 function setState(k,quiet){const d=ST[k];if(!d)return;const changed=scr.dataset.state!==k;scr.dataset.state=k;
- $('#word').textContent=d.w;$('#sub').innerHTML=d.s;$('#callt').textContent=d.c;$('#sum').textContent=d.sum;
+ $$('.stc').forEach(c=>c.textContent=d.t);$('#word').textContent=d.w;$('#sub').innerHTML=d.s;$('#callt').textContent=d.c;$('#sum').textContent=d.sum;
  $('#liveimg').setAttribute('href',d.img);$('#liveimg2').setAttribute('href',d.img);$('#wf').textContent=d.wf;$('#wf').className=d.wf==='1'?'f':'z';
  $$('[data-set]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.set===k));tab('home');
  if(changed){replay($('#word'),'swap');replay($('#pulse'),'go');if(!quiet)FX[k]()}}
@@ -539,7 +571,7 @@ addEventListener('deviceorientation',e=>{if(e.gamma==null)return;const r=scr.get
 const q=new URLSearchParams(location.search),emb=!!q.get('embed');if(emb)document.documentElement.classList.add('embed');
 function fit(){const s=Math.min(1,innerWidth/390);scr.style.transform=!emb&&innerWidth<=860&&s<1?`scale(${s})`:''}
 addEventListener('resize',fit);fit();
-addEventListener('message',e=>{if(ST[e.data])setState(e.data,true)});
+addEventListener('message',e=>{if(e.origin===location.origin&&ST[e.data])setState(e.data,true)});
 if(q.get('state'))setState(q.get('state'),true);if(q.get('tab'))tab(q.get('tab'));
 </script>
 </body>
