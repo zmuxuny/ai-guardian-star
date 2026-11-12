@@ -4,6 +4,15 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-12 16:27 · codex · T-20261112-03 · 已完成
+
+> 分支 `wip/codex-20261112-issue24-ui`，代码提交 `1c80e8b`。影响 `pages/mainpage.ets` 和 `pages/Layout.ets`。
+
+- 主页复用阅读页渐变页头、主题底色、圆角卡片和底栏，状态色用于页头标题、图标及操作按钮。
+- 签名 Release HAP 构建与签名校验通过。DevEco Studio 构建号 261.23567.138.36.2600821-DS，Hvigor 6.26.4，SDK 26.0.0.105，HDC 3.2.0f。产品 default，模块 entry@default，目标与兼容 API 24。安装包 24,729,367 字节，SHA256 `50E10E9C210EDA895C81F1AEF88E97D62D9AE0EE81A852C69A276F615F86132B`。
+- Mate 90 Pro 模拟器 API 26 覆盖安装和启动通过。浅色与深色主页和记录页实图已检查。当天事件与全屏画面入口及返回通过。恢复原外观设置，停在主页。按应用包名过滤未见错误或致命级日志。首页事件规则 12 项通过。
+- HAP、旧包备份和截图存于本机 `.tmp/simulator/home-style-20261112/`。设备未连接。实际通话、视频流、非空事件列表、告警联动和真机待验证。临时签名配置已恢复。仅本地提交。
+
 ## 2026-11-12 · codex · T-20261112-02 · 待验证
 
 > 用 gh 核实 [Issue #24](https://github.com/zmuxuny/ai-guardian-star/issues/24) 的家里天气反馈。基于 `fb645c0`，本地分支 `wip/codex-20261112-issue24-ui`，代码提交 `0a6055a`、`19652d5`。
@@ -22,14 +31,3 @@
 - 签名 Release HAP 24,714,258 字节，SHA256 `EEEE43CA9D06AAFD0E2D5FC0BE1956D1C0C9DF6CDA9F379DEC29D9B737C59ABE`。沿用之前的 API24 构建参数，API26 Mate 90 Pro 覆盖安装和启动通过。
 - 实测今日提醒、记录日期范围、AI 页去统计卡片、个人页摔倒预警文案。最终停在首页。
 - 录像源暂不可用，实际录像行文案和播放未验收。截图及旧 HAP 备份在本机 `.tmp/simulator/jyx-sync-20261112/`。仅本地保存。
-
-## 2026-11-10 · codex · T-20261110-01 · 待验证
-
-> 分支 `wip/codex-20261110-home-review@7d6ee20`，改动 `entry/src/main/ets/pages/Layout.ets`。
-> 下一步由用户审核已安装的首页留白调整。真机和非空事件列表未实测。
-
-- 页面底色延伸到系统手势区。签名 HAP 构建、Mate 90 Pro（API 26）覆盖安装、首页与记录页切换通过。原白色区域像素与页面浅蓝 #F0F4FF 一致。
-- HAP 24,712,747 字节，SHA256 `1D48CEA78DB16259DA29870B4251DB71073016C195524F9341E631846A51FCCF`。
-- 首页提交 `1c57ffa` 修改 `mainpage.ets`。保持原模块顺序，仅在高屏事件空态分配间距。构建、覆盖安装、首页实图通过。底部开放间距在同列实测约 665 → 206 像素。
-- 新 HAP SHA256 `037675FF6CDC67E67D92035CD064EB5FDCFB07686511B8F753C2576B0B48FBA0`。前后实图与旧包备份在本机 `.tmp/simulator/home-spacing-review-20261110/`。
-- 临时构建配置已恢复。已按用户要求推送协作分支，GitHub 回查确认包含审核版提交 `58c6456`，队友可拉取继续修改。
