@@ -10,6 +10,60 @@ import { preferences } from "@kit.ArkData";
 import { common } from "@kit.AbilityKit";
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME } from '../config';
 import { showToast } from '../common/UiFeedback';
+import { careIconTint } from '../common/CarePalette';
+
+// 与 docs/ui-demo/login.html 同一套深绿玻璃配色，不随系统深浅色切换
+const L_BASE = '#052A1F';
+const L_ON2 = '#D6FFFFFF';
+const L_INK = '#10231C';
+const L_SOLID = '#0A5C43';
+const L_ERR = '#FFB4A6';
+const L_HINT = '#FFD0C6';
+const L_LINE = '#2EFFFFFF';
+
+@Extend(Text)
+function fieldLabel() {
+  .fontSize(13)
+  .fontColor(L_ON2)
+  .margin({ left: 4, bottom: 6 })
+  .alignSelf(ItemAlign.Start)
+}
+
+@Extend(Text)
+function segItem(on: boolean) {
+  .layoutWeight(1)
+  .height(40)
+  .borderRadius(12)
+  .textAlign(TextAlign.Center)
+  .fontSize(15)
+  .fontWeight(FontWeight.Medium)
+  .fontColor(on ? L_INK : L_ON2)
+  .backgroundColor(on ? Color.White : Color.Transparent)
+}
+
+@Extend(Row)
+function glassBox() {
+  .width('100%')
+  .height(54)
+  .borderRadius(18)
+  .padding({ left: 16, right: 6 })
+  .backgroundColor('#33000000')
+  .alignItems(VerticalAlign.Center)
+}
+
+@Extend(TextInput)
+function glassInput() {
+  .layoutWeight(1)
+  .height('100%')
+  .fontSize(17)
+  .fontColor(Color.White)
+  .placeholderColor('#9EFFFFFF')
+  .placeholderFont({ size: 17 })
+  .caretColor(Color.White)
+  .backgroundColor(Color.Transparent)
+  .borderRadius(0)
+  .padding(0)
+}
 
 @Builder
 export function LoginBuilder() {
@@ -41,7 +95,9 @@ struct Login {
   @State codeVerified: boolean = false;
   @State isVerifyingCode: boolean = false;
   @State codeError: string = "";
-  @State themeManager: ThemeManager = ThemeManager.getInstance();
+  /** 当前聚焦的输入框，用来画白色聚焦描边 */
+  @State focusField: string = "";
+  @State viewHeight: number = 0;
 
   /** 校验当前输入格式，返回错误信息（空字符串=通过） */
   private validateUsername(): string {
@@ -61,513 +117,422 @@ struct Login {
     return !this.resetMode || this.codeVerified;
   }
 
-  /** 验证码输入框边框色：与手机号输入框同一套正误反馈 */
-  private codeFieldBorderColor(): string {
-    const neutral = this.themeManager.isDarkMode ? "#334155" : "#e2e8f0";
-    if (!this.resetMode || this.verifyCode.trim() === "") return neutral;
-    if (this.codeVerified) return "#10b981";
-    if (this.codeError !== "") return "#ef4444";
-    return neutral;
+  /** 输入框描边：出错浅红、聚焦白色、平时一圈细白线 */
+  private boxBorder(field: string, error: boolean): BorderOptions {
+    if (error) return { width: 2, color: L_ERR };
+    if (this.focusField === field) return { width: 2, color: Color.White };
+    return { width: 1, color: L_LINE };
+  }
+
+  private leaveField(field: string): void {
+    if (this.focusField === field) this.focusField = "";
+  }
+
+  private switchInputMode(mode: number): void {
+    if (this.inputMode === mode) return;
+    this.getUIContext().animateTo({ duration: 250, curve: Curve.FastOutSlowIn }, () => {
+      this.inputMode = mode;
+    });
+    this.username = "";
+    this.usernameError = "";
+  }
+
+  private titleText(): string {
+    return this.resetMode ? "重置密码" : this.registerMode ? "注册账号" : "智护星";
+  }
+
+  private subtitleText(): string {
+    return this.resetMode
+      ? "验证注册手机号后设置新密码"
+      : this.registerMode ? "使用手机号验证码创建账号" : "关怀我们的过去，保障我们的未来";
+  }
+
+  @Builder
+  Ambient(): void {
+    // 每层都要各自延伸进安全区，否则状态栏和底部横条处会露出一条更暗的底色
+    Stack() {
+      Column().width("100%").height("100%").backgroundColor(L_BASE)
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      Column().width("100%").height("100%")
+        .radialGradient({ center: ["92%", "14%"], radius: 260, colors: [["#8017B07C", 0], ["#0017B07C", 1]] })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      Column().width("100%").height("100%")
+        .radialGradient({ center: ["4%", "44%"], radius: 280, colors: [["#800B7A54", 0], ["#000B7A54", 1]] })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      Column().width("100%").height("100%")
+        .radialGradient({ center: ["62%", "100%"], radius: 240, colors: [["#3D7BE0B8", 0], ["#007BE0B8", 1]] })
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    }
+    .width("100%")
+    .height("100%")
+    .hitTestBehavior(HitTestMode.None)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+  }
+
+  @Builder
+  Brand(): void {
+    Column() {
+      // 同心圆标记：只在登录态显示；注册/重置表单更长，省出高度让整张卡一屏放下
+      if (!this.registerMode && !this.resetMode) {
+      Stack() {
+        Circle({ width: 58, height: 58 }).fill(Color.Transparent).stroke(Color.White).strokeOpacity(0.35).strokeWidth(2.5)
+        Circle({ width: 39, height: 39 }).fill(Color.Transparent).stroke(Color.White).strokeOpacity(0.7).strokeWidth(2.5)
+        Circle({ width: 18, height: 18 }).fill(Color.White)
+      }
+      .width(64)
+      .height(64)
+      .accessibilityLevel("no")
+      .margin({ bottom: 22 })
+      }
+
+      Text(this.titleText())
+        .fontSize(56)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(Color.White)
+        .letterSpacing(-1)
+        .lineHeight(60)
+        .textShadow({ radius: 40, offsetY: 18, color: "#40000000" })
+      Text(this.subtitleText())
+        .fontSize(16)
+        .fontColor(L_ON2)
+        .margin({ top: 12 })
+        .constraintSize({ maxWidth: 280 })
+    }
+    .width("100%")
+    .alignItems(HorizontalAlign.Start)
+    .padding({ left: 24, right: 24, top: this.registerMode || this.resetMode ? 28 : 72, bottom: 24 })
+  }
+
+  @Builder
+  ModeSwitch(): void {
+    Row({ space: 4 }) {
+      Text("手机号")
+        .segItem(this.inputMode === 0)
+        .accessibilitySelected(this.inputMode === 0)
+        .onClick((): void => { this.switchInputMode(0); })
+      Text("邮箱（已有账号）")
+        .segItem(this.inputMode === 1)
+        .accessibilitySelected(this.inputMode === 1)
+        .onClick((): void => { this.switchInputMode(1); })
+    }
+    .width("100%")
+    .padding(4)
+    .borderRadius(16)
+    .backgroundColor("#38000000")
+  }
+
+  @Builder
+  UserField(): void {
+    Column() {
+      Text(this.inputMode === 0 ? "手机号" : "邮箱").fieldLabel()
+      Row() {
+        if (this.inputMode === 0) {
+          Text("+86")
+            .fontSize(17)
+            .fontColor(L_ON2)
+            .padding({ right: 10 })
+            .margin({ right: 10 })
+            .border({ width: { right: 1 }, color: "#38FFFFFF" })
+        }
+        TextInput({
+          placeholder: this.inputMode === 0 ? "请输入手机号" : "请输入邮箱地址",
+          text: this.username,
+        })
+          .glassInput()
+          .type(this.inputMode === 0 ? InputType.PhoneNumber : InputType.Email)
+          .onFocus((): void => { this.focusField = "user"; })
+          .onBlur((): void => { this.leaveField("user"); })
+          .onChange((v: string) => {
+            this.username = v;
+            this.usernameError = this.validateUsername();
+            if (v.trim() !== this.challengePhone) {
+              // 换了号码，之前那条验证码会话作废
+              this.challengeId = "";
+              this.codeVerified = false;
+              this.codeError = "";
+            }
+          })
+      }
+      .glassBox()
+      .border(this.boxBorder("user", this.usernameError !== ""))
+
+      if (this.usernameError !== "") {
+        Row({ space: 6 }) {
+          Image($r("app.media.login_alert")).width(16).height(16).colorFilter(careIconTint(L_HINT))
+          Text(this.usernameError).fontSize(13).fontColor(L_HINT)
+        }
+        .margin({ top: 6, left: 4 })
+        .alignSelf(ItemAlign.Start)
+      }
+    }
+    .width("100%")
+    .margin({ top: this.registerMode || this.resetMode ? 0 : 12 })
   }
 
   @Builder
   VerifyCodeField(): void {
-    Text("短信验证码")
-      .fontSize(12)
-      .fontWeight(FontWeight.Medium)
-      .fontColor(this.themeManager.colors.secondaryTextColor)
-      .alignSelf(ItemAlign.Start)
-      .margin({ bottom: 6 })
-    Row({ space: 8 }) {
-      Row() {
-        TextInput({ placeholder: "请输入验证码", text: this.verifyCode })
+    Column() {
+      Text("短信验证码").fieldLabel()
+      Row({ space: 8 }) {
+        TextInput({ placeholder: "6 位验证码", text: this.verifyCode })
+          .glassInput()
+          .type(InputType.Number)
+          .onFocus((): void => { this.focusField = "code"; })
+          .onBlur((): void => { this.leaveField("code"); })
           .onChange((v: string) => {
             this.onVerifyCodeChange(v);
           })
-          .layoutWeight(1)
-          .fontSize(14)
-          .type(InputType.Number)
-          .backgroundColor(Color.Transparent)
-          .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-          .fontColor(this.themeManager.colors.primaryTextColor)
-          .border({ width: 0 })
-          .padding({ left: 12, right: 4 })
-        // 校验状态图标，与手机号输入框保持一致
+        // 重置流程的校验状态
         if (this.resetMode && this.verifyCode.trim() !== "") {
           if (this.isVerifyingCode) {
-            LoadingProgress().width(18).height(18).margin({ right: 12 })
+            LoadingProgress().width(20).height(20).color(Color.White)
           } else if (this.codeVerified) {
-            Text("✓")
-              .fontSize(16).fontWeight(FontWeight.Bold)
-              .fontColor(this.themeManager.colors.successTextColor).margin({ right: 12 })
-          } else if (this.codeError !== "") {
-            Text("✕")
-              .fontSize(16).fontWeight(FontWeight.Bold)
-              .fontColor(this.themeManager.colors.dangerTextColor).margin({ right: 12 })
+            Image($r("app.media.login_check")).width(20).height(20).colorFilter(careIconTint("#7BE0B8"))
+              .accessibilityText("验证码已通过")
           }
         }
+        Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
+          .height(42)
+          .padding({ left: 14, right: 14 })
+          .borderRadius(14)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .backgroundColor("#2EFFFFFF")
+          .enabled(this.canSendCode && !this.isSendingCode)
+          .opacity(this.canSendCode && !this.isSendingCode ? 1 : 0.6)
+          .onClick(() => {
+            this.handleSendCode();
+          })
       }
-      .layoutWeight(1)
-      .height(48)
-      .alignItems(VerticalAlign.Center)
-      .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-      .border({ width: 1.5, color: this.codeFieldBorderColor() })
-      .borderRadius(12)
+      .glassBox()
+      .border(this.boxBorder("code", this.codeError !== ""))
 
-      Button(this.isSendingCode ? "发送中" : this.canSendCode ? "获取验证码" : "60 秒后重试")
-        .height(48)
-        .fontSize(12)
-        .fontColor(Color.White)
-        .backgroundColor("#0A5C43")
-        .borderRadius(12)
-        .enabled(this.canSendCode && !this.isSendingCode)
-        .onClick(() => {
-          this.handleSendCode();
-        })
+      if (this.codeError !== "") {
+        Row({ space: 6 }) {
+          Image($r("app.media.login_alert")).width(16).height(16).colorFilter(careIconTint(L_HINT))
+          Text(this.codeError).fontSize(13).fontColor(L_HINT)
+        }
+        .margin({ top: 6, left: 4 })
+        .alignSelf(ItemAlign.Start)
+      }
     }
     .width("100%")
-    .margin({ bottom: this.codeError !== "" ? 4 : 14 })
+    .margin({ top: 12 })
+  }
 
-    if (this.codeError !== "") {
-      Text(this.codeError)
-        .fontSize(11)
-        .fontColor(this.themeManager.colors.dangerTextColor)
-        .alignSelf(ItemAlign.Start)
-        .margin({ bottom: 10 })
+  @Builder
+  PasswordField(): void {
+    Column() {
+      Text(this.resetMode ? "新密码" : "密码").fieldLabel()
+      Row() {
+        TextInput({
+          placeholder: this.resetMode && !this.codeVerified ? "请先通过短信验证" : "至少 4 位",
+          text: this.password,
+        })
+          .glassInput()
+          .type(this.showPassword ? InputType.Normal : InputType.Password)
+          .showPasswordIcon(false)
+          .enabled(this.passwordFieldEnabled())
+          .onFocus((): void => { this.focusField = "pw"; })
+          .onBlur((): void => { this.leaveField("pw"); })
+          .onChange((v: string) => {
+            this.password = v;
+          })
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          Image(this.showPassword ? $r("app.media.login_eye") : $r("app.media.login_eye_off"))
+            .width(22).height(22).opacity(0.84)
+        }
+        .width(44)
+        .height(44)
+        .backgroundColor(Color.Transparent)
+        .enabled(this.passwordFieldEnabled())
+        .accessibilityText(this.showPassword ? "隐藏密码" : "显示密码")
+        .onClick((): void => { this.showPassword = !this.showPassword; })
+      }
+      .glassBox()
+      .border(this.boxBorder("pw", false))
     }
+    .width("100%")
+    .margin({ top: 12 })
+    .opacity(this.passwordFieldEnabled() ? 1 : 0.5)
+  }
+
+  @Builder
+  ConfirmField(): void {
+    Column() {
+      Text(this.resetMode ? "确认新密码" : "确认密码").fieldLabel()
+      Row() {
+        TextInput({
+          placeholder: this.resetMode ? "请再次输入新密码" : "请再次输入密码",
+          text: this.confirmPassword,
+        })
+          .glassInput()
+          .type(this.showPassword ? InputType.Normal : InputType.Password)
+          .showPasswordIcon(false)
+          .enabled(this.passwordFieldEnabled())
+          .onFocus((): void => { this.focusField = "pw2"; })
+          .onBlur((): void => { this.leaveField("pw2"); })
+          .onChange((v: string) => {
+            this.confirmPassword = v;
+          })
+      }
+      .glassBox()
+      .border(this.boxBorder("pw2", false))
+    }
+    .width("100%")
+    .margin({ top: 12 })
+    .opacity(this.passwordFieldEnabled() ? 1 : 0.5)
+  }
+
+  @Builder
+  OptionsRow(): void {
+    Row() {
+      Row({ space: 8 }) {
+        Checkbox({ name: "rememberMe", group: "loginOptions" })
+          .select(this.rememberMe)
+          .shape(CheckBoxShape.ROUNDED_SQUARE)
+          .selectedColor(Color.White)
+          .unselectedColor("#B3FFFFFF")
+          .mark({ strokeColor: L_SOLID, size: 14, strokeWidth: 2 })
+          .width(22)
+          .height(22)
+          .margin(0)
+          .onChange((value: boolean) => {
+            this.rememberMe = value;
+          })
+        Text("记住我").fontSize(15).fontColor(Color.White)
+      }
+      .height(44)
+      .onClick((): void => { this.rememberMe = !this.rememberMe; })
+
+      Blank()
+      if (!this.registerMode) {
+        Text("忘记密码？")
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .height(44)
+          .onClick(() => { this.enterResetMode(); })
+      }
+    }
+    .width("100%")
+    .margin({ top: 10 })
+  }
+
+  @Builder
+  FormCard(): void {
+    Column() {
+      if (!this.registerMode && !this.resetMode) {
+        this.ModeSwitch()
+      }
+      this.UserField()
+      // 重置流程先验手机号：验证码通过前，下面的新密码输入框保持禁用
+      if (this.resetMode) {
+        this.VerifyCodeField()
+      }
+      this.PasswordField()
+      if (this.registerMode || this.resetMode) {
+        this.ConfirmField()
+      }
+      if (this.registerMode) {
+        this.VerifyCodeField()
+      }
+      if (!this.resetMode) {
+        this.OptionsRow()
+      }
+
+      Button(this.isLoading
+        ? this.resetMode ? "提交中..." : this.registerMode ? "注册中..." : "登录中..."
+        : this.resetMode ? "重置密码" : this.registerMode ? "注册并登录" : "登录")
+        .onClick(() => {
+          this.loginBtnScale = 0.96;
+          setTimeout(() => {
+            this.loginBtnScale = 1.0;
+          }, 150);
+          if (this.resetMode) {
+            this.handleResetPassword();
+          } else if (this.registerMode) {
+            this.handleRegister();
+          } else {
+            this.handleLogin();
+          }
+        })
+        .width("100%")
+        .height(56)
+        .borderRadius(28)
+        .backgroundColor(Color.White)
+        .fontColor(L_SOLID)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .shadow({ radius: 20, offsetY: 10, color: "#59000000" })
+        .margin({ top: this.resetMode ? 16 : 6 })
+        .enabled(!this.isLoading)
+        .opacity(this.isLoading ? 0.75 : 1)
+        .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
+        .animation({ duration: 120, curve: Curve.EaseInOut })
+
+      Text() {
+        Span(this.resetMode || this.registerMode ? "已有账号？" : "还没有账号？").fontColor(L_ON2)
+        Span(this.resetMode || this.registerMode ? "返回登录" : "注册").fontColor(Color.White).fontWeight(FontWeight.Bold)
+      }
+      .fontSize(15)
+      .height(44)
+      .padding({ left: 16, right: 16 })
+      .margin({ top: 6 })
+      .onClick(() => {
+        if (this.resetMode) {
+          this.resetMode = false;
+        } else {
+          this.registerMode = !this.registerMode;
+        }
+        this.clearFormState();
+      })
+    }
+    .width("100%")
+    .constraintSize({ maxWidth: 560 })
+    .padding({ left: 16, right: 16, top: 18, bottom: 16 })
+    .borderRadius(28)
+    .backgroundEffect({ radius: 22, saturation: 1.7, color: "#21FFFFFF" })
+    .border({ width: 1, color: "#2EFFFFFF" })
+    .shadow({ radius: 30, offsetY: 16, color: "#59000000" })
   }
 
   build() {
     NavDestination() {
-      // ── Stack 层叠：渐变背景 + 表单卡片叠加，形成圆弧衔接 ──
       Stack({ alignContent: Alignment.Top }) {
-        // 层1：渐变背景铺满全屏（含状态栏和底部安全区）
-        Column()
-          .width("100%")
-          .height("100%")
-          .linearGradient({
-            direction: GradientDirection.Bottom,
-            colors: [[this.themeManager.isDarkMode ? '#244C3D' : '#DDF4E9', 0], [this.themeManager.colors.backgroundColor, 0.42],
-              [this.themeManager.colors.backgroundColor, 1]],
-          })
-          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-
-        // 层2：整体内容列（Logo区 + 表单卡片）
-        Column() {
-          // ── Logo + 标语区 ─────────────────────────────────
+        this.Ambient()
+        // 上半屏品牌大字，表单整块玻璃卡贴底；内容少时卡片沉底，键盘弹起可滚动
+        Scroll() {
           Column() {
+            this.Brand()
             Column() {
-              Image($r("app.media.logo"))
-                .width(64)
-                .height(64)
-                .objectFit(ImageFit.Contain)
-            }
-            .width(88)
-            .height(88)
-            .borderRadius(44)
-            .clip(true)
-            .backgroundColor("rgba(255,255,255,0.15)")
-            .border({ width: 2, color: "rgba(255,255,255,0.35)" })
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .margin({ bottom: 14 })
-            Text("智护星")
-              .fontSize(24)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.themeManager.colors.primaryTextColor)
-              .margin({ bottom: 6 })
-            Text("关怀我们的过去，保障我们的未来")
-              .fontSize(12)
-              .fontColor(this.themeManager.colors.primaryTextColor)
-              .textAlign(TextAlign.Center)
-          }
-          .width("100%")
-          .height("38%")
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-
-          // ── 表单卡片：顶部大圆角覆盖渐变，产生圆弧衔接 ──────
-          Scroll() {
-            // 外层铺满整宽承载卡片底色，内层限宽 560 让大屏上的表单不被拉长
-            Column() {
-            Column() {
-            Text(this.resetMode ? "重置密码" : this.registerMode ? "注册账号" : "登录账号")
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.themeManager.colors.primaryTextColor)
-              .alignSelf(ItemAlign.Start)
-              .margin({ bottom: 4 })
-            Text(this.resetMode
-              ? "验证注册手机号后设置新密码"
-              : this.registerMode
-                ? "使用手机号验证码创建账号"
-                : this.inputMode === 0 ? "使用手机号登录" : "邮箱仅支持已有账号登录")
-              .fontSize(12)
-              .fontColor(this.themeManager.colors.secondaryTextColor)
-              .alignSelf(ItemAlign.Start)
-              .margin({ bottom: 24 })
-
-            // ── 手机号 / 邮箱 切换选项 ───────────────────────────
-            if (!this.registerMode && !this.resetMode) {
-            Row() {
-              // 手机号 Tab
-              Column() {
-                Text("手机号")
-                  .fontSize(14)
-                  .fontWeight(this.inputMode === 0 ? FontWeight.Bold : FontWeight.Normal)
-                  .fontColor(
-                    this.inputMode === 0
-                      ? this.themeManager.colors.primaryTextColor
-                      : this.themeManager.colors.secondaryTextColor,
-                  )
-                // 选中指示线
-                Column()
-                  .width(this.inputMode === 0 ? "60%" : 0)
-                  .height(2)
-                  .backgroundColor("#3b82f6")
-                  .borderRadius(1)
-                  .animation({ duration: 200, curve: Curve.EaseOut })
-                  .margin({ top: 4 })
-              }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Center)
-              .padding({ bottom: 4 })
-              .onClick((): void => {
-                this.inputMode = 0;
-                this.username = "";
-                this.usernameError = "";
-              })
-
-              // 邮箱 Tab
-              Column() {
-                Text("邮箱（已有账号）")
-                  .fontSize(14)
-                  .fontWeight(this.inputMode === 1 ? FontWeight.Bold : FontWeight.Normal)
-                  .fontColor(
-                    this.inputMode === 1
-                      ? this.themeManager.colors.primaryTextColor
-                      : this.themeManager.colors.secondaryTextColor,
-                  )
-                Column()
-                  .width(this.inputMode === 1 ? "60%" : 0)
-                  .height(2)
-                  .backgroundColor("#3b82f6")
-                  .borderRadius(1)
-                  .animation({ duration: 200, curve: Curve.EaseOut })
-                  .margin({ top: 4 })
-              }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Center)
-              .padding({ bottom: 4 })
-              .onClick((): void => {
-                this.inputMode = 1;
-                this.username = "";
-                this.usernameError = "";
-              })
-            }
-            .width("100%")
-            .margin({ bottom: 12 })
-            .border({ width: { bottom: 1 }, color: this.themeManager.colors.separatorColor })
-            }
-
-            // 输入框 + 右侧状态图标
-            Row() {
-              TextInput({
-                placeholder: this.inputMode === 0 ? "请输入手机号" : "请输入邮箱地址",
-                text: this.username,
-              })
-                .onChange((v: string) => {
-                  this.username = v;
-                  this.usernameError = this.validateUsername();
-                  if (v.trim() !== this.challengePhone) {
-                    // 换了号码，之前那条验证码会话作废
-                    this.challengeId = "";
-                    this.codeVerified = false;
-                    this.codeError = "";
-                  }
-                })
-                .layoutWeight(1)
-                .fontSize(14)
-                .type(this.inputMode === 0 ? InputType.PhoneNumber : InputType.Email)
-                .backgroundColor(Color.Transparent)
-                .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-                .fontColor(this.themeManager.colors.primaryTextColor)
-                .border({ width: 0 })
-                .padding({ left: 12, right: 4 })
-
-              // 右侧校验状态图标
-              if (this.username.trim().length > 0) {
-                Text(this.usernameError === "" ? "✓" : "✕")
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.usernameError === ""
-                      ? this.themeManager.colors.successTextColor
-                      : this.themeManager.colors.dangerTextColor)
-                  .margin({ right: 12 })
-                  .animation({ duration: 150, curve: Curve.EaseOut });
-              }
-            }
-            .width("100%")
-            .alignItems(VerticalAlign.Center)
-            .backgroundColor(this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-            .border({
-              width: 1.5,
-              color:
-                this.username.trim().length === 0
-                  ? this.themeManager.isDarkMode
-                    ? "#334155"
-                    : "#e2e8f0"
-                  : this.usernameError === ""
-                    ? "#10b981"
-                    : "#ef4444",
-            })
-            .borderRadius(12)
-            .margin({ bottom: this.usernameError !== "" ? 4 : 14 })
-
-            // 格式错误提示文字
-            if (this.usernameError !== "") {
-              Text(this.usernameError)
-                .fontSize(11)
-                .fontColor(this.themeManager.colors.dangerTextColor)
-                .alignSelf(ItemAlign.Start)
-                .margin({ bottom: 10 })
-                .animation({ duration: 150, curve: Curve.EaseOut });
-            }
-
-            // 重置流程先验手机号：验证码通过前，下面的新密码输入框保持禁用
-            if (this.resetMode) {
-              this.VerifyCodeField()
-            }
-
-            // 密码输入框（无左图标，只右侧眼睛切换）
-            Text(this.resetMode ? "新密码" : "密码")
-              .fontSize(12)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(this.passwordFieldEnabled()
-                ? this.themeManager.colors.secondaryTextColor
-                : this.themeManager.colors.tertiaryTextColor)
-              .alignSelf(ItemAlign.Start)
-              .margin({ bottom: 6 })
-            Row() {
-              TextInput({
-                placeholder: this.resetMode
-                  ? (this.codeVerified ? "请输入新密码（至少4位）" : "请先通过短信验证")
-                  : "请输入密码（至少4位）",
-                text: this.password
-              })
-                .onChange((v: string) => {
-                  this.password = v;
-                })
-                .layoutWeight(1)
-                .fontSize(14)
-                .enabled(this.passwordFieldEnabled())
-                .type(this.showPassword ? InputType.Normal : InputType.Password)
-                .backgroundColor(Color.Transparent)
-                .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-                .fontColor(this.themeManager.colors.primaryTextColor)
-                .border({ width: 0 })
-                .padding({ left: 12, right: 0 })
-            }
-            .width("100%")
-            .alignItems(VerticalAlign.Center)
-            .backgroundColor(this.passwordFieldEnabled()
-              ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-              : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
-            .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
-            .borderRadius(12)
-            .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
-            .margin({ bottom: 8 })
-
-            if (this.registerMode || this.resetMode) {
-              Text(this.resetMode ? "确认新密码" : "确认密码")
-                .fontSize(12)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.passwordFieldEnabled()
-                  ? this.themeManager.colors.secondaryTextColor
-                  : this.themeManager.colors.tertiaryTextColor)
-                .alignSelf(ItemAlign.Start)
-                .margin({ bottom: 6, top: 6 })
-              TextInput({
-                placeholder: this.resetMode ? "请再次输入新密码" : "请再次输入密码",
-                text: this.confirmPassword,
-              })
-                .onChange((v: string) => {
-                  this.confirmPassword = v;
-                })
-                .width("100%")
-                .height(48)
-                .fontSize(14)
-                .enabled(this.passwordFieldEnabled())
-                .type(this.showPassword ? InputType.Normal : InputType.Password)
-                .backgroundColor(this.passwordFieldEnabled()
-                  ? (this.themeManager.isDarkMode ? "#0f172a" : "#f8fafc")
-                  : (this.themeManager.isDarkMode ? "#1e293b" : "#eef2f7"))
-                .placeholderColor(this.themeManager.colors.tertiaryTextColor)
-                .fontColor(this.themeManager.colors.primaryTextColor)
-                .border({ width: 1.5, color: this.themeManager.isDarkMode ? "#334155" : "#e2e8f0" })
-                .borderRadius(12)
-                .opacity(this.passwordFieldEnabled() ? 1.0 : 0.6)
-                .padding({ left: 12, right: 12 })
-                .margin({ bottom: 14 })
-            }
-
-            if (this.registerMode) {
-              this.VerifyCodeField()
-            }
-
-            if (!this.resetMode) {
-              Row({ space: 6 }) {
-                Checkbox({ name: 'rememberMe', group: 'loginOptions' })
-                  .select(this.rememberMe)
-                  .selectedColor('#3b82f6')
-                  .width(20)
-                  .height(20)
-                  .onChange((value: boolean) => {
-                    this.rememberMe = value;
-                  })
-                Text('记住我')
-                  .fontSize(12)
-                  .fontColor(this.themeManager.colors.secondaryTextColor)
-                Blank()
-                if (!this.registerMode) {
-                  Text("忘记密码？")
-                    .fontSize(12)
-                    .fontColor(this.themeManager.colors.linkTextColor)
-                    .fontWeight(FontWeight.Medium)
-                    .onClick(() => { this.enterResetMode(); })
-                }
-              }
-              .width('100%')
-              .margin({ bottom: 24 })
-            }
-
-            // 登录按钮（带缩放动画）
-            Button(this.isLoading
-              ? this.resetMode ? "提交中..." : this.registerMode ? "注册中..." : "登录中..."
-              : this.resetMode ? "重置密码" : this.registerMode ? "注册并登录" : "登录")
-              .onClick(() => {
-                this.loginBtnScale = 0.95;
-                setTimeout(() => {
-                  this.loginBtnScale = 1.0;
-                }, 150);
-                if (this.resetMode) {
-                  this.handleResetPassword();
-                } else if (this.registerMode) {
-                  this.handleRegister();
-                } else {
-                  this.handleLogin();
-                }
-              })
-              .width("100%")
-              .height(50)
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Color.White)
-              .linearGradient({
-                direction: GradientDirection.Right,
-                colors: this.isLoading
-                  ? [
-                      ["#64748b", 0.0],
-                      ["#64748b", 1.0],
-                    ]
-                  : [
-                      ["#1e3a8a", 0.0],
-                      ["#0A5C43", 1.0],
-                    ],
-              })
-              .borderRadius(100)
-              .margin({ bottom: 20 })
-              .enabled(!this.isLoading)
-              .scale({ x: this.loginBtnScale, y: this.loginBtnScale })
-              .animation({ duration: 120, curve: Curve.EaseInOut })
-
-            Text(this.resetMode || this.registerMode ? "已有账号？返回登录" : "注册新账号")
-              .fontSize(12)
-              .fontColor(this.themeManager.colors.linkTextColor)
-              .margin({ bottom: 12 })
-              .onClick(() => {
-                if (this.resetMode) {
-                  this.resetMode = false;
-                } else {
-                  this.registerMode = !this.registerMode;
-                }
-                this.clearFormState();
-              })
-
-            /* 华为一键登录暂时不可用
-            Row() {
-              Divider()
-                .layoutWeight(1)
-                .color(this.themeManager.colors.separatorColor)
-                .strokeWidth(1)
-              Text(" 其他登录方式 ")
-                .fontSize(11)
-                .fontColor(this.themeManager.colors.secondaryTextColor)
-              Divider()
-                .layoutWeight(1)
-                .color(this.themeManager.colors.separatorColor)
-                .strokeWidth(1)
-            }
-            .width("100%")
-            .margin({ bottom: 16 })
-
-            LoginWithHuaweiIDButton({
-              params: {
-                style: loginComponentManager.Style.BUTTON_RED,
-                borderRadius: 100,
-              },
-              controller:
-                new loginComponentManager.LoginWithHuaweiIDButtonController().onClickLoginWithHuaweiIDButton(
-                  (error, response) => {
-                    if (error) {
-                      let msg = "登录失败";
-                      if (error.code === 100004) msg = "环境不支持，请检查HMS Core";
-                      if (error.code === 6003) msg = "证书指纹校验失败";
-                      this.showAlert(msg);
-                      return;
-                    }
-                    if (response) {
-                      this.handleHuaweiLogin(response);
-                    }
-                  },
-                ),
-            })
-              .width("100%")
-              .height(50)
-            */
-            }
-            .width("100%")
-            .constraintSize({ maxWidth: 560 })
-            .padding({ left: 24, right: 24, top: 28, bottom: 32 })
+              this.FormCard()
             }
             .width("100%")
             .alignItems(HorizontalAlign.Center)
-            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .padding({ left: 16, right: 16, bottom: 18 })
           }
-          .layoutWeight(1)
           .width("100%")
-          .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-          .borderRadius({ topLeft: 24, topRight: 24, bottomLeft: 0, bottomRight: 0 })
-          .constraintSize({ minHeight: "62%" })
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring)
-          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+          .constraintSize({ minHeight: this.viewHeight })
+          .justifyContent(FlexAlign.SpaceBetween)
         }
-        // 外层 Column：占满全屏
         .width("100%")
         .height("100%")
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        .onAreaChange((_old: Area, area: Area): void => {
+          this.viewHeight = Number(area.height);
+        })
       }
-      // Stack 铺满全屏，背景深蓝防止安全区透白
       .width("100%")
       .height("100%")
-      .backgroundColor(this.themeManager.colors.backgroundColor)
+      .backgroundColor(L_BASE)
     }
-    //.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-
     .hideTitleBar(true)
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    // NavDestination 背景也设深蓝，彻底消除白边
-    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
+    .backgroundColor(L_BASE)
+    // 深色底：状态栏和导航条用白色图标
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(true); })
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     });
