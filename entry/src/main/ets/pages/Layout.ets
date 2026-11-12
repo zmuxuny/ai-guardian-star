@@ -16,11 +16,15 @@ export function LayoutBuilder(): void {
 }
 @Component
 export struct Layout {
-  @State currentIndex: number = 0;
+  @State @Watch('updateSystemBars') currentIndex: number = 0;
   @State mqtt: MqttManager = MqttManager.getInstance();
 
   private palette(): CarePalette {
     return carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline);
+  }
+
+  private updateSystemBars(): void {
+    this.themeManager.updateSystemUI(this.currentIndex === 0);
   }
 
   @State glassCompact: boolean = false;
@@ -142,7 +146,8 @@ export struct Layout {
               selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
               viewportWidth: this.viewportWidth,
               compact: this.glassCompact,
-              accent: this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
+              darkSurface: this.currentIndex === 0,
+              accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
               tint: this.palette().wash,
               onSelect: (slot: number): void => { this.selectGlassTab(slot); },
             }).margin({ bottom: 12 })
@@ -166,11 +171,13 @@ export struct Layout {
     .hideTitleBar(true)
     .linearGradient({
       direction: GradientDirection.Bottom,
-      colors: [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor : this.palette().wash, 0],
-        [this.themeManager.colors.backgroundColor, 0.36], [this.themeManager.colors.backgroundColor, 1]],
+      colors: this.currentIndex === 0
+        ? [[this.palette().glow, 0], [this.palette().backdrop, 1]]
+        : [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor : this.palette().wash, 0],
+          [this.themeManager.colors.backgroundColor, 0.36], [this.themeManager.colors.backgroundColor, 1]],
     })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .onShown((): void => { this.themeManager.updateSystemUI(); })
+    .onShown((): void => { this.updateSystemBars(); })
     .onReady((context: NavDestinationContext): void => {
       this.pathStack = context.pathStack;
     })
