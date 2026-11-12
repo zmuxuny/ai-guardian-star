@@ -135,3 +135,6 @@
     file_size_kb
     record_time
     is_exported
+    recognitionStatus
+    photoCount
+    hint
