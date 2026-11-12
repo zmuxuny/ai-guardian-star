@@ -10,22 +10,22 @@
 
 1. [README.zh-CN.md](README.zh-CN.md)：项目范围、架构、快速开始。
 2. [AGENTS.md](AGENTS.md)：本仓库工作约定；修改前保留其他人的未提交改动。
-3. [DEVECO_BUILD.md](DEVECO_BUILD.md)：当前 HarmonyOS SDK/API、HAP/APP 构建、产物核验。
+3. AGENTS.md 的“HarmonyOS 构建”一节：当前 SDK 26.0.0、HAP/APP 构建、产物核验。
 4. [docs/aliyun-migration-repair.md](docs/aliyun-migration-repair.md)：当前生产拓扑与最近一次服务/设备验收记录。
 5. [deploy/aliyun/MQTT_ACCESS.md](deploy/aliyun/MQTT_ACCESS.md)：MQTT 临时凭据、设备访问范围、部署和回滚。
 6. [docs/production-operations.md](docs/production-operations.md)：备份、恢复、监控和部署流程。注意其中标为华为云保留环境的命令是历史环境专用，不能直接用于阿里云。
 7. [SECURITY.md](SECURITY.md)、[docs/database-admin-access.md](docs/database-admin-access.md)：安全报告和管理后台边界。
 8. [.wolf/cerebrum.md](.wolf/cerebrum.md) 的 Do-Not-Repeat 与 Decision Log、[.wolf/buglog.json](.wolf/buglog.json)：历次踩坑、根因和已定决策。改相关模块或排障前先搜一遍，很多问题已经有结论。
 
-旧的 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) 形成于 2026-04，含已过时的华为云、OpenGauss、SDK 和接口描述。它只可作历史背景；当前代码、`DEVECO_BUILD.md`、迁移及运维专项文档优先。
+2026-04 的旧交接文档（华为云、OpenGauss 时期）已于 2026-11-05 删除；以当前代码、`AGENTS.md` 和本手册列出的专项文档为准。
 
 ## 2. 系统现状与边界
 
-- 本仓库包括 HarmonyOS 原生客户端、Flask API/AI 网关、SQLite 维护脚本、部署配置和自动化检查。板端 AI 推理源码不在仓库内，单独部署维护。
+- 本仓库包括 HarmonyOS 原生客户端、Flask API/AI 网关、板端推理与录像服务（`src/`，部署副本在开发板 `/root/ai_guardian`）、SQLite 维护脚本、部署配置和自动化检查。板端说明见 [README_CN.md](README_CN.md)。
 - 客户端主链路：ArkUI/ArkTS → HTTPS API；告警链路：App 经 MQTT TLS 订阅板端事件；视频、设备状态和对讲通过设备 HTTP/WSS 接入。
 - 当前生产 API 域名为 `https://api.aistar.asia`，云端服务由 Nginx HTTPS 反代到只监听回环地址的 Gunicorn/Flask；生产数据库为 SQLite。MQTT 使用 TLS 8883。
-- 当前生产在阿里云 `47.108.167.0`。华为云 `117.78.9.144` 是保留/回退环境，不能把旧环境脚本、数据库或配置直接覆盖到生产。
-- 阿里云这台机器同时承载官网 `aistar.asia`（宝塔面板 + WordPress，规格 2 核 / 1.8G）。API、官网共用 Nginx 和 certbot 续期钩子，内存也很紧：改 Nginx、升级宝塔或装新服务前，先确认不会影响另一方；官网页脚的 ICP/公安备案信息不能删。
+- 当前生产在阿里云 `47.108.167.0`。华为云旧环境已于 2026-10-16 关停，不再作为回退环境；旧环境脚本、数据库或配置不能用于生产。
+- 阿里云这台机器同时承载官网 `aistar.asia`（宝塔面板管理；2026-10-22 起为纯静态页面，数据库已停用；规格 2 核 / 1.8G）。API、官网共用 Nginx 和 certbot 续期钩子，内存也很紧：改 Nginx、升级宝塔或装新服务前，先确认不会影响另一方；官网页脚的 ICP/公安备案信息不能删。
 - 域名 DNS 在阿里云云解析。2026-07 实测 Cloudflare 免费版代理对境内源站是净负面（无大陆节点，延迟翻倍且间歇 520/522），已迁回，不要重新接入 Cloudflare 代理。
 - 开发板部署在独立环境，项目代码路径、密钥和完整人脸数据不在本仓库。板端进程正常、HTTPS 可达或 MQTT 已连接，分别都不能单独证明整条业务已验收。
 - OpenGauss 不是当前生产业务库。迁移评估和当前数据库状态见 [docs/opengauss-migration-assessment.md](docs/opengauss-migration-assessment.md) 与迁移修复文档；不要因历史文档提到它就新建迁移。
@@ -70,12 +70,12 @@
 
 - 项目启用 ArkTS 严格检查，优先使用明确接口类型、避免 `any`/`unknown` 逃逸；按编译器要求处理异常类型，不照抄旧文档中与当前 SDK 不符的写法。
 - 外部 JSON 字段名是客户端/服务器契约。Release 混淆曾改写 `expiresIn` 导致续期定时器异常；更新请求/响应字段时同步维护混淆保留规则和契约检查，并检查 Release 产物字段。
-- 当前统一目标为 HarmonyOS SDK/API 24，构建基线见 `DEVECO_BUILD.md`。使用 DevEco 自带 Node、OHPM、Hvigor；依赖变化时再安装依赖，勿无故重写锁文件或升级工具链。
+- 当前统一目标为 HarmonyOS SDK 26.0.0（API 26），构建基线见 `AGENTS.md`。使用 DevEco 自带 Node、OHPM、Hvigor；依赖变化时再安装依赖，勿无故重写锁文件或升级工具链。
 - 仓库里没有 `hvigorw.js`，启动器在 DevEco 安装目录 `tools/hvigor/bin/hvigorw.js`；命令行构建必须显式设置 `DEVECO_SDK_HOME`，只设 `DEVECO_STUDIO_HOME` 会报 `Invalid value of 'DEVECO_SDK_HOME'`。签名材料路径在 `build-profile.json5`，文件本身不在仓库，找保管人要。
 - 版本号：`versionCode = 1000000 + major*10000 + minor*100 + patch`（1.0.1 → 1010001），AGC 要求严格递增。改版本时 `AppScope/app.json5` 与两份 README 的版本说明同步。
 - AGC 已批准的 ACL 受限权限会自动写进之后新建的每个 Profile，无法取消，华为答复不影响上架；真正要管住的是 `module.json5` 不声明用不到的权限。
 - HAP 用于安装测试；APP 是 App Pack，不能直接安装。只有找到非空产物、记录 SHA-256 才能称已构建；构建通过不等于真机通过，上架还需 AppGallery Connect 校验。
-- 做设备验收时分开记录构建、模拟器、真机、网络、权限和端到端结果，并以仓库现有专项记录为准。历史上验证过的 API 23 真机认证链路不能替代当前 API 24 与新功能的核验，不要沿用旧结论。
+- 做设备验收时分开记录构建、模拟器、真机、网络、权限和端到端结果，并以仓库现有专项记录为准。历史上验证过的 API 23 真机认证链路不能替代当前 API 26 与新功能的核验，不要沿用旧结论。
 
 ### MQTT 与 AI 隐私
 
@@ -143,17 +143,17 @@
 ## 8. 建议交接清单
 
 - [ ] 本地开发环境：DevEco/SDK、Python、Node/OHPM 版本和当前签名材料保管人已确认。
-- [ ] 明确 API 24 的目标设备与最低兼容版本，完成一次当前分支 Release HAP 构建并归档产物哈希。
+- [ ] 在 SDK 26.0.0 上完成一次当前分支 Release HAP 构建并归档产物哈希。
 - [ ] 确认生产 SSH/云账号由新负责人按团队流程获得；不要通过聊天传递私钥、密码或 Token。
 - [ ] 交接生产服务、数据库备份、监控告警、证书续期、短信/审核/模型供应商账单入口及各自负责人。
-- [ ] 证书近期到期：API 2026-10-13、官网 2026-10-25。续期 dry-run 已通过，但到期前后仍要实际确认新证书已生效、Nginx 已 reload。扣子积分余量也要定期看。
+- [ ] 证书到期（2026-11-05 实测）：API 2026-12-15、官网 2026-12-24。certbot 自动续期，到期前后仍要实际确认新证书已生效、Nginx 已 reload。扣子积分余量也要定期看。
 - [ ] Git：仓库 `zmuxuny/ai-guardian-star` 是**公开**仓库，推送前自查 diff 里有没有密钥、证书、环境文件和个人数据。团队每人一条固定工作分支，不随手建临时分支；提交用自己 GitHub 账号的 noreply 邮箱，Conventional Commits、描述用中文。
 - [ ] 逐项列明实体设备验收：登录/刷新/退出、MQTT 真实告警、摄像头恢复、双向音频、AI 同意与审核；当前未实测项继续标为待验收。
 - [ ] 先读 Git 工作区和未提交差异，再开始改动；发布前按专项文档留备份、做健康检查并写明回滚步骤。
 
 ## 9. 关键文档索引
 
-- 构建：[`DEVECO_BUILD.md`](DEVECO_BUILD.md)
+- 构建与项目规则：[`AGENTS.md`](AGENTS.md)
 - 当前生产迁移和设备验收：[`docs/aliyun-migration-repair.md`](docs/aliyun-migration-repair.md)
 - 生产运行、备份和监控：[`docs/production-operations.md`](docs/production-operations.md)
 - MQTT ACL 与回滚：[`deploy/aliyun/MQTT_ACCESS.md`](deploy/aliyun/MQTT_ACCESS.md)
@@ -161,4 +161,4 @@
 - 短信注册：[`docs/aliyun-sms-registration-setup.md`](docs/aliyun-sms-registration-setup.md)
 - 管理页隧道：[`docs/database-admin-access.md`](docs/database-admin-access.md)
 - 数据库迁移评估：[`docs/opengauss-migration-assessment.md`](docs/opengauss-migration-assessment.md)
-- 项目结构：[`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md)
+- 系统架构与功能架构：[`docs/architecture/`](docs/architecture/)

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-CN" data-state="ok">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>智护星板端监控页样张</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06110D;--panel:#0D1E18;--panel2:#14291F;--line:rgba(255,255,255,.1);--on:#fff;--on2:#A9C0B5;--jade:#2FD39A;--amber:#F2B544;--red:#FF6B57;--violet:#B79CFF;--k:var(--jade);
+--mono:"JetBrains Mono",ui-monospace,Consolas,monospace;--ease:cubic-bezier(.16,1,.3,1);
+--spring:linear(0,.19 4%,.52 9%,.86 15%,1.06 21%,1.13 26%,1.12 31%,1.04 41%,.99 51%,.99 61%,1)}
+:root[data-state=sit]{--k:var(--amber)}
+:root[data-state=fall]{--k:var(--red)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--on);font:14px/1.5 "HarmonyOS Sans SC","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+::selection{background:var(--jade);color:#052A1F}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+header{flex:none;height:52px;padding:0 16px;display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#fff;text-decoration:none;white-space:nowrap}
+.logo svg{width:22px;height:22px;fill:none;stroke:var(--jade);stroke-width:2}
+.logo span{font-weight:400;color:var(--on2)}
+.hd{display:flex;gap:18px;font-size:12px;color:var(--on2);margin-left:auto;white-space:nowrap}
+.hd b{color:#fff;font-weight:700;margin-left:4px}
+.hd .ok{color:var(--jade)}.hd .wa{color:var(--amber)}
+.sim{display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--panel2);font-size:12px}
+.sim span{padding:5px 8px 5px 10px;color:var(--on2)}
+.sim button{padding:5px 12px;border-radius:7px;font-weight:600;transition:background .2s}
+.sim button[aria-pressed=true]{background:#fff;color:#10231C}
+
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr) 320px;gap:12px;padding:12px}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0}
+.card{background:var(--panel);border-radius:16px;padding:14px 16px;box-shadow:inset 0 0 0 1px var(--line);flex:none}
+h2{font-size:12px;font-weight:600;color:var(--on2);margin-bottom:10px}
+
+/* 画面 */
+.video{flex:1.5;min-height:200px;position:relative;border-radius:16px;overflow:hidden;background:#000;box-shadow:inset 0 0 0 1px var(--line)}
+.video>svg{width:100%;height:100%;display:block}
+.video::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px var(--k);opacity:0;transition:opacity .4s;pointer-events:none}
+:root:not([data-state=ok]) .video::after{opacity:1}
+.tags{position:absolute;left:10px;top:10px;display:flex;gap:6px}
+.tag{font:700 12px/1 var(--mono);padding:6px 9px;border-radius:7px;background:rgba(6,17,13,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tag.rec{color:var(--jade)}
+.box{position:absolute;border:2px solid var(--k);border-radius:6px;transition:all .5s var(--ease)}
+.box i{position:absolute;left:-2px;top:-22px;font:700 12px/1 var(--mono);font-style:normal;background:var(--k);color:#06110D;padding:4px 6px;border-radius:4px;white-space:nowrap}
+
+/* 终端 */
+.term{flex:1;min-height:120px;background:#030A07;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;overflow:hidden}
+.term .bar{flex:none;display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--on2)}
+.term .bar button{font-size:12px;padding:4px 10px;border-radius:7px;background:var(--panel2);color:#fff}
+.term .bar div{display:flex;gap:6px}
+.log{flex:1;overflow-y:auto;padding:10px 14px;font:12px/1.55 var(--mono);scrollbar-width:thin;scrollbar-color:#2F463C transparent}
+.log div{display:grid;grid-template-columns:auto 62px 1fr;gap:10px;animation:in .3s var(--ease)}
+@keyframes in{0%{opacity:0;transform:translateY(6px)}}
+.log time{color:#6F8A7E}
+.log b{font-weight:700}
+.log span{color:#D0DED7}
+
+/* 检测状态 */
+.state{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--k) 16%,var(--panel));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--k) 45%,transparent);transition:background .5s,box-shadow .5s}
+.state b{font-size:30px;line-height:1.15;font-weight:700;color:var(--k);transition:color .5s}
+.state h2{color:#E4EEE9}
+.state dl{display:grid;grid-template-columns:auto auto;gap:2px 12px;font-size:12px;color:#E4EEE9}
+.state dd{text-align:right;color:#fff;font-family:var(--mono);font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr)}
+.stats div{text-align:center}
+.stats div+div{border-left:1px solid var(--line)}
+.stats b{display:block;font:700 28px/1.2 var(--mono)}
+.stats span{font-size:12px;color:var(--on2)}
+.bump{animation:bump .5s var(--spring)}
+@keyframes bump{0%{transform:scale(1.5)}}
+
+/* 关键点置信度 */
+.kpt{flex:1;min-height:150px;display:flex;flex-direction:column}
+.kpt .rows{flex:1;display:flex;flex-direction:column;justify-content:space-evenly}
+.kr{display:grid;grid-template-columns:36px 1fr 38px;gap:10px;align-items:center;font-size:12px}
+.kr span{color:var(--on2)}
+.kr i{height:8px;border-radius:4px;background:var(--panel2);position:relative;overflow:hidden}
+.kr i::before{content:"";position:absolute;inset:0;width:var(--v,0%);background:var(--jade);border-radius:4px;transition:width .4s var(--ease),background .3s}
+.kr.low i::before{background:var(--amber)}
+.kr i::after{content:"";position:absolute;left:40%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.55)}
+.kr b{text-align:right;font-family:var(--mono);font-weight:700}
+.kr.low b{color:var(--amber)}
+.note{font-size:12px;color:var(--on2);margin-top:8px}
+
+/* 人脸 */
+.face{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.face .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
+.face div{min-width:0}
+.face strong{display:block;font-size:13px}
+.face small{font-size:12px;color:var(--on2)}
+.face .sc{margin-left:auto;text-align:right}
+.face .sc b{display:block;font:700 14px/1.2 var(--mono);color:var(--c)}
+
+/* 右栏 */
+.call{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto}
+.vis{display:flex;align-items:center;justify-content:center;gap:4px;height:44px}
+.vis i{width:5px;height:5px;border-radius:3px;background:var(--jade);opacity:.45}
+.on .vis i{opacity:1;animation:bar .9s ease-in-out infinite alternate}
+.vis i:nth-child(2n){animation-duration:.6s}.vis i:nth-child(3n){animation-duration:1.2s}.vis i:nth-child(5n){animation-duration:.75s}
+@keyframes bar{to{height:38px}}
+.cs{text-align:center;font-size:12px;color:var(--on2);margin:4px 0 10px}
+.cs b{display:block;color:#fff;font-size:18px}
+.btn{width:100%;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:700;background:var(--jade);color:#052A1F;transition:transform .5s var(--spring),background .3s}
+.btn:active{transform:scale(.96)}
+.on .btn{background:#C7361F;color:#fff}
+.gain{display:flex;justify-content:space-between;font-size:12px;color:var(--on2);margin:12px 0 4px}
+.gain b{color:#fff;font-family:var(--mono)}
+input[type=range]{width:100%;accent-color:var(--jade)}
+.kv{display:grid;grid-template-columns:auto 1fr;font-size:12px}
+.kv>*{padding:6px 0;border-top:1px solid var(--line)}
+.kv>:nth-child(-n+2){border:0;padding-top:0}
+.kv dt{color:var(--on2)}
+.kv dd{text-align:right}
+.kv dd.m{font-weight:700}
+.call .kv{margin-top:10px}
+.hint{font-size:12px;color:var(--on2);line-height:1.6;margin-top:auto;padding-top:10px}
+.hint code{font-family:var(--mono);color:var(--jade)}
+.live{color:var(--jade)}
+.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--jade);margin-right:6px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1100px){
+  body{overflow:auto;height:auto}
+  main{grid-template-columns:1fr 1fr;height:auto}
+  .col:first-child{grid-column:1/-1}
+  .video{flex:none;aspect-ratio:16/9}
+  .term{flex:none;height:220px}
+  .hd span:nth-child(n+5){display:none}
+}
+@media (max-width:720px){
+  header{height:auto;padding:10px 12px;flex-wrap:wrap;gap:8px 14px}
+  .hd{margin-left:0;gap:12px;flex-wrap:wrap;order:3;width:100%}
+  .hd span:nth-child(n+5){display:inline}
+  .sim{margin-left:auto}
+  .sim span{display:none}
+  main{grid-template-columns:1fr;padding:10px}
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html"><svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="13"/><circle cx="15" cy="15" r="8"/><circle cx="15" cy="15" r="3" fill="#2FD39A"/></svg>智护星 <span>· 板端监控</span></a>
+  <div class="sim" role="group" aria-label="演示数据"><span>演示数据</span><button aria-pressed="true" data-sim="ok">正常</button><button aria-pressed="false" data-sim="sit">久坐</button><button aria-pressed="false" data-sim="fall">摔倒</button><button aria-pressed="false" data-sim="stranger">陌生人</button></div>
+  <div class="hd m"><span>Uptime<b id="uptime">00:00:00</b></span><span>NPU<b class="ok">在线</b></span><span>Stream<b class="ok" id="hd-stream">运行中</b></span><span>FPS<b id="hd-fps">--</b></span><span>Camera<b class="ok">已连接</b></span><span>MQTT<b class="ok">已连接</b></span></div>
+</header>
+
+<main>
+  <!-- 左：画面 + 终端 -->
+  <div class="col">
+    <div class="video" aria-label="实时画面（示意）">
+      <svg viewBox="0 0 960 540" preserveAspectRatio="xMidYMid slice"><rect width="960" height="540" fill="#C9D8D0"/><rect y="372" width="960" height="168" fill="#A7BCB1"/><rect x="96" y="70" width="230" height="190" rx="6" fill="#E9F2ED"/><path d="M211 70v190M96 165h230" stroke="#A7BCB1" stroke-width="8"/><rect x="430" y="270" width="400" height="130" rx="30" fill="#0B7A54"/><rect x="404" y="300" width="60" height="120" rx="22" fill="#0A5C43"/><rect x="796" y="300" width="60" height="120" rx="22" fill="#0A5C43"/>
+      <g id="p-up"><circle cx="610" cy="206" r="40" fill="#10231C"/><rect x="566" y="250" width="88" height="108" rx="34" fill="#10231C"/></g>
+      <g id="p-down" style="display:none"><circle cx="300" cy="462" r="34" fill="#10231C"/><rect x="340" y="434" width="190" height="60" rx="28" fill="#10231C"/></g></svg>
+      <div class="tags"><span class="tag rec">● REC</span><span class="tag" id="fps_tag">FPS: --</span><span class="tag">POSE_ENG_V4</span></div>
+      <div class="box" id="box"><i id="boxl">person 0.93</i></div>
+    </div>
+    <div class="term">
+      <div class="bar"><span>终端</span><div><button id="pause" aria-pressed="false">暂停滚动</button><button id="clear">清空</button></div></div>
+      <div class="log" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- 中：状态、统计、置信度、人脸 -->
+  <div class="col">
+    <div class="card state">
+      <div><h2>当前检测状态</h2><b id="det-status">正常</b></div>
+      <dl><dt>检测人数</dt><dd id="det-persons">1</dd><dt>推理帧率</dt><dd id="det-fps2">--</dd></dl>
+    </div>
+    <div class="card">
+      <h2>数据统计</h2>
+      <div class="stats"><div><b id="s-fall" style="color:var(--red)">0</b><span>摔倒</span></div><div><b id="s-sit" style="color:var(--amber)">0</b><span>久坐</span></div><div><b id="s-stranger" style="color:var(--violet)">0</b><span>陌生人</span></div></div>
+    </div>
+    <div class="card kpt">
+      <h2>关键点置信度</h2>
+      <div class="rows" id="kpt"></div>
+      <p class="note">竖线是 0.40，低于它的条会变成琥珀色。</p>
+    </div>
+    <div class="card">
+      <h2>人脸识别</h2>
+      <p class="note" style="margin:0 0 8px">上传不同方向的照片，有助于加快识别并提高精度；照片数量不作要求，一张也可登记。</p>
+      <div id="face-list"></div>
+    </div>
+  </div>
+
+  <!-- 右：对讲、设备状态、系统信息 -->
+  <div class="col">
+    <div class="card call" id="call">
+      <h2>语音对讲</h2>
+      <div class="vis" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="cs"><b id="call-status">待机中</b><span id="call-sub">点下面的按钮开始双向通话</span></p>
+      <button class="btn" id="callb" data-fx="none"><svg class="i"><use href="#phone"/></svg><span>开始通话</span></button>
+      <div class="gain"><span>本声道增益</span><b id="vol_val">85%</b></div>
+      <input type="range" min="0" max="100" value="85" id="vol" aria-label="本声道增益" data-fx="none">
+      <dl class="kv"><dt>麦克风</dt><dd id="mic-status">未启动</dd><dt>远程</dt><dd id="remote-status">等待连接</dd></dl>
+      <p class="hint">如无法启动麦克风，在浏览器地址栏输入 <code>chrome://flags</code>，把 <code>Insecure origins treated as secure</code> 设为启用。</p>
+    </div>
+    <div class="card">
+      <h2>设备状态</h2>
+      <dl class="kv"><dt>连续监测时长</dt><dd class="m" id="r-uptime">00:00:00</dd><dt>累计处理帧数</dt><dd class="m" id="r-frames">0</dd><dt>平均推理帧率</dt><dd class="m" id="r-fps">-- fps</dd></dl>
+    </div>
+    <div class="card">
+      <h2>系统信息</h2>
+      <dl class="kv"><dt>硬件平台</dt><dd>香橙派 AIpro（昇腾 310B4）</dd><dt>推理框架</dt><dd>AscendCL · ACLLite</dd><dt>检测模型</dt><dd>YOLOv8-Pose .om</dd><dt>通信协议</dt><dd>MQTT · WebSocket</dd><dt>App 平台</dt><dd>HarmonyOS NEXT</dd><dt>视频流</dt><dd class="live">MJPEG 流</dd></dl>
+    </div>
+  </div>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+</defs></svg>
+<script src="fx.js"></script>
+<script>
+/* 样张里的数据全部是本页模拟的。复刻时把 tick() 换成轮询 /api/stats，字段名与元素 id 沿用现有板端页。 */
+const $=s=>document.querySelector(s),root=document.documentElement,mm=n=>String(n).padStart(2,'0');
+const fmt=s=>mm(s/3600|0)+':'+mm((s%3600)/60|0)+':'+mm(s%60|0);
+let paused=false;
+function addLog(cat,msg,color='var(--on2)'){const c=$('#logBox'),d=document.createElement('div'),t=new Date();
+ d.innerHTML=`<time>${mm(t.getHours())}:${mm(t.getMinutes())}:${mm(t.getSeconds())}</time><b style="color:${color}">[${cat}]</b><span></span>`;d.lastChild.textContent=msg;
+ c.appendChild(d);while(c.children.length>80)c.removeChild(c.firstChild);if(!paused)c.scrollTop=c.scrollHeight}
+$('#pause').onclick=e=>{paused=!paused;e.target.setAttribute('aria-pressed',paused);e.target.textContent=paused?'继续滚动':'暂停滚动'};
+$('#clear').onclick=()=>{$('#logBox').innerHTML=''};
+
+const KP=[['head','头部'],['shoulder','肩部'],['hip','髋部'],['knee','膝部'],['ankle','踝部']];
+$('#kpt').innerHTML=KP.map(k=>`<div class="kr" id="kpt-${k[0]}"><span>${k[1]}</span><i></i><b>--</b></div>`).join('');
+const BASE={ok:{head:.94,shoulder:.91,hip:.88,knee:.83,ankle:.76},sit:{head:.93,shoulder:.9,hip:.71,knee:.52,ankle:.33},fall:{head:.81,shoulder:.74,hip:.69,knee:.58,ankle:.36}};
+const TXT={ok:'正常',sit:'久坐',fall:'检测到摔倒'},BOX={ok:[58,28,14,42],sit:[58,28,14,42],fall:[26,76,32,18]};
+let sim='ok',stranger=false,up=4127,frames=101830,cnt={fall:0,sit:0,stranger:0};
+function bump(id,v){const e=$('#'+id);e.textContent=v;e.classList.remove('bump');void e.offsetWidth;e.classList.add('bump')}
+function faces(){const l=[{c:'var(--jade)',ch:'周',n:'周奶奶',s:'已登记人员',v:'0.87'}];if(stranger)l.push({c:'var(--red)',ch:'?',n:'陌生人',s:'未匹配登记人员',v:'0.31'});
+ $('#face-list').innerHTML=l.map(f=>`<div class="face" style="--c:${f.c}"><span class="av">${f.ch}</span><div><strong>${f.n}</strong><small>${f.s}</small></div><div class="sc"><small>匹配分数</small><b>${f.v}</b></div></div>`).join('');
+ $('#det-persons').textContent=l.length}
+function tick(){up+=.8;frames+=20;const fps=(24.6+Math.random()*1.2).toFixed(1);
+ $('#uptime').textContent=$('#r-uptime').textContent=fmt(up);$('#r-frames').textContent=frames.toLocaleString();
+ $('#hd-fps').textContent=$('#det-fps2').textContent=fps;$('#r-fps').textContent=fps+' fps';$('#fps_tag').textContent='FPS: '+fps;
+ KP.forEach(([k])=>{const v=Math.max(0,Math.min(1,BASE[sim][k]+(Math.random()-.5)*.06)),e=$('#kpt-'+k);e.querySelector('i').style.setProperty('--v',Math.round(v*100)+'%');e.lastChild.textContent=v.toFixed(2);e.classList.toggle('low',v<.4)});
+ $('#boxl').textContent='person '+(sim==='fall'?.81:.93+Math.random()*.03).toFixed(2)}
+function setSim(k){if(k==='stranger'){stranger=!stranger;if(stranger){bump('s-stranger',++cnt.stranger);addLog('人脸','检测到陌生人！已上报','var(--red)');FX.remind()}faces()}
+ else{if(k===sim)return;sim=k;root.dataset.state=k;$('#det-status').textContent=TXT[k];$('#p-up').style.display=k==='fall'?'none':'';$('#p-down').style.display=k==='fall'?'':'none';
+  const b=BOX[k],s=$('#box').style;s.left=b[0]+'%';s.top=b[1]+'%';s.width=b[2]+'%';s.height=b[3]+'%';
+  if(k==='fall'){bump('s-fall',++cnt.fall);addLog('摔倒','⚠ 检测到摔倒！已上报 MQTT','var(--red)');FX.fall()}
+  if(k==='sit'){bump('s-sit',++cnt.sit);addLog('久坐','连续静止 62 分钟','var(--amber)');FX.remind()}
+  if(k==='ok'){addLog('SYS','状态恢复正常','var(--jade)');FX.ok()}}
+ document.querySelectorAll('[data-sim]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sim==='stranger'?stranger:b.dataset.sim===sim))}
+document.querySelectorAll('[data-sim]').forEach(b=>b.onclick=()=>setSim(b.dataset.sim));
+
+/* 对讲 */
+let calling=false,ring=null;
+function setCall(on){calling=on;$('#call').classList.toggle('on',on);$('#callb span').textContent=on?'结束通话':'开始通话';
+ $('#call-status').textContent=on?'通话中':'待机中';$('#call-sub').textContent=on?'设备喇叭和麦克风已打开':'点下面的按钮开始双向通话';
+ $('#mic-status').textContent=on?'工作中':'未启动';$('#remote-status').textContent=on?'在线':'等待连接'}
+$('#callb').onclick=()=>{if(ring){clearTimeout(ring);ring=null;addLog('通话','已取消','var(--on2)');$('#call-status').textContent='待机中';$('#callb span').textContent='开始通话';return}
+ if(calling){FX.hang();setCall(false);addLog('通话','通话已结束');addLog('通话','通话频道已释放');return}
+ FX.ring();addLog('通话','正在开启本地麦克风...','var(--jade)');$('#call-status').textContent='正在接通…';$('#callb span').textContent='取消';
+ ring=setTimeout(()=>{ring=null;addLog('通话','正在连接语音通道...','var(--jade)');FX.connect();setCall(true);addLog('通话','通话已建立','var(--jade)')},1100)};
+$('#vol').oninput=e=>{$('#vol_val').textContent=e.target.value+'%';if(e.target.value%5==0)FX.tick()};
+
+const b=BOX.ok,s=$('#box').style;s.left=b[0]+'%';s.top=b[1]+'%';s.width=b[2]+'%';s.height=b[3]+'%';
+addLog('SYS','系统初始化中...','var(--jade)');addLog('VIDEO','视频流连接成功','var(--jade)');addLog('NPU','推理引擎已就绪，开始处理视频流','var(--jade)');addLog('人脸','识别到：周奶奶 (0.87)','var(--jade)');
+faces();tick();setInterval(tick,800);
+</script>
+</body>
+</html>
