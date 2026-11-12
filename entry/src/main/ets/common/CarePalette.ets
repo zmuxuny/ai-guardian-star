@@ -1,3 +1,5 @@
+import { drawing } from '@kit.ArkGraphics2D';
+
 export interface CarePalette {
   label: string;
   detail: string;
@@ -29,4 +31,14 @@ export function carePalette(fall: boolean, sedentary: boolean, online: boolean):
   if (fall) return FALL;
   if (sedentary) return REMIND;
   return online ? SAFE : UNKNOWN;
+}
+
+export function careIconTint(hex: string): drawing.ColorFilter {
+  const rgb = parseInt(hex.substring(1), 16);
+  return drawing.ColorFilter.createBlendModeColorFilter({
+    alpha: 255,
+    red: (rgb >> 16) & 255,
+    green: (rgb >> 8) & 255,
+    blue: rgb & 255,
+  }, drawing.BlendMode.SRC_IN);
 }

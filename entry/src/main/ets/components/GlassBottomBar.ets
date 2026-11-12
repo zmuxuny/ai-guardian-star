@@ -1,3 +1,4 @@
+import { careIconTint } from '../common/CarePalette';
 import { curves } from '@kit.ArkUI';
 import { reduceMotion, softTap } from '../common/UiFeedback';
 import { ThemeManager } from '../common/ThemeManager';
@@ -101,7 +102,7 @@ export struct GlassBottomBar {
   glyph(item: GlassTabItem, accent: boolean): void {
     Column({ space: 3 }) {
       Image(accent ? item.activeIcon : item.icon)
-        .width(24).height(24).objectFit(ImageFit.Contain).fillColor(this.glyphColor(accent))
+        .width(24).height(24).objectFit(ImageFit.Contain).supportSvg2(true).colorFilter(careIconTint(this.glyphColor(accent)))
         .draggable(false)
       if (!this.compact) {
         Text(item.label)

@@ -1,3 +1,4 @@
+import { careIconTint } from '../common/CarePalette';
 import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
 import { ThemeManager } from '../common/ThemeManager';
 import { UserManager } from '../common/UserManager';
@@ -124,7 +125,7 @@ struct TodayEvents {
           Text('当天记录加载失败').fontSize(16).fontColor(this.theme.colors.primaryTextColor).margin({ top: 40 })
           Button('重新加载').height(44).margin({ top: 16 }).onClick((): void => { this.load(); })
         } else if (this.events.length === 0) {
-          Image($r('app.media.ic_record')).width(48).height(48).fillColor(this.theme.colors.linkTextColor).margin({ top: 48, bottom: 16 })
+          Image($r('app.media.ic_record')).width(48).height(48).supportSvg2(true).colorFilter(careIconTint(this.theme.colors.linkTextColor)).margin({ top: 48, bottom: 16 })
           Text('今天暂无事件').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.primaryTextColor)
           Text('当天的摔倒、久坐和陌生人记录会显示在这里').fontSize(13)
             .fontColor(this.theme.colors.secondaryTextColor).margin({ top: 8 }).padding(20)

@@ -1,4 +1,4 @@
-import { CarePalette, carePalette } from '../common/CarePalette';
+import { CarePalette, carePalette, careIconTint } from '../common/CarePalette';
 import { MqttManager } from './MqttManager';
 import { ThemeManager } from '../common/ThemeManager';
 import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
@@ -240,7 +240,7 @@ export struct mainPage {
       Row() {
         Column({ space: 8 }) {
           Row({ space: 8 }) {
-            Image($r('app.media.ic_shield_blue')).width(30).height(30).fillColor(this.palette().accent)
+            Image($r('app.media.ic_shield_blue')).width(30).height(30).supportSvg2(true).colorFilter(careIconTint(this.palette().accent))
             Text('今日提醒').fontSize(14).fontColor('#E2F0EA')
           }
           Row({ space: 4 }) {
@@ -255,7 +255,7 @@ export struct mainPage {
         Divider().vertical(true).height(76).color('#35FFFFFF').margin({ left: 12, right: 16 })
         Column({ space: 8 }) {
           Row({ space: 8 }) {
-            Image($r('app.media.ic_record')).width(30).height(30).fillColor(this.palette().accent)
+            Image($r('app.media.ic_record')).width(30).height(30).supportSvg2(true).colorFilter(careIconTint(this.palette().accent))
             Text('最近活动').fontSize(14).fontColor('#E2F0EA')
           }
           Text(this.homeLoading || this.homeLoadFailed || this.homeEvents.length === 0
@@ -297,7 +297,7 @@ export struct mainPage {
             .onClick((): void => { this.loadHomeEvents(); })
         } else if (this.homeEvents.length === 0) {
           Row({ space: 12 }) {
-            Image($r('app.media.ic_record')).width(34).height(34).fillColor(this.palette().accent)
+            Image($r('app.media.ic_record')).width(34).height(34).supportSvg2(true).colorFilter(careIconTint(this.palette().accent))
             Column({ space: 5 }) {
               Text(UserManager.getInstance().isLoggedIn() ? '暂无告警记录' : '登录后查看告警记录').fontSize(14).fontWeight(FontWeight.Medium)
                 .fontColor('#FFFFFF')
