@@ -241,6 +241,8 @@ export struct mainPage {
     }.width('100%').height('100%').backgroundColor(this.palette().backdrop)
     .animation({ duration: reduceMotion() ? 0 : 900, curve: Curve.EaseInOut })
     .hitTestBehavior(HitTestMode.None)
+    // 光斑铺满状态栏和手势条，只裁掉横向溢出，保证安全区和页面同色
+    .clip(true)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
@@ -347,22 +349,69 @@ export struct mainPage {
     }.width('100%').padding({ left: 20, right: 20, top: 8 })
   }
 
-  @Builder
-  TodayStat(label: string, count: number, dot: string, ring: boolean): void {
-    Column({ space: 6 }) {
-      Row({ space: 6 }) {
-        if (ring) {
-          Circle().width(10).height(10).fill(Color.Transparent).stroke(dot).strokeWidth(2)
-        } else {
-          Circle().width(8).height(8).fill(dot)
-        }
-        Text(label).fontSize(12).fontColor(ON2)
-      }
-      Text(this.dataReady() ? `${count}` : '—').fontSize(28).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
-    }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+  /** 最近 7 个整点加“现在”，与样张 .hours 一致 */
+  private hourSlots(): number[] {
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    const slots: number[] = [];
+    for (let i = 7; i >= 0; i--) slots.push(now.getTime() - i * 3600000);
+    return slots;
   }
 
-  // ───────── 今天（样张 今天 卡；逐小时条暂无数据来源，改为三项计数） ─────────
+  /** 该小时内最严重的事件：跌倒 > 陌生人 > 久坐 > 无 */
+  private hourMark(start: number): string {
+    const inHour = this.homeEvents.filter((event: HealthEvent): boolean =>
+      event.eventTime >= start && event.eventTime < start + 3600000);
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'fall')) return 'fall';
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'stranger')) return 'stranger';
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'sedentary')) return 'sedentary';
+    return 'ok';
+  }
+
+  /** “现在”格显示当前状态 */
+  private nowMark(): string {
+    if (this.mqttManager.isFallDetected) return 'fall';
+    if (this.mqttManager.isSedentaryDetected) return 'sedentary';
+    return 'ok';
+  }
+
+  @Builder
+  Mark(kind: string): void {
+    if (kind === 'ok') {
+      Stack() { Circle().width(8).height(8).fill('#99FFFFFF') }.width(28).height(28)
+    } else {
+      Stack() {
+        Image(kind === 'fall' ? $r('app.media.ic_alert_red')
+          : kind === 'stranger' ? $r('app.media.ic_home_visitor') : $r('app.media.ic_home_sitting'))
+          .width(16).height(16).supportSvg2(true)
+          .colorFilter(careIconTint(kind === 'fall' ? '#C7361F' : kind === 'stranger' ? '#1B2E5E' : '#3A2600'))
+      }.width(28).height(28).borderRadius(14)
+      .backgroundColor(kind === 'fall' ? '#FFFFFF' : kind === 'stranger' ? '#C9D6FF' : '#FFD27A')
+    }
+  }
+
+  @Builder
+  Hour(start: number, isNow: boolean): void {
+    Column({ space: 8 }) {
+      Text(isNow ? '现在' : `${new Date(start).getHours()}`.padStart(2, '0'))
+        .fontSize(12).fontColor(isNow ? '#FFFFFF' : ON2)
+        .fontWeight(isNow ? FontWeight.Bold : FontWeight.Normal)
+      this.Mark(isNow ? this.nowMark() : this.dataReady() ? this.hourMark(start) : 'ok')
+    }
+    .layoutWeight(1).padding({ top: 8, bottom: 8 }).borderRadius(14)
+    .backgroundColor(isNow ? '#29FFFFFF' : Color.Transparent)
+    .border(isNow ? { width: { top: 1 }, color: '#66FFFFFF' } : { width: 0 })
+  }
+
+  @Builder
+  LegendItem(label: string, dot: string, ring: boolean): void {
+    Row({ space: 5 }) {
+      Circle().width(8).height(8).fill(dot).stroke(ring ? '#C7361F' : Color.Transparent).strokeWidth(ring ? 2 : 0)
+      Text(label).fontSize(12).fontColor(ON2)
+    }
+  }
+
+  // ───────── 今天（样张 今天 卡：逐小时条 + 图例） ─────────
   @Builder
   TodayCard(): void {
     Column() {
@@ -372,10 +421,16 @@ export struct mainPage {
         Text(this.todaySummary()).fontSize(13).fontColor(ON2)
       }.width('100%')
       Row() {
-        this.TodayStat('跌倒', this.todayCountOf('fall'), '#FF8A75', true)
-        this.TodayStat('久坐', this.todayCountOf('sedentary'), '#FFD27A', false)
-        this.TodayStat('陌生人', this.todayCountOf('stranger'), '#C9D6FF', false)
-      }.width('100%').margin({ top: 14 })
+        ForEach(this.hourSlots(), (start: number, index: number) => {
+          this.Hour(start, index === 7)
+        }, (start: number, index: number): string => `${start}-${index}-${this.homeEvents.length}-${this.nowMark()}`)
+      }.width('100%').margin({ top: 10 })
+      Row({ space: 14 }) {
+        this.LegendItem('无事件', '#99FFFFFF', false)
+        this.LegendItem('久坐', '#FFD27A', false)
+        this.LegendItem('陌生人', '#C9D6FF', false)
+        this.LegendItem('跌倒', '#FFFFFF', true)
+      }.width('100%').padding({ left: 4, right: 4, top: 10 })
     }
     .width('100%').padding(16).borderRadius(PANEL_RADIUS).backgroundColor(GLASS)
     .border({ width: 1, color: GLASS_EDGE })
@@ -396,12 +451,14 @@ export struct mainPage {
         Text(this.eventLine(event)).fontSize(13).fontColor(ON2).maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+      // 样张四种标签：跌倒未处理=待处理，其他未处理=待查看，久坐已处理=已查看，其他已处理=已处理
       if (event.isHandled === 1) {
-        Text('已处理').fontSize(12).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
+        Text(event.eventType === 'sedentary' ? '已查看' : '已处理').fontSize(12).fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
           .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(99)
           .border({ width: 1, color: '#73FFFFFF' })
       } else {
-        Text('待处理').fontSize(12).fontWeight(FontWeight.Medium)
+        Text(event.eventType === 'fall' ? '待处理' : '待查看').fontSize(12).fontWeight(FontWeight.Medium)
           .fontColor(event.eventType === 'fall' ? '#9E2714' : '#3A2600')
           .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(99)
           .backgroundColor(event.eventType === 'fall' ? '#FFFFFF' : '#FFD27A')
@@ -448,6 +505,60 @@ export struct mainPage {
     .shadow({ radius: 40, offsetY: 22, color: '#4D000000' })
   }
 
+  // ───────── 近 7 天（样张 .week） ─────────
+  private dayStart(daysAgo: number): number {
+    return this.todayStart() - daysAgo * 86400000;
+  }
+
+  private dayCount(daysAgo: number, type: string): number {
+    const start = this.dayStart(daysAgo);
+    return this.homeEvents.filter((event: HealthEvent): boolean => event.eventType === type
+      && event.eventTime >= start && event.eventTime < start + 86400000).length;
+  }
+
+  private dayLabel(daysAgo: number): string {
+    if (daysAgo === 0) return '今天';
+    if (daysAgo === 1) return '昨天';
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date(this.dayStart(daysAgo)).getDay()];
+  }
+
+  @Builder
+  WeekCell(count: number, fall: boolean): void {
+    Text(this.dataReady() ? `${count}` : '—').fontSize(14).width(56).height(38).textAlign(TextAlign.Center)
+      .fontWeight(fall && count > 0 ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(fall && count > 0 ? '#9E2714' : count === 0 ? '#B8FFFFFF' : '#FFFFFF')
+      .backgroundColor(fall && count > 0 ? '#FFFFFF' : Color.Transparent).borderRadius(10)
+  }
+
+  @Builder
+  WeekCard(): void {
+    Column() {
+      Row() {
+        Text('近 7 天').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Blank()
+        Text(`${this.eventDate(this.dayStart(6))} — ${this.eventDate(this.dayStart(0))}`).fontSize(13).fontColor(ON2)
+      }.width('100%')
+      Row() {
+        Blank().layoutWeight(1)
+        Text('跌倒').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+        Text('久坐').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+        Text('陌生人').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+      }.width('100%').margin({ top: 8 }).padding({ top: 4, bottom: 4 })
+      ForEach([0, 1, 2, 3, 4, 5, 6], (daysAgo: number) => {
+        Row() {
+          Text(this.dayLabel(daysAgo)).fontSize(14).fontColor('#FFFFFF').layoutWeight(1)
+          this.WeekCell(this.dayCount(daysAgo, 'fall'), true)
+          this.WeekCell(this.dayCount(daysAgo, 'sedentary'), false)
+          this.WeekCell(this.dayCount(daysAgo, 'stranger'), false)
+        }.width('100%').border({ width: { top: 1 }, color: LINE })
+      }, (daysAgo: number): string => `${daysAgo}-${this.homeEvents.length}-${this.dataReady()}`)
+    }
+    .width('100%').padding({ left: 16, right: 16, top: 16, bottom: 8 }).borderRadius(PANEL_RADIUS)
+    .backgroundColor(GLASS).border({ width: 1, color: GLASS_EDGE })
+    .shadow({ radius: 40, offsetY: 22, color: '#4D000000' })
+    .onClick((): void => { this.openHistory(); })
+  }
+
   build() {
     Stack() {
       this.Ambient()
@@ -457,11 +568,12 @@ export struct mainPage {
           Column({ space: 14 }) {
             this.TodayCard()
             this.EventsCard()
+            this.WeekCard()
           }.width('100%').padding({ left: 16, right: 16 }).margin({ top: 10 })
           Blank().height(24 + this.bottomInset)
         }.width('100%').constraintSize({ maxWidth: 640 })
       }.width('100%').height('100%').scrollBar(BarState.Off).align(Alignment.Top)
       .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
-    }.width('100%').height('100%').clip(true)
+    }.width('100%').height('100%')
   }
 }

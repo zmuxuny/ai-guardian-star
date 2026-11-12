@@ -20,8 +20,6 @@ export struct GlassBottomBar {
   @Prop darkSurface: boolean = false;
   @Prop accent: string = '#0A5C43';
   @Prop tint: string = '#DDF4E9';
-  /** 状态实色：底栏按样张染成 58% 状态色玻璃，主页和阅读页一致 */
-  @Prop solid: string = '#0A5C43';
 
   @State touchSlot: number = -1;
   @State lift: number = 0;
@@ -93,12 +91,15 @@ export struct GlassBottomBar {
     else this.getUIContext().animateTo({ curve: curves.springMotion(0.35, 0.78) }, reset);
   }
 
+  // 中性透明液态玻璃：深色背景上用白字，浅色阅读页上用深字，不随状态染色
   private glyphColor(active: boolean): string {
-    return active ? '#FFFFFF' : '#D2E2DB';
+    if (this.darkSurface) return active ? '#FFFFFF' : '#CCFFFFFF';
+    return active ? '#10231C' : '#8010231C';
   }
 
   private barTint(): string {
-    return '#94' + this.solid.substring(1);
+    // 低遮罩 + 轻模糊：能透出底下的内容，而不是一块磨砂白板
+    return this.darkSurface ? '#0AFFFFFF' : '#33FFFFFF';
   }
 
   @Builder
@@ -121,12 +122,12 @@ export struct GlassBottomBar {
       Column()
         .width('100%').height('100%')
         .borderRadius(999)
-        .backgroundColor('#3DFFFFFF')
+        .backgroundColor(this.darkSurface ? '#3DFFFFFF' : '#CCFFFFFF')
         .linearGradient({
           direction: GradientDirection.Bottom,
           colors: [['#33FFFFFF', 0], ['#08FFFFFF', 1]],
         })
-        .border({ width: 1, color: '#66FFFFFF' })
+        .border({ width: 1, color: this.darkSurface ? '#66FFFFFF' : '#FFFFFFFF' })
       // Clip the accent layer to the moving lens so partially covered icons keep their position.
       Row() {
         ForEach(this.items, (item: GlassTabItem) => {
@@ -151,16 +152,16 @@ export struct GlassBottomBar {
         .width('100%').height('100%')
         .borderRadius(999)
         .backgroundEffect({
-          radius: 7,
-          saturation: 1.32,
-          brightness: 1.02,
+          radius: 4,
+          saturation: 1.4,
+          brightness: 1.0,
           color: this.barTint(),
         })
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: [['#26FFFFFF', 0], ['#00FFFFFF', 0.55], ['#1A000000', 1]],
+          colors: [['#14FFFFFF', 0], ['#00FFFFFF', 0.4], ['#00000000', 1]],
         })
-        .border({ width: 1, color: '#40FFFFFF' })
+        .border({ width: 1, color: this.darkSurface ? '#40FFFFFF' : '#99FFFFFF' })
         .shadow({ radius: 24, offsetY: 10, color: this.darkSurface ? '#64000000' : '#4010231C' })
         .scale({ x: 1 + 0.03 * this.lift, y: 1 + 0.02 * this.lift })
         .hitTestBehavior(HitTestMode.None)

@@ -6,7 +6,7 @@ import { CareStatusBadge } from '../components/CareStatusBadge';
 import { ThemeManager, ThemeMode } from "../common/ThemeManager";
 import { careIconTint } from '../common/CarePalette';
 import { MqttManager } from "./MqttManager";
-import { GradientHeader, ICON_FRAME_SIZE, PAGE_TITLE_SIZE } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE } from '../components/GradientHeader';
 import { MenuRow } from '../components/MenuRow';
 import { showDialog, showToast } from '../common/UiFeedback';
 import {
@@ -435,12 +435,7 @@ export struct person {
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
       Column() {
-        Row() {
-          Text('个人').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-          Blank()
-          CareStatusBadge({ onOpenHome: this.onOpenHome })
-        }.width('100%').padding({ left: 20, right: 20 })
-        // 样张 .me：左头像，右侧名字与守护统计
+        // 不放页面标题：顶部直接是头像、名字和守护统计，状态胶囊在右侧
         Row({ space: 14 }) {
           if (this.userAvatarPath !== '') {
             Image(fileUri.getUriFromPath(this.userAvatarPath))
@@ -465,7 +460,8 @@ export struct person {
             Text(`已守护 ${this.useDays} 天 · 跌倒预警 ${this.totalAlertCount} 次`)
               .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
           }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        }.width('100%').padding({ left: 20, right: 20, top: 16 })
+          CareStatusBadge({ onOpenHome: this.onOpenHome })
+        }.width('100%').padding({ left: 20, right: 20, top: 8 })
       }
       .width("100%").padding({ top: 16, bottom: 6 })
     }

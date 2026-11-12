@@ -6,7 +6,7 @@ import { CareStatusBadge } from '../components/CareStatusBadge';
 
 import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
-import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE } from '../components/GradientHeader';
+import { GradientHeader, PAGE_HORIZONTAL_GUTTER } from '../components/GradientHeader';
 import { STORE_KEY_AI_ACCESS_LEVEL, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 import { CarePalette, carePalette, careIconTint } from '../common/CarePalette';
@@ -31,6 +31,7 @@ interface BubbleMsg {
 export struct AiChat {
   onOpenHome: () => void = () => {};
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
+  @Prop bottomInset: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqtt: MqttManager = MqttManager.getInstance();
   @State messages: BubbleMsg[] = [];
@@ -173,13 +174,8 @@ export struct AiChat {
   @Builder
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
-      Column() {
-        Row() {
-          Text('AI 健康助手').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-          Blank()
-          CareStatusBadge({ onOpenHome: this.onOpenHome })
-        }.width('100%')
+      // 不放页面标题：顶部直接是权限条，状态胶囊在右侧
+      Row({ space: 10 }) {
         Row({ space: 8 }) {
           Image($r('app.media.ic_shield_blue')).width(18).height(18).supportSvg2(true)
             .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
@@ -189,9 +185,10 @@ export struct AiChat {
             .fontSize(13).fontWeight(FontWeight.Bold)
             .fontColor(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid)
         }
-        .width('100%').height(44).padding({ left: 14, right: 14 }).margin({ top: 12 })
+        .layoutWeight(1).height(44).padding({ left: 14, right: 14 })
         .borderRadius(22).backgroundColor(this.themeManager.colors.cardBackgroundColor)
         .shadow({ radius: 20, offsetY: 10, color: '#1A10231C' })
+        CareStatusBadge({ onOpenHome: this.onOpenHome })
       }
       .width('100%')
       .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 8 })
@@ -356,7 +353,7 @@ export struct AiChat {
       this.AiDisclaimer()
       this.InputBar()
     }
-    .width('100%').height('100%')
+    .width('100%').height('100%').padding({ bottom: this.bottomInset })
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
