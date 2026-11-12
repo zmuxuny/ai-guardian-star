@@ -1,3 +1,4 @@
+import { CareStatusBadge } from '../components/CareStatusBadge';
 /**
  * AiChat.ets - AI Health Assistant Page
  * Tab sub-component, no @Entry decorator
@@ -26,6 +27,7 @@ interface BubbleMsg {
 
 @Component
 export struct AiChat {
+  onOpenHome: () => void = () => {};
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State messages: BubbleMsg[] = [];
@@ -165,19 +167,15 @@ export struct AiChat {
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
       Row() {
-        Text('AI 健康助手')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.colors.primaryTextColor)
+        Column({ space: 4 }) {
+          Text('AI 健康助手').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
+            .fontColor(this.themeManager.colors.primaryTextColor)
+          Text(this.aiAccessLevel === 'full' ? '云端 AI · 深度照护'
+            : this.aiAccessLevel === 'basic' ? '云端 AI · 基础问答' : '云端 AI · 隐私保护')
+            .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
+        }.alignItems(HorizontalAlign.Start)
         Blank()
-        Row({ space: 6 }) {
-          Text(' ').width(8).height(8).backgroundColor(this.themeManager.colors.successTextColor).borderRadius(4)
-          Text(
-            `云端 AI · ${this.aiAccessLevel === 'full' ? '深度照护'
-              : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护'}`,
-          ).fontSize(12).fontColor(this.themeManager.colors.linkTextColor)
-        }
-        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-        .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe').borderRadius(100)
+        CareStatusBadge({ onOpenHome: this.onOpenHome })
       }
       .width('100%')
       .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 20 })
@@ -192,7 +190,7 @@ export struct AiChat {
       Row({ space: 5 }) {
         ForEach([0, 1, 2], (i: number) => {
           Text(' ').width(7).height(7)
-            .backgroundColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8').borderRadius(4)
+            .backgroundColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43').borderRadius(4)
             .scale({ x: this.dotPhase === i ? 1.4 : 1.0, y: this.dotPhase === i ? 1.4 : 1.0 })
             .animation({ duration: 350, curve: Curve.EaseInOut })
         })
@@ -208,7 +206,7 @@ export struct AiChat {
         Text(msg.content)
           .fontSize(15).fontColor('#ffffff').lineHeight(22)
           .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-          .backgroundColor('#2563eb')
+          .backgroundColor('#0A5C43')
           .borderRadius({ topLeft: 16, topRight: 4, bottomLeft: 16, bottomRight: 16 })
           .constraintSize({ maxWidth: '72%' })
       } else {
@@ -247,7 +245,7 @@ export struct AiChat {
   @Builder
   QuickChip(q: string): void {
     Text(q)
-      .fontSize(13).fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+      .fontSize(13).fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
       .padding({ left: 14, right: 14, top: 8, bottom: 8 })
       .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
       .borderRadius(20).border({ width: 1, color: '#93c5fd' })
@@ -320,7 +318,7 @@ export struct AiChat {
         }
       }
       .width(46).height(46)
-      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#2563eb' : '#64748b')
+      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#0A5C43' : '#64748b')
       .borderRadius(23).animation({ duration: 200, curve: Curve.EaseOut })
       .onClick((): void => { this.sendMessage(this.inputText); })
     }

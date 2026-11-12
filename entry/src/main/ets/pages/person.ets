@@ -1,3 +1,4 @@
+import { CareStatusBadge } from '../components/CareStatusBadge';
 /**
  * person.ets — 个人中心页面
  * 显示用户信息、统计数据和系统设置
@@ -95,7 +96,7 @@ struct DeleteAccountDialog {
           { type: ButtonType.Normal })
           .height(44)
           .fontSize(13)
-          .backgroundColor('#2563eb')
+          .backgroundColor('#0A5C43')
           .fontColor('#ffffff')
           .borderRadius(10)
           .enabled(this.maskedContact !== '' && !this.isSending && this.countdown === 0 && !this.isDeleting)
@@ -148,6 +149,7 @@ struct DeleteAccountDialog {
 
 @Component
 export struct person {
+  onOpenHome: () => void = () => {};
   @Prop bottomInset: number = 0;
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -322,7 +324,7 @@ export struct person {
         message: `可清理临时文件 ${this.cacheManager.formatBytes(stats.bytes)}（${stats.files}个）。\n同时清理网页资源缓存。账号、头像、设置、历史记录和服务器录像都会保留；正在使用的文件会跳过。`,
         buttons: [
           { text: '取消', color: this.themeManager.colors.secondaryTextColor },
-          { text: '立即清理', color: '#2563eb' },
+          { text: '立即清理', color: '#0A5C43' },
         ],
       });
       if (choice === undefined || choice.index !== 1) {
@@ -423,6 +425,11 @@ export struct person {
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
       Column() {
+        Row() {
+          Text('个人').fontSize(24).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
+          Blank()
+          CareStatusBadge({ onOpenHome: this.onOpenHome })
+        }.width('100%').padding({ left: 20, right: 20 }).margin({ bottom: 8 })
         if (this.userAvatarPath !== '') {
           Image(fileUri.getUriFromPath(this.userAvatarPath))
             .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
@@ -570,7 +577,7 @@ export struct person {
                         : "跟随",
                   )
                     .fontSize(12)
-                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
@@ -627,7 +634,7 @@ export struct person {
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.aiEnabled })
-                  .selectedColor("#2563eb")
+                  .selectedColor("#0A5C43")
                   .enabled(!this.aiSaving)
                   .onChange((enabled: boolean): void => {
                     if (enabled !== this.aiEnabled) this.saveAiPermission(enabled, this.aiAccessLevel);
@@ -670,7 +677,7 @@ export struct person {
                     : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护',
                 )
                   .fontSize(12)
-                  .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                  .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
                   .fontWeight(FontWeight.Medium)
                   .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
                   .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
@@ -691,8 +698,8 @@ export struct person {
                   title: "AI 分析权限",
                   message: '深度照护：统计、当前监护状态与最近事件精确时间\n隐私保护（默认）：近7天次数、距摔倒天数与设备在线状态\n基础问答：不附带监护数据\n\n问题和最近对话会经服务器交给云端 AI。自动隐藏常见手机号、身份证号和邮箱；请勿输入姓名、住址等私人信息。不会自动上传视频、人脸或地址。切换权限会清空当前对话。',
                   buttons: [
-                    { text: "深度照护", color: "#2563eb" },
-                    { text: "隐私保护", color: "#2563eb" },
+                    { text: "深度照护", color: "#0A5C43" },
+                    { text: "隐私保护", color: "#0A5C43" },
                     { text: "基础问答", color: "#64748b" },
                   ],
                 }).then((result) => {
@@ -792,7 +799,7 @@ export struct person {
                 Row() {
                   Text(`${this.retentionDays}天`)
                     .fontSize(13)
-                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
@@ -805,10 +812,10 @@ export struct person {
                     title: "数据保留时长",
                     message: "选择视频与健康记录的保存天数",
                     buttons: [
-                      { text: "7天", color: "#2563eb" },
-                      { text: "14天", color: "#2563eb" },
-                      { text: "30天", color: "#2563eb" },
-                      { text: "90天", color: "#2563eb" },
+                      { text: "7天", color: "#0A5C43" },
+                      { text: "14天", color: "#0A5C43" },
+                      { text: "30天", color: "#0A5C43" },
+                      { text: "90天", color: "#0A5C43" },
                     ],
                   }).then((result) => {
                     if (result === undefined) return;

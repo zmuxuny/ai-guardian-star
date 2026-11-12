@@ -83,7 +83,7 @@ export struct MyAddress {
     if (this.originalDraft !== this.draftKey()) {
       const choice = await showDialog(this.getUIContext(), {
         title: '放弃未保存的修改？', message: '本次填写的内容还没有保存。',
-        buttons: [{ text: '继续填写', color: '#2563eb' },
+        buttons: [{ text: '继续填写', color: '#0A5C43' },
           { text: '放弃修改', color: this.themeManager.colors.secondaryTextColor }],
       });
       if (choice === undefined || choice.index !== 1) return;
@@ -144,14 +144,14 @@ export struct MyAddress {
     GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
         Image($r('app.media.ic_chevron_right')).width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
-          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF').borderRadius(20).rotate({ angle: 180 })
+          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20).rotate({ angle: 180 })
           .accessibilityText('返回').onClick((): void => {
             if (this.editing) this.leaveEdit(); else if (!this.busy) this.pathStack.pop();
           })
-        Text('常用地址').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+        Text('常用地址').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
           .margin({ left: 12 }).layoutWeight(1)
         Button(this.editing ? this.busy ? '保存中…' : '保存' : this.loading ? '读取中' : '刷新', { type: ButtonType.Normal })
-          .height(44).fontSize(14).fontColor('#ffffff').backgroundColor('#1e40af').borderRadius(12)
+          .height(44).fontSize(14).fontColor('#ffffff').backgroundColor('#0A5C43').borderRadius(12)
           .enabled(!this.busy && !this.loading && (!this.editing || !this.offline))
           .accessibilityText(this.editing ? '保存详细地址' : '刷新常用地址')
           .onClick((): void => { if (this.editing) this.save(); else this.loadAddresses(); })
@@ -201,7 +201,7 @@ export struct MyAddress {
       }.width('100%').alignItems(HorizontalAlign.Start)
       Row() {
         Text('设为默认住处').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
-        Toggle({ type: ToggleType.Switch, isOn: this.makeDefault }).selectedColor('#2563eb')
+        Toggle({ type: ToggleType.Switch, isOn: this.makeDefault }).selectedColor('#0A5C43')
           .accessibilityText('设为默认住处').enabled(!this.busy && this.addresses.length > 0)
           .onChange((value: boolean): void => { this.makeDefault = value; })
       }.width('100%').height(48)
@@ -242,7 +242,7 @@ export struct MyAddress {
                   (address: SavedAddress): string => `${address.id}-${address.version}`)
               }
               Button('添加常用住处', { type: ButtonType.Normal }).width('100%').height(50).fontSize(16)
-                .backgroundColor('#2563eb').fontColor('#ffffff').borderRadius(12)
+                .backgroundColor('#0A5C43').fontColor('#ffffff').borderRadius(12)
                 .enabled(!this.busy && !this.offline && this.addresses.length < 20)
                 .onClick((): void => { this.beginAdd(); })
             }
@@ -260,6 +260,7 @@ export struct MyAddress {
         if (this.editing) { this.leaveEdit(); return true; }
         return false;
       })
-      .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
+      .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
+    .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
   }
 }

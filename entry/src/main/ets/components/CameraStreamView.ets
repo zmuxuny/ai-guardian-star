@@ -5,6 +5,7 @@ import { CameraFrameClient } from '../common/CameraFrameClient';
 /** Native latest-frame preview; no Web surface or Blob image lifecycle. */
 @Component
 export struct CameraStreamView {
+  @Prop placeholderSurface: string = '#0F172A';
   @Prop fullscreen: boolean = false;
   @State frame?: image.PixelMap = undefined;
   @State ready: boolean = false;
@@ -133,12 +134,12 @@ export struct CameraStreamView {
             LoadingProgress().width(24).height(24).color('#93c5fd')
             Text('正在连接摄像头').fontSize(12).fontColor('#cbd5e1')
           }
-        }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor('#0f172a')
+        }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor(this.placeholderSurface)
       } else if (this.unavailable) {
         Text('画面中断，正在重连…').fontSize(12).fontColor('#cbd5e1')
           .padding(8).backgroundColor('#cc0f172a').align(Alignment.Bottom)
       }
-    }.width('100%').height('100%').backgroundColor('#0f172a')
+    }.width('100%').height('100%').backgroundColor(this.placeholderSurface)
       .onVisibleAreaChange([0, 1], (isVisible: boolean): void => {
         if (this.visible === isVisible) return;
         this.visible = isVisible;

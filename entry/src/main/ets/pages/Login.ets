@@ -118,7 +118,7 @@ struct Login {
         .height(48)
         .fontSize(12)
         .fontColor(Color.White)
-        .backgroundColor("#2563eb")
+        .backgroundColor("#0A5C43")
         .borderRadius(12)
         .enabled(this.canSendCode && !this.isSendingCode)
         .onClick(() => {
@@ -147,21 +147,9 @@ struct Login {
           .height("100%")
           .linearGradient({
             direction: GradientDirection.Bottom,
-            colors: [
-              // 渐变在卡片顶部（约 40%）之前走完全程，之后保持终点色。
-              // 这样任何屏幕比例下 Logo 区的观感都一致，平板不会把渐变拉长。
-              // 各段亮度差控制在 0.03~0.07，避免出现可见色带；
-              // 终点停在中蓝而不是接近白，卡片上方才不会出现一条白边。
-              // 标语落在 0.34 之前，那里最亮为 #2f6fe0，白字对比度 4.7:1。
-              ["#0f2878", 0.0],
-              ["#1a3f9e", 0.13],
-              ["#2358c8", 0.24],
-              ["#2f6fe0", 0.34],
-              ["#4a86e8", 0.4],
-              ["#4a86e8", 1.0],
-            ],
+            colors: [[this.themeManager.isDarkMode ? '#244C3D' : '#DDF4E9', 0], [this.themeManager.colors.backgroundColor, 0.42],
+              [this.themeManager.colors.backgroundColor, 1]],
           })
-          // 上下安全区都要扩，否则平板底部会露出 NavDestination 的深蓝底色
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
         // 层2：整体内容列（Logo区 + 表单卡片）
@@ -186,12 +174,11 @@ struct Login {
             Text("智护星")
               .fontSize(24)
               .fontWeight(FontWeight.Bold)
-              .fontColor("#ffffff")
+              .fontColor(this.themeManager.colors.primaryTextColor)
               .margin({ bottom: 6 })
             Text("关怀我们的过去，保障我们的未来")
               .fontSize(12)
-              // 纯白：半透明白在 #2f6fe0 上只有 4.1:1，达不到正文 4.5:1
-              .fontColor("#ffffff")
+              .fontColor(this.themeManager.colors.primaryTextColor)
               .textAlign(TextAlign.Center)
           }
           .width("100%")
@@ -485,7 +472,7 @@ struct Login {
                     ]
                   : [
                       ["#1e3a8a", 0.0],
-                      ["#2563eb", 1.0],
+                      ["#0A5C43", 1.0],
                     ],
               })
               .borderRadius(100)
@@ -573,13 +560,14 @@ struct Login {
       // Stack 铺满全屏，背景深蓝防止安全区透白
       .width("100%")
       .height("100%")
-      .backgroundColor("#0f2878")
+      .backgroundColor(this.themeManager.colors.backgroundColor)
     }
     //.expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
 
     .hideTitleBar(true)
-    .backgroundColor("#0f2878")
+    .backgroundColor(this.themeManager.colors.backgroundColor)
     // NavDestination 背景也设深蓝，彻底消除白边
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     });

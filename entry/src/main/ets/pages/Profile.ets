@@ -125,7 +125,7 @@ struct ContactEditDialog {
         Button(this.sending ? '发送中' : (this.challengeId ? '重新发送' : '发送验证码'))
           .height(44).type(ButtonType.Normal).enabled(!this.sending && !this.saving)
           .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-          .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+          .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
           .fontSize(12).borderRadius(12)
           .onClick(() => { this.sendCode(); })
       }.width('100%').margin({ bottom: 16 })
@@ -142,7 +142,7 @@ struct ContactEditDialog {
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.saving && !this.sending)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.saving ? '#64748b' : '#1e3a8a', 0.0], [this.saving ? '#64748b' : '#2563eb', 1.0]] })
+            colors: [[this.saving ? '#64748b' : '#1e3a8a', 0.0], [this.saving ? '#64748b' : '#0A5C43', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(() => { this.saveContact(); })
       }.width('100%')
@@ -195,7 +195,7 @@ struct PasswordEditDialog {
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.changing)
           .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.changing ? '#64748b' : '#1e3a8a', 0.0], [this.changing ? '#64748b' : '#2563eb', 1.0]] })
+            colors: [[this.changing ? '#64748b' : '#1e3a8a', 0.0], [this.changing ? '#64748b' : '#0A5C43', 1.0]] })
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
             if (this.oldPwd.length < 4) { this.errorMsg = '当前密码至少4位'; return; }
@@ -579,7 +579,7 @@ export struct Profile {
           .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
         }
         Column() { Text('✎').fontSize(13).fontColor('#ffffff') }
-        .width(30).height(30).borderRadius(15).backgroundColor('#2563eb')
+        .width(30).height(30).borderRadius(15).backgroundColor('#0A5C43')
         .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         .border({ width: 2, color: this.themeManager.colors.cardBackgroundColor }).offset({ x: 2, y: 2 })
       }
@@ -717,11 +717,11 @@ export struct Profile {
       Row() {
         Image($r('app.media.ic_chevron_right'))
           .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
-          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
+          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
         Text('个人资料')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
           .margin({ left: 12 }).layoutWeight(1)
       }
       .width('100%')
@@ -782,6 +782,7 @@ export struct Profile {
     }
     .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
     .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
   }
 }

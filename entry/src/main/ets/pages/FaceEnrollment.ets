@@ -1,3 +1,5 @@
+import { MqttManager } from './MqttManager';
+import { carePalette } from '../common/CarePalette';
 import { abilityAccessCtrl, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
@@ -27,6 +29,7 @@ export function FaceEnrollmentBuilder(): void {
 
 @Component
 export struct FaceEnrollment {
+  @State mqtt: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   @State name: string = '';
@@ -299,6 +302,12 @@ export struct FaceEnrollment {
       top: this.topSafeHeight + 8,
       bottom: 12,
     })
+    .linearGradient({
+      direction: GradientDirection.Bottom,
+      colors: [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor
+        : carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline).wash, 0],
+        [this.themeManager.colors.backgroundColor, 1]],
+    })
   }
 
   @Builder
@@ -525,6 +534,7 @@ export struct FaceEnrollment {
       }
       return false;
     })
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
     .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
   }
 }

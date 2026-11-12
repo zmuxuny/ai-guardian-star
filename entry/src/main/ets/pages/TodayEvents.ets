@@ -118,13 +118,13 @@ struct TodayEvents {
           Text(`${this.events.length} 条`).fontSize(13).fontColor(this.theme.colors.secondaryTextColor)
         }.width('100%').padding({ left: 20, right: 20, top: 12, bottom: 16 })
         if (this.loading) {
-          LoadingProgress().width(28).height(28).color('#2563eb').margin({ top: 40 })
+          LoadingProgress().width(28).height(28).color('#0A5C43').margin({ top: 40 })
           Text('正在读取当天记录…').fontSize(14).fontColor(this.theme.colors.secondaryTextColor)
         } else if (this.failed) {
           Text('当天记录加载失败').fontSize(16).fontColor(this.theme.colors.primaryTextColor).margin({ top: 40 })
           Button('重新加载').height(44).margin({ top: 16 }).onClick((): void => { this.load(); })
         } else if (this.events.length === 0) {
-          Image($r('app.media.ic_record')).width(48).height(48).margin({ top: 48, bottom: 16 })
+          Image($r('app.media.ic_record')).width(48).height(48).fillColor(this.theme.colors.linkTextColor).margin({ top: 48, bottom: 16 })
           Text('今天暂无事件').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.primaryTextColor)
           Text('当天的摔倒、久坐和陌生人记录会显示在这里').fontSize(13)
             .fontColor(this.theme.colors.secondaryTextColor).margin({ top: 8 }).padding(20)
@@ -136,9 +136,10 @@ struct TodayEvents {
           }.width('100%').layoutWeight(1).padding({ left: 16, right: 16, bottom: 20 }).scrollBar(BarState.Off)
         }
       }.width('100%').height('100%')
-        .backgroundColor(this.theme.isDarkMode ? '#0f172a' : '#f0f4ff')
+        .backgroundColor(this.theme.colors.backgroundColor)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    }.hideTitleBar(true).backgroundColor(this.theme.isDarkMode ? '#0f172a' : '#f0f4ff')
-      .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
+    }.hideTitleBar(true).backgroundColor(this.theme.colors.backgroundColor)
+      .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
+    .onReady((context: NavDestinationContext): void => { this.pathStack = context.pathStack; })
   }
 }

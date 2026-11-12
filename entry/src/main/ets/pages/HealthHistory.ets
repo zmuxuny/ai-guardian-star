@@ -205,16 +205,16 @@ struct HealthHistory {
       Row() {
         Image($r('app.media.ic_chevron_right'))
           .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
-          .objectFit(ImageFit.Contain).backgroundColor('#33FFFFFF')
+          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
         Text('历史记录')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor('#ffffff')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
           .margin({ left: 12 }).layoutWeight(1)
         Text(this.isExporting ? '准备中' : '导出事件 CSV')
-          .fontSize(14).fontWeight(FontWeight.Medium).fontColor('#ffffff')
+          .fontSize(14).fontWeight(FontWeight.Medium).fontColor(this.themeManager.colors.linkTextColor)
           .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-          .backgroundColor('#33FFFFFF').borderRadius(18)
+          .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(18)
           .opacity(this.isExporting ? 0.65 : 1).enabled(!this.isExporting)
           .onClick((): void => { this.exportRecords(); })
       }
@@ -229,7 +229,7 @@ struct HealthHistory {
       Text(`全部 ${this.events.length}`)
         .fontSize(14)
         .fontWeight(this.currentTab === 0 ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.currentTab === 0 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
+        .fontColor(this.currentTab === 0 ? '#0A5C43' : this.themeManager.colors.secondaryTextColor)
         .textAlign(TextAlign.Center)
         .layoutWeight(1)
         .height(42)
@@ -240,7 +240,7 @@ struct HealthHistory {
       Text(`摔倒 ${this.events.filter((event: HealthEvent): boolean => event.eventType === 'fall').length}`)
         .fontSize(14)
         .fontWeight(this.currentTab === 1 ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.currentTab === 1 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
+        .fontColor(this.currentTab === 1 ? '#0A5C43' : this.themeManager.colors.secondaryTextColor)
         .textAlign(TextAlign.Center)
         .layoutWeight(1)
         .height(42)
@@ -251,7 +251,7 @@ struct HealthHistory {
       Text(`久坐 ${this.events.filter((event: HealthEvent): boolean => event.eventType === 'sedentary').length}`)
         .fontSize(14)
         .fontWeight(this.currentTab === 2 ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(this.currentTab === 2 ? '#1d4ed8' : this.themeManager.colors.secondaryTextColor)
+        .fontColor(this.currentTab === 2 ? '#0A5C43' : this.themeManager.colors.secondaryTextColor)
         .textAlign(TextAlign.Center)
         .layoutWeight(1)
         .height(42)
@@ -288,7 +288,7 @@ struct HealthHistory {
           Text(event.eventType === 'fall' ? '跌倒' : '久坐')
             .fontSize(12)
             .fontWeight(FontWeight.Bold)
-            .fontColor(event.eventType === 'fall' ? '#b91c1c' : '#1d4ed8')
+            .fontColor(event.eventType === 'fall' ? '#b91c1c' : '#0A5C43')
             .padding({ left: 9, right: 9, top: 5, bottom: 5 })
             .backgroundColor(event.eventType === 'fall' ? '#fee2e2' : '#dbeafe')
             .borderRadius(8)
@@ -319,7 +319,7 @@ struct HealthHistory {
           .layoutWeight(1)
         Text('查看')
           .fontSize(12)
-          .fontColor('#2563eb')
+          .fontColor('#0A5C43')
           .margin({ left: 10 })
       }
       .width('100%')
@@ -364,6 +364,7 @@ struct HealthHistory {
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }
     .hideTitleBar(true)
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
     .onReady((ctx: NavDestinationContext) => {
       this.pathStack = ctx.pathStack;
     });

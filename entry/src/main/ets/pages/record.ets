@@ -1,9 +1,11 @@
+import { CareStatusBadge } from '../components/CareStatusBadge';
 import { ThemeManager } from '../common/ThemeManager';
 import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE } from '../components/GradientHeader';
 import { RecordingBrowser } from '../components/RecordingBrowser';
 
 @Component
 export struct record {
+  onOpenHome: () => void = () => {};
   @Prop bottomInset: number = 0;
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -20,6 +22,7 @@ export struct record {
             .fontColor(this.themeManager.colors.secondaryTextColor).margin({ top: 4 })
         }.alignItems(HorizontalAlign.Start)
         Blank()
+        CareStatusBadge({ onOpenHome: this.onOpenHome })
 
       }
       .width('100%').padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 22 })

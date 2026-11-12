@@ -1,6 +1,7 @@
 {
   "module": {
     "requestPermissions": [
+      { "name": "ohos.permission.VIBRATE" },
       {
         "name": "ohos.permission.MICROPHONE", 
         "reason": "$string:voice_reason",

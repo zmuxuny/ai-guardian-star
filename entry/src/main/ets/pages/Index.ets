@@ -52,8 +52,8 @@ struct PrivacyDialog {
             .margin({ top: 4 })
           Text('查看完整隐私政策 →')
             .fontSize(13)
-            .fontColor('#1d4ed8')
-            .decoration({ type: TextDecorationType.Underline, color: '#1d4ed8' })
+            .fontColor('#0A5C43')
+            .decoration({ type: TextDecorationType.Underline, color: '#0A5C43' })
             .margin({ top: 4 })
             .onClick(() => {
               const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -85,7 +85,7 @@ struct PrivacyDialog {
         Button('同意并继续', { type: ButtonType.Normal })
           .layoutWeight(1)
           .height(44)
-          .backgroundColor('#2563eb')
+          .backgroundColor('#0A5C43')
           .fontColor('#ffffff')
           .borderRadius(10)
           .onClick(() => { this.onAgree(); })

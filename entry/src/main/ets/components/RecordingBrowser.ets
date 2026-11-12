@@ -426,7 +426,7 @@ export struct RecordingBrowser {
               this.stopPlayback();
             })
           Row({ space: 8 }) {
-            Button(this.playing ? '暂停' : '播放').height(36).fontSize(13).backgroundColor('#2563eb')
+            Button(this.playing ? '暂停' : '播放').height(36).fontSize(13).backgroundColor('#0A5C43')
               .enabled(this.videoReady)
               .onClick((): void => { this.togglePlay(); })
             Text(this.clock(this.playPosition)).fontSize(11)
@@ -453,12 +453,12 @@ export struct RecordingBrowser {
         }.width('100%')
       } else {
         Column({ space: 10 }) {
-          if (this.preparing) { LoadingProgress().width(32).height(32).color('#2563eb') }
+          if (this.preparing) { LoadingProgress().width(32).height(32).color('#0A5C43') }
           else { Image($r('app.media.ic_camera')).width(36).height(36).objectFit(ImageFit.Contain) }
           Text(this.preparing ? '正在连接硬件录像…' : this.playbackError !== '' ? this.playbackError : '点击下方片段即可在线播放')
             .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor).textAlign(TextAlign.Center)
           if (this.playbackError !== '' && this.selectedId !== '') {
-            Button('重新播放').height(44).backgroundColor('#2563eb')
+            Button('重新播放').height(44).backgroundColor('#0A5C43')
               .onClick((): void => { this.retrySelected(); })
           }
         }.width('100%').height(140).justifyContent(FlexAlign.Center)
@@ -501,7 +501,7 @@ export struct RecordingBrowser {
     Column({ space: 8 }) {
       if (day.loading) {
         Row({ space: 8 }) {
-          LoadingProgress().width(20).height(20).color('#2563eb')
+          LoadingProgress().width(20).height(20).color('#0A5C43')
           Text('正在读取该日异常记录…').fontSize(13)
             .fontColor(this.themeManager.colors.secondaryTextColor)
         }.width('100%').padding({ left: 12, right: 12, bottom: 8 })
@@ -509,7 +509,7 @@ export struct RecordingBrowser {
         Column({ space: 8 }) {
           Text(day.error).fontSize(13).fontColor(this.themeManager.colors.primaryTextColor)
             .textAlign(TextAlign.Center)
-          Button('重试').height(40).fontSize(13).backgroundColor('#2563eb')
+          Button('重试').height(40).fontSize(13).backgroundColor('#0A5C43')
             .onClick((): void => { this.loadDay(day.key, true); })
         }.width('100%').padding({ left: 12, right: 12, bottom: 10 })
       } else if (day.clips.length === 0) {
@@ -527,7 +527,7 @@ export struct RecordingBrowser {
                 .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
             Button(clip.downloadable === false ? '生成中' : this.downloadingId === clip.id ? '下载中' : '下载')
-              .height(42).fontSize(14).backgroundColor('#2563eb')
+              .height(42).fontSize(14).backgroundColor('#0A5C43')
               .enabled(clip.downloadable !== false && this.downloadingId === '')
               .accessibilityText(`把${this.eventLabel(clip.eventType)}视频保存到手机`)
               .onClick((): void => { this.saveClip(clip); })
@@ -550,7 +550,7 @@ export struct RecordingBrowser {
           Text(`${this.formatDate(this.rangeStart())} — ${this.formatDate(this.asOf)}`)
             .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor).maxLines(2)
         }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Button('刷新').height(44).fontSize(14).backgroundColor('#2563eb')
+        Button('刷新').height(44).fontSize(14).backgroundColor('#0A5C43')
           .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
       }.width('100%')
       Text('点击片段在线播放；点“下载”保存到手机')

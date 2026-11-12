@@ -1,3 +1,6 @@
+import { reduceMotion } from '../common/UiFeedback';
+import { MqttManager } from './MqttManager';
+import { CarePalette, carePalette } from '../common/CarePalette';
 import { mainPage } from "./mainpage";
 import { person } from "./person";
 import { record } from "./record";
@@ -13,7 +16,17 @@ export function LayoutBuilder(): void {
 }
 @Component
 export struct Layout {
-  @State currentIndex: number = 0;
+  @State @Watch('updateSystemBars') currentIndex: number = 0;
+  @State mqtt: MqttManager = MqttManager.getInstance();
+
+  private palette(): CarePalette {
+    return carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline);
+  }
+
+  private updateSystemBars(): void {
+    this.themeManager.updateSystemUI(this.currentIndex === 0);
+  }
+
   @State glassCompact: boolean = false;
   private scrollTravel: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
@@ -51,7 +64,7 @@ export struct Layout {
     const compact = this.scrollTravel > 0;
     this.scrollTravel = 0;
     if (this.glassCompact === compact) return;
-    this.getUIContext().animateTo({ duration: 270, curve: Curve.FastOutSlowIn }, () => {
+    this.getUIContext().animateTo({ duration: reduceMotion() ? 0 : 270, curve: Curve.FastOutSlowIn }, () => {
       this.glassCompact = compact;
     });
   }
@@ -63,17 +76,19 @@ export struct Layout {
         onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(0, delta, state); } }) }.width('100%').height('100%')
         .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
       if (this.currentIndex === 1) {
-        Column() { record({ bottomInset: bottomInset,
+        Column() { record({ bottomInset: bottomInset, onOpenHome: (): void => { this.selectGlassTab(0); },
           onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(1, delta, state); } }) }.width('100%').height('100%')
       }
       if (this.aiEnabled) {
         Column() { AiChat({
+          onOpenHome: (): void => { this.selectGlassTab(0); },
           onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(2, delta, state); },
         }) }.width('100%').height('100%').padding({ bottom: bottomInset })
           .backgroundColor(this.themeManager.colors.backgroundColor)
           .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
       }
       Column() { person({ pathStack: this.pathStack, bottomInset: bottomInset,
+        onOpenHome: (): void => { this.selectGlassTab(0); },
         onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(3, delta, state); } }) }.width('100%').height('100%')
         .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
     }
@@ -131,6 +146,9 @@ export struct Layout {
               selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
               viewportWidth: this.viewportWidth,
               compact: this.glassCompact,
+              darkSurface: this.currentIndex === 0,
+              accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
+              tint: this.palette().wash,
               onSelect: (slot: number): void => { this.selectGlassTab(slot); },
             }).margin({ bottom: 12 })
           }.width('100%').height('100%')
@@ -153,11 +171,13 @@ export struct Layout {
     .hideTitleBar(true)
     .linearGradient({
       direction: GradientDirection.Bottom,
-      colors: this.themeManager.isDarkMode
-        ? [['#0f172a', 0], ['#0f172a', 1]]
-        : [['#dce9ff', 0], ['#f0f4ff', 0.8], ['#f0f4ff', 1]],
+      colors: this.currentIndex === 0
+        ? [[this.palette().glow, 0], [this.palette().backdrop, 1]]
+        : [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor : this.palette().wash, 0],
+          [this.themeManager.colors.backgroundColor, 0.36], [this.themeManager.colors.backgroundColor, 1]],
     })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .onShown((): void => { this.updateSystemBars(); })
     .onReady((context: NavDestinationContext): void => {
       this.pathStack = context.pathStack;
     })

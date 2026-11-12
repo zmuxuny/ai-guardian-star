@@ -1,3 +1,5 @@
+import { curves } from '@kit.ArkUI';
+import { reduceMotion, softTap } from '../common/UiFeedback';
 import { ThemeManager } from '../common/ThemeManager';
 
 export const GLASS_TAB_CLEARANCE: number = 88;
@@ -15,11 +17,16 @@ export struct GlassBottomBar {
   @Prop selected: number = 0;
   @Prop viewportWidth: number = 360;
   @Prop compact: boolean = false;
+  @Prop darkSurface: boolean = false;
+  @Prop accent: string = '#0A5C43';
+  @Prop tint: string = '#DDF4E9';
+
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State touchSlot: number = -1;
   @State lift: number = 0;
   onSelect: (slot: number) => void = () => {};
   private dragging: boolean = false;
+  private lastDragCell: number = -1;
   private dragOrigin: number = 0;
 
   private barWidth(): number {
@@ -49,7 +56,7 @@ export struct GlassBottomBar {
   }
 
   private trackPress(event: TouchEvent, slot: number): void {
-    if (this.dragging) return;
+    if (this.dragging || reduceMotion()) return;
     if (event.type === TouchType.Down && event.touches.length === 1) {
       this.getUIContext().animateTo({ duration: 170, curve: Curve.FastOutSlowIn }, () => {
         this.touchSlot = slot;
@@ -70,28 +77,36 @@ export struct GlassBottomBar {
     this.dragging = true;
     this.dragOrigin = (finger.localX - event.offsetX) / this.cellWidth() - 0.5;
     this.touchSlot = this.dragPosition(event.offsetX);
-    this.lift = 1;
+    this.lastDragCell = Math.round(this.touchSlot);
+    this.lift = reduceMotion() ? 0 : 1;
   }
 
   private settle(slot?: number): void {
     this.dragging = false;
-    this.getUIContext().animateTo({ duration: 285, curve: Curve.FastOutSlowIn }, () => {
+    const reset = (): void => {
       if (slot !== undefined && slot < this.items.length) this.onSelect(slot);
       this.touchSlot = -1;
       this.lift = 0;
-    });
+    };
+    if (reduceMotion()) reset();
+    else this.getUIContext().animateTo({ curve: curves.springMotion(0.35, 0.78) }, reset);
+  }
+
+  private glyphColor(active: boolean): string {
+    if (active) return this.accent;
+    return this.darkSurface ? '#E2F0EA' : this.themeManager.colors.secondaryTextColor;
   }
 
   @Builder
   glyph(item: GlassTabItem, accent: boolean): void {
     Column({ space: 3 }) {
       Image(accent ? item.activeIcon : item.icon)
-        .width(24).height(24).objectFit(ImageFit.Contain)
+        .width(24).height(24).objectFit(ImageFit.Contain).fillColor(this.glyphColor(accent))
         .draggable(false)
       if (!this.compact) {
         Text(item.label)
           .fontSize(11).fontWeight(FontWeight.Medium).maxLines(1)
-          .fontColor(accent ? this.themeManager.colors.linkTextColor : this.themeManager.colors.secondaryTextColor)
+          .fontColor(this.glyphColor(accent))
       }
     }.width('100%').height('100%').justifyContent(FlexAlign.Center)
   }
@@ -102,14 +117,14 @@ export struct GlassBottomBar {
       Column()
         .width('100%').height('100%')
         .borderRadius(999)
-        .backgroundColor(this.themeManager.isDarkMode ? '#24FFFFFF' : '#140F172A')
+        .backgroundColor((this.darkSurface || this.themeManager.isDarkMode) ? '#24FFFFFF' : this.tint)
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: this.themeManager.isDarkMode
+          colors: (this.darkSurface || this.themeManager.isDarkMode)
             ? [['#30FFFFFF', 0], ['#03FFFFFF', 1]]
             : [['#C7FFFFFF', 0], ['#0CFFFFFF', 0.75], ['#62FFFFFF', 1]],
         })
-        .border({ width: 1, color: this.themeManager.isDarkMode ? '#3DFFFFFF' : '#DFFFFFFF' })
+        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#3DFFFFFF' : '#DFFFFFFF' })
       // Clip the accent layer to the moving lens so partially covered icons keep their position.
       Row() {
         ForEach(this.items, (item: GlassTabItem) => {
@@ -137,16 +152,16 @@ export struct GlassBottomBar {
           radius: 7,
           saturation: 1.32,
           brightness: 1.02,
-          color: this.themeManager.isDarkMode ? '#8A1C1C1E' : '#77FFFFFF',
+          color: (this.darkSurface || this.themeManager.isDarkMode) ? '#8A1C1C1E' : '#77FFFFFF',
         })
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: this.themeManager.isDarkMode
+          colors: (this.darkSurface || this.themeManager.isDarkMode)
             ? [['#1FFFFFFF', 0], ['#10101624', 0.55], ['#33000000', 1]]
             : [['#B3FFFFFF', 0], ['#18FFFFFF', 0.52], ['#174B6590', 1]],
         })
-        .border({ width: 1, color: this.themeManager.isDarkMode ? '#48FFFFFF' : '#F0FFFFFF' })
-        .shadow({ radius: 20, offsetY: 6, color: this.themeManager.isDarkMode ? '#64000000' : '#2B142747' })
+        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#48FFFFFF' : '#F0FFFFFF' })
+        .shadow({ radius: 20, offsetY: 6, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#64000000' : '#2B142747' })
         .scale({ x: 1 + 0.03 * this.lift, y: 1 + 0.02 * this.lift })
         .hitTestBehavior(HitTestMode.None)
       Row() {
@@ -161,7 +176,10 @@ export struct GlassBottomBar {
           .onTouch((event: TouchEvent): void => { this.trackPress(event, slot); })
           .onClick((): void => {
             // Accessibility and keyboard activation also use the existing tab selection.
-            if (!this.dragging) this.settle(slot);
+            if (!this.dragging) {
+              if (this.selected !== slot) softTap();
+              this.settle(slot);
+            }
           })
         }, (item: GlassTabItem): string => item.label)
       }.width('100%').height('100%')
@@ -172,7 +190,14 @@ export struct GlassBottomBar {
       PanGesture({ fingers: 1, direction: PanDirection.Horizontal, distance: 6 })
         .onActionStart((event: GestureEvent): void => { this.startDrag(event); })
         .onActionUpdate((event: GestureEvent): void => {
-          if (this.dragging) this.touchSlot = this.dragPosition(event.offsetX);
+          if (this.dragging) {
+            this.touchSlot = this.dragPosition(event.offsetX);
+            const cell = Math.round(this.touchSlot);
+            if (cell !== this.lastDragCell) {
+              this.lastDragCell = cell;
+              softTap();
+            }
+          }
         })
         .onActionEnd((event: GestureEvent): void => {
           if (this.dragging) this.settle(Math.round(this.dragPosition(event.offsetX)));
