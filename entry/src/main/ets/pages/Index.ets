@@ -100,12 +100,16 @@ struct PrivacyDialog {
   }
 }
 
+// 启动图标最短停留时间；0 表示会话恢复完成立即进入
+const SPLASH_MIN_MS = 0;
+// 与 module.json5 启动窗口底色、主页氛围底色一致
+const START_BACKDROP = '#052A1F';
+
 @Entry
 @Component
 struct Index {
   pathStack: NavPathStack = new NavPathStack();
   @State showSplash: boolean = true;
-  @StorageProp('startupLogoOffsetPx') startupLogoOffsetPx: number = 0;
   private startupStarted: boolean = false;
   private disposed: boolean = false;
   private startupTime: number = 0;
@@ -120,10 +124,10 @@ struct Index {
     this.splashWaitResolve = null;
   }
 
-  /** Keep the cold-start logo readable while session checks run in parallel. */
+  /** 启动页不再设最短停留，会话恢复完成就进入。 */
   private async waitForSplash(): Promise<void> {
     if (!this.showSplash) return;
-    const remaining = Math.max(0, 1800 - (Date.now() - this.startupTime));
+    const remaining = Math.max(0, SPLASH_MIN_MS - (Date.now() - this.startupTime));
     if (remaining === 0 || this.disposed) return;
     await new Promise<void>((resolve: () => void): void => {
       this.splashWaitResolve = resolve;
@@ -202,14 +206,11 @@ struct Index {
       }
       .hideNavBar(true).width('100%').height('100%')
       if (this.showSplash) {
+        // 不再显示启动图标：恢复会话的短暂间隙只铺主页底色，进入主页时无跳变
         Column() {
-          // Use the same rounded asset and 72vp frame as the system starting window.
-          Image($r('app.media.startIconmin')).width(72).height(72)
-            .objectFit(ImageFit.Contain)
-            .offset({ y: this.getUIContext().px2vp(this.startupLogoOffsetPx) })
-            .accessibilityText('智护星正在启动')
-        }.width('100%').height('100%').justifyContent(FlexAlign.Center)
-          .backgroundColor('#ffffff')
+        }.width('100%').height('100%')
+          .accessibilityText('智护星正在启动')
+          .backgroundColor(START_BACKDROP)
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
           .hitTestBehavior(HitTestMode.Block)
           .onAppear(() => {
@@ -219,7 +220,7 @@ struct Index {
             this.checkPrivacyThenLogin();
           })
       }
-    }.width('100%').height('100%').backgroundColor('#ffffff')
+    }.width('100%').height('100%').backgroundColor(START_BACKDROP)
   }
 
   /** 内存会话或经 Asset Store 恢复并换新的服务端会话才可进入应用。 */
@@ -230,22 +231,35 @@ struct Index {
       return;
     }
 
-    const result = await cloud.getMe();
     const sessionUserKey = cloud.getSessionUserKey();
-    if (!result.success || !result.user || sessionUserKey === '') {
+    console.info('[Index]: 会话恢复完成 hasUser=' + (sessionUserKey !== ''));
+    if (sessionUserKey === '') {
       cloud.clearSession();
-      UserManager.getInstance().clearCurrentUsername();
-      AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
       await this.openStartupPage('Login');
       return;
     }
-
+    // 刷新成功即可进入主页；资料校验、头像和 AI 权限同步放到后台，不再挡住启动
     UserManager.getInstance().setCurrentUsername(sessionUserKey);
     AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
+    await this.openStartupPage('Layout');
+    this.finishStartupInBackground(sessionUserKey);
+  }
+
+  private async finishStartupInBackground(sessionUserKey: string): Promise<void> {
+    const cloud = CloudService.getInstance();
+    const result = await cloud.getMe();
+    if (this.disposed) return;
+    if (!result.success || !result.user || cloud.getSessionUserKey() !== sessionUserKey) {
+      console.warn('[Index]: 后台资料校验失败，退回登录页');
+      cloud.clearSession();
+      UserManager.getInstance().clearCurrentUsername();
+      AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
+      this.pathStack.replacePathByName('Login', null, false);
+      return;
+    }
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     await AvatarSyncService.sync(context, sessionUserKey);
     await AiPermissionService.getInstance().sync();
-    await this.openStartupPage('Layout');
   }
 
 }

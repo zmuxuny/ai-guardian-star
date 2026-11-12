@@ -297,6 +297,7 @@ export class CloudService {
     }
     const body: RefreshRequest = { refreshToken: this.refreshToken };
     const response = await this.requestRaw('/api/refresh', http.RequestMethod.POST, body, false, 10000, false);
+    console.info('[CloudService]: refresh http=' + response.responseCode);
     try {
       const result = JSON.parse(response.result) as CloudResult;
       if (response.responseCode === 200 && result.success && result.accessToken && result.refreshToken) {
@@ -305,9 +306,14 @@ export class CloudService {
         if (this.rememberSession) {
           await this.persistSession();
         }
+        console.info('[CloudService]: refresh ok remember=' + this.rememberSession);
         return true;
       }
-    } catch (_e) {}
+    } catch (e) {
+      // 只记录错误类型和错误码：JSON 解析错误的 message 可能带响应片段，不写进日志
+      const err = e as BusinessError;
+      console.warn('[CloudService]: refresh 后处理失败 ' + err.name + ' code=' + err.code);
+    }
     if (response.responseCode === 400 || response.responseCode === 401) {
       await this.clearPersistedSession();
     }

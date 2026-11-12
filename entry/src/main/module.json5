@@ -47,6 +47,7 @@
         "description": "$string:EntryAbility_desc",
         "icon": "$media:layered_image",
         "label": "$string:EntryAbility_label",
+        "startWindow": "$profile:start_window",
         "startWindowIcon": "$media:startIconmin",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
