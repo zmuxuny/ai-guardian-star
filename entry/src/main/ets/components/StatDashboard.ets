@@ -15,7 +15,7 @@ export struct StatDashboard {
       Column() {
         Text(`${this.useDays}`)
           .fontSize(28).fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.isDarkMode ? '#60A5FA' : '#1E40AF')
+          .fontColor(this.themeManager.colors.linkTextColor)
         Text("天·已监护")
           .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
           .margin({ top: 6 })
@@ -26,7 +26,7 @@ export struct StatDashboard {
       Column() {
         Text(`${this.totalAlertCount}`)
           .fontSize(28).fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.isDarkMode ? '#60A5FA' : '#1E40AF')
+          .fontColor(this.themeManager.colors.linkTextColor)
         Text("次·摔倒预警")
           .fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
           .margin({ top: 6 })

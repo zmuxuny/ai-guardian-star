@@ -7,6 +7,7 @@ export class ThemeColors {
   backgroundColor: string = '#F4F7F5';
   secondaryBackgroundColor: string = '#EAF0ED';
   cardBackgroundColor: string = '#FFFFFF';
+  accentSurfaceColor: string = '#E1EFE7';
   
   // 文字色
   primaryTextColor: string = '#10231C';
@@ -35,6 +36,7 @@ export class DarkThemeColors extends ThemeColors {
   backgroundColor: string = '#142521';
   secondaryBackgroundColor: string = '#1E342D';
   cardBackgroundColor: string = '#1E342D';
+  accentSurfaceColor: string = '#28463A';
   
   primaryTextColor: string = '#F8FAFC';
   secondaryTextColor: string = '#CBD5E1';

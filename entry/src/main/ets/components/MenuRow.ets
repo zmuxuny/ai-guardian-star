@@ -1,14 +1,13 @@
 /**
  * MenuRow.ets — 通用菜单行组件（图标 + 标题/副标题 + 右箭头）
  */
+import { careIconTint } from '../common/CarePalette';
 import { ThemeManager } from '../common/ThemeManager';
 import { ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER } from './GradientHeader';
 
 @Component
 export struct MenuRow {
   @Prop imgRes: Resource = $r("app.media.ic_user_blue");
-  @Prop bgColorLight: string = "#eff6ff";
-  @Prop bgColorDark: string = "#1e3a5f";
   @Prop title: string = "";
   @Prop subTitle: string = "";
   onClickAction: () => void = () => {};
@@ -20,7 +19,8 @@ export struct MenuRow {
       Image(this.imgRes)
         .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).objectFit(ImageFit.Contain)
         .padding(10)
-        .backgroundColor(this.themeManager.isDarkMode ? this.bgColorDark : this.bgColorLight)
+        .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
+        .backgroundColor(this.themeManager.colors.accentSurfaceColor)
         .borderRadius(12)
         .margin({ right: 14 })
       Column() {
@@ -41,7 +41,7 @@ export struct MenuRow {
     .constraintSize({ minHeight: 64 })
     .backgroundColor(
       this.pressed
-        ? this.themeManager.isDarkMode ? "#2a3a50" : "#e8edf5"
+        ? this.themeManager.colors.accentSurfaceColor
         : this.themeManager.colors.cardBackgroundColor
     )
     .animation({ duration: 80, curve: Curve.EaseOut })

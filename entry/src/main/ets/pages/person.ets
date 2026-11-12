@@ -4,6 +4,7 @@ import { CareStatusBadge } from '../components/CareStatusBadge';
  * 显示用户信息、统计数据和系统设置
  */
 import { ThemeManager, ThemeMode } from "../common/ThemeManager";
+import { careIconTint } from '../common/CarePalette';
 import { MqttManager } from "./MqttManager";
 import { GradientHeader, ICON_FRAME_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
 import { StatDashboard } from '../components/StatDashboard';
@@ -422,6 +423,17 @@ export struct person {
   }
 
   @Builder
+  PreferenceIcon(icon: Resource): void {
+    Image(icon)
+      .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).objectFit(ImageFit.Contain)
+      .padding(8)
+      .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
+      .backgroundColor(this.themeManager.colors.accentSurfaceColor)
+      .borderRadius(10)
+      .margin({ right: '4%' })
+  }
+
+  @Builder
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
       Column() {
@@ -434,15 +446,15 @@ export struct person {
           Image(fileUri.getUriFromPath(this.userAvatarPath))
             .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
             .objectFit(ImageFit.Cover)
-            .border({ width: 2.5, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
+            .border({ width: 2.5, color: this.themeManager.colors.accentSurfaceColor })
             .clip(true)
         } else {
           Column() {
             Image($r("app.media.ic_user_blue")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
+              .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
           }
           .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
-          .backgroundColor(this.themeManager.isDarkMode ? '#20365a' : '#e1ebff')
-          .border({ width: 2, color: this.themeManager.isDarkMode ? '#334155' : '#c7d9ff' })
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         }
         Text(this.userNickname || this.userName)
@@ -470,8 +482,6 @@ export struct person {
             Column() {
               MenuRow({
                 imgRes: $r("app.media.ic_user_blue"),
-                bgColorLight: "#eff6ff",
-                bgColorDark: "#1e3a5f",
                 title: "个人资料",
                 subTitle: "修改头像、名字及安全联系方式",
                 onClickAction: (): void => {
@@ -483,8 +493,6 @@ export struct person {
                 .color(this.themeManager.colors.separatorColor)
               MenuRow({
                 imgRes: $r("app.media.ic_camera"),
-                bgColorLight: "#e0f2fe",
-                bgColorDark: "#0c4a6e",
                 title: "人脸信息",
                 subTitle: "录入人脸用于开发板识别 (阅后即焚)",
                 onClickAction: (): void => {
@@ -496,8 +504,6 @@ export struct person {
                 .color(this.themeManager.colors.separatorColor)
               MenuRow({
                 imgRes: $r("app.media.ic_map_pin_green"),
-                bgColorLight: "#f0fdf4",
-                bgColorDark: "#14302a",
                 title: "常用地址",
                 subTitle: "保存详细地址，设置默认住处",
                 onClickAction: (): void => this.safePush("MyAddress"),
@@ -508,8 +514,6 @@ export struct person {
               // ── 紧急联系人（功能暂未实现，先隐藏，后续再做）──
               // MenuRow({
               //   imgRes: $r("app.media.ic_phone_orange"),
-              //   bgColorLight: "#fff7ed",
-              //   bgColorDark: "#3d2000",
               //   title: "紧急联系人",
               //   subTitle: "危急时刻一键呼叫通知",
               //   onClickAction: (): void => {
@@ -520,8 +524,6 @@ export struct person {
               //   .color(this.themeManager.colors.separatorColor)
               MenuRow({
                 imgRes: $r("app.media.ic_shield_blue"),
-                bgColorLight: "#eff6ff",
-                bgColorDark: "#1e3a5f",
                 title: "隐私政策",
                 subTitle: "查看个人信息收集与使用说明",
                 onClickAction: (): void => {
@@ -551,18 +553,7 @@ export struct person {
               .alignSelf(ItemAlign.Start)
             Column() {
               Row() {
-                Image(
-                  this.themeManager.isDarkMode
-                    ? $r("app.media.ic_theme_light")
-                    : $r("app.media.ic_theme_gray"),
-                )
-                  .width(ICON_FRAME_SIZE)
-                  .height(ICON_FRAME_SIZE)
-                  .objectFit(ImageFit.Contain)
-                  .padding(8)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
-                  .borderRadius(10)
-                  .margin({ right: "4%" })
+                this.PreferenceIcon($r("app.media.ic_theme_gray"))
                 Text("外观模式")
                   .fontSize(15)
                   .fontWeight(FontWeight.Medium)
@@ -577,11 +568,11 @@ export struct person {
                         : "跟随",
                   )
                     .fontSize(12)
-                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
+                    .fontColor(this.themeManager.colors.linkTextColor)
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
-                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .backgroundColor(this.themeManager.colors.accentSurfaceColor)
                 .borderRadius(100)
                 .onClick((): void => {
                   this.themeManager.setThemeMode(
@@ -594,9 +585,7 @@ export struct person {
               .constraintSize({ minHeight: 64 })
               .backgroundColor(
                 this.pressedRow === "外观模式"
-                  ? this.themeManager.isDarkMode
-                    ? "#2a3a50"
-                    : "#e8edf5"
+                  ? this.themeManager.colors.accentSurfaceColor
                   : this.themeManager.colors.cardBackgroundColor,
               )
               .animation({ duration: 80, curve: Curve.EaseOut })
@@ -613,14 +602,7 @@ export struct person {
                 .margin({ left: "15%", right: "4%" })
                 .color(this.themeManager.colors.separatorColor)
               Row() {
-                Image($r("app.media.tab_ai_active"))
-                  .width(ICON_FRAME_SIZE)
-                  .height(ICON_FRAME_SIZE)
-                  .objectFit(ImageFit.Contain)
-                  .padding(7)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-                  .borderRadius(10)
-                  .margin({ right: "4%" })
+                this.PreferenceIcon($r("app.media.tab_ai_active"))
                 Column() {
                   Text("AI 健康助手")
                     .fontSize(15)
@@ -634,7 +616,7 @@ export struct person {
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.aiEnabled })
-                  .selectedColor("#0A5C43")
+                  .selectedColor(this.themeManager.colors.primaryButtonColor)
                   .enabled(!this.aiSaving)
                   .onChange((enabled: boolean): void => {
                     if (enabled !== this.aiEnabled) this.saveAiPermission(enabled, this.aiAccessLevel);
@@ -647,18 +629,7 @@ export struct person {
                 .margin({ left: "15%", right: "4%" })
                 .color(this.themeManager.colors.separatorColor)
               Row() {
-                Image(
-                  this.themeManager.isDarkMode
-                    ? $r("app.media.ic_shield_light")
-                    : $r("app.media.ic_shield_blue"),
-                )
-                  .width(ICON_FRAME_SIZE)
-                  .height(ICON_FRAME_SIZE)
-                  .objectFit(ImageFit.Contain)
-                  .padding(8)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-                  .borderRadius(10)
-                  .margin({ right: "4%" })
+                this.PreferenceIcon($r("app.media.ic_shield_blue"))
                 Column() {
                   Text("AI 分析权限")
                     .fontSize(15)
@@ -677,10 +648,10 @@ export struct person {
                     : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护',
                 )
                   .fontSize(12)
-                  .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
+                  .fontColor(this.themeManager.colors.linkTextColor)
                   .fontWeight(FontWeight.Medium)
                   .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
-                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                  .backgroundColor(this.themeManager.colors.accentSurfaceColor)
                   .borderRadius(100)
               }
               .width("100%")
@@ -698,9 +669,9 @@ export struct person {
                   title: "AI 分析权限",
                   message: '深度照护：统计、当前监护状态与最近事件精确时间\n隐私保护（默认）：近7天次数、距摔倒天数与设备在线状态\n基础问答：不附带监护数据\n\n问题和最近对话会经服务器交给云端 AI。自动隐藏常见手机号、身份证号和邮箱；请勿输入姓名、住址等私人信息。不会自动上传视频、人脸或地址。切换权限会清空当前对话。',
                   buttons: [
-                    { text: "深度照护", color: "#0A5C43" },
-                    { text: "隐私保护", color: "#0A5C43" },
-                    { text: "基础问答", color: "#64748b" },
+                    { text: "深度照护", color: this.themeManager.colors.linkTextColor },
+                    { text: "隐私保护", color: this.themeManager.colors.linkTextColor },
+                    { text: "基础问答", color: this.themeManager.colors.secondaryTextColor },
                   ],
                 }).then((result) => {
                   if (result === undefined) return;
@@ -714,18 +685,7 @@ export struct person {
                 .margin({ left: "15%", right: "4%" })
                 .color(this.themeManager.colors.separatorColor)
               Row() {
-                Image(
-                  this.themeManager.isDarkMode
-                    ? $r("app.media.ic_refresh_light")
-                    : $r("app.media.ic_refresh_gray"),
-                )
-                  .width(ICON_FRAME_SIZE)
-                  .height(ICON_FRAME_SIZE)
-                  .objectFit(ImageFit.Contain)
-                  .padding(8)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#334155" : "#f1f5f9")
-                  .borderRadius(10)
-                  .margin({ right: "4%" })
+                this.PreferenceIcon($r("app.media.ic_refresh_gray"))
                 Column() {
                   Text("清理缓存")
                     .fontSize(15)
@@ -748,9 +708,7 @@ export struct person {
               .constraintSize({ minHeight: 64 })
               .backgroundColor(
                 this.pressedRow === "清理缓存"
-                  ? this.themeManager.isDarkMode
-                    ? "#2a3a50"
-                    : "#e8edf5"
+                  ? this.themeManager.colors.accentSurfaceColor
                   : this.themeManager.colors.cardBackgroundColor,
               )
               .animation({ duration: 80, curve: Curve.EaseOut })
@@ -771,18 +729,7 @@ export struct person {
                 .color(this.themeManager.colors.separatorColor)
               // ── 数据保留天数设置行 ────────────────────────────────
               Row() {
-                Image(
-                  this.themeManager.isDarkMode
-                    ? $r("app.media.ic_shield_light")
-                    : $r("app.media.ic_shield_blue"),
-                )
-                  .width(ICON_FRAME_SIZE)
-                  .height(ICON_FRAME_SIZE)
-                  .objectFit(ImageFit.Contain)
-                  .padding(8)
-                  .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
-                  .borderRadius(10)
-                  .margin({ right: "4%" })
+                this.PreferenceIcon($r("app.media.ic_shield_blue"))
                 Column() {
                   Text("数据保留时长")
                     .fontSize(15)
@@ -799,11 +746,11 @@ export struct person {
                 Row() {
                   Text(`${this.retentionDays}天`)
                     .fontSize(13)
-                    .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
+                    .fontColor(this.themeManager.colors.linkTextColor)
                     .fontWeight(FontWeight.Medium)
                 }
                 .padding({ left: "3%", right: "3%", top: "1.5%", bottom: "1.5%" })
-                .backgroundColor(this.themeManager.isDarkMode ? "#1e3a5f" : "#eff6ff")
+                .backgroundColor(this.themeManager.colors.accentSurfaceColor)
                 .borderRadius(100)
                 .onClick((): void => {
                   // ArkTS showActionMenu 要求 ActionMenuButtonOptions[]，不支持 color 字段
@@ -812,10 +759,10 @@ export struct person {
                     title: "数据保留时长",
                     message: "选择视频与健康记录的保存天数",
                     buttons: [
-                      { text: "7天", color: "#0A5C43" },
-                      { text: "14天", color: "#0A5C43" },
-                      { text: "30天", color: "#0A5C43" },
-                      { text: "90天", color: "#0A5C43" },
+                      { text: "7天", color: this.themeManager.colors.linkTextColor },
+                      { text: "14天", color: this.themeManager.colors.linkTextColor },
+                      { text: "30天", color: this.themeManager.colors.linkTextColor },
+                      { text: "90天", color: this.themeManager.colors.linkTextColor },
                     ],
                   }).then((result) => {
                     if (result === undefined) return;
@@ -833,9 +780,7 @@ export struct person {
               .constraintSize({ minHeight: 64 })
               .backgroundColor(
                 this.pressedRow === "数据保留时长"
-                  ? this.themeManager.isDarkMode
-                    ? "#2a3a50"
-                    : "#e8edf5"
+                  ? this.themeManager.colors.accentSurfaceColor
                   : this.themeManager.colors.cardBackgroundColor,
               )
               .animation({ duration: 80, curve: Curve.EaseOut })
