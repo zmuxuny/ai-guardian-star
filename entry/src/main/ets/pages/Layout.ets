@@ -149,6 +149,7 @@ export struct Layout {
               darkSurface: this.currentIndex === 0,
               accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
               tint: this.palette().wash,
+              solid: this.palette().solid,
               onSelect: (slot: number): void => { this.selectGlassTab(slot); },
             }).margin({ bottom: 12 })
           }.width('100%').height('100%')

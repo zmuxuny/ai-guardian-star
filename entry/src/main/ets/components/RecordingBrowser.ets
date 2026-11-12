@@ -16,6 +16,8 @@ import picker from '@ohos.file.picker';
 import { media } from '@kit.MediaKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { showToast } from '../common/UiFeedback';
+import { CarePalette, carePalette, careIconTint } from '../common/CarePalette';
+import { MqttManager } from '../pages/MqttManager';
 
 /** 一个日期分组在页面生命周期内的缓存状态；只有展开过的日期才会去查询。 */
 interface RecordingDay {
@@ -37,6 +39,7 @@ export struct RecordingBrowser {
   @Prop bottomInset: number = 0;
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State mqtt: MqttManager = MqttManager.getInstance();
   @State filter: string = 'all';
   @State days: RecordingDay[] = [];
   @State expandedKey: string = '';
@@ -471,71 +474,136 @@ export struct RecordingBrowser {
       .backgroundColor(this.themeManager.colors.cardBackgroundColor)
   }
 
+  private palette(): CarePalette {
+    return carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline);
+  }
+
+  private ink(): string {
+    return this.themeManager.colors.primaryTextColor;
+  }
+
+  private ink2(): string {
+    return this.themeManager.colors.secondaryTextColor;
+  }
+
+  private line(): string {
+    return this.themeManager.isDarkMode ? '#1FFFFFFF' : '#1A10231C';
+  }
+
+  private thumbSurface(type: string): string {
+    if (type === 'fall') return '#FDE5DF';
+    if (type === 'stranger') return '#DCE3FF';
+    return '#DCE9E2';
+  }
+
+  /** 切换筛选：结果随类型变化，所有日期的缓存作废，只重查当前展开的那天 */
+  private setFilter(kind: string): void {
+    if (this.filter === kind) return;
+    this.filter = kind;
+    this.dayTokens.clear();
+    const ranges: RecordingDayRange[] = buildRecordingDays(Date.now(), RECORDING_RETENTION_MS);
+    const days: RecordingDay[] = [];
+    ranges.forEach((range: RecordingDayRange): void => { days.push(this.emptyDay(range)); });
+    this.days = days;
+    if (this.expandedKey === '' || !days.some((day: RecordingDay): boolean => day.key === this.expandedKey)) {
+      this.expandedKey = days.length > 0 ? days[0].key : '';
+    }
+    this.playbackVersion++;
+    this.preparing = false;
+    this.playbackError = '';
+    this.selectedId = '';
+    this.selectedLabel = '';
+    this.releaseVideo();
+    if (this.expandedKey !== '') this.loadDay(this.expandedKey, true);
+  }
+
+  @Builder
+  FilterChip(kind: string, label: string): void {
+    Button(label, { type: ButtonType.Capsule, stateEffect: true })
+      .height(40).padding({ left: 16, right: 16 }).fontSize(14).fontWeight(FontWeight.Medium)
+      .fontColor(this.filter === kind ? '#FFFFFF' : this.ink())
+      .backgroundColor(this.filter === kind ? this.palette().solid : this.themeManager.colors.cardBackgroundColor)
+      .shadow(this.filter === kind ? { radius: 0, color: Color.Transparent }
+        : { radius: 12, offsetY: 6, color: '#1410231C' })
+      .accessibilitySelected(this.filter === kind)
+      .onClick((): void => { this.setFilter(kind); })
+  }
+
   @Builder
   DayRow(day: RecordingDay): void {
     Row({ space: 8 }) {
-      Column({ space: 3 }) {
-        Row({ space: 6 }) {
-          Text(day.label).fontSize(15).fontWeight(FontWeight.Bold)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-          if (day.partial) {
-            Text('仅保留部分时段').fontSize(11)
-              .fontColor(this.themeManager.colors.secondaryTextColor)
-          }
-        }
-        if (day.loaded) {
-          Text(`${day.clips.length} 个异常事件`).fontSize(11)
-            .fontColor(this.themeManager.colors.secondaryTextColor)
-        }
-      }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-      Text(this.expandedKey === day.key ? '▴' : '▾').fontSize(14)
-        .fontColor(this.themeManager.colors.secondaryTextColor)
-    }.width('100%').padding(12).borderRadius(SURFACE_RADIUS)
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      Text(day.label).fontSize(17).fontWeight(FontWeight.Bold).fontColor(this.ink())
+      if (day.partial) {
+        Text('部分时段').fontSize(12).fontColor(this.ink2())
+      }
+      Blank()
+      if (day.loaded) {
+        Text(`${day.clips.length} 条`).fontSize(13).fontColor(this.ink2())
+      }
+      Image($r('app.media.ic_chevron_right')).width(16).height(16)
+        .rotate({ angle: this.expandedKey === day.key ? 90 : 0 })
+    }.width('100%').height(48)
       .accessibilityText(`${day.label}异常录像，${day.partial ? '仅保留部分时段，' : ''}点击${this.expandedKey === day.key ? '收起' : '展开'}`)
       .onClick((): void => { this.toggleDay(day.key); })
   }
 
   @Builder
+  ClipRow(clip: RecordingClip): void {
+    Row({ space: 12 }) {
+      Stack() {
+        Image($r('app.media.ic_camera')).width(30).height(30).opacity(0.35).objectFit(ImageFit.Contain)
+        Stack() {
+          Image($r('app.media.ic_play')).width(12).height(12)
+        }.width(26).height(26).borderRadius(13).backgroundColor('#B810231C')
+      }.width(72).height(54).borderRadius(14).backgroundColor(this.thumbSurface(clip.eventType))
+      .border({ width: 1, color: this.line() })
+      Column({ space: 3 }) {
+        Text(this.eventLabel(clip.eventType)).fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.ink())
+        // 板端暂未写事件结束时间，endUnconfirmed 恒为 true，不再显示“持续中”
+        Text(this.format(clip.startTime)).fontSize(13).fontColor(this.ink2())
+      }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+      Button({ type: ButtonType.Circle }) {
+        if (this.downloadingId === clip.id) {
+          LoadingProgress().width(20).height(20).color(this.palette().solid)
+        } else {
+          Image($r('app.media.ic_download')).width(20).height(20).supportSvg2(true)
+            .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
+        }
+      }
+      .width(44).height(44)
+      .backgroundColor(this.themeManager.isDarkMode ? '#24FFFFFF' : '#26' + this.palette().tone.substring(1))
+      .enabled(clip.downloadable !== false && this.downloadingId === '')
+      .opacity(clip.downloadable === false ? 0.4 : 1)
+      .accessibilityText(clip.downloadable === false ? '视频生成中' : `把${this.eventLabel(clip.eventType)}视频保存到手机`)
+      .onClick((): void => { this.saveClip(clip); })
+    }.width('100%').padding({ top: 12, bottom: 12 })
+      .border({ width: { top: 1 }, color: this.line() })
+      .backgroundColor(this.selectedId === clip.id ? '#14' + this.palette().tone.substring(1) : Color.Transparent)
+      .accessibilityText(`在线播放${this.eventLabel(clip.eventType)}视频`)
+      .onClick((): void => { this.play(clip); })
+  }
+
+  @Builder
   DayContent(day: RecordingDay): void {
-    Column({ space: 8 }) {
+    Column() {
       if (day.loading) {
         Row({ space: 8 }) {
-          LoadingProgress().width(20).height(20).color('#0A5C43')
-          Text('正在读取该日异常记录…').fontSize(13)
-            .fontColor(this.themeManager.colors.secondaryTextColor)
-        }.width('100%').padding({ left: 12, right: 12, bottom: 8 })
+          LoadingProgress().width(20).height(20).color(this.palette().solid)
+          Text('正在读取该日记录…').fontSize(13).fontColor(this.ink2())
+        }.width('100%').padding({ top: 12, bottom: 14 }).border({ width: { top: 1 }, color: this.line() })
       } else if (day.error !== '') {
-        Column({ space: 8 }) {
-          Text(day.error).fontSize(13).fontColor(this.themeManager.colors.primaryTextColor)
-            .textAlign(TextAlign.Center)
-          Button('重试').height(40).fontSize(13).backgroundColor('#0A5C43')
+        Column({ space: 10 }) {
+          Text(day.error).fontSize(13).fontColor(this.ink()).textAlign(TextAlign.Center)
+          Button('重试', { type: ButtonType.Capsule }).height(40).padding({ left: 22, right: 22 })
+            .fontSize(14).backgroundColor(this.palette().solid)
             .onClick((): void => { this.loadDay(day.key, true); })
-        }.width('100%').padding({ left: 12, right: 12, bottom: 10 })
+        }.width('100%').padding({ top: 12, bottom: 14 }).border({ width: { top: 1 }, color: this.line() })
       } else if (day.clips.length === 0) {
-        Text('该日暂无异常').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
-          .width('100%').padding({ left: 12, right: 12, bottom: 10 })
+        Text('这一天没有异常').fontSize(13).fontColor(this.ink2())
+          .width('100%').padding({ top: 12, bottom: 14 }).border({ width: { top: 1 }, color: this.line() })
       } else {
         ForEach(day.clips, (clip: RecordingClip) => {
-          Row({ space: 10 }) {
-            Image($r('app.media.ic_camera')).width(28).height(28).objectFit(ImageFit.Contain)
-            Column({ space: 4 }) {
-              Text(this.eventLabel(clip.eventType))
-                .fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-              // 板端暂未写事件结束时间，endUnconfirmed 恒为 true，不再显示“持续中”
-              Text(this.format(clip.startTime))
-                .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
-            }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            Button(clip.downloadable === false ? '生成中' : this.downloadingId === clip.id ? '下载中' : '下载')
-              .height(42).fontSize(14).backgroundColor('#0A5C43')
-              .enabled(clip.downloadable !== false && this.downloadingId === '')
-              .accessibilityText(`把${this.eventLabel(clip.eventType)}视频保存到手机`)
-              .onClick((): void => { this.saveClip(clip); })
-          }.width('100%').padding(14).borderRadius(SURFACE_RADIUS)
-            .backgroundColor(this.selectedId === clip.id ? (this.themeManager.isDarkMode ? '#1e3a5f' : '#dbeafe')
-              : this.themeManager.colors.cardBackgroundColor)
-            .accessibilityText(`在线播放${this.eventLabel(clip.eventType)}视频`)
-            .onClick((): void => { this.play(clip); })
+          this.ClipRow(clip)
         }, (clip: RecordingClip): string => clip.id)
       }
     }.width('100%')
@@ -543,40 +611,45 @@ export struct RecordingBrowser {
 
   build() {
     Column({ space: 12 }) {
-      Row() {
-        Column({ space: 4 }) {
-          Text('近7天异常录像').fontSize(17).fontWeight(FontWeight.Bold)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-          Text(`${this.formatDate(this.rangeStart())} — ${this.formatDate(this.asOf)}`)
-            .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor).maxLines(2)
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Button('刷新').height(44).fontSize(14).backgroundColor('#0A5C43')
-          .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
+      Row({ space: 8 }) {
+        Scroll() {
+          Row({ space: 8 }) {
+            this.FilterChip('all', '全部')
+            this.FilterChip('fall', '跌倒')
+            this.FilterChip('sedentary', '久坐')
+            this.FilterChip('stranger', '陌生人')
+          }.padding({ top: 4, bottom: 8 })
+        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).layoutWeight(1)
+        Button({ type: ButtonType.Circle }) {
+          Image($r('app.media.ic_refresh_gray')).width(20).height(20).supportSvg2(true)
+            .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
+        }.width(44).height(44).backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .shadow({ radius: 12, offsetY: 6, color: '#1410231C' }).margin({ bottom: 4 })
+        .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
       }.width('100%')
-      Text('点击片段在线播放；点“下载”保存到手机')
-        .fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%').maxLines(2)
       if (this.selectedId !== '') {
         this.Playback()
       }
       if (this.anyDayLoaded()) {
-        Text(this.statusText()).fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor).width('100%')
+        Text(this.statusText()).fontSize(12).fontColor(this.ink2()).width('100%')
       }
-      List({ space: 8 }) {
+      List({ space: 12 }) {
         ForEach(this.days, (day: RecordingDay) => {
           ListItem() {
-            Column({ space: 2 }) {
+            Column() {
               this.DayRow(day)
               if (this.expandedKey === day.key) {
                 this.DayContent(day)
               }
-            }.width('100%')
+            }.width('100%').padding({ left: 16, right: 16, bottom: this.expandedKey === day.key ? 4 : 0 })
+            .borderRadius(28).backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .shadow({ radius: 30, offsetY: 16, color: '#1F10231C' })
           }
         // key 必须包含加载状态：patchDay 生成新对象，只用日期作 key 时 ForEach 不会重建该项，界面会卡在“正在读取”。
         }, (day: RecordingDay): string =>
-          `${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}`)
-      }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
-        .contentEndOffset(this.bottomInset).onDidScroll(this.onTabScroll)
-    }.width('100%').height('100%').padding({ left: 16, right: 16, top: 14, bottom: 12 })
-      .backgroundColor(this.themeManager.colors.backgroundColor)
+          `${this.filter}|${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}|${this.expandedKey === day.key}`)
+      }.layoutWeight(1).width('100%').scrollBar(BarState.Off).clip(false)
+        .contentEndOffset(this.bottomInset + 12).onDidScroll(this.onTabScroll)
+    }.width('100%').height('100%').padding({ left: 16, right: 16, top: 8 })
   }
 }

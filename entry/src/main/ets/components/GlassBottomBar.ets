@@ -1,7 +1,6 @@
 import { careIconTint } from '../common/CarePalette';
 import { curves } from '@kit.ArkUI';
 import { reduceMotion, softTap } from '../common/UiFeedback';
-import { ThemeManager } from '../common/ThemeManager';
 
 export const GLASS_TAB_CLEARANCE: number = 88;
 
@@ -21,8 +20,9 @@ export struct GlassBottomBar {
   @Prop darkSurface: boolean = false;
   @Prop accent: string = '#0A5C43';
   @Prop tint: string = '#DDF4E9';
+  /** 状态实色：底栏按样张染成 58% 状态色玻璃，主页和阅读页一致 */
+  @Prop solid: string = '#0A5C43';
 
-  @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State touchSlot: number = -1;
   @State lift: number = 0;
   onSelect: (slot: number) => void = () => {};
@@ -94,8 +94,11 @@ export struct GlassBottomBar {
   }
 
   private glyphColor(active: boolean): string {
-    if (active) return this.accent;
-    return this.darkSurface ? '#E2F0EA' : this.themeManager.colors.secondaryTextColor;
+    return active ? '#FFFFFF' : '#D2E2DB';
+  }
+
+  private barTint(): string {
+    return '#94' + this.solid.substring(1);
   }
 
   @Builder
@@ -118,14 +121,12 @@ export struct GlassBottomBar {
       Column()
         .width('100%').height('100%')
         .borderRadius(999)
-        .backgroundColor((this.darkSurface || this.themeManager.isDarkMode) ? '#24FFFFFF' : this.tint)
+        .backgroundColor('#3DFFFFFF')
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: (this.darkSurface || this.themeManager.isDarkMode)
-            ? [['#30FFFFFF', 0], ['#03FFFFFF', 1]]
-            : [['#C7FFFFFF', 0], ['#0CFFFFFF', 0.75], ['#62FFFFFF', 1]],
+          colors: [['#33FFFFFF', 0], ['#08FFFFFF', 1]],
         })
-        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#3DFFFFFF' : '#DFFFFFFF' })
+        .border({ width: 1, color: '#66FFFFFF' })
       // Clip the accent layer to the moving lens so partially covered icons keep their position.
       Row() {
         ForEach(this.items, (item: GlassTabItem) => {
@@ -153,16 +154,14 @@ export struct GlassBottomBar {
           radius: 7,
           saturation: 1.32,
           brightness: 1.02,
-          color: (this.darkSurface || this.themeManager.isDarkMode) ? '#8A1C1C1E' : '#77FFFFFF',
+          color: this.barTint(),
         })
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: (this.darkSurface || this.themeManager.isDarkMode)
-            ? [['#1FFFFFFF', 0], ['#10101624', 0.55], ['#33000000', 1]]
-            : [['#B3FFFFFF', 0], ['#18FFFFFF', 0.52], ['#174B6590', 1]],
+          colors: [['#26FFFFFF', 0], ['#00FFFFFF', 0.55], ['#1A000000', 1]],
         })
-        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#48FFFFFF' : '#F0FFFFFF' })
-        .shadow({ radius: 20, offsetY: 6, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#64000000' : '#2B142747' })
+        .border({ width: 1, color: '#40FFFFFF' })
+        .shadow({ radius: 24, offsetY: 10, color: this.darkSurface ? '#64000000' : '#4010231C' })
         .scale({ x: 1 + 0.03 * this.lift, y: 1 + 0.02 * this.lift })
         .hitTestBehavior(HitTestMode.None)
       Row() {

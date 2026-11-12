@@ -10,7 +10,7 @@ import { MqttManager } from '../pages/MqttManager';
 import { ThemeManager } from '../common/ThemeManager';
 
 export const PAGE_HORIZONTAL_GUTTER: number = 20;
-export const PAGE_TITLE_SIZE: number = 24;
+export const PAGE_TITLE_SIZE: number = 30;
 export const PAGE_TITLE_ROW_HEIGHT: number = 44;
 export const ICON_FRAME_SIZE: number = 40;
 export const SURFACE_RADIUS: number = 16;

@@ -6,8 +6,7 @@ import { CareStatusBadge } from '../components/CareStatusBadge';
 import { ThemeManager, ThemeMode } from "../common/ThemeManager";
 import { careIconTint } from '../common/CarePalette';
 import { MqttManager } from "./MqttManager";
-import { GradientHeader, ICON_FRAME_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
-import { StatDashboard } from '../components/StatDashboard';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_TITLE_SIZE } from '../components/GradientHeader';
 import { MenuRow } from '../components/MenuRow';
 import { showDialog, showToast } from '../common/UiFeedback';
 import {
@@ -165,7 +164,6 @@ export struct person {
   @StorageLink(STORE_KEY_AI_ACCESS_LEVEL) aiAccessLevel: string = 'privacy';
   @StorageProp(STORE_KEY_AI_POLICY_READY) aiPolicyReady: boolean = false;
   @State aiSaving: boolean = false;
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   // 当前视口宽度，用于按断点取尺寸档位
   @State viewportWidth: number = 360;
   // 各菜单行按压状态
@@ -417,9 +415,9 @@ export struct person {
     this.pathStack.pushPathByName(pageName, null);
   }
 
-  /** 头像直径：手机 80vp，随断点小幅放大，不再用相对父容器的百分比 */
+  /** 头像直径：手机 66vp，随断点小幅放大，不再用相对父容器的百分比 */
   private avatarSize(): number {
-    return pick(getWindowSizeClass(this.viewportWidth), 80, 96, 112);
+    return pick(getWindowSizeClass(this.viewportWidth), 66, 76, 88);
   }
 
   @Builder
@@ -438,39 +436,44 @@ export struct person {
     GradientHeader({ useHomeStyle: true }) {
       Column() {
         Row() {
-          Text('个人').fontSize(24).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
+          Text('个人').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
           Blank()
           CareStatusBadge({ onOpenHome: this.onOpenHome })
-        }.width('100%').padding({ left: 20, right: 20 }).margin({ bottom: 8 })
-        if (this.userAvatarPath !== '') {
-          Image(fileUri.getUriFromPath(this.userAvatarPath))
-            .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
-            .objectFit(ImageFit.Cover)
-            .border({ width: 2.5, color: this.themeManager.colors.accentSurfaceColor })
-            .clip(true)
-        } else {
-          Column() {
-            Image($r("app.media.ic_user_blue")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
-              .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
+        }.width('100%').padding({ left: 20, right: 20 })
+        // 样张 .me：左头像，右侧名字与守护统计
+        Row({ space: 14 }) {
+          if (this.userAvatarPath !== '') {
+            Image(fileUri.getUriFromPath(this.userAvatarPath))
+              .width(this.avatarSize()).aspectRatio(1).borderRadius(999)
+              .objectFit(ImageFit.Cover)
+              .border({ width: 2.5, color: '#FFFFFF' })
+              .clip(true)
+          } else {
+            Column() {
+              Image($r("app.media.ic_user_blue")).width("50%").aspectRatio(1).objectFit(ImageFit.Contain)
+                .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
+            }
+            .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
+            .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+            .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
           }
-          .width(this.avatarSize()).aspectRatio(1).borderRadius(999).clip(true)
-          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
-          .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
-        }
-        Text(this.userNickname || this.userName)
-          .fontSize(22).fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.colors.primaryTextColor).margin({ top: 14 })
+          Column({ space: 4 }) {
+            Text(this.userNickname || this.userName)
+              .fontSize(22).fontWeight(FontWeight.Bold).maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .fontColor(this.themeManager.colors.primaryTextColor)
+            Text(`已守护 ${this.useDays} 天 · 跌倒预警 ${this.totalAlertCount} 次`)
+              .fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
+          }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+        }.width('100%').padding({ left: 20, right: 20, top: 16 })
       }
-      .width("100%").padding({ top: this.topSafeHeight + 8, bottom: 44 })
+      .width("100%").padding({ top: 16, bottom: 6 })
     }
   }
 
   build() {
     Column() {
       this.GradientHeader()
-      StatDashboard({ useDays: this.useDays, totalAlertCount: this.totalAlertCount })
-        .zIndex(1)
-        .margin({ top: -36 })
       Scroll() {
         Column() {
           Column() {
@@ -541,8 +544,8 @@ export struct person {
             }
             .width("92%")
             .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-            .border({ width: 1, color: this.themeManager.colors.borderColor })
-            .borderRadius(SURFACE_RADIUS)
+            .shadow({ radius: 30, offsetY: 16, color: this.themeManager.isDarkMode ? '#40000000' : '#1F10231C' })
+            .borderRadius(28)
             .clip(true)
           }.width("100%")
           Column() {
@@ -796,8 +799,8 @@ export struct person {
             }
             .width("92%")
             .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-            .border({ width: 1, color: this.themeManager.colors.borderColor })
-            .borderRadius(SURFACE_RADIUS)
+            .shadow({ radius: 30, offsetY: 16, color: this.themeManager.isDarkMode ? '#40000000' : '#1F10231C' })
+            .borderRadius(28)
             .clip(true)
           }.width("100%")
           Column({ space: 12 }) {
