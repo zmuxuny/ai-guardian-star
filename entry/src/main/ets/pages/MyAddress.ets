@@ -1,4 +1,5 @@
 import { ThemeManager } from '../common/ThemeManager';
+import { careIconTint } from '../common/CarePalette';
 import { UserManager } from '../common/UserManager';
 import { AddressService, SavedAddress, AddressDraft, AddressIdentity, AddressResult } from '../common/AddressService';
 import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
@@ -83,7 +84,7 @@ export struct MyAddress {
     if (this.originalDraft !== this.draftKey()) {
       const choice = await showDialog(this.getUIContext(), {
         title: '放弃未保存的修改？', message: '本次填写的内容还没有保存。',
-        buttons: [{ text: '继续填写', color: '#0A5C43' },
+        buttons: [{ text: '继续填写', color: this.themeManager.colors.linkTextColor },
           { text: '放弃修改', color: this.themeManager.colors.secondaryTextColor }],
       });
       if (choice === undefined || choice.index !== 1) return;
@@ -143,15 +144,17 @@ export struct MyAddress {
   PageHeader(): void {
     GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
-        Image($r('app.media.ic_chevron_right')).width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(9)
-          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20).rotate({ angle: 180 })
+        Image($r('app.media.ic_nav_back_dark')).width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(10)
+          .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.primaryTextColor))
+          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(20)
           .accessibilityText('返回').onClick((): void => {
             if (this.editing) this.leaveEdit(); else if (!this.busy) this.pathStack.pop();
           })
         Text('常用地址').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
           .margin({ left: 12 }).layoutWeight(1)
         Button(this.editing ? this.busy ? '保存中…' : '保存' : this.loading ? '读取中' : '刷新', { type: ButtonType.Normal })
-          .height(44).fontSize(14).fontColor('#ffffff').backgroundColor('#0A5C43').borderRadius(12)
+          .height(44).fontSize(14).fontColor(Color.White).backgroundColor(this.themeManager.colors.primaryButtonColor)
+          .borderRadius(12)
           .enabled(!this.busy && !this.loading && (!this.editing || !this.offline))
           .accessibilityText(this.editing ? '保存详细地址' : '刷新常用地址')
           .onClick((): void => { if (this.editing) this.save(); else this.loadAddresses(); })
@@ -165,16 +168,17 @@ export struct MyAddress {
     Column({ space: 12 }) {
       Row({ space: 10 }) {
         Image($r('app.media.ic_map_pin_green')).width(28).height(28).objectFit(ImageFit.Contain)
+          .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
         Text(address.detail).fontSize(16).fontWeight(FontWeight.Medium).lineHeight(24)
           .fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
         if (address.isDefault) {
           Text('默认住处').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .backgroundColor(this.themeManager.isDarkMode ? '#17315a' : '#dbeafe').borderRadius(6)
+            .backgroundColor(this.themeManager.colors.accentSurfaceColor).borderRadius(6)
         }
       }.width('100%')
       if (!address.isDefault) {
           Button('设为默认', { type: ButtonType.Normal }).height(44).fontSize(14).width('100%')
-            .backgroundColor(this.themeManager.colors.secondaryBackgroundColor).fontColor(this.themeManager.colors.linkTextColor)
+            .backgroundColor(this.themeManager.colors.accentSurfaceColor).fontColor(this.themeManager.colors.linkTextColor)
             .borderRadius(10).onClick((): void => { this.setDefault(address); })
             .enabled(!this.busy && !this.offline)
       }
@@ -194,19 +198,22 @@ export struct MyAddress {
       Column({ space: 7 }) {
         Text('详细地址（必填）').fontSize(14).fontColor(this.themeManager.colors.primaryTextColor)
         TextArea({ placeholder: '省 / 市 / 区 / 街道 / 小区 / 楼栋门牌', text: this.detail })
-          .fontColor(this.themeManager.colors.primaryTextColor).backgroundColor(this.themeManager.colors.secondaryBackgroundColor)
+          .fontColor(this.themeManager.colors.primaryTextColor).backgroundColor(this.themeManager.colors.backgroundColor)
           .placeholderColor(this.themeManager.colors.secondaryTextColor)
+          .caretColor(this.themeManager.colors.linkTextColor)
+          .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
           .height(104).maxLength(300).fontSize(15).onChange((value: string): void => { this.detail = value; })
           .onFocus((): void => { this.inputFocused = true; }).onBlur((): void => { this.inputFocused = false; })
       }.width('100%').alignItems(HorizontalAlign.Start)
       Row() {
         Text('设为默认住处').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
-        Toggle({ type: ToggleType.Switch, isOn: this.makeDefault }).selectedColor('#0A5C43')
+        Toggle({ type: ToggleType.Switch, isOn: this.makeDefault }).selectedColor(this.themeManager.colors.primaryButtonColor)
           .accessibilityText('设为默认住处').enabled(!this.busy && this.addresses.length > 0)
           .onChange((value: boolean): void => { this.makeDefault = value; })
       }.width('100%').height(48)
     }.width('100%').padding(16).alignItems(HorizontalAlign.Start).enabled(!this.busy)
       .backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(SURFACE_RADIUS)
+      .border({ width: 1, color: this.themeManager.colors.borderColor })
   }
 
   build() {
@@ -217,7 +224,7 @@ export struct MyAddress {
           Column({ space: 14 }) {
             if (this.loading) {
               Column({ space: 12 }) {
-                LoadingProgress().width(38).height(38)
+                LoadingProgress().width(38).height(38).color(this.themeManager.colors.linkTextColor)
                 Text('正在读取常用地址').fontSize(14).fontColor(this.themeManager.colors.secondaryTextColor)
               }.width('100%').height(200).justifyContent(FlexAlign.Center)
             } else if (this.editing) {
@@ -230,6 +237,7 @@ export struct MyAddress {
               if (this.addresses.length === 0) {
                 Column({ space: 12 }) {
                   Image($r('app.media.ic_map_pin_green')).width(48).height(48).objectFit(ImageFit.Contain)
+                    .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
                   Text(this.loadError === '' ? '还没有保存常用住处' : '暂时无法读取地址').fontSize(18).fontWeight(FontWeight.Medium)
                     .fontColor(this.themeManager.colors.primaryTextColor)
                   Text(this.loadError === '' ? '填写详细地址，保存后可设为默认住处。' : '请联网后点击右上角刷新。').fontSize(13)
@@ -242,17 +250,17 @@ export struct MyAddress {
                   (address: SavedAddress): string => `${address.id}-${address.version}`)
               }
               Button('添加常用住处', { type: ButtonType.Normal }).width('100%').height(50).fontSize(16)
-                .backgroundColor('#0A5C43').fontColor('#ffffff').borderRadius(12)
+                .backgroundColor(this.themeManager.colors.primaryButtonColor).fontColor(Color.White).borderRadius(12)
                 .enabled(!this.busy && !this.offline && this.addresses.length < 20)
                 .onClick((): void => { this.beginAdd(); })
             }
           }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 16, right: 16, top: 16, bottom: 28 })
         }.layoutWeight(1).width('100%').align(Alignment.Top)
           .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
-      }.width('100%').height('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      }.width('100%').height('100%').backgroundColor(this.themeManager.colors.backgroundColor)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }.hideTitleBar(true)
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       .onBackPressed((): boolean => {
         if (this.inputFocused) { this.finishInput(); return true; }

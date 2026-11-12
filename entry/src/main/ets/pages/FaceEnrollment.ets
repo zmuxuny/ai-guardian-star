@@ -1,5 +1,4 @@
-import { MqttManager } from './MqttManager';
-import { carePalette } from '../common/CarePalette';
+import { careIconTint } from '../common/CarePalette';
 import { abilityAccessCtrl, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { image } from '@kit.ImageKit';
@@ -17,6 +16,7 @@ import {
   FaceEnrollmentStep,
 } from '../face/FaceEnrollmentFlow';
 import {
+  GradientHeader,
   PAGE_TITLE_SIZE,
   SURFACE_PADDING,
   SURFACE_RADIUS,
@@ -29,7 +29,6 @@ export function FaceEnrollmentBuilder(): void {
 
 @Component
 export struct FaceEnrollment {
-  @State mqtt: MqttManager = MqttManager.getInstance();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   @State name: string = '';
@@ -71,6 +70,10 @@ export struct FaceEnrollment {
 
   private canContinue(): boolean {
     return !this.busy && validateFaceEnrollmentName(this.name).isValid;
+  }
+
+  private canCaptureOrUpload(): boolean {
+    return !this.busy && (this.cameraReady || this.capturedPreview !== undefined);
   }
 
   private async continueToCapture(): Promise<void> {
@@ -281,33 +284,24 @@ export struct FaceEnrollment {
 
   @Builder
   PageHeader(): void {
-    Row({ space: 12 }) {
-      Button({ type: ButtonType.Normal }) {
-        Image(this.themeManager.isDarkMode ? $r('app.media.ic_camera_back') : $r('app.media.ic_nav_back_dark'))
-          .width(20).height(20).objectFit(ImageFit.Contain)
-      }
-      .width(44).height(44).padding(0).borderRadius(SURFACE_RADIUS)
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .accessibilityText('返回').enabled(!this.busy)
-      .onClick((): void => { this.goBack(); })
-      Text('人脸数据采集')
-        .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
-        .fontColor(this.themeManager.colors.primaryTextColor)
-        .layoutWeight(1)
+    GradientHeader() {
+      Row({ space: 12 }) {
+        Button({ type: ButtonType.Normal }) {
+          Image($r('app.media.ic_nav_back_dark')).width(20).height(20).objectFit(ImageFit.Contain)
+            .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.primaryTextColor))
+        }
+        .width(44).height(44).padding(0).borderRadius(SURFACE_RADIUS)
+        .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .accessibilityText('返回').enabled(!this.busy)
+        .onClick((): void => { this.goBack(); })
+        Text('人脸数据采集')
+          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
+          .fontColor(this.themeManager.colors.primaryTextColor)
+          .layoutWeight(1)
+      }.width('100%').padding({
+        left: SURFACE_PADDING, right: SURFACE_PADDING, top: this.topSafeHeight + 8, bottom: 12,
+      })
     }
-    .width('100%').constraintSize({ maxWidth: 640 })
-    .padding({
-      left: SURFACE_PADDING,
-      right: SURFACE_PADDING,
-      top: this.topSafeHeight + 8,
-      bottom: 12,
-    })
-    .linearGradient({
-      direction: GradientDirection.Bottom,
-      colors: [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor
-        : carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline).wash, 0],
-        [this.themeManager.colors.backgroundColor, 1]],
-    })
   }
 
   @Builder
@@ -333,6 +327,8 @@ export struct FaceEnrollment {
           .height(52).width('100%').fontSize(16).maxLength(64)
           .fontColor(this.themeManager.colors.primaryTextColor)
           .placeholderColor(this.themeManager.colors.secondaryTextColor)
+          .caretColor(this.themeManager.colors.linkTextColor)
+          .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
           .backgroundColor(this.themeManager.colors.secondaryBackgroundColor)
           .borderRadius(12)
           .border({
@@ -364,12 +360,13 @@ export struct FaceEnrollment {
 
       Row({ space: 10 }) {
         Image($r('app.media.ic_shield_blue')).width(24).height(24).objectFit(ImageFit.Contain)
+          .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
         Text('拍摄照片仅在本次采集过程中临时处理，完成或退出后释放。')
           .fontSize(12).lineHeight(18).fontColor(this.themeManager.colors.secondaryTextColor)
           .layoutWeight(1)
       }
       .width('100%').padding(12)
-      .backgroundColor(this.themeManager.colors.secondaryBackgroundColor)
+      .backgroundColor(this.themeManager.colors.accentSurfaceColor)
       .borderRadius(12)
     }
     .width('100%').padding(SURFACE_PADDING)
@@ -425,22 +422,22 @@ export struct FaceEnrollment {
           .width('100%').height('100%').objectFit(ImageFit.Cover)
       }
       Stack({ alignContent: Alignment.Center }) {
-        Rect().width('100%').height('100%').fill('#FFFFFF')
+        Rect().width('100%').height('100%').fill(this.themeManager.colors.cardBackgroundColor)
         Ellipse().width(this.guideWidth).height(this.guideHeight).fill('#000000').blendMode(BlendMode.DST_OUT)
       }
       .width('100%').height('100%')
       .blendMode(BlendMode.SRC_OVER, BlendApplyType.OFFSCREEN)
       Ellipse().width(this.guideWidth).height(this.guideHeight).fill(Color.Transparent)
-        .stroke('#2563EB').strokeWidth(3)
+        .stroke(this.themeManager.colors.linkTextColor).strokeWidth(3)
       if (!this.cameraReady && this.capturedPreview === undefined) {
         Column({ space: 10 }) {
-          LoadingProgress().width(30).height(30).color('#2563EB')
+          LoadingProgress().width(30).height(30).color(this.themeManager.colors.linkTextColor)
           Text(this.cameraMessage).fontSize(13)
             .fontColor(this.themeManager.colors.secondaryTextColor)
         }
       }
     }
-    .width('100%').layoutWeight(1).clip(true).backgroundColor('#FFFFFF')
+    .width('100%').layoutWeight(1).clip(true).backgroundColor(this.themeManager.colors.cardBackgroundColor)
   }
 
   @Builder
@@ -464,8 +461,10 @@ export struct FaceEnrollment {
       if (this.step === 'name') {
         Button('继续', { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF').borderRadius(SURFACE_RADIUS)
-          .backgroundColor(this.canContinue() ? this.themeManager.colors.primaryButtonColor : '#64748B')
+          .fontColor(this.canContinue() ? Color.White : this.themeManager.colors.secondaryTextColor)
+          .borderRadius(SURFACE_RADIUS)
+          .backgroundColor(this.canContinue()
+            ? this.themeManager.colors.primaryButtonColor : this.themeManager.colors.accentSurfaceColor)
           .enabled(this.canContinue())
           .accessibilityText(this.canContinue() ? '继续采集人脸' : '请先填写有效姓名')
           .onClick((): void => { this.continueToCapture(); })
@@ -473,10 +472,11 @@ export struct FaceEnrollment {
         Button(this.capturedPreview === undefined ? (this.busy ? '处理中…' : '拍摄')
           : (this.busy ? '上传中…' : '确定上传'), { type: ButtonType.Normal })
           .layoutWeight(1).height(50).fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF').borderRadius(SURFACE_RADIUS)
-          .backgroundColor((this.cameraReady || this.capturedPreview !== undefined) && !this.busy
-            ? this.themeManager.colors.primaryButtonColor : '#64748B')
-          .enabled((this.cameraReady || this.capturedPreview !== undefined) && !this.busy)
+          .fontColor(this.canCaptureOrUpload() ? Color.White : this.themeManager.colors.secondaryTextColor)
+          .borderRadius(SURFACE_RADIUS)
+          .backgroundColor(this.canCaptureOrUpload()
+            ? this.themeManager.colors.primaryButtonColor : this.themeManager.colors.accentSurfaceColor)
+          .enabled(this.canCaptureOrUpload())
           .accessibilityText(this.capturedPreview === undefined ? '拍摄人脸照片' : '确认并上传人脸照片')
           .onClick((): void => {
             if (this.capturedPreview === undefined) this.capturePhoto(); else this.confirmUpload();
