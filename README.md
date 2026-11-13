@@ -33,10 +33,16 @@ Captured on the HarmonyOS 26 emulator on 2026-11-13 with the redesigned UI (boar
 
 <table>
   <tr>
-    <td align="center" width="25%"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="180" /><br /><sub><b>Live guardian</b><br />Status, alerts and one-tap voice call</sub></td>
-    <td align="center" width="25%"><img src="docs/screenshots/event-records.png" alt="Event records page" width="180" /><br /><sub><b>Event records</b><br />Fall, sedentary and stranger history</sub></td>
-    <td align="center" width="25%"><img src="docs/screenshots/ai-assistant.png" alt="AI health assistant page" width="180" /><br /><sub><b>AI health assistant</b><br />Three data-sharing levels</sub></td>
-    <td align="center" width="25%"><img src="docs/screenshots/profile.png" alt="Profile page" width="180" /><br /><sub><b>Profile</b><br />Account, face enrollment and saved addresses</sub></td>
+    <td align="center" width="25%"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="180" /></td>
+    <td align="center" width="25%"><img src="docs/screenshots/event-records.png" alt="Event records page" width="180" /></td>
+    <td align="center" width="25%"><img src="docs/screenshots/ai-assistant.png" alt="AI health assistant page" width="180" /></td>
+    <td align="center" width="25%"><img src="docs/screenshots/profile.png" alt="Profile page" width="180" /></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><sub><b>Live guardian</b><br />Status, alerts and one-tap voice call</sub></td>
+    <td align="center" width="25%"><sub><b>Event records</b><br />Fall, sedentary and stranger history</sub></td>
+    <td align="center" width="25%"><sub><b>AI health assistant</b><br />Three data-sharing levels</sub></td>
+    <td align="center" width="25%"><sub><b>Profile</b><br />Account, face enrollment and saved addresses</sub></td>
   </tr>
 </table>
 

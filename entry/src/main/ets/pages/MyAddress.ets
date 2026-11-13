@@ -217,8 +217,10 @@ export struct MyAddress {
   build() {
     NavDestination() {
       Column() {
-        this.PageHeader()
         Scroll() {
+          Column() {
+          // 页头随内容滑走，内容可滑进状态栏
+          this.PageHeader()
           Column({ space: 14 }) {
             if (this.loading) {
               Column({ space: 12 }) {
@@ -253,8 +255,10 @@ export struct MyAddress {
                 .onClick((): void => { this.beginAdd(); })
             }
           }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 16, right: 16, top: 16, bottom: 28 })
+          }.width('100%')
         }.layoutWeight(1).width('100%').align(Alignment.Top)
           .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       }.width('100%').height('100%').backgroundColor(this.themeManager.colors.backgroundColor)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }.hideTitleBar(true)

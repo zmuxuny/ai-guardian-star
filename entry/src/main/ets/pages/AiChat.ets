@@ -173,7 +173,7 @@ export struct AiChat {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader({ useHomeStyle: true }) {
+    GradientHeader({ useHomeStyle: true, contentMaxWidth: 880 }) {
       // 不放页面标题：顶部直接是权限条，状态胶囊在右侧
       Row({ space: 10 }) {
         Row({ space: 8 }) {
@@ -191,7 +191,7 @@ export struct AiChat {
         CareStatusBadge({ onOpenHome: this.onOpenHome })
       }
       .width('100%')
-      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 8 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 20 })
     }
   }
 
@@ -286,7 +286,7 @@ export struct AiChat {
         }.width('100%').padding({ left: 18, right: 18 })
       }
     }
-    .width('100%').constraintSize({ maxWidth: 640 })
+    .width('100%').constraintSize({ maxWidth: 880 })
     .margin({ bottom: 6 })
   }
 
@@ -332,22 +332,25 @@ export struct AiChat {
       .borderRadius(25).animation({ duration: 200, curve: Curve.EaseOut })
       .onClick((): void => { this.sendMessage(this.inputText); })
     }
-    .width('100%').constraintSize({ maxWidth: 640 })
+    .width('100%').constraintSize({ maxWidth: 880 })
     .padding({ left: 16, right: 16, top: 8, bottom: 16 })
   }
 
   build() {
     Column() {
-      this.GradientHeader()
       Scroll(this.scroller) {
         Column({ space: 0 }) {
+          // 权限条放进消息列表，随对话滑走，消息可滑进状态栏
+          this.GradientHeader()
           ForEach(this.messages, (msg: BubbleMsg) => {
             this.MessageBubble(msg)
           }, (msg: BubbleMsg) => `${msg.id}_${msg.isLoading ? 'L' : msg.content.length}`)
           Column().height(16)
-        }.width('100%').constraintSize({ maxWidth: 640 }).padding({ top: 12 })
+        }.width('100%').constraintSize({ maxWidth: 880 })
       }
       .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+      .align(Alignment.Top) // 消息少时不垂直居中，权限条贴顶
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
       .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
       this.QuickQuestions()
       this.AiDisclaimer()
