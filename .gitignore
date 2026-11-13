@@ -8,6 +8,11 @@ pnpm-lock.yaml
 # Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
 
 # HarmonyOS / ohos specific
 /oh_modules
@@ -43,6 +48,17 @@ __pycache__/
 # Test artifacts
 **/.test
 
+# Runtime logs and private face data
+*.log
+src/known_faces/
+src/debug_faces/
+*.db
+*.db-wal
+*.db-shm
+
+# Optional device-specific audio backend
+src/libguardian_audio.so
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -71,3 +87,24 @@ project-overview.html
 
 # Scratch
 /.tmp/
+
+# impeccable-ignore-start
+# Ephemeral output, runtime state, and per-developer overrides.
+**/.impeccable/config.local.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+**/.impeccable/*.png
+**/.impeccable/review/
+**/.impeccable/questions/
+**/.impeccable/live/server.json
+**/.impeccable/live/sessions/
+**/.impeccable/live/previews/
+**/.impeccable/live/annotations/
+**/.impeccable/live/cache/
+**/.impeccable/live/manual-edit-apply-transaction.json
+**/.impeccable/live/manual-edit-events.jsonl
+**/.impeccable/live/manual-edit-evidence/
+**/.impeccable/live/pending-manual-edits.json
+**/.impeccable/live/deferred-svelte-component-accepts.json
+**/.impeccable/live/*.png
+# impeccable-ignore-end

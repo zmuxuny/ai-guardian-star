@@ -3,7 +3,8 @@ import http from '@ohos.net.http';
 import { asset } from '@kit.AssetStoreKit';
 import { util } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { ECS_BASE_URL } from '../config';
+import { ECS_BASE_URL, STORE_KEY_AI_ENABLED, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
+import fs from '@ohos.file.fs';
 
 export interface CloudUser {
   username: string;
@@ -28,11 +29,25 @@ export interface CloudResult {
   imageBase64?: string;
   mimeType?: string;
   updatedAt?: number;
+  credentials?: MqttCredentials;
+  recognitionStatus?: string;
+  photoCount?: number;
+  hint?: string;
+}
+
+export interface MqttCredentials {
+  username: string;
+  password: string;
+  clientId: string;
+  topic: string;
+  expiresIn: number;
 }
 
 export interface CloudHttpResponse {
   responseCode: number;
   result: string;
+  /** 原生网络栈错误码（例如 2300028 读取超时）；HTTP 有响应状态码时为 undefined。 */
+  errorCode?: number;
 }
 
 interface LoginRequest {
@@ -126,6 +141,7 @@ export class CloudService {
   private sessionUserKey: string = '';
   private rememberSession: boolean = false;
   private refreshPromise: Promise<boolean> | null = null;
+  private sessionClearedListener: (() => void) | null = null;
 
   private constructor() {}
 
@@ -144,11 +160,19 @@ export class CloudService {
     return this.sessionUserKey;
   }
 
+  public setSessionClearedListener(listener: () => void): void {
+    this.sessionClearedListener = listener;
+  }
+
   public clearSession(): void {
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, false);
+    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_POLICY_READY, false);
+    AppStorage.setOrCreate<string>(STORE_KEY_AI_POLICY_STAMP, 'signed-out');
     this.accessToken = '';
     this.refreshToken = '';
     this.sessionUserKey = '';
     this.rememberSession = false;
+    if (this.sessionClearedListener) this.sessionClearedListener();
   }
 
   private async persistSession(): Promise<void> {
@@ -229,8 +253,11 @@ export class CloudService {
         expectDataType: http.HttpDataType.STRING,
       });
       response = { responseCode: raw.responseCode, result: raw.result as string };
-    } catch (_e) {
-      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}' };
+    } catch (e) {
+      // 只保留原始错误码用于分类文案；不记录 token，也不打印请求头。
+      const error = e as BusinessError;
+      const code: number = typeof error.code === 'number' ? error.code : 0;
+      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}', errorCode: code };
     } finally {
       req.destroy();
     }
@@ -270,6 +297,7 @@ export class CloudService {
     }
     const body: RefreshRequest = { refreshToken: this.refreshToken };
     const response = await this.requestRaw('/api/refresh', http.RequestMethod.POST, body, false, 10000, false);
+    console.info('[CloudService]: refresh http=' + response.responseCode);
     try {
       const result = JSON.parse(response.result) as CloudResult;
       if (response.responseCode === 200 && result.success && result.accessToken && result.refreshToken) {
@@ -278,9 +306,14 @@ export class CloudService {
         if (this.rememberSession) {
           await this.persistSession();
         }
+        console.info('[CloudService]: refresh ok remember=' + this.rememberSession);
         return true;
       }
-    } catch (_e) {}
+    } catch (e) {
+      // 只记录错误类型和错误码：JSON 解析错误的 message 可能带响应片段，不写进日志
+      const err = e as BusinessError;
+      console.warn('[CloudService]: refresh 后处理失败 ' + err.name + ' code=' + err.code);
+    }
     if (response.responseCode === 400 || response.responseCode === 401) {
       await this.clearPersistedSession();
     }
@@ -298,6 +331,92 @@ export class CloudService {
 
   public async authenticatedPost(path: string, body: Object, readTimeout: number = 10000): Promise<CloudHttpResponse> {
     return this.requestRaw(path, http.RequestMethod.POST, body, true, readTimeout, true);
+  }
+
+  private async requestFaceEnrollment(name: string, image: ArrayBuffer,
+    retryAfterRefresh: boolean): Promise<CloudHttpResponse> {
+    const token = this.accessToken;
+    if (token === '') return { responseCode: 401, result: '{"success":false,"message":"未登录"}' };
+    const boundary = 'GuardianBoundary' + Date.now().toString();
+    const encoder = new util.TextEncoder();
+    const namePart = encoder.encodeInto('--' + boundary + '\r\n'
+      + 'Content-Disposition: form-data; name="name"\r\n\r\n' + name + '\r\n').buffer as ArrayBuffer;
+    const fileHeader = encoder.encodeInto('--' + boundary + '\r\n'
+      + 'Content-Disposition: form-data; name="file"; filename="face.jpg"\r\n'
+      + 'Content-Type: image/jpeg\r\n\r\n').buffer as ArrayBuffer;
+    const tail = encoder.encodeInto('\r\n--' + boundary + '--\r\n').buffer as ArrayBuffer;
+    const merged = new Uint8Array(namePart.byteLength + fileHeader.byteLength + image.byteLength + tail.byteLength);
+    let offset = 0;
+    for (const part of [namePart, fileHeader, image, tail]) {
+      merged.set(new Uint8Array(part), offset);
+      offset += part.byteLength;
+    }
+
+    const req = http.createHttp();
+    let response: CloudHttpResponse;
+    try {
+      const raw = await req.request(ECS_BASE_URL + '/api/face/enroll', {
+        method: http.RequestMethod.POST,
+        header: {
+          'Content-Type': 'multipart/form-data; boundary=' + boundary,
+          'Authorization': 'Bearer ' + token,
+        },
+        extraData: merged.buffer as ArrayBuffer,
+        connectTimeout: 10000,
+        readTimeout: 45000,
+        expectDataType: http.HttpDataType.STRING,
+      });
+      response = { responseCode: raw.responseCode, result: raw.result as string };
+    } catch (_e) {
+      return { responseCode: 0, result: '{"success":false,"message":"网络不可用"}' };
+    } finally {
+      req.destroy();
+    }
+    if (response.responseCode === 401 && retryAfterRefresh && await this.refreshSession(token)) {
+      return this.requestFaceEnrollment(name, image, false);
+    }
+    if (response.responseCode === 401 && !retryAfterRefresh) {
+      await this.clearPersistedSession();
+      this.clearSession();
+    }
+    return response;
+  }
+
+  public async enrollFace(name: string, image: ArrayBuffer): Promise<CloudResult> {
+    return this.parseResult(await this.requestFaceEnrollment(name, image, true));
+  }
+
+  /** Download only the recording API into a private app cache file; tokens stay in memory. */
+  public async downloadRecording(body: Object, destination: string, retry: boolean = true): Promise<string> {
+    const token = this.accessToken;
+    if (token === '') return '请先登录';
+    const req = http.createHttp();
+    let expired = false;
+    try {
+      const response = await req.request(ECS_BASE_URL + '/api/recordings/media', {
+        method: http.RequestMethod.POST,
+        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        extraData: JSON.stringify(body),
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        connectTimeout: 10000,
+        readTimeout: 45000,
+        maxLimit: 12 * 1024 * 1024,
+      });
+      expired = response.responseCode === 401;
+      if (response.responseCode === 200) {
+        const file = fs.openSync(destination, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+        try { fs.writeSync(file.fd, response.result as ArrayBuffer); } finally { fs.closeSync(file); }
+        return '';
+      }
+      if (!expired) return response.responseCode === 404 ? '录像已过期，请刷新列表'
+        : response.responseCode === 429 ? '正在准备录像，请稍后重试' : '录像暂不可用，请重试';
+    } catch (_error) {
+      return '录像下载失败，请检查网络后重试';
+    } finally {
+      req.destroy();
+    }
+    if (expired && retry && await this.refreshSession(token)) return this.downloadRecording(body, destination, false);
+    return '登录已过期，请重新登录';
   }
 
   public async login(username: string, passwordHash: string, rememberMe: boolean = false): Promise<CloudResult> {
@@ -399,7 +518,12 @@ export class CloudService {
     );
   }
 
+  public async getMqttCredentials(): Promise<CloudResult> {
+    return this.parseResult(await this.authenticatedPost('/api/mqtt/credentials', new EmptyRequest()));
+  }
+
   public async logout(): Promise<CloudResult> {
+    if (this.sessionClearedListener) this.sessionClearedListener();
     let result: CloudResult = { success: false, message: '未登录' };
     try {
       if (this.hasSession()) {

@@ -10,27 +10,15 @@ export const ECS_VIDEO_PORT = 6001;
 export const ECS_MQTT_PORT = 8883;
 export const ECS_WS_PORT = 6000;
 
-// ── 局域网开发板 ────────────────────────────────────────────
-export const LAN_HOST = "192.168.137.100";
-export const LAN_UPLOAD_PORT = 8080;
-
 // ── 派生 URL ───────────────────────────────────────────────
 export const ECS_BASE_URL = "https://api.aistar.asia";
 export const VIDEO_FEED_URL = `${ECS_BASE_URL}/video_feed`;
 export const HEALTH_CHECK_URL = `${ECS_BASE_URL}/api/stats`;
 export const BROKER_URL = `ssl://${ECS_HOST}:${ECS_MQTT_PORT}`;
 export const WS_INTERCOM_URL = "wss://api.aistar.asia/ws/intercom";
-export const BOARD_UPLOAD_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/upload`;
-export const BOARD_FACE_ENROLL_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/enroll`;
-export const BOARD_FACE_LIST_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face/list`;
-export const BOARD_FACE_DELETE_URL = `http://${LAN_HOST}:${LAN_UPLOAD_PORT}/api/face`;
-
 // ── MQTT ────────────────────────────────────────────────────
 export const ALERT_TOPIC = "ai_guardian/alerts/#";
-export const MQTT_CLIENT_ID = "HarmonyOS_Client_sad";
-// 禁止在安装包内固化共享 broker 密码；后续由设备注册服务下发短期凭据并写入 Keystore。
-export const MQTT_USERNAME = "harmony_app";
-export const MQTT_PASSWORD = "";
+// MQTT 登录后领取仅订阅告警的短期凭据；只驻留内存，退出即清理。
 // GuardianCA 自签名根证书（公钥，非私钥，可安全内嵌）
 // 用于验证 broker TLS 证书，避免中间人攻击
 export const MQTT_CA_CERT = `-----BEGIN CERTIFICATE-----
@@ -62,6 +50,8 @@ export const STORE_KEY_EMAIL = "loggedInEmail";
 export const STORE_KEY_RETENTION = "retentionDays";
 export const STORE_KEY_AI_ENABLED = "aiAssistantEnabled";
 export const STORE_KEY_AI_ACCESS_LEVEL = "aiAccessLevel";
+export const STORE_KEY_AI_POLICY_READY = 'aiPolicyReady';
+export const STORE_KEY_AI_POLICY_STAMP = 'aiPolicyStamp';
 
 // ── Preferences ──────────────────────────────────────────────
 export const PREF_NAME_AUTH = "guardian_auth";

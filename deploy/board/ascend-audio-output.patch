@@ -1,0 +1,22 @@
+--- a/ascend_voice_stream.py
++++ b/ascend_voice_stream.py
+@@ -253,7 +253,18 @@
+                 _audio_status["output_device"] = _device_name(devices, output_idx)
+                 _audio_status["output_device_index"] = output_idx
+             else:
+-                print("[Audio] 未找到可用输出设备，播放功能关闭。")
++                try:
++                    from ascend_audio_output import AscendAudioOutput
++                    def output_failed(error):
++                        _audio_status["output_enabled"] = False
++                        print(f"[Audio] 板载耳机播放失败: {error}")
++                    _out_stream = AscendAudioOutput(_play_cb, output_failed)
++                    _audio_status["output_device"] = "Ascend MIPI headphone (3.5mm)"
++                    _audio_status["output_enabled"] = True
++                    _out_stream.start_stream()
++                except Exception as error:
++                    _audio_status["output_enabled"] = False
++                    print(f"[Audio] 板载耳机输出不可用: {error}")
+ 
+             if not _audio_status["input_enabled"] and not _audio_status["output_enabled"]:
+                 print("[Audio] 没有可用音频设备，语音服务保持空闲。")

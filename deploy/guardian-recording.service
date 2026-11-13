@@ -1,0 +1,25 @@
+[Unit]
+Description=Guardian rolling 24-hour camera recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/wenxin/app
+Environment=PYTHONPATH=/opt/wenxin/app
+Environment=RECORDING_ROOT=/var/lib/guardian-recordings
+Environment=RECORDING_SOURCE=http://127.0.0.1:6001/video_feed
+ExecStart=/opt/wenxin/venv/bin/python /opt/wenxin/app/recording_worker.py
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+MemoryMax=180M
+CPUQuota=75%
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

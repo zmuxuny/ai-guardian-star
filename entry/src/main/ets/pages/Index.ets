@@ -1,6 +1,7 @@
 import { common, Want } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { CloudService } from '../common/CloudService';
+import { AiPermissionService } from '../common/AiPermissionService';
 import { AvatarSyncService } from '../common/AvatarSyncService';
 import { UserManager } from '../common/UserManager';
 import { DatabaseHelper } from '../database/DatabaseHelper';
@@ -51,8 +52,8 @@ struct PrivacyDialog {
             .margin({ top: 4 })
           Text('查看完整隐私政策 →')
             .fontSize(13)
-            .fontColor('#1d4ed8')
-            .decoration({ type: TextDecorationType.Underline, color: '#1d4ed8' })
+            .fontColor('#0A5C43')
+            .decoration({ type: TextDecorationType.Underline, color: '#0A5C43' })
             .margin({ top: 4 })
             .onClick(() => {
               const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -84,7 +85,7 @@ struct PrivacyDialog {
         Button('同意并继续', { type: ButtonType.Normal })
           .layoutWeight(1)
           .height(44)
-          .backgroundColor('#2563eb')
+          .backgroundColor('#0A5C43')
           .fontColor('#ffffff')
           .borderRadius(10)
           .onClick(() => { this.onAgree(); })
@@ -99,10 +100,58 @@ struct PrivacyDialog {
   }
 }
 
+// 启动图标最短停留时间；0 表示会话恢复完成立即进入
+const SPLASH_MIN_MS = 0;
+// 与 module.json5 启动窗口底色、主页氛围底色一致
+const START_BACKDROP = '#052A1F';
+
 @Entry
 @Component
 struct Index {
   pathStack: NavPathStack = new NavPathStack();
+  @State showSplash: boolean = true;
+  private startupStarted: boolean = false;
+  private disposed: boolean = false;
+  private startupTime: number = 0;
+  private splashTimer: number = -1;
+  private splashWaitResolve: (() => void) | null = null;
+
+  aboutToDisappear(): void {
+    this.disposed = true;
+    if (this.splashTimer !== -1) clearTimeout(this.splashTimer);
+    this.splashTimer = -1;
+    if (this.splashWaitResolve !== null) this.splashWaitResolve();
+    this.splashWaitResolve = null;
+  }
+
+  /** 启动页不再设最短停留，会话恢复完成就进入。 */
+  private async waitForSplash(): Promise<void> {
+    if (!this.showSplash) return;
+    const remaining = Math.max(0, SPLASH_MIN_MS - (Date.now() - this.startupTime));
+    if (remaining === 0 || this.disposed) return;
+    await new Promise<void>((resolve: () => void): void => {
+      this.splashWaitResolve = resolve;
+      this.splashTimer = setTimeout((): void => {
+        this.splashTimer = -1;
+        this.splashWaitResolve = null;
+        resolve();
+      }, remaining);
+    });
+  }
+
+  private async openStartupPage(name: string): Promise<void> {
+    await this.waitForSplash();
+    if (this.disposed) return;
+    this.pathStack.pushPathByName(name, null, false);
+    this.showSplash = false;
+  }
+
+  private async openPrivacyAfterSplash(): Promise<void> {
+    await this.waitForSplash();
+    if (this.disposed) return;
+    this.showSplash = false;
+    this.privacyDialogController.open();
+  }
 
   private privacyDialogController: CustomDialogController = new CustomDialogController({
     builder: PrivacyDialog({
@@ -142,7 +191,7 @@ struct Index {
       const pref = preferences.getPreferencesSync(ctx, options);
       const accepted = pref.getSync(PREF_KEY_PRIVACY_ACCEPTED, false) as boolean;
       if (!accepted) {
-        this.privacyDialogController.open();
+        this.openPrivacyAfterSplash();
         return;
       }
     } catch (e) {
@@ -152,42 +201,65 @@ struct Index {
   }
 
   build() {
-    Navigation(this.pathStack) {
-    }.onAppear(() => {
-      this.checkPrivacyThenLogin();
-    })
-    .hideNavBar(true)
+    Stack() {
+      Navigation(this.pathStack) {
+      }
+      .hideNavBar(true).width('100%').height('100%')
+      if (this.showSplash) {
+        // 不再显示启动图标：恢复会话的短暂间隙只铺主页底色，进入主页时无跳变
+        Column() {
+        }.width('100%').height('100%')
+          .accessibilityText('智护星正在启动')
+          .backgroundColor(START_BACKDROP)
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+          .hitTestBehavior(HitTestMode.Block)
+          .onAppear(() => {
+            if (this.startupStarted) return;
+            this.startupStarted = true;
+            this.startupTime = Date.now();
+            this.checkPrivacyThenLogin();
+          })
+      }
+    }.width('100%').height('100%').backgroundColor(START_BACKDROP)
   }
 
   /** 内存会话或经 Asset Store 恢复并换新的服务端会话才可进入应用。 */
   private async checkAutoLogin(): Promise<void> {
     const cloud = CloudService.getInstance();
     if (!cloud.hasSession() && !await cloud.restorePersistedSession()) {
-      this.pathStack.pushPathByName('Login', null, false);
+      await this.openStartupPage('Login');
       return;
     }
 
-    const result = await cloud.getMe();
     const sessionUserKey = cloud.getSessionUserKey();
-    if (!result.success || !result.user || sessionUserKey === '') {
+    console.info('[Index]: 会话恢复完成 hasUser=' + (sessionUserKey !== ''));
+    if (sessionUserKey === '') {
+      cloud.clearSession();
+      await this.openStartupPage('Login');
+      return;
+    }
+    // 刷新成功即可进入主页；资料校验、头像和 AI 权限同步放到后台，不再挡住启动
+    UserManager.getInstance().setCurrentUsername(sessionUserKey);
+    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
+    await this.openStartupPage('Layout');
+    this.finishStartupInBackground(sessionUserKey);
+  }
+
+  private async finishStartupInBackground(sessionUserKey: string): Promise<void> {
+    const cloud = CloudService.getInstance();
+    const result = await cloud.getMe();
+    if (this.disposed) return;
+    if (!result.success || !result.user || cloud.getSessionUserKey() !== sessionUserKey) {
+      console.warn('[Index]: 后台资料校验失败，退回登录页');
       cloud.clearSession();
       UserManager.getInstance().clearCurrentUsername();
       AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, '');
-      this.pathStack.pushPathByName('Login', null, false);
+      this.pathStack.replacePathByName('Login', null, false);
       return;
     }
-
-    UserManager.getInstance().setCurrentUsername(sessionUserKey);
-    AppStorage.setOrCreate<string>(STORE_KEY_LOGGED_IN_USER, sessionUserKey);
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     await AvatarSyncService.sync(context, sessionUserKey);
-    const aiEnabled = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ENABLED);
-    const savedAccessLevel = await DatabaseHelper.getInstance().loadSetting(sessionUserKey, STORE_KEY_AI_ACCESS_LEVEL);
-    const aiAccessLevel = savedAccessLevel === 'full' || savedAccessLevel === 'basic'
-      ? savedAccessLevel : 'privacy';
-    AppStorage.setOrCreate<boolean>(STORE_KEY_AI_ENABLED, aiEnabled !== 'false');
-    AppStorage.setOrCreate<string>(STORE_KEY_AI_ACCESS_LEVEL, aiAccessLevel);
-    this.pathStack.pushPathByName('Layout', null, false);
+    await AiPermissionService.getInstance().sync();
   }
 
 }

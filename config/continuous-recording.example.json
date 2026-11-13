@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "data_root": null,
+  "storage_quota_bytes": null,
+  "min_free_bytes": null,
+  "retention_days": 7,
+  "retention_hours": 24,
+  "timezone": "Asia/Shanghai",
+  "segment_seconds": 60,
+  "record_fps": 8,
+  "bitrate_mbps": 0.6,
+  "encoder": "libx264",
+  "queue_frames": 24,
+  "queue_bytes": 33554432,
+  "cleanup_interval_seconds": 60,
+  "journal_mode": "DELETE",
+  "synchronous": "FULL"
+}

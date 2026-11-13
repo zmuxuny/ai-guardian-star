@@ -1,416 +1,554 @@
+import { CarePalette, carePalette, careIconTint } from '../common/CarePalette';
 import { MqttManager } from './MqttManager';
-import { ThemeManager } from '../common/ThemeManager';
-import webview from '@ohos.web.webview';
-import display from '@ohos.display';
+import { DatabaseHelper, HealthEvent } from '../database/DatabaseHelper';
+import { UserManager } from '../common/UserManager';
+import { isHomeEventType, homeEventTitle } from '../common/HomeEventRules';
+import { CameraStreamView } from '../components/CameraStreamView';
 import { AudioTransferManager } from '../common/AudioTransferManager';
-import { abilityAccessCtrl } from '@kit.AbilityKit';
-import { common } from '@kit.AbilityKit';
-import http from '@ohos.net.http';
-import { VIDEO_FEED_URL, HEALTH_CHECK_URL } from '../config';
-import { GradientHeader } from '../components/GradientHeader';
-import { showToast } from '../common/UiFeedback';
-import { getWindowSizeClass } from '../common/ResponsiveLayout';
+import { toggleDeviceCall } from '../common/CallControl';
+import { curves } from '@kit.ArkUI';
+import { reduceMotion, softTap } from '../common/UiFeedback';
+
+// 样张 docs/ui-demo 的深色状态页取值
+const GLASS: string = '#24FFFFFF';
+const GLASS_EDGE: string = '#2EFFFFFF';
+const ON2: string = '#B8FFFFFF';
+const LINE: string = '#29FFFFFF';
+const PANEL_RADIUS: number = 28;
 
 @Component
 export struct mainPage {
-  @State videoUrl: string = VIDEO_FEED_URL;
-  @State volumeLevel: number = 50;
+  @Prop bottomInset: number = 0;
+  onTabScroll: (delta: number, state: ScrollState) => void = () => {};
+  pathStack: NavPathStack = new NavPathStack();
+  @StorageLink('homeCameraFullscreenActive') @Watch('onFullscreenChange') cameraFullscreenActive: boolean = false;
   @State mqttManager: MqttManager = MqttManager.getInstance();
-  @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @State deviceOnline: boolean = false;
-  @State latestMessage: string = '正在初始化...';
-  @State isFallDetected: boolean = false;
-  @State isSedentaryDetected: boolean = false;
-  @State isStrangerDetected: boolean = false;
+  @State homeEvents: HealthEvent[] = [];
+  @State homeLoading: boolean = true;
+  @State homeLoadFailed: boolean = false;
   @State isTalking: boolean = false;
-  // LIVE 绿点动画状态
-  @State dotScale: number = 1.0;
-  @State dotGlowScale: number = 1.0;
-  @State dotGlowOpacity: number = 0.5;
-  // 通话按钮缩放
-  @State btnScale: number = 1.0;
-  // 顶部状态栏安全高度（由 EntryAbility 写入 AppStorage）
-  @StorageProp('topSafeHeight') topSafeHeight: number = 48;
-  // 当前视口宽度，用于大屏左右分栏
-  @State viewportWidth: number = 360;
-
-  private updateTimer: number = -1;
-  private healthCheckTimer: number = -1;
-  private readonly healthCheckUrl: string = HEALTH_CHECK_URL;
-  private webController: webview.WebviewController = new webview.WebviewController();
+  @State callBusy: boolean = false;
+  @State pressed: string = '';
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
-  private context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+  private homeVisible: boolean = false;
+  private homeDataTimer: number = -1;
+  private homeDataLoading: boolean = false;
+  private homeDataUser: string = '';
 
   aboutToAppear(): void {
+    this.homeVisible = true;
     this.mqttManager.connectAndSubscribe();
-    this.syncState();
-    this.updateTimer = setInterval(() => { this.syncState(); }, 100);
-    this.runHealthCheck();
-    this.healthCheckTimer = setInterval(() => { this.runHealthCheck(); }, 5000) as number;
+    this.loadHomeEvents();
+    this.homeDataTimer = setInterval((): void => {
+      this.loadHomeEvents();
+      this.isTalking = this.audioManager.isCallActive();
+    }, 2000) as number;
   }
+
   aboutToDisappear(): void {
-    if (this.updateTimer !== -1) { clearInterval(this.updateTimer); this.updateTimer = -1; }
-    if (this.healthCheckTimer !== -1) { clearInterval(this.healthCheckTimer); this.healthCheckTimer = -1; }
+    this.homeVisible = false;
+    this.audioManager.stopCall();
+    this.isTalking = false;
+    if (this.homeDataTimer !== -1) clearInterval(this.homeDataTimer);
+    this.homeDataTimer = -1;
   }
-  private runHealthCheck(): void {
-    const req = http.createHttp();
-    req.request(this.healthCheckUrl, {
-      method: http.RequestMethod.GET,
-      connectTimeout: 4000,
-      readTimeout: 4000,
-    }).then((resp) => {
-      this.deviceOnline = resp.responseCode === 200;
-      req.destroy();
-    }).catch(() => {
-      this.deviceOnline = false;
-      req.destroy();
+
+  onPageShow(): void { this.loadHomeEvents(); }
+
+  private openCamera(): void {
+    this.cameraFullscreenActive = true;
+    this.pathStack.pushPathByName('CameraFullscreen', null);
+  }
+
+  private async toggleCall(): Promise<void> {
+    if (this.callBusy) return;
+    this.callBusy = true;
+    try {
+      await toggleDeviceCall(this.getUIContext(), (): boolean => this.homeVisible);
+    } finally {
+      this.callBusy = false;
+      this.isTalking = this.audioManager.isCallActive();
+    }
+  }
+
+  /** 从全屏画面返回时立即同步通话状态（全屏里可能挂断或接通） */
+  onFullscreenChange(): void {
+    if (!this.cameraFullscreenActive) this.isTalking = this.audioManager.isCallActive();
+  }
+
+  private palette(): CarePalette {
+    return carePalette(this.mqttManager.isFallDetected, this.mqttManager.isSedentaryDetected,
+      this.mqttManager.deviceOnline);
+  }
+
+  /** 按下回弹（样张 .press）：减弱动态效果时不缩放 */
+  private pressScale(key: string, shrink: number): number {
+    return this.pressed === key && !reduceMotion() ? shrink : 1;
+  }
+
+  private trackPress(key: string, event: TouchEvent): void {
+    if (event.type === TouchType.Down) this.pressed = key;
+    else if (event.type === TouchType.Up || event.type === TouchType.Cancel) this.pressed = '';
+  }
+
+  private async loadHomeEvents(): Promise<void> {
+    if (this.homeDataLoading) return;
+    const userManager = UserManager.getInstance();
+    const username = userManager.getCurrentUsername();
+    if (!userManager.isLoggedIn()) {
+      this.homeEvents = [];
+      this.homeDataUser = '';
+      this.homeLoading = false;
+      this.homeLoadFailed = false;
+      return;
+    }
+    if (this.homeDataUser !== username) {
+      this.homeEvents = [];
+      this.homeLoading = true;
+      this.homeDataUser = username;
+    }
+    this.homeDataLoading = true;
+    try {
+      const events = await DatabaseHelper.getInstance().queryHealthEvents(undefined, username);
+      if (!userManager.isLoggedIn() || userManager.getCurrentUsername() !== username) return;
+      this.homeEvents = events.filter((event: HealthEvent): boolean => isHomeEventType(event.eventType))
+        .sort((first: HealthEvent, second: HealthEvent): number => second.eventTime - first.eventTime);
+      this.homeLoadFailed = false;
+    } catch (_) {
+      this.homeLoadFailed = true;
+    } finally {
+      this.homeLoading = false;
+      this.homeDataLoading = false;
+    }
+  }
+
+  private todayStart(): number {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }
+
+  private todayEvents(): HealthEvent[] {
+    const start = this.todayStart();
+    return this.homeEvents.filter((event: HealthEvent): boolean => event.eventTime >= start);
+  }
+
+  private todayCountOf(type: string): number {
+    return this.todayEvents().filter((event: HealthEvent): boolean => event.eventType === type).length;
+  }
+
+  private dataReady(): boolean {
+    return UserManager.getInstance().isLoggedIn() && !this.homeLoading && !this.homeLoadFailed;
+  }
+
+  private todaySummary(): string {
+    if (!UserManager.getInstance().isLoggedIn()) return '登录后查看';
+    if (this.homeLoading) return '正在加载';
+    if (this.homeLoadFailed) return '加载失败，点击重试';
+    const parts: string[] = [];
+    const sit = this.todayCountOf('sedentary');
+    const visitor = this.todayCountOf('stranger');
+    if (sit > 0) parts.push(`久坐 ${sit} 次`);
+    if (visitor > 0) parts.push(`陌生人 ${visitor} 次`);
+    return parts.length > 0 ? parts.join(' · ') : '一切正常';
+  }
+
+  /** 大字下方两行说明（样张 .sub） */
+  private heroLines(): string {
+    if (this.callBusy) return this.isTalking ? '正在结束通话…' : '正在连接通话…';
+    if (this.isTalking) return '通话中，点挂断结束';
+    if (!this.dataReady()) return this.palette().detail;
+    const falls = this.todayCountOf('fall');
+    const first = falls > 0 ? `今天跌倒 ${falls} 次` : '今天没有跌倒';
+    const latest = this.homeEvents.length > 0
+      ? `最近事件 ${this.eventTime(this.homeEvents[0].eventTime)} ${this.eventTitle(this.homeEvents[0])}`
+      : this.palette().detail;
+    return `${first}\n${latest}`;
+  }
+
+  private eventTitle(event: HealthEvent): string {
+    return homeEventTitle(event.eventType);
+  }
+
+  private eventTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${`${date.getHours()}`.padStart(2, '0')}:${`${date.getMinutes()}`.padStart(2, '0')}`;
+  }
+
+  private eventDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
+  private eventWhen(event: HealthEvent): string {
+    return `${event.eventTime >= this.todayStart() ? '今天' : this.eventDate(event.eventTime)} ${this.eventTime(event.eventTime)}`;
+  }
+
+  private eventLine(event: HealthEvent): string {
+    const when = event.eventTime >= this.todayStart() ? this.eventTime(event.eventTime) : this.eventWhen(event);
+    return event.remark ? `${when} · ${event.remark}` : when;
+  }
+
+  private openHistory(): void {
+    this.pathStack.pushPathByName('TodayEvents', null);
+  }
+
+  private showEventDetails(event: HealthEvent): void {
+    this.getUIContext().showAlertDialog({
+      title: this.eventTitle(event),
+      message: `${this.eventWhen(event)}\n${event.isHandled === 1 ? '已处理' : '待处理'}${event.remark ? `\n${event.remark}` : ''}`,
+      primaryButton: { value: '关闭', action: (): void => {} },
+      secondaryButton: { value: '当天记录', action: (): void => { this.openHistory(); } },
     });
   }
-  private syncState(): void {
-    if (this.mqttManager) {
-      this.latestMessage = this.mqttManager.latestMessage;
-      this.isFallDetected = this.mqttManager.isFallDetected;
-      this.isSedentaryDetected = this.mqttManager.isSedentaryDetected;
-      this.isStrangerDetected = this.mqttManager.isStrangerDetected;
-      if (!this.deviceOnline) {
-        this.latestMessage = '设备离线';
-        this.isFallDetected = false;
-        this.isSedentaryDetected = false;
-        this.isStrangerDetected = false;
-      }
-    }
+
+  private eventIcon(event: HealthEvent): Resource {
+    return event.eventType === 'fall' ? $r('app.media.ic_alert_red')
+      : event.eventType === 'stranger' ? $r('app.media.ic_home_visitor') : $r('app.media.ic_home_sitting');
   }
 
-  private monitorStatus(): 'offline' | 'danger' | 'warning' | 'normal' {
-    if (!this.deviceOnline) return 'offline';
-    if (this.isFallDetected) return 'danger';
-    if (this.isSedentaryDetected) return 'warning';
-    return 'normal';
-  }
-  private faceStatus(): 'offline' | 'danger' | 'normal' {
-    if (!this.deviceOnline) return 'offline';
-    if (this.isStrangerDetected) return 'danger';
-    return 'normal';
-  }
-  private statusFillColor(s: string): string {
-    if (s === 'offline') return this.themeManager.colors.tertiaryTextColor;
-    if (s === 'danger') return this.themeManager.colors.dangerTextColor;
-    if (s === 'warning') return this.themeManager.colors.warningTextColor;
-    return this.themeManager.colors.successTextColor;
-  }
-  private statusBgColor(s: string): string {
-    const d = this.themeManager.isDarkMode;
-    if (s === 'offline' || s === 'danger') return d ? '#2d1515' : '#fff5f5';
-    if (s === 'warning') return d ? '#2d1a00' : '#fffbeb';
-    return d ? '#064e3b' : '#f0fdf4';
-  }
-  private statusBorderColor(s: string): string {
-    const d = this.themeManager.isDarkMode;
-    if (s === 'offline' || s === 'danger') return d ? '#7f1d1d' : '#fecaca';
-    if (s === 'warning') return d ? '#7c3900' : '#fde68a';
-    return d ? '#065f46' : '#bbf7d0';
-  }
-  private statusIconBgColor(s: string): string {
-    const d = this.themeManager.isDarkMode;
-    if (s === 'offline' || s === 'danger') return d ? '#450a0a' : '#fee2e2';
-    if (s === 'warning') return d ? '#3d2000' : '#fffbeb';
-    return d ? '#064e3b' : '#ecfdf5';
+  private eventInk(event: HealthEvent): string {
+    return event.eventType === 'fall' ? '#C7361F' : event.eventType === 'stranger' ? '#1B2E5E' : '#3A2600';
   }
 
+  private eventThumb(event: HealthEvent): string {
+    return event.eventType === 'fall' ? '#FFFFFF' : event.eventType === 'stranger' ? '#C9D6FF' : '#FFD27A';
+  }
+
+  // ───────── 背景光斑（样张 .amb） ─────────
   @Builder
-  GradientHeader(): void {
-    GradientHeader({ contentMaxWidth: 840 }) {
-      Row() {
-        Column() {
-          Text('智护星').fontSize(26).fontWeight(FontWeight.Bold).fontColor('#ffffff')
-          Text('实时画面').fontSize(13).fontColor('#B3FFFFFF').margin({ top: 4 })
-        }.alignItems(HorizontalAlign.Start)
-        Blank()
-        // LIVE 角标：外圈光晕 + 内圈实心绿点
-        Row() {
-          Stack() {
-            // 外圈呼吸光晕
-            Circle({ width: 18, height: 18 })
-              .fill('#10b981')
-              .opacity(this.dotGlowOpacity)
-              .scale({ x: this.dotGlowScale, y: this.dotGlowScale })
-              .animation({ duration: 1400, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate })
-              .onAppear(() => { this.dotGlowScale = 1.8; this.dotGlowOpacity = 0.0; })
-            // 内圈实心点
-            Circle({ width: 9, height: 9 })
-              .fill('#10b981')
-              .scale({ x: this.dotScale, y: this.dotScale })
-              .animation({ duration: 1000, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate })
-              .onAppear(() => { this.dotScale = 1.2; })
-          }.width(18).height(18).margin({ right: 6 })
-          Text('LIVE').fontSize(12).fontColor('#ffffff').fontWeight(FontWeight.Bold)
-        }
-        .padding({ left: '3%', right: '3%', top: '1.5%', bottom: '1.5%' })
-        .backgroundColor('rgba(255,255,255,0.2)')
-        .backgroundBlurStyle(BlurStyle.Thin)
-        .borderRadius(100)
-      }
-      .width('100%').padding({ left: '6%', right: '6%', top: this.topSafeHeight + 16, bottom: 20 })
-    }
+  Ambient(): void {
+    Stack() {
+      this.Blob(this.palette().tone, '8C', 460, 420, '30%', -40)
+      this.Blob(this.palette().tone2, '8C', 460, 520, -190, 120)
+      this.Blob(this.palette().accent, '40', 420, 360, 20, 520)
+    }.width('100%').height('100%').backgroundColor(this.palette().backdrop)
+    .animation({ duration: reduceMotion() ? 0 : 900, curve: Curve.EaseInOut })
+    .hitTestBehavior(HitTestMode.None)
+    // 光斑铺满状态栏和手势条，只裁掉横向溢出，保证安全区和页面同色
+    .clip(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
-
+  /** 柔光斑：径向渐变代替 CSS blur(54px) */
   @Builder
-  VideoArea(): void {
-    Stack({ alignContent: Alignment.BottomEnd }) {
-      if (this.deviceOnline) {
-        Web({ src: this.videoUrl, controller: this.webController })
-          .width('100%').aspectRatio(4 / 3).borderRadius('4%')
-      } else {
-        Column() {
-          Image($r('app.media.ic_camera_off')).width('13%').aspectRatio(1).objectFit(ImageFit.Contain)
-            .opacity(0.5)
-          Text('摄像头未连接').fontSize(14).fontColor('#cbd5e1').margin({ top: '3%' })
-        }
-        .width('100%').aspectRatio(4 / 3).justifyContent(FlexAlign.Center)
-        .backgroundColor(this.themeManager.isDarkMode ? '#1a2744' : '#1e293b')
-        .border({
-          width: 1,
-          color: this.themeManager.isDarkMode ? '#2d4a7a' : '#334155'
-        })
-        .borderRadius('4%')
-      }
-      if (!this.deviceOnline) {
-        Row() {
-          Image($r('app.media.ic_alert_white')).width(14).height(14).objectFit(ImageFit.Contain)
-          Text('设备离线').fontSize(11).fontColor('#ffffff').margin({ left: 4 })
-        }
-        .padding({ left: '2.5%', right: '2.5%', top: '1%', bottom: '1%' })
-        .backgroundColor('#dc2626').borderRadius(100)
-        .margin({ right: '3%', bottom: '3%' })
-      }
-    }
-    .width('92%')
-    .shadow({ radius: 16, color: this.themeManager.isDarkMode ? '#000000AA' : '#1A1e40af', offsetY: 6 })
-    .border({
-      width: 1,
-      color: this.themeManager.isDarkMode ? '#2d4a7a' : 'transparent'
-    })
-    .borderRadius('4%')
-    .margin({ top: -14 })
-  }
-
-  @Builder
-  StatusCards(): void {
-    Column({ space: 0 }) {
-      // 设备状态卡
-      Row() {
-        Column() {
-          Text('设备状态').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-          Text(this.deviceOnline ? '在线' : '离线').fontSize(20).fontWeight(FontWeight.Bold)
-            .fontColor(this.deviceOnline ? this.themeManager.colors.successTextColor : this.themeManager.colors.dangerTextColor).margin({ top: '2%' })
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Image(this.deviceOnline ? $r('app.media.ic_shield_green') : $r('app.media.ic_link_off_red'))
-          .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.deviceOnline ? (this.themeManager.isDarkMode ? '#064e3b' : '#ecfdf5') : (this.themeManager.isDarkMode ? '#450a0a' : '#fee2e2'))
-          .borderRadius(10)
-      }
-      .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '3%' }).borderRadius('4%')
-      .backgroundColor(this.deviceOnline
-        ? (this.themeManager.isDarkMode ? '#064e3b' : '#f0fdf4')
-        : (this.themeManager.isDarkMode ? '#2d1515' : '#fff5f5'))
-      .border({
-        width: 1,
-        color: this.deviceOnline
-          ? (this.themeManager.isDarkMode ? '#065f46' : '#bbf7d0')
-          : (this.themeManager.isDarkMode ? '#7f1d1d' : '#fecaca')
+  Blob(hex: string, alpha: string, w: number, h: number, x: Length, y: number): void {
+    Column().width(w).height(h).position({ x: x, y: y })
+      .radialGradient({
+        center: ['50%', '50%'], radius: Math.max(w, h) / 2,
+        colors: [['#' + alpha + hex.substring(1), 0], ['#' + alpha + hex.substring(1), 0.15],
+          ['#00' + hex.substring(1), 1]],
       })
-      .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
-
-      // 监测状态卡
-      Row() {
-        Image(
-          this.monitorStatus() === 'offline' ? $r('app.media.ic_link_off_red')
-            : this.monitorStatus() === 'danger' ? $r('app.media.ic_alert_red')
-            : this.monitorStatus() === 'warning' ? $r('app.media.ic_shield_blue')
-            : $r('app.media.ic_shield_green')
-        )
-          .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.statusIconBgColor(this.monitorStatus()))
-          .borderRadius(10)
-        Column() {
-          Text(
-            this.monitorStatus() === 'offline' ? '检测已暂停'
-              : this.monitorStatus() === 'danger' ? '检测到跌倒！'
-              : this.monitorStatus() === 'warning' ? '检测到久坐'
-              : '正常监测'
-          )
-            .fontSize(16).fontWeight(FontWeight.Bold)
-            .fontColor(this.statusFillColor(this.monitorStatus()))
-          Text(this.latestMessage).fontSize(12)
-            .fontColor(
-              !this.deviceOnline
-                ? this.themeManager.colors.tertiaryTextColor
-                : this.themeManager.colors.secondaryTextColor
-            )
-            .margin({ top: '2%' }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
-        Circle({ width: 10, height: 10 })
-          .fill(this.statusFillColor(this.monitorStatus()))
-          .aspectRatio(1)
-      }
-      .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(this.statusBgColor(this.monitorStatus()))
-      .border({ width: 1, color: this.statusBorderColor(this.monitorStatus()) })
-      .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
-
-      // 人脸识别卡
-      Row() {
-        Image(
-          this.faceStatus() === 'offline' ? $r('app.media.ic_link_off_red')
-            : this.faceStatus() === 'danger' ? $r('app.media.ic_alert_red')
-            : $r('app.media.ic_shield_green')
-        )
-          .width(32).height(32).objectFit(ImageFit.Contain).padding(5)
-          .backgroundColor(this.statusIconBgColor(this.faceStatus()))
-          .borderRadius(10)
-        Column() {
-          Text(
-            this.faceStatus() === 'offline' ? '识别已暂停'
-              : this.faceStatus() === 'danger' ? '检测到陌生人！'
-              : '人脸识别安全'
-          )
-            .fontSize(16).fontWeight(FontWeight.Bold)
-            .fontColor(this.statusFillColor(this.faceStatus()))
-          Text('人脸识别').fontSize(12)
-            .fontColor(this.themeManager.colors.secondaryTextColor)
-            .margin({ top: '2%' })
-        }.alignItems(HorizontalAlign.Start).margin({ left: '4%' }).layoutWeight(1)
-        Circle({ width: 10, height: 10 })
-          .fill(this.statusFillColor(this.faceStatus()))
-          .aspectRatio(1)
-      }
-      .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(this.statusBgColor(this.faceStatus()))
-      .border({ width: 1, color: this.statusBorderColor(this.faceStatus()) })
-      .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
-
-      // 音量卡
-      Column() {
-        Row() {
-          Text('通话音量').fontSize(12).fontColor(this.themeManager.colors.secondaryTextColor)
-          Blank()
-          Text(`${Math.floor(this.volumeLevel)}%`).fontSize(12).fontWeight(FontWeight.Bold)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-        }.width('100%').margin({ bottom: '3%' })
-        Slider({ value: this.volumeLevel, style: SliderStyle.InSet })
-          .onChange((v: number): void => { this.volumeLevel = v })
-          .width('100%').selectedColor('#2563eb')
-          .trackColor(this.themeManager.isDarkMode ? '#334155' : '#f1f5f9')
-          .blockColor('#ffffff')
-      }
-      .width('100%').padding({ left: '5%', right: '5%', top: '4%', bottom: '4%' })
-      .margin({ top: '5%' }).borderRadius('4%')
-      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-      .shadow({ radius: 8, color: '#0000000F', offsetY: 4 })
-    }
-    .width('92%').margin({ top: 12 })
   }
 
-
-  /** 状态卡滚动区，手机竖排 / 大屏右栏共用 */
+  // ───────── 顶部：位置、状态大字、小画面、两颗按钮 ─────────
   @Builder
-  CardsScroll(): void {
-    Scroll() {
-      Column() {
-        Column() { this.StatusCards() }.width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
-        Blank().height(24)
-      }.width('100%')
+  Hero(): void {
+    Column() {
+      Row() {
+        Row({ space: 6 }) {
+          Image($r('app.media.ic_home')).width(18).height(18).supportSvg2(true)
+            .colorFilter(careIconTint('#FFFFFF'))
+          Text('爸妈家 · 客厅').fontSize(17).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
+        }
+        Blank()
+        Row({ space: 6 }) {
+          Circle().width(7).height(7).fill('#FFFFFF')
+            .opacity(this.mqttManager.deviceOnline ? 1 : 0.5)
+          Text(this.mqttManager.deviceOnline ? '设备在线' : '设备离线').fontSize(13).fontColor('#FFFFFF')
+        }.padding({ left: 10, right: 12, top: 6, bottom: 6 }).borderRadius(99).backgroundColor(GLASS)
+        .border({ width: 1, color: GLASS_EDGE })
+      }.width('100%').margin({ top: 6 })
+
+      Row() {
+        Column() {
+          Text(this.palette().word)
+            .fontSize(this.palette().word.length > 2 ? 64 : 96).fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF').lineHeight(this.palette().word.length > 2 ? 70 : 100)
+            .textShadow({ radius: 40, color: '#40000000', offsetY: 18 })
+            .maxLines(1)
+          Text(this.heroLines()).fontSize(15).lineHeight(22).fontColor(ON2)
+            .margin({ top: 12 }).constraintSize({ minHeight: 45 })
+        }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+
+        // 小画面：点开全屏（样张 .live）
+        Stack({ alignContent: Alignment.TopStart }) {
+          Stack() {
+            if (!this.cameraFullscreenActive) {
+              CameraStreamView({ placeholderSurface: this.palette().backdrop })
+            } else {
+              Column().width('100%').height('100%').backgroundColor('#06110D')
+            }
+          }.width('100%').height('100%').borderRadius(15).clip(true)
+          Row({ space: 5 }) {
+            Circle().width(6).height(6).fill('#FF6B57')
+            Text('实时').fontSize(11).fontColor('#FFFFFF')
+          }.padding({ left: 8, right: 10, top: 4, bottom: 4 }).borderRadius(99)
+          .backgroundColor('#D110231C').margin({ left: 6, top: 6 })
+          // 右下角全屏标记：提示小画面可点开
+          Image($r('app.media.ic_home_expand')).width(24).height(24).supportSvg2(true)
+            .padding(5).borderRadius(99).backgroundColor('#D110231C')
+            .position({ right: 6, bottom: 6 })
+        }
+        .width(132).height(100).padding(5).borderRadius(20).backgroundColor(GLASS)
+        .border({ width: 1, color: GLASS_EDGE })
+        .shadow({ radius: 30, offsetY: 16, color: '#59000000' })
+        .scale({ x: this.pressScale('live', 0.94), y: this.pressScale('live', 0.94) })
+        .animation({ curve: curves.springMotion(0.4, 0.7) })
+        .onTouch((event: TouchEvent): void => { this.trackPress('live', event); })
+        .onClick((): void => { softTap(); this.openCamera(); })
+        .accessibilityText('实时画面，点击全屏查看')
+      }.width('100%').alignItems(VerticalAlign.Bottom).margin({ top: 20 })
+
+      Row({ space: 10 }) {
+        Button({ type: ButtonType.Capsule }) {
+          Row({ space: 8 }) {
+            Image(this.isTalking ? $r('app.media.ic_call_end') : $r('app.media.ic_phone'))
+              .width(20).height(20).supportSvg2(true)
+              .colorFilter(careIconTint(this.isTalking ? '#FFFFFF' : this.palette().solid))
+            Text(this.callBusy ? (this.isTalking ? '结束中' : '连接中') : this.isTalking ? '挂断' : '通话')
+              .fontSize(17).fontWeight(FontWeight.Medium)
+              .fontColor(this.isTalking ? '#FFFFFF' : this.palette().solid)
+          }
+        }
+        .width('100%').height(54).stateEffect(false)
+        .backgroundColor(this.isTalking ? '#C7361F' : '#FFFFFF')
+        .shadow({ radius: 26, offsetY: 14, color: '#80000000' })
+        .enabled(!this.callBusy)
+        .scale({ x: this.pressScale('call', 0.93), y: this.pressScale('call', 0.93) })
+        .animation({ curve: curves.springMotion(0.4, 0.7) })
+        .onTouch((event: TouchEvent): void => { this.trackPress('call', event); })
+        .onClick((): void => { softTap(); this.toggleCall(); })
+        .accessibilityText(this.isTalking ? '挂断通话' : '和老人语音通话')
+      }.width('100%').margin({ top: 20 })
+    }.width('100%').padding({ left: 20, right: 20, top: 8 })
+  }
+
+  /** 最近 7 个整点加“现在”，与样张 .hours 一致 */
+  private hourSlots(): number[] {
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    const slots: number[] = [];
+    for (let i = 7; i >= 0; i--) slots.push(now.getTime() - i * 3600000);
+    return slots;
+  }
+
+  /** 该小时内最严重的事件：跌倒 > 陌生人 > 久坐 > 无 */
+  private hourMark(start: number): string {
+    const inHour = this.homeEvents.filter((event: HealthEvent): boolean =>
+      event.eventTime >= start && event.eventTime < start + 3600000);
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'fall')) return 'fall';
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'stranger')) return 'stranger';
+    if (inHour.some((event: HealthEvent): boolean => event.eventType === 'sedentary')) return 'sedentary';
+    return 'ok';
+  }
+
+  /** “现在”格显示当前状态 */
+  private nowMark(): string {
+    if (this.mqttManager.isFallDetected) return 'fall';
+    if (this.mqttManager.isSedentaryDetected) return 'sedentary';
+    return 'ok';
+  }
+
+  @Builder
+  Mark(kind: string): void {
+    if (kind === 'ok') {
+      Stack() { Circle().width(8).height(8).fill('#99FFFFFF') }.width(28).height(28)
+    } else {
+      Stack() {
+        Image(kind === 'fall' ? $r('app.media.ic_alert_red')
+          : kind === 'stranger' ? $r('app.media.ic_home_visitor') : $r('app.media.ic_home_sitting'))
+          .width(16).height(16).supportSvg2(true)
+          .colorFilter(careIconTint(kind === 'fall' ? '#C7361F' : kind === 'stranger' ? '#1B2E5E' : '#3A2600'))
+      }.width(28).height(28).borderRadius(14)
+      .backgroundColor(kind === 'fall' ? '#FFFFFF' : kind === 'stranger' ? '#C9D6FF' : '#FFD27A')
     }
-    .width('100%').height('100%')
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+  }
+
+  @Builder
+  Hour(start: number, isNow: boolean): void {
+    Column({ space: 8 }) {
+      Text(isNow ? '现在' : `${new Date(start).getHours()}`.padStart(2, '0'))
+        .fontSize(12).fontColor(isNow ? '#FFFFFF' : ON2)
+        .fontWeight(isNow ? FontWeight.Bold : FontWeight.Normal)
+      this.Mark(isNow ? this.nowMark() : this.dataReady() ? this.hourMark(start) : 'ok')
+    }
+    .layoutWeight(1).padding({ top: 8, bottom: 8 }).borderRadius(14)
+    .backgroundColor(isNow ? '#29FFFFFF' : Color.Transparent)
+    .border(isNow ? { width: { top: 1 }, color: '#66FFFFFF' } : { width: 0 })
+  }
+
+  @Builder
+  LegendItem(label: string, dot: string, ring: boolean): void {
+    Row({ space: 5 }) {
+      Circle().width(8).height(8).fill(dot).stroke(ring ? '#C7361F' : Color.Transparent).strokeWidth(ring ? 2 : 0)
+      Text(label).fontSize(12).fontColor(ON2)
+    }
+  }
+
+  // ───────── 今天（样张 今天 卡：逐小时条 + 图例） ─────────
+  @Builder
+  TodayCard(): void {
+    Column() {
+      Row() {
+        Text('今天').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Blank()
+        Text(this.todaySummary()).fontSize(13).fontColor(ON2)
+      }.width('100%')
+      Row() {
+        ForEach(this.hourSlots(), (start: number, index: number) => {
+          this.Hour(start, index === 7)
+        }, (start: number, index: number): string => `${start}-${index}-${this.homeEvents.length}-${this.nowMark()}`)
+      }.width('100%').margin({ top: 10 })
+      Row({ space: 14 }) {
+        this.LegendItem('无事件', '#99FFFFFF', false)
+        this.LegendItem('久坐', '#FFD27A', false)
+        this.LegendItem('陌生人', '#C9D6FF', false)
+        this.LegendItem('跌倒', '#FFFFFF', true)
+      }.width('100%').padding({ left: 4, right: 4, top: 10 })
+    }
+    .width('100%').padding(16).borderRadius(PANEL_RADIUS).backgroundColor(GLASS)
+    .border({ width: 1, color: GLASS_EDGE })
+    .shadow({ radius: 40, offsetY: 22, color: '#4D000000' })
+    .onClick((): void => { if (this.homeLoadFailed) this.loadHomeEvents(); else this.openHistory(); })
+  }
+
+  @Builder
+  EventRow(event: HealthEvent, first: boolean): void {
+    Row({ space: 12 }) {
+      Stack() {
+        Image(this.eventIcon(event)).width(26).height(26).supportSvg2(true)
+          .colorFilter(careIconTint(this.eventInk(event)))
+      }.width(72).height(54).borderRadius(14).backgroundColor(this.eventThumb(event))
+      .border({ width: 1, color: '#59FFFFFF' })
+      Column({ space: 3 }) {
+        Text(this.eventTitle(event)).fontSize(16).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
+        Text(this.eventLine(event)).fontSize(13).fontColor(ON2).maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+      // 样张四种标签：跌倒未处理=待处理，其他未处理=待查看，久坐已处理=已查看，其他已处理=已处理
+      if (event.isHandled === 1) {
+        Text(event.eventType === 'sedentary' ? '已查看' : '已处理').fontSize(12).fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(99)
+          .border({ width: 1, color: '#73FFFFFF' })
+      } else {
+        Text(event.eventType === 'fall' ? '待处理' : '待查看').fontSize(12).fontWeight(FontWeight.Medium)
+          .fontColor(event.eventType === 'fall' ? '#9E2714' : '#3A2600')
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(99)
+          .backgroundColor(event.eventType === 'fall' ? '#FFFFFF' : '#FFD27A')
+      }
+    }
+    .width('100%').padding({ top: 12, bottom: 12 })
+    .border({ width: { top: first ? 0 : 1 }, color: LINE })
+    .onClick((): void => { this.showEventDetails(event); })
+    .accessibilityText(`${this.eventTitle(event)}，${this.eventWhen(event)}，查看详情`)
+  }
+
+  @Builder
+  EventsCard(): void {
+    Column() {
+      Row() {
+        Text('最新事件').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Blank()
+        Text('查看全部').fontSize(13).fontColor(ON2).padding({ top: 8, bottom: 8, left: 8 })
+          .onClick((): void => { this.openHistory(); })
+      }.width('100%')
+      if (this.homeLoading) {
+        Row({ space: 10 }) {
+          LoadingProgress().width(22).height(22).color('#FFFFFF')
+          Text('正在加载家中事件…').fontSize(13).fontColor(ON2)
+        }.width('100%').justifyContent(FlexAlign.Center).padding({ top: 16, bottom: 16 })
+      } else if (this.homeLoadFailed) {
+        Button('记录加载失败，点击重试').height(48).width('100%').margin({ top: 8 })
+          .fontSize(13).fontColor('#FFFFFF').backgroundColor(GLASS)
+          .onClick((): void => { this.loadHomeEvents(); })
+      } else if (this.homeEvents.length === 0) {
+        Column({ space: 5 }) {
+          Text(UserManager.getInstance().isLoggedIn() ? '暂无告警记录' : '登录后查看告警记录')
+            .fontSize(15).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
+          Text('收到跌倒、久坐或陌生人事件后，会在这里展示').fontSize(13).fontColor(ON2)
+        }.width('100%').alignItems(HorizontalAlign.Start).padding({ top: 12, bottom: 4 })
+      } else {
+        ForEach(this.homeEvents.slice(0, 3), (event: HealthEvent, index: number) => {
+          this.EventRow(event, index === 0)
+        }, (event: HealthEvent): string => event.id !== undefined ? event.id.toString() : event.eventType + event.eventTime.toString())
+      }
+    }
+    .width('100%').padding({ left: 16, right: 16, top: 14, bottom: 4 }).borderRadius(PANEL_RADIUS)
+    .backgroundColor(GLASS).border({ width: 1, color: GLASS_EDGE })
+    .shadow({ radius: 40, offsetY: 22, color: '#4D000000' })
+  }
+
+  // ───────── 近 7 天（样张 .week） ─────────
+  private dayStart(daysAgo: number): number {
+    return this.todayStart() - daysAgo * 86400000;
+  }
+
+  private dayCount(daysAgo: number, type: string): number {
+    const start = this.dayStart(daysAgo);
+    return this.homeEvents.filter((event: HealthEvent): boolean => event.eventType === type
+      && event.eventTime >= start && event.eventTime < start + 86400000).length;
+  }
+
+  private dayLabel(daysAgo: number): string {
+    if (daysAgo === 0) return '今天';
+    if (daysAgo === 1) return '昨天';
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date(this.dayStart(daysAgo)).getDay()];
+  }
+
+  @Builder
+  WeekCell(count: number, fall: boolean): void {
+    Text(this.dataReady() ? `${count}` : '—').fontSize(14).width(56).height(38).textAlign(TextAlign.Center)
+      .fontWeight(fall && count > 0 ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(fall && count > 0 ? '#9E2714' : count === 0 ? '#B8FFFFFF' : '#FFFFFF')
+      .backgroundColor(fall && count > 0 ? '#FFFFFF' : Color.Transparent).borderRadius(10)
+  }
+
+  @Builder
+  WeekCard(): void {
+    Column() {
+      Row() {
+        Text('近 7 天').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+        Blank()
+        Text(`${this.eventDate(this.dayStart(6))} — ${this.eventDate(this.dayStart(0))}`).fontSize(13).fontColor(ON2)
+      }.width('100%')
+      Row() {
+        Blank().layoutWeight(1)
+        Text('跌倒').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+        Text('久坐').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+        Text('陌生人').fontSize(12).fontColor(ON2).width(56).textAlign(TextAlign.Center)
+      }.width('100%').margin({ top: 8 }).padding({ top: 4, bottom: 4 })
+      ForEach([0, 1, 2, 3, 4, 5, 6], (daysAgo: number) => {
+        Row() {
+          Text(this.dayLabel(daysAgo)).fontSize(14).fontColor('#FFFFFF').layoutWeight(1)
+          this.WeekCell(this.dayCount(daysAgo, 'fall'), true)
+          this.WeekCell(this.dayCount(daysAgo, 'sedentary'), false)
+          this.WeekCell(this.dayCount(daysAgo, 'stranger'), false)
+        }.width('100%').border({ width: { top: 1 }, color: LINE })
+      }, (daysAgo: number): string => `${daysAgo}-${this.homeEvents.length}-${this.dataReady()}`)
+    }
+    .width('100%').padding({ left: 16, right: 16, top: 16, bottom: 8 }).borderRadius(PANEL_RADIUS)
+    .backgroundColor(GLASS).border({ width: 1, color: GLASS_EDGE })
+    .shadow({ radius: 40, offsetY: 22, color: '#4D000000' })
+    .onClick((): void => { this.openHistory(); })
   }
 
   build() {
-    Column() {
-      this.GradientHeader()
-      if (getWindowSizeClass(this.viewportWidth) === 'compact') {
-        // 手机：视频跟状态卡一起滚，不再钉在顶部把滚动区压成一条缝；通话按钮常驻底部
-        Scroll() {
-          Column() {
-            this.VideoArea()
-            Column() { this.StatusCards() }
-              .width('100%').constraintSize({ maxWidth: 640 }).alignItems(HorizontalAlign.Center)
-            Blank().height(24)
-          }.width('100%')
-        }
-        .layoutWeight(1).width('100%')
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
-        this.CallButton()
-      } else {
-        // 大屏：左栏是「画面 + 通话」一组并垂直居中，右栏状态卡独立滚动
-        Row() {
-          Column() {
-            this.VideoArea()
-            this.CallButton()
-          }
-          .layoutWeight(1).height('100%')
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-          Column() { this.CardsScroll() }
-            .layoutWeight(1).height('100%')
-        }
-        .layoutWeight(1).width('100%')
-        .constraintSize({ maxWidth: 840 })
-        .alignItems(VerticalAlign.Top)
-      }
-    }
-    .width('100%').height('100%')
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-    .onAreaChange((_oldValue: Area, newValue: Area): void => {
-      const width = Number(newValue.width);
-      if (width > 0) this.viewportWidth = width;
-    })
-  }
-
-  @Builder
-  CallButton(): void {
-    Button() {
-        Row() {
-          Image($r(this.isTalking ? 'app.media.ic_offcall' : 'app.media.ic_phone_white'))
-            .width(22).height(22).objectFit(ImageFit.Contain).margin({ right: '3%' })
-          Text(this.isTalking ? '结束通话' : '发起通话')
-            .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#ffffff')
-        }.justifyContent(FlexAlign.Center)
-      }
-      .width('88%').height(52).constraintSize({ maxWidth: 560 })
-      .linearGradient({
-        direction: GradientDirection.Left,
-        colors: this.isTalking
-          ? [['#991b1b', 0.0], ['#dc2626', 1.0]]
-          : [['#1e3a8a', 0.0], ['#2563eb', 1.0]]
-      })
-      .borderRadius(100)
-      .shadow({ radius: 16, color: this.isTalking ? '#ef444440' : '#3b82f640', offsetY: 8 })
-      .scale({ x: this.btnScale, y: this.btnScale })
-      .animation({ duration: 150, curve: Curve.EaseInOut })
-      .margin({ bottom: 14, top: 20 })
-      .onClick(async (): Promise<void> => {
-        this.btnScale = 0.93;
-        setTimeout(() => { this.btnScale = 1.0; }, 150);
-        if (this.isTalking) {
-          await this.audioManager.stopCall(); this.isTalking = false;
-        } else {
-          // 设备未连接时不允许发起通话，仅提示
-          if (!this.deviceOnline) {
-            showToast(this.getUIContext(), { message: '设备未连接，无法发起通话' });
-            return;
-          }
-          const atManager = abilityAccessCtrl.createAtManager();
-          const res = await atManager.requestPermissionsFromUser(this.context, ['ohos.permission.MICROPHONE']);
-          if (res.authResults[0] === 0) { await this.audioManager.startCall(); this.isTalking = true; }
-        }
-      })
+    Stack() {
+      this.Ambient()
+      Scroll() {
+        Column({ space: 14 }) {
+          this.Hero()
+          Column({ space: 14 }) {
+            this.TodayCard()
+            this.EventsCard()
+            this.WeekCard()
+          }.width('100%').padding({ left: 16, right: 16 }).margin({ top: 10 })
+          Blank().height(24 + this.bottomInset)
+        }.width('100%').constraintSize({ maxWidth: 640 })
+      }.width('100%').height('100%').scrollBar(BarState.Off).align(Alignment.Top)
+      .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
+    }.width('100%').height('100%')
   }
 }

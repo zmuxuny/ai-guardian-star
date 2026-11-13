@@ -1,13 +1,13 @@
 /**
  * MenuRow.ets — 通用菜单行组件（图标 + 标题/副标题 + 右箭头）
  */
+import { careIconTint } from '../common/CarePalette';
 import { ThemeManager } from '../common/ThemeManager';
+import { ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER } from './GradientHeader';
 
 @Component
 export struct MenuRow {
   @Prop imgRes: Resource = $r("app.media.ic_user_blue");
-  @Prop bgColorLight: string = "#eff6ff";
-  @Prop bgColorDark: string = "#1e3a5f";
   @Prop title: string = "";
   @Prop subTitle: string = "";
   onClickAction: () => void = () => {};
@@ -17,11 +17,12 @@ export struct MenuRow {
   build() {
     Row() {
       Image(this.imgRes)
-        .width(36).height(36).objectFit(ImageFit.Contain)
-        .padding(8)
-        .backgroundColor(this.themeManager.isDarkMode ? this.bgColorDark : this.bgColorLight)
-        .borderRadius(10)
-        .margin({ right: "4%" })
+        .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).objectFit(ImageFit.Contain)
+        .padding(10)
+        .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
+        .backgroundColor(this.themeManager.colors.accentSurfaceColor)
+        .borderRadius(12)
+        .margin({ right: 14 })
       Column() {
         Text(this.title)
           .fontSize(15).fontWeight(FontWeight.Medium)
@@ -36,11 +37,11 @@ export struct MenuRow {
         .width(16).height(16).objectFit(ImageFit.Contain)
     }
     .width("100%")
-    .padding({ left: "4%", right: "4%", top: "3.5%", bottom: "3.5%" })
+    .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 12, bottom: 12 })
     .constraintSize({ minHeight: 64 })
     .backgroundColor(
       this.pressed
-        ? this.themeManager.isDarkMode ? "#2a3a50" : "#e8edf5"
+        ? this.themeManager.colors.accentSurfaceColor
         : this.themeManager.colors.cardBackgroundColor
     )
     .animation({ duration: 80, curve: Curve.EaseOut })

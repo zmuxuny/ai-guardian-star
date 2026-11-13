@@ -7,7 +7,7 @@
 在 Windows PowerShell 执行并保持窗口打开：
 
 ```powershell
-ssh -N -L 18899:127.0.0.1:8899 -p 22 root@117.78.9.144
+ssh -N -L 18899:127.0.0.1:8899 -p 22 root@47.108.167.0
 ```
 
 然后在浏览器打开：
@@ -19,7 +19,7 @@ http://127.0.0.1:18899/admin
 管理密码保存在服务器的 `/etc/wenxin/admin.env`，不会写入仓库。需要复制密码时，另开一个 PowerShell 窗口执行：
 
 ```powershell
-$adminPassword = ssh -p 22 root@117.78.9.144 "sed -n 's/^ADMIN_PASSWORD=//p' /etc/wenxin/admin.env"
+$adminPassword = ssh -p 22 root@47.108.167.0 "sed -n 's/^ADMIN_PASSWORD=//p' /etc/wenxin/admin.env"
 $adminPassword | Set-Clipboard
 ```
 

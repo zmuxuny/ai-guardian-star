@@ -4,9 +4,10 @@
  * 账号资料修改由云端 Bearer 会话授权，云端失败不写本地。
  */
 import { ThemeManager } from '../common/ThemeManager';
+import { careIconTint } from '../common/CarePalette';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
-import { GradientHeader } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, SURFACE_RADIUS } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
@@ -107,9 +108,12 @@ struct ContactEditDialog {
       TextInput({ placeholder: `请输入新${this.label()}`, text: this.value })
         .type(this.kind === 'phone' ? InputType.PhoneNumber : InputType.Email)
         .maxLength(this.kind === 'phone' ? 11 : 254).fontSize(14)
-        .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+        .backgroundColor(this.themeManager.colors.backgroundColor)
         .fontColor(this.themeManager.colors.primaryTextColor)
-        .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+        .placeholderColor(this.themeManager.colors.secondaryTextColor)
+        .caretColor(this.themeManager.colors.linkTextColor)
+        .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
+        .border({ width: 1.5, color: this.themeManager.colors.borderColor })
         .borderRadius(12).height(44).width('100%')
         .onChange((v: string) => { this.value = v; this.challengeId = ''; this.errorMsg = ''; })
         .margin({ bottom: 12 })
@@ -117,15 +121,18 @@ struct ContactEditDialog {
       Row({ space: 8 }) {
         TextInput({ placeholder: '请输入验证码', text: this.verifyCode })
           .type(InputType.Number).maxLength(8).fontSize(14).layoutWeight(1)
-          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .backgroundColor(this.themeManager.colors.backgroundColor)
           .fontColor(this.themeManager.colors.primaryTextColor)
-          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .placeholderColor(this.themeManager.colors.secondaryTextColor)
+          .caretColor(this.themeManager.colors.linkTextColor)
+          .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
+          .border({ width: 1.5, color: this.themeManager.colors.borderColor })
           .borderRadius(12).height(44)
           .onChange((v: string) => { this.verifyCode = v; this.errorMsg = ''; })
         Button(this.sending ? '发送中' : (this.challengeId ? '重新发送' : '发送验证码'))
           .height(44).type(ButtonType.Normal).enabled(!this.sending && !this.saving)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-          .fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#1d4ed8')
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
+          .fontColor(this.themeManager.colors.linkTextColor)
           .fontSize(12).borderRadius(12)
           .onClick(() => { this.sendCode(); })
       }.width('100%').margin({ bottom: 16 })
@@ -136,13 +143,12 @@ struct ContactEditDialog {
 
       Row({ space: 12 }) {
         Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+          .backgroundColor(this.themeManager.colors.backgroundColor)
           .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
           .onClick(() => { this.controller.close(); })
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.saving && !this.sending)
-          .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.saving ? '#64748b' : '#1e3a8a', 0.0], [this.saving ? '#64748b' : '#2563eb', 1.0]] })
+          .backgroundColor(this.themeManager.colors.primaryButtonColor)
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(() => { this.saveContact(); })
       }.width('100%')
@@ -189,13 +195,12 @@ struct PasswordEditDialog {
 
       Row({ space: 12 }) {
         Button('取消').layoutWeight(1).height(44).type(ButtonType.Normal)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#f1f5f9')
+          .backgroundColor(this.themeManager.colors.backgroundColor)
           .fontColor(this.themeManager.colors.secondaryTextColor).fontSize(14).borderRadius(12)
           .onClick(() => { this.controller.close(); })
         Button('确认修改').layoutWeight(1).height(44).type(ButtonType.Normal)
           .enabled(!this.changing)
-          .linearGradient({ direction: GradientDirection.Right,
-            colors: [[this.changing ? '#64748b' : '#1e3a8a', 0.0], [this.changing ? '#64748b' : '#2563eb', 1.0]] })
+          .backgroundColor(this.themeManager.colors.primaryButtonColor)
           .fontColor(Color.White).fontSize(14).borderRadius(12)
           .onClick(async () => {
             if (this.oldPwd.length < 4) { this.errorMsg = '当前密码至少4位'; return; }
@@ -244,9 +249,12 @@ struct PasswordEditDialog {
       Row() {
         TextInput({ placeholder: `请输入${label}`, text: value })
           .type(show ? InputType.Normal : InputType.Password).fontSize(14).layoutWeight(1)
-          .backgroundColor(this.themeManager.isDarkMode ? '#0f172a' : '#f8fafc')
+          .backgroundColor(this.themeManager.colors.backgroundColor)
           .fontColor(this.themeManager.colors.primaryTextColor)
-          .border({ width: 1.5, color: this.themeManager.isDarkMode ? '#334155' : '#e2e8f0' })
+          .placeholderColor(this.themeManager.colors.secondaryTextColor)
+          .caretColor(this.themeManager.colors.linkTextColor)
+          .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
+          .border({ width: 1.5, color: this.themeManager.colors.borderColor })
           .borderRadius(12).height(44).padding({ left: 12, right: 0 })
           .onChange(onChange)
       }.width('100%')
@@ -265,7 +273,6 @@ export struct Profile {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State viewportWidth: number = 360;
   pathStack: NavPathStack = new NavPathStack();
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
 
   // ── 表单状态 ──────────────────────────────────────────────
   @State displayName: string = '';
@@ -568,18 +575,18 @@ export struct Profile {
         if (this.avatarPath !== '') {
           Image(fileUri.getUriFromPath(this.avatarPath)).width(100).height(100).borderRadius(50)
             .objectFit(ImageFit.Cover)
-            .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
+            .border({ width: 3, color: this.themeManager.colors.accentSurfaceColor })
         } else {
           Column() {
             Image($r('app.media.ic_user')).width(52).height(52).objectFit(ImageFit.Contain)
+              .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.linkTextColor))
           }
           .width(100).height(100).borderRadius(50)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e293b' : '#dbeafe')
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
           .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
-          .border({ width: 3, color: this.themeManager.isDarkMode ? '#1e3a5f' : '#bfdbfe' })
         }
         Column() { Text('✎').fontSize(13).fontColor('#ffffff') }
-        .width(30).height(30).borderRadius(15).backgroundColor('#2563eb')
+        .width(30).height(30).borderRadius(15).backgroundColor(this.themeManager.colors.primaryButtonColor)
         .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         .border({ width: 2, color: this.themeManager.colors.cardBackgroundColor }).offset({ x: 2, y: 2 })
       }
@@ -605,11 +612,13 @@ export struct Profile {
         .type(inputType).maxLength(maxLen).fontSize(15).layoutWeight(1)
         .fontColor(this.themeManager.colors.primaryTextColor)
         .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+        .caretColor(this.themeManager.colors.linkTextColor)
+        .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
         .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
         .onChange(onChange)
       Text(rightText).fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
         .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-        .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+        .backgroundColor(this.themeManager.colors.accentSurfaceColor)
         .borderRadius(100)
         .onClick(rightTap)
     }
@@ -628,6 +637,8 @@ export struct Profile {
             .layoutWeight(1).fontSize(15)
             .fontColor(this.themeManager.colors.primaryTextColor)
             .placeholderColor(this.themeManager.colors.tertiaryTextColor)
+            .caretColor(this.themeManager.colors.linkTextColor)
+            .selectedBackgroundColor(this.themeManager.colors.accentSurfaceColor)
             .backgroundColor(Color.Transparent).border({ width: 0 }).padding({ left: 0, right: 8 })
             .maxLength(12)
             .onChange((v: string) => { this.displayName = v; this.nameError = this.validateName(); })
@@ -636,7 +647,7 @@ export struct Profile {
           if (this.displayName.trim() !== this.originalDisplayName && this.nameError === '') {
             Text(this.isSaving ? '保存中' : '保存').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
               .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-              .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+              .backgroundColor(this.themeManager.colors.accentSurfaceColor)
               .borderRadius(100)
               .onClick(() => { if (!this.isSaving) this.saveNickname(); })
           }
@@ -648,7 +659,8 @@ export struct Profile {
             .animation({ duration: 150, curve: Curve.EaseOut })
         }
       }
-      .width('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
+      .width('100%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
     }
     .width('92%')
   }
@@ -665,7 +677,7 @@ export struct Profile {
           .layoutWeight(1)
         Text(this.phone ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
           .borderRadius(100)
           .onClick(() => { this.openPhoneDialog(); })
       }
@@ -681,7 +693,7 @@ export struct Profile {
           .layoutWeight(1)
         Text(this.email ? '修改' : '绑定').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
           .borderRadius(100)
           .onClick(() => { this.openEmailDialog(); })
       }
@@ -695,13 +707,14 @@ export struct Profile {
         Text('••••••••').fontSize(15).fontColor(this.themeManager.colors.primaryTextColor).layoutWeight(1)
         Text('修改').fontSize(12).fontColor(this.themeManager.colors.linkTextColor).fontWeight(FontWeight.Medium)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
+          .backgroundColor(this.themeManager.colors.accentSurfaceColor)
           .borderRadius(100)
           .onClick(() => { this.openPwdDialog(); })
       }
       .width('100%').padding({ left: 16, right: 8, top: 14, bottom: 14 }).alignItems(VerticalAlign.Center)
     }
-    .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor).borderRadius(14)
+    .width('92%').backgroundColor(this.themeManager.colors.cardBackgroundColor)
+    .border({ width: 1, color: this.themeManager.colors.borderColor }).borderRadius(SURFACE_RADIUS)
   }
 
   private maskPhone(phone: string): string {
@@ -709,19 +722,20 @@ export struct Profile {
     return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
   }
 
-  // ── 标题栏 ────────────────────────────────────────────────
   @Builder
-  GradientHeader(): void {
-    GradientHeader() {
+  PageHeader(): void {
+    GradientHeader({ contentMaxWidth: 640 }) {
       Row() {
-        Image($r("app.media.ic_chevron_right")).width(36).height(36)
-          .objectFit(ImageFit.Contain).padding(8)
-          .backgroundColor("#33FFFFFF").borderRadius(100).rotate({ angle: 180 })
+        Image($r('app.media.ic_nav_back_dark'))
+          .width(ICON_FRAME_SIZE).height(ICON_FRAME_SIZE).padding(10)
+          .supportSvg2(true).colorFilter(careIconTint(this.themeManager.colors.primaryTextColor))
+          .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor)
+          .borderRadius(20).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
-        Text("个人资料").fontSize(22).fontWeight(FontWeight.Bold).fontColor("#ffffff")
-          .margin({ left: "5%" }).layoutWeight(1)
+        Blank()
       }
-      .width("100%").padding({ left: "4%", right: "4%", top: this.topSafeHeight })
+      .width('100%')
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 8, bottom: 12 })
     }
   }
 
@@ -747,7 +761,7 @@ export struct Profile {
   build() {
     NavDestination() {
       Column() {
-        this.GradientHeader()
+        this.PageHeader()
         // 内容区域改为可滚动，容纳新增的安全设置区
         Scroll() {
           if (getWindowSizeClass(this.viewportWidth) === 'compact') {
@@ -778,6 +792,7 @@ export struct Profile {
     }
     .hideTitleBar(true)
     .backgroundColor(this.themeManager.colors.backgroundColor)
+    .onShown((): void => { ThemeManager.getInstance().updateSystemUI(); })
     .onReady((context: NavDestinationContext) => { this.pathStack = context.pathStack; })
   }
 }

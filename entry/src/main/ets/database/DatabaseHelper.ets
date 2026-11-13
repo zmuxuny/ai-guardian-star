@@ -393,6 +393,9 @@ export class DatabaseHelper {
     const predicates = new relationalStore.RdbPredicates("t_user");
     predicates.equalTo("username", username);
     try {
+      const addresses = new relationalStore.RdbPredicates('t_setting');
+      addresses.equalTo('username', username).and().equalTo('setting_key', 'saved_addresses_v1');
+      await this.getStore().delete(addresses);
       await this.getStore().delete(predicates);
       hilog.info(DOMAIN, TAG, `deleteUserByUsername 成功 username=${username}`);
     } catch (e) {
@@ -469,6 +472,21 @@ export class DatabaseHelper {
         this.closeResultSet(resultSet);
       }
     }
+  }
+
+  /** Account-scoped address snapshot; never log the address or coordinates. */
+  public async saveAddressSnapshot(username: string, value: string, defaultAddress: string): Promise<void> {
+    const key = 'saved_addresses_v1';
+    const predicates = new relationalStore.RdbPredicates('t_setting');
+    predicates.equalTo('username', username).and().equalTo('setting_key', key);
+    const values: relationalStore.ValuesBucket = {
+      username: username, setting_key: key, setting_value: value, update_time: Date.now(),
+    };
+    const rows = await this.getStore().update(values, predicates);
+    if (rows === 0) await this.getStore().insert('t_setting', values);
+    const user = new relationalStore.RdbPredicates('t_user');
+    user.equalTo('username', username);
+    await this.getStore().update({ address: defaultAddress }, user);
   }
 
   // ════════════════════════════════════════════════════════════

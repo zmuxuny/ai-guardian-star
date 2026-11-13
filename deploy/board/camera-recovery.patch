@@ -1,0 +1,232 @@
+--- a/ascend_main_other.py
++++ b/ascend_main_other.py
+@@ -1449,6 +1449,11 @@
+         self.camera_index = camera_index
+         self.running = False
+         self.cap = None
++        self.camera_connected = False
++        self.camera_connected_since = 0.0
++        self.last_camera_frame_at = 0.0
++        self.camera_stop = threading.Event()
++        self.camera_thread = None
+         self.person_states = {}
+ 
+         self.latest_frame = None
+@@ -1620,46 +1625,79 @@
+             self.face_detector.init()
+             self._log_model_info()
+ 
+-            if not self._open_camera_with_fallback():
+-                raise Exception(f'Camera open failed, tried indexes: {self._camera_candidates()}')
+-
+             self.running = True
+-            threading.Thread(target=self._camera_reader_thread, daemon=True).start()
+-
+-            wait_time = 0
+-            while self.latest_frame is None and wait_time < 50:
+-                time.sleep(0.1)
+-                wait_time += 1
+-
+-            if self.latest_frame is None:
+-                print('Camera initialization timed out')
+-                return False
++            self.camera_stop.clear()
++            self.camera_thread = threading.Thread(target=self._camera_reader_thread, daemon=True)
++            self.camera_thread.start()
+ 
+             return True
+         except Exception as e:
+             print(f'Init Error: {e}')
+             return False
+ 
++    def camera_is_live(self):
++        return (self.running and self.camera_connected
++                and time.monotonic() - self.last_camera_frame_at < 3.0)
++
++    def _clear_camera_frames(self):
++        self.camera_connected = False
++        self.last_camera_frame_at = 0.0
++        with self.frame_lock:
++            self.latest_frame = None
++            self.frame_ready.clear()
++        with self.result_lock:
++            self.latest_result = None
++            self.result_ready.clear()
++
+     def _camera_reader_thread(self):
+-        while self.running:
+-            ret, frame = self.cap.read()
+-            if not ret:
+-                time.sleep(0.01)
+-                continue
+-
+-            now = time.time()
+-            if now - self._last_capture_ts < self._capture_interval:
+-                continue
+-            self._last_capture_ts = now
+-
+-            with self.frame_lock:
+-                self.latest_frame = frame.copy()
+-            self.frame_ready.set()
+-
+-            if not self.inference_enabled:
+-                with self.result_lock:
+-                    self.latest_result = (frame.copy(), [])
+-                self.result_ready.set()
++        try:
++            while self.running and not self.camera_stop.is_set():
++                if self.cap is None:
++                    try:
++                        opened = self._open_camera_with_fallback()
++                    except Exception as exc:
++                        print(f'[Camera] open failed: {exc}')
++                        opened = False
++                    if not opened:
++                        self.camera_stop.wait(3.0)
++                        continue
++                    self.camera_connected_since = time.monotonic()
++                if not self.running or self.camera_stop.is_set():
++                    break
++                try:
++                    ret, frame = self.cap.read()
++                except Exception:
++                    ret, frame = False, None
++                if not ret or frame is None:
++                    self._clear_camera_frames()
++                    self.cap.release()
++                    self.cap = None
++                    print('[Camera] disconnected; retrying in 3 seconds')
++                    self.camera_stop.wait(3.0)
++                    continue
++
++                if not self.running or self.camera_stop.is_set():
++                    break
++                self.last_camera_frame_at = time.monotonic()
++                self.camera_connected = True
++                now = time.time()
++                if now - self._last_capture_ts < self._capture_interval:
++                    continue
++                self._last_capture_ts = now
++
++                with self.frame_lock:
++                    self.latest_frame = frame.copy()
++                self.frame_ready.set()
++
++                if not self.inference_enabled:
++                    with self.result_lock:
++                        self.latest_result = (frame.copy(), [])
++                    self.result_ready.set()
++        finally:
++            self._clear_camera_frames()
++            if self.cap is not None:
++                self.cap.release()
++                self.cap = None
+ 
+     def _record_perf(self, t1, t2, t3, t4):
+         self._perf_window.append({
+@@ -2439,15 +2477,13 @@
+             return self.latest_frame.copy()
+ 
+     def stop(self):
+-        if not self.running and self.cap is None:
+-            return
+         self.running = False
+         self.frame_ready.set()
+         self.result_ready.set()
+-        time.sleep(0.1)
+-        if self.cap:
+-            self.cap.release()
+-            self.cap = None
++        self.camera_stop.set()
++        self._clear_camera_frames()
++        if self.camera_thread is not None:
++            self.camera_thread.join(timeout=4.0)
+         print('Detector Stopped')
+ # ---------------------- ????????----------------------
+ 
+--- a/ascend_board_server.py
++++ b/ascend_board_server.py
+@@ -32,6 +32,7 @@
+ app = FastAPI()
+ ws_clients = []
+ system_detector = None
++video_frame_started_at = 0.0
+ udp_thread = None
+ shutdown_lock = threading.Lock()
+ shutdown_started = False
+@@ -555,10 +556,21 @@
+     return HTMLResponse(content=HTML_CONTENT)
+ 
+ 
++def camera_video_is_live():
++    return (system_detector is not None and system_detector.camera_is_live()
++            and video_frame_started_at >= system_detector.camera_connected_since
++            and time.monotonic() - video_frame_started_at < 3.0)
++
++
+ @app.get("/api/stats")
+ async def api_stats():
+-    s = video_hw.get_stats()
++    s = dict(video_hw.get_stats())
++    camera_connected = system_detector is not None and system_detector.camera_is_live()
++    if not camera_video_is_live():
++        s.update(fps=0.0, detections=0, status="摄像头离线" if not camera_connected else "等待新画面",
++                 keypoint_scores=None, face_label=None, face_score=None, faces=[], sit_duration=0)
+     return JSONResponse({
++        "camera_connected": camera_connected,
+         "fps":             s["fps"],
+         "detections":      s["detections"],
+         "fall_count":      s["fall_count"],
+@@ -582,7 +594,7 @@
+     async def generate():
+         last_frame = None
+         while True:
+-            frame_data = video_hw.get_current_frame()
++            frame_data = video_hw.get_current_frame() if camera_video_is_live() else None
+             # 帧去重：只在有新帧时才发送，消除重复帧对 FRP 缓冲的积压
+             if frame_data is not None and frame_data is not last_frame:
+                 last_frame = frame_data
+@@ -603,7 +615,7 @@
+ 
+ @app.get("/video_frame")
+ async def video_frame():
+-    frame_data = video_hw.get_current_frame()
++    frame_data = video_hw.get_current_frame() if camera_video_is_live() else None
+     if frame_data:
+         return Response(
+             content=frame_data, media_type="image/jpeg",
+@@ -719,7 +731,7 @@
+     threading.Thread(target=audio_hw.start_audio_service, daemon=True).start()
+ 
+     def inference_loop():
+-        global system_detector
++        global system_detector, video_frame_started_at
+         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
+         system_detector = detector
+         mqtt_client = MQTTAlertClient()
+@@ -731,16 +743,25 @@
+         if detector.init():
+             try:
+                 while detector.running:
++                    frame_started_at = time.monotonic()
+                     res = detector.get_detected_frame()
++                    if (not detector.camera_is_live()
++                            or frame_started_at < detector.camera_connected_since):
++                        _fps_count = 0
++                        _fps_timer = time.time()
++                        time.sleep(0.015)
++                        continue
+                     if res is None:
+                         raw_frame = detector.get_latest_raw_frame()
+                         if raw_frame is not None:
+                             video_hw.update_frame(raw_frame)
++                            video_frame_started_at = frame_started_at
+                         time.sleep(0.015)
+                         continue
+ 
+                     frame, alerts = res
+                     video_hw.update_frame(frame)
++                    video_frame_started_at = frame_started_at
+ 
+                     is_fallen = any("FALL" in a.get('status', '') for a in alerts)
+                     kpt_scores = None

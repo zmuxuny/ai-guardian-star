@@ -4,12 +4,13 @@ import { window } from '@kit.ArkUI';
 // 主题颜色定义
 export class ThemeColors {
   // 背景色
-  backgroundColor: string = '#F0F4FF';
-  secondaryBackgroundColor: string = '#F2F2F7';
+  backgroundColor: string = '#F4F7F5';
+  secondaryBackgroundColor: string = '#EAF0ED';
   cardBackgroundColor: string = '#FFFFFF';
+  accentSurfaceColor: string = '#E1EFE7';
   
   // 文字色
-  primaryTextColor: string = '#1C1C1E';
+  primaryTextColor: string = '#10231C';
   secondaryTextColor: string = '#475569';
   tertiaryTextColor: string = '#64748B';
   
@@ -17,14 +18,14 @@ export class ThemeColors {
   separatorColor: string = '#E5E5EA';
   
   // 按钮色
-  primaryButtonColor: string = '#2563EB';
+  primaryButtonColor: string = '#0A5C43';
   dangerButtonColor: string = '#FF3B30';
 
   // 卡片边框色
   borderColor: string = '#E5E5EA';
 
   // 语义文字色：取值须满足华为无障碍要求（正文与背景对比度 ≥ 4.5:1）
-  linkTextColor: string = '#1D4ED8';
+  linkTextColor: string = '#0A5C43';
   successTextColor: string = '#047857';
   warningTextColor: string = '#B45309';
   dangerTextColor: string = '#DC2626';
@@ -32,9 +33,10 @@ export class ThemeColors {
 
 // 深色主题
 export class DarkThemeColors extends ThemeColors {
-  backgroundColor: string = '#0F172A';
-  secondaryBackgroundColor: string = '#1E293B';
-  cardBackgroundColor: string = '#1E293B';
+  backgroundColor: string = '#142521';
+  secondaryBackgroundColor: string = '#1E342D';
+  cardBackgroundColor: string = '#1E342D';
+  accentSurfaceColor: string = '#28463A';
   
   primaryTextColor: string = '#F8FAFC';
   secondaryTextColor: string = '#CBD5E1';
@@ -42,12 +44,12 @@ export class DarkThemeColors extends ThemeColors {
   
   separatorColor: string = '#334155';
   
-  primaryButtonColor: string = '#3B82F6';
+  primaryButtonColor: string = '#0A5C43';
   dangerButtonColor: string = '#EF4444';
 
   borderColor: string = '#334155';
 
-  linkTextColor: string = '#60A5FA';
+  linkTextColor: string = '#7BE0B8';
   successTextColor: string = '#34D399';
   warningTextColor: string = '#FBBF24';
   dangerTextColor: string = '#F87171';
@@ -159,7 +161,7 @@ export class ThemeManager {
   }
   
   // 更新系统 UI（状态栏）
-  private async updateSystemUI() {
+  public async updateSystemUI(darkSurface: boolean = false): Promise<void> {
     try {
       if (!this.context) {
         console.log(`[Theme]:Context 未初始化，跳过系统UI更新`);
@@ -168,11 +170,8 @@ export class ThemeManager {
 
       const mainWindow = await window.getLastWindow(this.context);
       if (mainWindow) {
-        // 设置状态栏内容颜色（深色模式用白色文字，浅色模式用黑色文字）
-        await mainWindow.setWindowSystemBarProperties({
-          statusBarContentColor: this.isDarkMode ? '#FFFFFF' : '#000000'
-        });
-        console.log(`[Theme]:系统状态栏已更新为 ${this.isDarkMode ? '白色' : '黑色'} 文字`);
+        const ink = darkSurface || this.isDarkMode ? '#FFFFFF' : '#10231C';
+        await mainWindow.setWindowSystemBarProperties({ statusBarContentColor: ink, navigationBarContentColor: ink });
       }
     } catch (error) {
       console.log(`[Theme]:更新系统UI失败（可能不支持）:`, JSON.stringify(error));

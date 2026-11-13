@@ -8,7 +8,7 @@
 **English** · [中文](README.zh-CN.md)
 
 [![CI](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml/badge.svg)](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml)
-[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-6.1.0%20%7C%20API%2023-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-26.0.0%20%7C%20API%2026-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![Backend](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB?style=flat-square)](https://flask.palletsprojects.com/)
 [![Release](https://img.shields.io/github/v/release/zmuxuny/ai-guardian-star?include_prereleases&style=flat-square)](https://github.com/zmuxuny/ai-guardian-star/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-2EA44F?style=flat-square)](LICENSE)
@@ -19,24 +19,24 @@
 
 **AI Guardian Star** is an open-source reference implementation for home elderly care that connects a native HarmonyOS application, a production-oriented cloud service, and independently deployed edge-AI devices.
 
-The repository contains the **HarmonyOS client**, **account/session and AI gateway backend**, **deployment/operations tooling**, **security controls**, **automated tests**, and **CI/CD configuration**. Edge devices integrate with the system through MQTT, HTTP, and WebSocket interfaces. The edge-device inference implementation itself is deployed separately and is not included in this repository.
+The repository contains the **HarmonyOS client**, **account/session and AI gateway backend**, **Ascend board inference and recording service** in [`src/`](src/), **deployment/operations tooling**, **security controls**, **automated tests**, and **CI/CD configuration**. Edge devices integrate with the cloud through MQTT, HTTP, and WebSocket interfaces. Board setup and hardware validation are documented in [README_CN.md](README_CN.md).
 
 The project is designed around a practical end-to-end path:
 
 **edge perception → secure event transport → cloud/account services → native HarmonyOS experience → caregiver-facing alerts and health records.**
 
-The current public prerelease includes a deployable HarmonyOS HAP and an actively maintained backend. Core account flows have been validated on HarmonyOS API 23 devices.
+The current public prerelease includes a deployable HarmonyOS HAP and an actively maintained backend. Version 1.0.0 is available on Huawei AppGallery.
 
 ## Screenshots
 
-Captured on a HarmonyOS phone (1080 × 1920). The application also ships tablet layouts.
+Captured on the HarmonyOS 26 emulator on 2026-11-13 with the redesigned UI (board offline at capture time). The application also ships tablet layouts.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="200" /><br /><sub><b>Live guardian</b><br />Device status and real-time alerts</sub></td>
+    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="200" /><br /><sub><b>Live guardian</b><br />Status, alerts and one-tap voice call</sub></td>
     <td align="center"><img src="docs/screenshots/event-records.png" alt="Event records page" width="200" /><br /><sub><b>Event records</b><br />Fall, sedentary and stranger history</sub></td>
     <td align="center"><img src="docs/screenshots/ai-assistant.png" alt="AI health assistant page" width="200" /><br /><sub><b>AI health assistant</b><br />Three data-sharing levels</sub></td>
-    <td align="center"><img src="docs/screenshots/secure-login.png" alt="Secure login page" width="200" /><br /><sub><b>Secure sign-in</b><br />SMS registration and token sessions</sub></td>
+    <td align="center"><img src="docs/screenshots/profile.png" alt="Profile page" width="200" /><br /><sub><b>Profile</b><br />Account, face enrollment and saved addresses</sub></td>
   </tr>
 </table>
 
@@ -58,7 +58,11 @@ It is intended both as an application and as a reusable engineering reference fo
 ## Architecture
 
 <p align="center">
-  <img src="guardian_system_architecture.svg" alt="AI Guardian Star architecture" width="900" />
+  <img src="docs/architecture/system-architecture.svg" alt="AI Guardian Star architecture" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/architecture/feature-architecture.svg" alt="AI Guardian Star features" width="900" />
 </p>
 
 ```text
@@ -85,7 +89,7 @@ It is intended both as an application and as a reusable engineering reference fo
 
 ### HarmonyOS client
 
-- Native HarmonyOS 6.1 / API 23 application using ArkTS, ArkUI, and the Stage model.
+- Native HarmonyOS 26 / API 26 application using ArkTS, ArkUI, and the Stage model.
 - Responsive phone/tablet layouts and light/dark themes.
 - Account profile, address, password, session, and local preference management.
 - ArkDB persistence for health events, video metadata, settings, and local user data.
@@ -159,17 +163,17 @@ ai-guardian-star/
 ├── test_client_auth_contract.py    # Client/backend authentication contract tests
 ├── test_ops_monitor.py             # Operations monitoring tests
 ├── test_sqlite_maintenance.py      # SQLite maintenance tests
-└── guardian_system_architecture.svg
+└── docs/architecture/            # 系统架构图与功能架构图
 ```
 
-For a deeper code map, see [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
+System and functional architecture diagrams are in [docs/architecture/](docs/architecture/).
 
 ## Quick start
 
 ### Requirements
 
 - DevEco Studio 6.0 or newer
-- HarmonyOS SDK 6.1 / API 23
+- HarmonyOS SDK 26.0.0 / API 26 (target and minimum compatible version)
 - Python 3.8+ for the backend and tests
 
 ### Build the HarmonyOS app

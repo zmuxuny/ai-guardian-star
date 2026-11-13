@@ -1,0 +1,20 @@
+[Unit]
+Description=Guardian shared latest camera frame relay
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/wenxin/venv/bin/python /opt/wenxin/app/camera_frame_relay.py
+Restart=on-failure
+RestartSec=2
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=96M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

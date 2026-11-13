@@ -50,7 +50,7 @@
 ```
 
 4. 为该用户创建 AccessKey。Secret 只显示一次，不要发到聊天、代码或 Git。
-5. 在 AccessKey 网络访问策略中，只允许服务器固定公网 IPv4 `117.78.9.144`，不要使用 `0.0.0.0/0`。先确认服务器出口 IP 未变化再保存。
+5. 在 AccessKey 网络访问策略中，只允许服务器固定公网 IPv4 `47.108.167.0`，不要使用 `0.0.0.0/0`。先确认服务器出口 IP 未变化再保存。
 
 接口权限说明：[TextModerationPlus 授权信息](https://help.aliyun.com/zh/document_detail/2669858.html)。网络限制说明：[AccessKey 网络访问限制](https://help.aliyun.com/zh/ram/user-guide/accesskey-network-access-restriction-policy)。
 

@@ -43,6 +43,70 @@
     user
     accessToken
     refreshToken
+    # MQTT 凭据 JSON 来自服务器，字段名不能随 Release 混淆改变。
+    credentials
+    expiresIn
+    password
+    clientId
+    topic
+    event
+    deviceId
+    sequence
+    cameraConnected
+    aiRunning
+    avatarVersion
+    challengeId
+    hasAvatar
+    imageBase64
+    mimeType
+    updatedAt
+    verifyCode
+    kind
+    value
+
+# AI consent and chat JSON fields cross the native/server boundary.
+-keep-property-name
+    enabled
+    settings
+    version
+    accessLevel
+    policyVersion
+    context
+    history
+    role
+    content
+    fallCount7d
+    sedentaryCount7d
+    lastFallDaysAgo
+    deviceOnline
+    deviceConnected
+    currentStatus
+    latestFallRecord
+    latestSedentaryRecord
+    reply
+    model
+    timestamp
+    error
+
+# 异常录像按需下载接口字段跨网络边界，Release 混淆会改名导致服务端取不到。
+-keep-property-name
+    clipId
+    asOf
+    filter
+    segmentId
+    eventType
+    startTime
+    endTime
+    endUnconfirmed
+    downloadable
+    clips
+    eventCount
+    wholeSegments
+    windowStart
+    windowEnd
+    # 在线播放签名地址响应
+    path
+    expires
 
 # ── 数据库字段名保留（否则 INSERT/QUERY 列名对不上建表列名） ──
 -keep-property-name
@@ -71,3 +135,6 @@
     file_size_kb
     record_time
     is_exported
+    recognitionStatus
+    photoCount
+    hint

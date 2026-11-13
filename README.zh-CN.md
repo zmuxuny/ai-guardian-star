@@ -8,7 +8,7 @@
 [English](README.md) · **中文**
 
 [![CI](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml/badge.svg)](https://github.com/zmuxuny/ai-guardian-star/actions/workflows/ci.yml)
-[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-6.1.0%20%7C%20API%2023-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS-26.0.0%20%7C%20API%2026-0A59F7?style=flat-square)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![Backend](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB?style=flat-square)](https://flask.palletsprojects.com/)
 [![Release](https://img.shields.io/github/v/release/zmuxuny/ai-guardian-star?include_prereleases&style=flat-square)](https://github.com/zmuxuny/ai-guardian-star/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-2EA44F?style=flat-square)](LICENSE)
@@ -25,18 +25,18 @@
 
 **边缘感知 → 安全事件传输 → 云端账号/AI 服务 → HarmonyOS 原生交互 → 告警与健康记录。**
 
-目前公开预发布版本已经提供可安装的 HarmonyOS HAP，云端服务持续维护，核心账号链路已在 HarmonyOS API 23 真机完成验证。
+目前公开预发布版本已经提供可安装的 HarmonyOS HAP，云端服务持续维护，1.0.0 版本已上架华为应用市场。
 
 ## 应用界面
 
-以下截图取自 HarmonyOS 手机端（1080 × 1920），应用同时提供平板自适应布局。
+以下截图为新版界面，取自 HarmonyOS 26 模拟器（2026-11-13，截图时开发板未在线），应用同时提供平板自适应布局。
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="实时守护主页" width="200" /><br /><sub><b>实时守护</b><br />设备状态与实时告警</sub></td>
+    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="实时守护主页" width="200" /><br /><sub><b>实时守护</b><br />状态、告警与一键通话</sub></td>
     <td align="center"><img src="docs/screenshots/event-records.png" alt="事件记录页" width="200" /><br /><sub><b>事件记录</b><br />跌倒、久坐与陌生人历史</sub></td>
     <td align="center"><img src="docs/screenshots/ai-assistant.png" alt="AI 健康助手页" width="200" /><br /><sub><b>AI 健康助手</b><br />三档数据授权</sub></td>
-    <td align="center"><img src="docs/screenshots/secure-login.png" alt="安全登录页" width="200" /><br /><sub><b>安全登录</b><br />短信注册与令牌会话</sub></td>
+    <td align="center"><img src="docs/screenshots/profile.png" alt="个人中心页" width="200" /><br /><sub><b>个人中心</b><br />资料、人脸登记与常用地址</sub></td>
   </tr>
 </table>
 
@@ -58,7 +58,11 @@
 ## 系统架构
 
 <p align="center">
-  <img src="guardian_system_architecture.svg" alt="智护星系统架构" width="900" />
+  <img src="docs/architecture/system-architecture.svg" alt="智护星系统架构" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/architecture/feature-architecture.svg" alt="智护星功能架构" width="900" />
 </p>
 
 ```text
@@ -84,7 +88,7 @@
 
 ### HarmonyOS 客户端
 
-- HarmonyOS 6.1 / API 23 原生应用，使用 ArkTS、ArkUI 与 Stage 模型。
+- HarmonyOS 26 / API 26 原生应用，使用 ArkTS、ArkUI 与 Stage 模型。
 - 手机/平板自适应布局，支持深色与浅色主题。
 - 账号资料、地址、密码、会话和本地偏好管理。
 - 使用 ArkDB 保存健康事件、视频元数据、设置及本地用户信息。
@@ -158,17 +162,17 @@ ai-guardian-star/
 ├── test_client_auth_contract.py    # 客户端/服务端鉴权契约测试
 ├── test_ops_monitor.py             # 运维监控测试
 ├── test_sqlite_maintenance.py      # SQLite 维护测试
-└── guardian_system_architecture.svg
+└── docs/architecture/            # 系统架构图与功能架构图
 ```
 
-更详细的代码导航见 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)。
+系统架构图与功能架构图见 [docs/architecture/](docs/architecture/)。
 
 ## 快速开始
 
 ### 环境要求
 
 - DevEco Studio 6.0 或更新版本
-- HarmonyOS SDK 6.1 / API 23
+- HarmonyOS SDK 26.0.0 / API 26（目标与最低兼容版本）
 - Python 3.8+（运行后端与测试）
 
 ### 构建 HarmonyOS App
