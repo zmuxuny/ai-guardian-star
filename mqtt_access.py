@@ -3,9 +3,10 @@
 import hashlib
 import json
 import secrets
-import sqlite3
 import time
 from pathlib import Path
+
+import db
 
 APP_PREFIX = 'guardian_app_'
 ALERT_FILTER = 'ai_guardian/alerts/#'
@@ -24,6 +25,17 @@ def allowed_users(path):
 
 
 def create_schema(conn):
+    if db.IS_MYSQL:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS t_mqtt_grant ("
+            "client_id VARCHAR(64) NOT NULL PRIMARY KEY, "
+            "password_hash VARCHAR(64) NOT NULL, "
+            "access_token_hash VARCHAR(64) NOT NULL UNIQUE, "
+            "expires_at BIGINT NOT NULL, "
+            "KEY idx_mqtt_grant_expires (expires_at)"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+        )
+        return
     conn.execute('''CREATE TABLE IF NOT EXISTS t_mqtt_grant (
         client_id TEXT PRIMARY KEY,
         password_hash TEXT NOT NULL,
@@ -53,8 +65,8 @@ def valid_grant(database, users_file, client_id, password, now=None):
         return False
     now = int(time.time()) if now is None else now
     try:
-        # mode=ro prevents silently creating a second empty database on misconfiguration.
-        conn = sqlite3.connect(Path(database).resolve().as_uri() + '?mode=ro', uri=True, timeout=1)
+        # 只读连接在 SQLite 模式下打不开目标库就直接失败，不会悄悄新建空库。
+        conn = db.connect_readonly(database)
         try:
             row = conn.execute('''
                 SELECT u.username FROM t_mqtt_grant AS m
@@ -66,7 +78,7 @@ def valid_grant(database, users_file, client_id, password, now=None):
         finally:
             conn.close()
         return bool(row and row[0] in allowed_users(users_file))
-    except (OSError, sqlite3.Error):
+    except db.DatabaseError:
         return False
 
 

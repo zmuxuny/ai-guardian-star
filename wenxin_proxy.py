@@ -23,6 +23,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
+import db
 from security_utils import hash_password, password_needs_rehash, verify_password
 from mqtt_access import allowed_users, create_schema as create_mqtt_schema, issue_grant
 from address_service import create_address_schema, register_address_routes
@@ -101,89 +102,14 @@ MQTT_USERS_FILE = os.environ.get('MQTT_USERS_FILE', '/etc/wenxin/mqtt-users.json
 
 
 def get_db():
-    """获取 SQLite 连接，自动建表"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS t_user (
-            username      TEXT PRIMARY KEY,
-            nickname      TEXT,
-            phone         TEXT,
-            password_hash TEXT NOT NULL,
-            avatar_path   TEXT,
-            email         TEXT,
-            address       TEXT,
-            create_time   INTEGER NOT NULL
-        )
-    """)
-    user_columns = {row['name'] for row in conn.execute("PRAGMA table_info(t_user)")}
-    for column, definition in (
-        ('avatar_data', 'BLOB'),
-        ('avatar_mime', 'TEXT'),
-        ('avatar_updated_at', 'INTEGER'),
-        ('is_frozen', 'INTEGER NOT NULL DEFAULT 0'),
-    ):
-        if column not in user_columns:
-            conn.execute(f"ALTER TABLE t_user ADD COLUMN {column} {definition}")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS t_session (
-            access_token_hash  TEXT PRIMARY KEY,
-            refresh_token_hash TEXT NOT NULL UNIQUE,
-            username           TEXT NOT NULL,
-            access_expires_at  INTEGER NOT NULL,
-            refresh_expires_at INTEGER NOT NULL,
-            create_time        INTEGER NOT NULL
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS t_sms_challenge (
-            challenge_hash TEXT PRIMARY KEY,
-            phone          TEXT NOT NULL,
-            purpose        TEXT NOT NULL,
-            requester_ip   TEXT NOT NULL,
-            sent_at        INTEGER NOT NULL,
-            expires_at     INTEGER NOT NULL,
-            failed_attempts INTEGER NOT NULL DEFAULT 0,
-            checking_at    INTEGER,
-            consumed_at    INTEGER
-        )
-    """)
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sms_challenge_phone_sent "
-        "ON t_sms_challenge(phone, sent_at)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sms_challenge_ip_sent "
-        "ON t_sms_challenge(requester_ip, sent_at)"
-    )
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS t_contact_challenge (
-            challenge_hash TEXT PRIMARY KEY,
-            username       TEXT NOT NULL,
-            kind           TEXT NOT NULL,
-            value          TEXT NOT NULL,
-            code_hash      TEXT,
-            requester_ip   TEXT NOT NULL,
-            sent_at        INTEGER NOT NULL,
-            expires_at     INTEGER NOT NULL,
-            failed_attempts INTEGER NOT NULL DEFAULT 0,
-            checking_at    INTEGER,
-            consumed_at    INTEGER
-        )
-    """)
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_contact_value_sent "
-        "ON t_contact_challenge(kind, value, sent_at)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_contact_ip_sent "
-        "ON t_contact_challenge(requester_ip, sent_at)"
-    )
-    create_mqtt_schema(conn)
-    create_address_schema(conn)
-    create_ai_schema(conn)
-    conn.commit()
-    return conn
+    """获取账号库连接；首次访问某个库时执行一次建表。"""
+    return db.get_db(DB_PATH)
+
+
+db.register_schema(db.create_core_schema)
+db.register_schema(create_mqtt_schema)
+db.register_schema(create_address_schema)
+db.register_schema(create_ai_schema)
 
 
 def _token_hash(token):
