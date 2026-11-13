@@ -4,3 +4,4 @@ requests==2.32.5
 -r requirements-moderation.txt
 -r requirements-sms.txt
 gunicorn==26.0.0
+PyMySQL==1.2.4

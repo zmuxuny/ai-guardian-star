@@ -144,7 +144,8 @@ struct Login {
   private subtitleText(): string {
     return this.resetMode
       ? "验证注册手机号后设置新密码"
-      : this.registerMode ? "使用手机号验证码创建账号" : "关怀我们的过去，保障我们的未来";
+      : this.registerMode ? "使用手机号验证码创建账号"
+      : this.inputMode === 1 ? "邮箱仅支持已有账号登录" : "关怀我们的过去，保障我们的未来";
   }
 
   @Builder
@@ -389,7 +390,7 @@ struct Login {
   OptionsRow(): void {
     Row() {
       Row({ space: 8 }) {
-        Checkbox({ name: "rememberMe", group: "loginOptions" })
+        Checkbox({ name: 'rememberMe', group: 'loginOptions' })
           .select(this.rememberMe)
           .shape(CheckBoxShape.ROUNDED_SQUARE)
           .selectedColor(Color.White)
