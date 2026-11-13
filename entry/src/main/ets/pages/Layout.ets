@@ -6,7 +6,6 @@ import { person } from "./person";
 import { record } from "./record";
 import { AiChat } from "./AiChat";
 import { ThemeManager } from "../common/ThemeManager";
-import { getWindowSizeClass } from "../common/ResponsiveLayout";
 import { STORE_KEY_AI_ENABLED } from "../config";
 import { GlassBottomBar, GlassTabItem, GLASS_TAB_CLEARANCE } from "../components/GlassBottomBar";
 
@@ -129,72 +128,23 @@ export struct Layout {
     }
   }
 
-  @Builder
-  railItem(index: number): void {
-    Column({ space: 6 }) {
-      Image(this.currentIndex === index ? this.tabs[index].activeIcon : this.tabs[index].icon)
-        .width(28).height(28)
-        .objectFit(ImageFit.Contain)
-        .opacity(this.currentIndex === index ? 1.0 : 0.7)
-      Text(this.tabs[index].label)
-        .fontSize(12)
-        .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
-        .fontColor(this.currentIndex === index ? '#2563EB' : this.themeManager.colors.secondaryTextColor)
-    }
-    .width(80).height(64)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.currentIndex === index
-      ? (this.themeManager.isDarkMode ? '#1E3A5F' : '#EFF6FF')
-      : Color.Transparent)
-    .borderRadius(16)
-    .onClick(() => { this.currentIndex = index; })
-  }
-
-  @Builder
-  sideNavigation(): void {
-    Column({ space: 10 }) {
-      Blank()
-      this.railItem(0)
-      this.railItem(1)
-      if (this.aiEnabled) {
-        this.railItem(2)
-      }
-      this.railItem(3)
-      Blank()
-    }
-    .width(96).height('100%')
-    .alignItems(HorizontalAlign.Center)
-    .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-    .border({ width: { right: 0.5 }, color: this.themeManager.colors.borderColor })
-    // 侧栏需自行铺到状态栏下方，否则顶部会露出窗口默认底色（深色模式下是一块白）
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP])
-  }
-
   build() {
     NavDestination() {
       Column() {
-        if (getWindowSizeClass(this.viewportWidth) === 'compact') {
-          Stack({ alignContent: Alignment.Bottom }) {
-            this.pageStack(GLASS_TAB_CLEARANCE)
-            GlassBottomBar({
-              items: this.visibleTabs(),
-              selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
-              viewportWidth: this.viewportWidth,
-              compact: this.glassCompact,
-              darkSurface: this.currentIndex === 0 || this.themeManager.isDarkMode,
-              accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
-              tint: this.palette().wash,
-              onSelect: (slot: number): void => { this.selectGlassTab(slot); },
-            }).margin({ bottom: 12 })
-          }.width('100%').height('100%')
-        } else {
-          Row() {
-            this.sideNavigation()
-            Column() { this.pageStack() }
-              .layoutWeight(1).height('100%')
-              .backgroundColor(this.themeManager.colors.backgroundColor)
-          }.width('100%').height('100%')
-        }
+        // 手机、平板共用同一个玻璃底栏（形状、按压和左右拖动切换都一致），不再单独做平板侧栏
+        Stack({ alignContent: Alignment.Bottom }) {
+          this.pageStack(GLASS_TAB_CLEARANCE)
+          GlassBottomBar({
+            items: this.visibleTabs(),
+            selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
+            viewportWidth: this.viewportWidth,
+            compact: this.glassCompact,
+            darkSurface: this.currentIndex === 0 || this.themeManager.isDarkMode,
+            accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
+            tint: this.palette().wash,
+            onSelect: (slot: number): void => { this.selectGlassTab(slot); },
+          }).margin({ bottom: 12 })
+        }.width('100%').height('100%')
       }
       .width('100%').height('100%')
       .backgroundColor(this.themeManager.colors.backgroundColor)

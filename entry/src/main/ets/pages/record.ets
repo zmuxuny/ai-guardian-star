@@ -10,10 +10,10 @@ export struct record {
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   @State themeManager: ThemeManager = ThemeManager.getInstance();
 
-  // 不放页面标题：顶部是存储说明和状态胶囊，下面直接是筛选
+  // 不放页面标题：顶部是存储说明和状态胶囊，随列表滑走；下面的筛选条由 RecordingBrowser 固定在顶部
   @Builder
   GradientHeader(): void {
-    GradientHeader({ useHomeStyle: true }) {
+    GradientHeader({ useHomeStyle: true, contentMaxWidth: 880 }) {
       Row({ space: 10 }) {
         Text('录像在家中设备上保存 7 天，在线播放不占手机空间').fontSize(13)
           .fontColor(this.themeManager.colors.secondaryTextColor).layoutWeight(1)
@@ -25,9 +25,14 @@ export struct record {
 
   build() {
     Column() {
-      this.GradientHeader()
-      RecordingBrowser({ bottomInset: this.bottomInset, onTabScroll: this.onTabScroll }).layoutWeight(1)
-    }.width('100%').height('100%').backgroundColor(this.themeManager.colors.backgroundColor)
+      // 外面套一层限宽：直接给 RecordingBrowser 加 maxWidth 时内部 width('100%') 仍按整屏算，会右移溢出
+      Column() {
+        RecordingBrowser({ bottomInset: this.bottomInset, onTabScroll: this.onTabScroll }) {
+          this.GradientHeader()
+        }
+      }.width('100%').height('100%').constraintSize({ maxWidth: 880 })
+    }.width('100%').height('100%')
+      .backgroundColor(this.themeManager.colors.backgroundColor)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 }

@@ -351,8 +351,10 @@ struct HealthHistory {
   build() {
     NavDestination() {
       Column() {
-        this.PageHeader()
-        RecordingBrowser().layoutWeight(1)
+        // 页头放进录像列表，随内容滑走；筛选条由 RecordingBrowser 固定在顶部
+        Column() {
+          RecordingBrowser() { this.PageHeader() }
+        }.width('100%').layoutWeight(1)
       }
       .width("100%")
       .height("100%")

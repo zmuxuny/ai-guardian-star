@@ -38,6 +38,12 @@ interface RecordingDay {
 export struct RecordingBrowser {
   @Prop bottomInset: number = 0;
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
+  /** 页头：放进列表第一项，随内容滑走；筛选条浮在上面，滑到顶后固定 */
+  @BuilderParam header: () => void = this.noHeader;
+  @State headerHeight: number = 0;
+  @State filterHeight: number = 56;
+  @State listOffset: number = 0;
+  private listScroller: Scroller = new Scroller();
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqtt: MqttManager = MqttManager.getInstance();
   @State filter: string = 'all';
@@ -609,31 +615,49 @@ export struct RecordingBrowser {
     }.width('100%')
   }
 
+  @Builder
+  noHeader(): void {}
+
+  @Builder
+  FilterBar(): void {
+    Row({ space: 8 }) {
+      Scroll() {
+        Row({ space: 8 }) {
+          this.FilterChip('all', '全部')
+          this.FilterChip('fall', '跌倒')
+          this.FilterChip('sedentary', '久坐')
+          this.FilterChip('stranger', '陌生人')
+        }.padding({ top: 4, bottom: 8 })
+      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).align(Alignment.Start).layoutWeight(1)
+      Button({ type: ButtonType.Circle }) {
+        Image($r('app.media.ic_refresh_gray')).width(20).height(20).supportSvg2(true)
+          .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
+      }.width(44).height(44).backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .shadow({ radius: 12, offsetY: 6, color: '#1410231C' }).margin({ bottom: 4 })
+      .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
+  }.width('100%')
+  }
+
+  /** 筛选条的位置：先跟着页头往上走，页头滑出后贴在顶部（状态栏下沿） */
+  private filterTop(): number {
+    return Math.max(0, this.headerHeight - this.listOffset);
+  }
+
   build() {
-    Column({ space: 12 }) {
-      Row({ space: 8 }) {
-        Scroll() {
-          Row({ space: 8 }) {
-            this.FilterChip('all', '全部')
-            this.FilterChip('fall', '跌倒')
-            this.FilterChip('sedentary', '久坐')
-            this.FilterChip('stranger', '陌生人')
-          }.padding({ top: 4, bottom: 8 })
-        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).layoutWeight(1)
-        Button({ type: ButtonType.Circle }) {
-          Image($r('app.media.ic_refresh_gray')).width(20).height(20).supportSvg2(true)
-            .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
-        }.width(44).height(44).backgroundColor(this.themeManager.colors.cardBackgroundColor)
-        .shadow({ radius: 12, offsetY: 6, color: '#1410231C' }).margin({ bottom: 4 })
-        .accessibilityText('刷新当前展开日期的异常录像').onClick((): void => { this.refreshCurrent(); })
-      }.width('100%')
-      if (this.selectedId !== '') {
-        this.Playback()
-      }
-      if (this.anyDayLoaded()) {
-        Text(this.statusText()).fontSize(12).fontColor(this.ink2()).width('100%')
-      }
-      List({ space: 12 }) {
+    Stack({ alignContent: Alignment.Top }) {
+      List({ space: 12, scroller: this.listScroller }) {
+        ListItem() {
+          Column() { this.header() }.width('100%')
+            .onAreaChange((_o: Area, n: Area): void => { this.headerHeight = Number(n.height); })
+        }
+        // 给浮起的筛选条占位
+        ListItem() { Column().width('100%').height(Math.max(0, this.filterHeight - 12)) }
+        if (this.selectedId !== '') {
+          ListItem() { this.Playback() }.padding({ left: 16, right: 16 })
+        }
+        if (this.anyDayLoaded()) {
+          ListItem() { Text(this.statusText()).fontSize(12).fontColor(this.ink2()).width('100%') }.padding({ left: 16, right: 16 })
+        }
         ForEach(this.days, (day: RecordingDay) => {
           ListItem() {
             Column() {
@@ -644,12 +668,24 @@ export struct RecordingBrowser {
             }.width('100%').padding({ left: 16, right: 16, bottom: this.expandedKey === day.key ? 4 : 0 })
             .borderRadius(28).backgroundColor(this.themeManager.colors.cardBackgroundColor)
             .shadow({ radius: 30, offsetY: 16, color: '#1F10231C' })
-          }
+          }.padding({ left: 16, right: 16 })
         // key 必须包含加载状态：patchDay 生成新对象，只用日期作 key 时 ForEach 不会重建该项，界面会卡在“正在读取”。
         }, (day: RecordingDay): string =>
           `${this.filter}|${day.key}|${day.loading}|${day.loaded}|${day.error}|${day.windowEnd}|${day.clips.length}|${this.expandedKey === day.key}`)
-      }.layoutWeight(1).width('100%').scrollBar(BarState.Off).clip(false)
-        .contentEndOffset(this.bottomInset + 12).onDidScroll(this.onTabScroll)
-    }.width('100%').height('100%').padding({ left: 16, right: 16, top: 8 })
+      }.width('100%').height('100%').scrollBar(BarState.Off)
+        .contentEndOffset(this.bottomInset + 12)
+        // 列表铺进状态栏：滑动时录像卡片从状态栏下面穿过
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        .onDidScroll((y: number, state: ScrollState): void => {
+          this.listOffset = this.listScroller.currentOffset().yOffset;
+          this.onTabScroll(y, state);
+        })
+      Column() { this.FilterBar() }
+        .width('100%').padding({ left: 16, right: 16, top: 4 })
+        // 贴顶后加一层磨砂，滑过的卡片不会和筛选按钮叠在一起看不清
+        .backgroundBlurStyle(this.listOffset > this.headerHeight ? BlurStyle.COMPONENT_THIN : BlurStyle.NONE)
+        .translate({ y: this.filterTop() })
+        .onAreaChange((_o: Area, n: Area): void => { this.filterHeight = Number(n.height); })
+    }.width('100%').height('100%')
   }
 }

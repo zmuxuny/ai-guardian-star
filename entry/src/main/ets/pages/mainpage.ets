@@ -19,6 +19,7 @@ const PANEL_RADIUS: number = 28;
 @Component
 export struct mainPage {
   @Prop bottomInset: number = 0;
+  /** 平板浮动侧栏占用的左侧宽度，内容要让开 */
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   pathStack: NavPathStack = new NavPathStack();
   @StorageLink('homeCameraFullscreenActive') @Watch('onFullscreenChange') cameraFullscreenActive: boolean = false;
@@ -29,6 +30,7 @@ export struct mainPage {
   @State isTalking: boolean = false;
   @State callBusy: boolean = false;
   @State pressed: string = '';
+  @State wideLayout: boolean = false;
   private audioManager: AudioTransferManager = AudioTransferManager.getInstance();
   private homeVisible: boolean = false;
   private homeDataTimer: number = -1;
@@ -260,7 +262,11 @@ export struct mainPage {
         .border({ width: 1, color: GLASS_EDGE })
       }.width('100%').margin({ top: 6 })
 
-      Row() {
+      // 手机：大字与小画面左右并排；平板宽屏：大字在上、画面放大到整列宽
+      Flex({
+        direction: this.wideLayout ? FlexDirection.Column : FlexDirection.Row,
+        alignItems: this.wideLayout ? ItemAlign.Start : ItemAlign.End,
+      }) {
         Column() {
           Text(this.palette().word)
             .fontSize(this.palette().word.length > 2 ? 64 : 96).fontWeight(FontWeight.Bold)
@@ -269,7 +275,7 @@ export struct mainPage {
             .maxLines(1)
           Text(this.heroLines()).fontSize(15).lineHeight(22).fontColor(ON2)
             .margin({ top: 12 }).constraintSize({ minHeight: 45 })
-        }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+        }.flexGrow(this.wideLayout ? 0 : 1).flexShrink(1).alignItems(HorizontalAlign.Start)
 
         // 小画面：点开全屏（样张 .live）
         Stack({ alignContent: Alignment.TopStart }) {
@@ -290,7 +296,9 @@ export struct mainPage {
             .padding(5).borderRadius(99).backgroundColor('#D110231C')
             .position({ right: 6, bottom: 6 })
         }
-        .width(132).height(100).padding(5).borderRadius(20).backgroundColor(GLASS)
+        .width(this.wideLayout ? '100%' : 132).aspectRatio(this.wideLayout ? 1.6 : 1.32)
+        .margin({ top: this.wideLayout ? 20 : 0 })
+        .flexShrink(0).padding(5).borderRadius(20).backgroundColor(GLASS)
         .border({ width: 1, color: GLASS_EDGE })
         .shadow({ radius: 30, offsetY: 16, color: '#59000000' })
         .scale({ x: this.pressScale('live', 0.94), y: this.pressScale('live', 0.94) })
@@ -298,7 +306,7 @@ export struct mainPage {
         .onTouch((event: TouchEvent): void => { this.trackPress('live', event); })
         .onClick((): void => { softTap(); this.openCamera(); })
         .accessibilityText('实时画面，点击全屏查看')
-      }.width('100%').alignItems(VerticalAlign.Bottom).margin({ top: 20 })
+      }.width('100%').margin({ top: 20 })
 
       Row({ space: 10 }) {
         Button({ type: ButtonType.Capsule }) {
@@ -534,21 +542,45 @@ export struct mainPage {
     .onClick((): void => { this.openHistory(); })
   }
 
+  @Builder
+  Cards(): void {
+    Column({ space: 14 }) {
+      this.TodayCard()
+      this.EventsCard()
+      this.WeekCard()
+    }.width('100%')
+  }
+
   build() {
     Stack() {
       this.Ambient()
       Scroll() {
-        Column({ space: 14 }) {
-          this.Hero()
+        if (this.wideLayout) {
+          // 平板横屏：左列状态、画面和通话，右列今天/事件/近 7 天
+          Row({ space: 32 }) {
+            Column() { this.Hero() }.layoutWeight(1)
+            Column() {
+              this.Cards()
+              Blank().height(24 + this.bottomInset)
+            }.layoutWeight(1).padding({ top: 20 })
+          }
+          .width('100%').constraintSize({ maxWidth: 1200 }).alignItems(VerticalAlign.Top)
+          .padding({ left: 12, right: 32, top: 12 })
+        } else {
           Column({ space: 14 }) {
-            this.TodayCard()
-            this.EventsCard()
-            this.WeekCard()
-          }.width('100%').padding({ left: 16, right: 16 }).margin({ top: 10 })
-          Blank().height(24 + this.bottomInset)
-        }.width('100%').constraintSize({ maxWidth: 640 })
+            this.Hero()
+            Column() { this.Cards() }.width('100%').padding({ left: 16, right: 16 }).margin({ top: 10 })
+            Blank().height(24 + this.bottomInset)
+          }.width('100%').constraintSize({ maxWidth: 640 })
+        }
       }.width('100%').height('100%').scrollBar(BarState.Off).align(Alignment.Top)
+      // 内容可滑进状态栏，和背景光斑一样铺满
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
     }.width('100%').height('100%')
+    .onAreaChange((_old: Area, area: Area): void => {
+      const width = Number(area.width);
+      if (width > 0) this.wideLayout = width >= 840;
+    })
   }
 }

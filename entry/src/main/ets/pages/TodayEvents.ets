@@ -100,7 +100,9 @@ struct TodayEvents {
 
   build() {
     NavDestination() {
-      Column() {
+      // 页头和日期行放进列表，随内容滑走；列表铺进状态栏，滑动时内容从状态栏下面穿过
+      List({ space: 12 }) {
+        ListItem() {
         GradientHeader({ useHomeStyle: true, contentMaxWidth: 640 }) {
           Row({ space: 8 }) {
             Button({ type: ButtonType.Normal }) {
@@ -113,29 +115,43 @@ struct TodayEvents {
               .backgroundColor(Color.Transparent).onClick((): void => { this.load(); })
           }.width('100%').padding({ left: 8, right: 16, top: 8, bottom: 12 })
         }
-        Row() {
-          Text(this.dateText()).fontSize(13).fontColor(this.theme.colors.secondaryTextColor).layoutWeight(1)
-          Text(`${this.events.length} 条`).fontSize(13).fontColor(this.theme.colors.secondaryTextColor)
-        }.width('100%').padding({ left: 20, right: 20, top: 12, bottom: 16 })
-        if (this.loading) {
-          LoadingProgress().width(28).height(28).color('#0A5C43').margin({ top: 40 })
-          Text('正在读取当天记录…').fontSize(14).fontColor(this.theme.colors.secondaryTextColor)
-        } else if (this.failed) {
-          Text('当天记录加载失败').fontSize(16).fontColor(this.theme.colors.primaryTextColor).margin({ top: 40 })
-          Button('重新加载').height(44).margin({ top: 16 }).onClick((): void => { this.load(); })
-        } else if (this.events.length === 0) {
-          Image($r('app.media.ic_record')).width(48).height(48).supportSvg2(true).colorFilter(careIconTint(this.theme.colors.linkTextColor)).margin({ top: 48, bottom: 16 })
-          Text('今天暂无事件').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.primaryTextColor)
-          Text('当天的摔倒、久坐和陌生人记录会显示在这里').fontSize(13)
-            .fontColor(this.theme.colors.secondaryTextColor).margin({ top: 8 }).padding(20)
-        } else {
-          List({ space: 12 }) {
-            ForEach(this.events, (event: HealthEvent) => {
-              ListItem() { this.EventRow(event) }
-            }, (event: HealthEvent): string => `${event.id}:${event.eventTime}:${event.isHandled}:${event.remark}`)
-          }.width('100%').layoutWeight(1).padding({ left: 16, right: 16, bottom: 20 }).scrollBar(BarState.Off)
         }
-      }.width('100%').height('100%')
+        ListItem() {
+          Row() {
+            Text(this.dateText()).fontSize(13).fontColor(this.theme.colors.secondaryTextColor).layoutWeight(1)
+            Text(`${this.events.length} 条`).fontSize(13).fontColor(this.theme.colors.secondaryTextColor)
+          }.width('100%').constraintSize({ maxWidth: 640 }).padding({ left: 20, right: 20, top: 0, bottom: 4 })
+        }
+        if (this.loading) {
+          ListItem() {
+            Column() {
+              LoadingProgress().width(28).height(28).color('#0A5C43').margin({ top: 40 })
+              Text('正在读取当天记录…').fontSize(14).fontColor(this.theme.colors.secondaryTextColor)
+            }.width('100%')
+          }
+        } else if (this.failed) {
+          ListItem() {
+            Column() {
+              Text('当天记录加载失败').fontSize(16).fontColor(this.theme.colors.primaryTextColor).margin({ top: 40 })
+              Button('重新加载').height(44).margin({ top: 16 }).onClick((): void => { this.load(); })
+            }.width('100%')
+          }
+        } else if (this.events.length === 0) {
+          ListItem() {
+            Column() {
+              Image($r('app.media.ic_record')).width(48).height(48).supportSvg2(true).colorFilter(careIconTint(this.theme.colors.linkTextColor)).margin({ top: 48, bottom: 16 })
+              Text('今天暂无事件').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.primaryTextColor)
+              Text('当天的摔倒、久坐和陌生人记录会显示在这里').fontSize(13)
+                .fontColor(this.theme.colors.secondaryTextColor).margin({ top: 8 }).padding(20)
+            }.width('100%')
+          }
+        } else {
+          ForEach(this.events, (event: HealthEvent) => {
+            ListItem() { this.EventRow(event) }.padding({ left: 16, right: 16 })
+          }, (event: HealthEvent): string => `${event.id}:${event.eventTime}:${event.isHandled}:${event.remark}`)
+        }
+      }.width('100%').height('100%').scrollBar(BarState.Off).contentEndOffset(20)
+        .alignListItem(ListItemAlign.Center)
         .backgroundColor(this.theme.colors.backgroundColor)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }.hideTitleBar(true).backgroundColor(this.theme.colors.backgroundColor)

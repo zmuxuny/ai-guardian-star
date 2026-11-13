@@ -17,7 +17,7 @@ import {
   UserInfo,
 } from "../database/DatabaseHelper";
 import { preferences } from "@kit.ArkData";
-import { common, Want } from "@kit.AbilityKit";
+import { bundleManager, common, Want } from "@kit.AbilityKit";
 import { UserManager } from "../common/UserManager";
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, STORE_KEY_AI_ENABLED, STORE_KEY_AI_ACCESS_LEVEL, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME, PREF_KEY_PRIVACY_ACCEPTED, PRIVACY_POLICY_URL } from '../config';
 import { CloudService } from '../common/CloudService';
@@ -26,6 +26,15 @@ import { STORE_KEY_AI_POLICY_READY } from '../config';
 import { fileUri } from "@kit.CoreFileKit";
 import { getWindowSizeClass, pick } from "../common/ResponsiveLayout";
 import { CacheManager } from '../common/CacheManager';
+
+function readAppVersion(): string {
+  try {
+    return bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).versionName;
+  } catch (_) {
+    return '';
+  }
+}
+
 @Builder
 export function personBuilder(): void {
   NavDestination() {
@@ -155,6 +164,8 @@ export struct person {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State userName: string = "";
+  // 版本号取自安装包（AppScope/app.json5 的 versionName），不在代码里手写
+  private readonly appVersion: string = readAppVersion();
   @StorageProp(STORE_KEY_NICKNAME) userNickname: string = "";
   @StorageProp(STORE_KEY_AVATAR) userAvatarPath: string = "";
   @State useDays: number = 128;
@@ -433,7 +444,7 @@ export struct person {
 
   @Builder
   GradientHeader(): void {
-    GradientHeader({ useHomeStyle: true }) {
+    GradientHeader({ useHomeStyle: true, contentMaxWidth: 880 }) {
       Column() {
         // 不放页面标题：顶部直接是头像、名字和守护统计，状态胶囊在右侧
         Row({ space: 14 }) {
@@ -469,9 +480,9 @@ export struct person {
 
   build() {
     Column() {
-      this.GradientHeader()
       Scroll() {
         Column() {
+          this.GradientHeader()
           Column() {
             Text("服务设置")
               .fontSize(13).fontWeight(FontWeight.Medium)
@@ -869,22 +880,25 @@ export struct person {
           .width("100%")
           .alignItems(HorizontalAlign.Center)
           .margin({ top: 29, bottom: 14 })
-          Text("智护星 v1.0.0")
+          Text(this.appVersion ? `智护星 v${this.appVersion}` : "智护星")
             .fontSize(12)
             .fontColor(this.themeManager.colors.secondaryTextColor)
             .margin({ bottom: 29 + this.bottomInset })
         }
         .width("100%")
-        .constraintSize({ maxWidth: 640 })
+        .constraintSize({ maxWidth: 880 })
         .alignItems(HorizontalAlign.Center)
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
+      // 页头在滚动内容里，内容可滑进状态栏
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .onDidScroll((_x: number, y: number, state: ScrollState): void => { this.onTabScroll(y, state); })
     }
     .width("100%")
     .height("100%")
+    
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
