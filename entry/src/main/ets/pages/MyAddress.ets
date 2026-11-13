@@ -2,7 +2,7 @@ import { ThemeManager } from '../common/ThemeManager';
 import { careIconTint } from '../common/CarePalette';
 import { UserManager } from '../common/UserManager';
 import { AddressService, SavedAddress, AddressDraft, AddressIdentity, AddressResult } from '../common/AddressService';
-import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, SURFACE_RADIUS } from '../components/GradientHeader';
 import { showToast, showDialog } from '../common/UiFeedback';
 
 @Builder
@@ -11,7 +11,6 @@ export function MyAddressBuilder(): void { MyAddress(); }
 @Component
 export struct MyAddress {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   pathStack: NavPathStack = new NavPathStack();
   @State addresses: SavedAddress[] = [];
   @State loading: boolean = true;
@@ -150,8 +149,7 @@ export struct MyAddress {
           .accessibilityText('返回').onClick((): void => {
             if (this.editing) this.leaveEdit(); else if (!this.busy) this.pathStack.pop();
           })
-        Text('常用地址').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-          .margin({ left: 12 }).layoutWeight(1)
+        Blank()
         Button(this.editing ? this.busy ? '保存中…' : '保存' : this.loading ? '读取中' : '刷新', { type: ButtonType.Normal })
           .height(44).fontSize(14).fontColor(Color.White).backgroundColor(this.themeManager.colors.primaryButtonColor)
           .borderRadius(12)
@@ -159,7 +157,7 @@ export struct MyAddress {
           .accessibilityText(this.editing ? '保存详细地址' : '刷新常用地址')
           .onClick((): void => { if (this.editing) this.save(); else this.loadAddresses(); })
       }.width('100%')
-        .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
+        .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 8, bottom: 12 })
     }
   }
 

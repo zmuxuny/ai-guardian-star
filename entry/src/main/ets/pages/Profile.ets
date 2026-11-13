@@ -7,7 +7,7 @@ import { ThemeManager } from '../common/ThemeManager';
 import { careIconTint } from '../common/CarePalette';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
 import { DatabaseHelper, UserInfo } from '../database/DatabaseHelper';
-import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, SURFACE_RADIUS } from '../components/GradientHeader';
 import { UserManager } from '../common/UserManager';
 import { STORE_KEY_LOGGED_IN_USER, STORE_KEY_NICKNAME, STORE_KEY_AVATAR, PREF_NAME_AUTH, PREF_KEY_LAST_NICKNAME, PREF_KEY_LAST_USERNAME } from '../config';
 import { CloudService, CloudUpdateFields } from '../common/CloudService';
@@ -271,7 +271,6 @@ export function ProfileBuilder() {
 @Component
 export struct Profile {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   @State viewportWidth: number = 360;
   pathStack: NavPathStack = new NavPathStack();
 
@@ -733,12 +732,10 @@ export struct Profile {
           .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius(20).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
-        Text('个人资料')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-          .margin({ left: 12 }).layoutWeight(1)
+        Blank()
       }
       .width('100%')
-      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 8, bottom: 12 })
     }
   }
 

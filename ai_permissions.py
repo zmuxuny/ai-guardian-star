@@ -1,7 +1,8 @@
 """Account-owned AI consent and bounded, minimized model inputs."""
 import re
-import sqlite3
 from flask import g, request, jsonify
+
+import db
 
 LEVELS = ('basic', 'privacy', 'full')
 
@@ -12,6 +13,29 @@ class AiPermissionError(Exception):
 
 
 def create_ai_schema(conn):
+    if db.IS_MYSQL:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS t_ai_permission ("
+            "username VARCHAR(64) NOT NULL PRIMARY KEY, "
+            "enabled TINYINT NOT NULL DEFAULT 0, "
+            "access_level VARCHAR(16) NOT NULL DEFAULT 'privacy', "
+            "version BIGINT NOT NULL DEFAULT 1"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+        )
+        conn.execute("DROP TRIGGER IF EXISTS ai_permission_delete_user")
+        conn.execute(
+            "CREATE TRIGGER ai_permission_delete_user AFTER DELETE ON t_user "
+            "FOR EACH ROW DELETE FROM t_ai_permission WHERE username=OLD.username"
+        )
+        conn.execute("DROP TRIGGER IF EXISTS ai_permission_rename_user")
+        conn.execute(
+            "CREATE TRIGGER ai_permission_rename_user AFTER UPDATE ON t_user "
+            "FOR EACH ROW BEGIN "
+            "IF OLD.username <> NEW.username THEN "
+            "UPDATE t_ai_permission SET username=NEW.username WHERE username=OLD.username; "
+            "END IF; END"
+        )
+        return
     conn.executescript('''
       CREATE TABLE IF NOT EXISTS t_ai_permission (
         username TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 0,
@@ -130,7 +154,7 @@ def register_ai_permission_routes(app, bearer_required, get_db):
         except AiPermissionError as error:
             conn.rollback()
             return jsonify(success=False, message=error.message), error.status
-        except sqlite3.Error:
+        except db.DatabaseError:
             conn.rollback()
             app.logger.error('[ai_settings] persistence failed')
             return jsonify(success=False, message='权限保存失败，请重试'), 500

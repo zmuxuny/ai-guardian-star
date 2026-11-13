@@ -6,9 +6,11 @@ import { CareStatusBadge } from '../components/CareStatusBadge';
 
 import { WenxinService, ChatMessage } from '../common/WenxinService';
 import { ThemeManager } from '../common/ThemeManager';
-import { GradientHeader, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE } from '../components/GradientHeader';
+import { GradientHeader, PAGE_HORIZONTAL_GUTTER } from '../components/GradientHeader';
 import { STORE_KEY_AI_ACCESS_LEVEL, STORE_KEY_AI_POLICY_READY, STORE_KEY_AI_POLICY_STAMP } from '../config';
 import { getWindowSizeClass } from '../common/ResponsiveLayout';
+import { CarePalette, carePalette, careIconTint } from '../common/CarePalette';
+import { MqttManager } from './MqttManager';
 
 const QUICK_QUESTIONS: string[] = [
   '老人最近状态怎么样？',
@@ -29,7 +31,9 @@ interface BubbleMsg {
 export struct AiChat {
   onOpenHome: () => void = () => {};
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
+  @Prop bottomInset: number = 0;
   @State themeManager: ThemeManager = ThemeManager.getInstance();
+  @State mqtt: MqttManager = MqttManager.getInstance();
   @State messages: BubbleMsg[] = [];
   @State inputText: string = '';
   @State isRequesting: boolean = false;
@@ -163,22 +167,31 @@ export struct AiChat {
     this.scrollToBottom();
   }
 
+  private palette(): CarePalette {
+    return carePalette(this.mqtt.isFallDetected, this.mqtt.isSedentaryDetected, this.mqtt.deviceOnline);
+  }
+
   @Builder
   GradientHeader(): void {
     GradientHeader({ useHomeStyle: true }) {
-      Row() {
-        Column({ space: 4 }) {
-          Text('AI 健康助手').fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
-            .fontColor(this.themeManager.colors.primaryTextColor)
-          Text(this.aiAccessLevel === 'full' ? '云端 AI · 深度照护'
-            : this.aiAccessLevel === 'basic' ? '云端 AI · 基础问答' : '云端 AI · 隐私保护')
-            .fontSize(11).fontColor(this.themeManager.colors.secondaryTextColor)
-        }.alignItems(HorizontalAlign.Start)
-        Blank()
+      // 不放页面标题：顶部直接是权限条，状态胶囊在右侧
+      Row({ space: 10 }) {
+        Row({ space: 8 }) {
+          Image($r('app.media.ic_shield_blue')).width(18).height(18).supportSvg2(true)
+            .colorFilter(careIconTint(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid))
+          Text('云端 AI 权限：').fontSize(13).fontColor(this.themeManager.colors.secondaryTextColor)
+          Text(this.aiAccessLevel === 'full' ? '深度照护'
+            : this.aiAccessLevel === 'basic' ? '基础问答' : '隐私保护')
+            .fontSize(13).fontWeight(FontWeight.Bold)
+            .fontColor(this.themeManager.isDarkMode ? '#FFFFFF' : this.palette().solid)
+        }
+        .layoutWeight(1).height(44).padding({ left: 14, right: 14 })
+        .borderRadius(22).backgroundColor(this.themeManager.colors.cardBackgroundColor)
+        .shadow({ radius: 20, offsetY: 10, color: '#1A10231C' })
         CareStatusBadge({ onOpenHome: this.onOpenHome })
       }
       .width('100%')
-      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 20 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 16, bottom: 8 })
     }
   }
 
@@ -204,17 +217,12 @@ export struct AiChat {
       if (msg.role === 'user') {
         Blank()
         Text(msg.content)
-          .fontSize(15).fontColor('#ffffff').lineHeight(22)
-          .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-          .backgroundColor('#0A5C43')
-          .borderRadius({ topLeft: 16, topRight: 4, bottomLeft: 16, bottomRight: 16 })
+          .fontSize(16).fontColor('#ffffff').lineHeight(24).fontWeight(FontWeight.Medium)
+          .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+          .backgroundColor(this.palette().solid)
+          .borderRadius({ topLeft: 22, topRight: 8, bottomLeft: 22, bottomRight: 22 })
           .constraintSize({ maxWidth: '72%' })
       } else {
-        Text('🤖')
-          .fontSize(20).width(36).height(36)
-          .textAlign(TextAlign.Center).lineHeight(36)
-          .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-          .borderRadius(18).margin({ right: 10 }).flexShrink(0)
         Column() {
           if (msg.isLoading) {
             this.LoadingDots()
@@ -226,16 +234,16 @@ export struct AiChat {
               .alignSelf(ItemAlign.Start)
               .margin({ bottom: 4 })
             Text(msg.content)
-              .fontSize(15)
+              .fontSize(16)
               .fontColor(this.themeManager.colors.primaryTextColor)
-              .lineHeight(22)
+              .lineHeight(25)
           }
         }
-        .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+        .padding({ left: 16, right: 16, top: 12, bottom: 14 })
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-        .borderRadius({ topLeft: 4, topRight: 16, bottomLeft: 16, bottomRight: 16 })
-        .border({ width: 1, color: this.themeManager.colors.borderColor })
-        .constraintSize({ maxWidth: '72%' })
+        .borderRadius({ topLeft: 8, topRight: 22, bottomLeft: 22, bottomRight: 22 })
+        .shadow({ radius: 24, offsetY: 12, color: this.themeManager.isDarkMode ? '#40000000' : '#1A10231C' })
+        .constraintSize({ maxWidth: '80%' })
         Blank()
       }
     }
@@ -245,10 +253,10 @@ export struct AiChat {
   @Builder
   QuickChip(q: string): void {
     Text(q)
-      .fontSize(13).fontColor(this.themeManager.isDarkMode ? '#93c5fd' : '#0A5C43')
-      .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-      .backgroundColor(this.themeManager.isDarkMode ? '#1e3a5f' : '#eff6ff')
-      .borderRadius(20).border({ width: 1, color: '#93c5fd' })
+      .fontSize(14).fontColor(this.themeManager.colors.primaryTextColor)
+      .padding({ left: 16, right: 16, top: 10, bottom: 10 })
+      .backgroundColor(this.themeManager.colors.cardBackgroundColor)
+      .borderRadius(99).shadow({ radius: 12, offsetY: 6, color: '#1410231C' })
       .onClick((): void => {
         if (!this.isRequesting) this.sendMessage(q);
       })
@@ -267,7 +275,7 @@ export struct AiChat {
             ForEach(QUICK_QUESTIONS, (q: string) => {
               this.QuickChip(q)
             })
-          }.padding({ left: 18, right: 18 })
+          }.padding({ left: 18, right: 18, top: 2, bottom: 10 })
         }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
       } else {
         // 大屏直接折行铺开，不留半截被截断的提问
@@ -301,10 +309,11 @@ export struct AiChat {
     Row({ space: 12 }) {
       TextInput({ text: this.inputText, placeholder: '问点什么…' })
         .maxLength(2000)
-        .layoutWeight(1).height(46).fontSize(15)
+        .layoutWeight(1).height(50).fontSize(16)
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
-        .borderRadius(23).padding({ left: 16, right: 16 })
-        .border({ width: 1.5, color: this.isRequesting ? '#93c5fd' : '#e2e8f0' })
+        .borderRadius(25).padding({ left: 18, right: 18 })
+        .caretColor(this.palette().solid)
+        .shadow({ radius: 16, offsetY: 8, color: '#1410231C' })
         .placeholderColor(this.themeManager.colors.secondaryTextColor)
         .fontColor(this.themeManager.colors.primaryTextColor)
         .onChange((val: string): void => { this.inputText = val; })
@@ -317,15 +326,14 @@ export struct AiChat {
           Text('↑').fontSize(20).fontColor('#ffffff').fontWeight(FontWeight.Bold)
         }
       }
-      .width(46).height(46)
-      .backgroundColor(this.inputText.trim().length > 0 && !this.isRequesting ? '#0A5C43' : '#64748b')
-      .borderRadius(23).animation({ duration: 200, curve: Curve.EaseOut })
+      .width(50).height(50)
+      .backgroundColor(this.palette().solid)
+      .opacity(this.inputText.trim().length > 0 && !this.isRequesting ? 1 : 0.5)
+      .borderRadius(25).animation({ duration: 200, curve: Curve.EaseOut })
       .onClick((): void => { this.sendMessage(this.inputText); })
     }
     .width('100%').constraintSize({ maxWidth: 640 })
-    .padding({ left: 18, right: 18, top: 10, bottom: 16 })
-    .backgroundColor(this.themeManager.colors.backgroundColor)
-    .shadow({ radius: 10, color: '#12000000', offsetY: -3 })
+    .padding({ left: 16, right: 16, top: 8, bottom: 16 })
   }
 
   build() {
@@ -345,7 +353,7 @@ export struct AiChat {
       this.AiDisclaimer()
       this.InputBar()
     }
-    .width('100%').height('100%')
+    .width('100%').height('100%').padding({ bottom: this.bottomInset })
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onAreaChange((_oldValue: Area, newValue: Area): void => {

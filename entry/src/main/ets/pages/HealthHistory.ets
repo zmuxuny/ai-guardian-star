@@ -6,7 +6,7 @@
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { ThemeManager } from "../common/ThemeManager";
 import { UserManager } from "../common/UserManager";
-import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, PAGE_TITLE_SIZE, SURFACE_RADIUS } from '../components/GradientHeader';
+import { GradientHeader, ICON_FRAME_SIZE, PAGE_HORIZONTAL_GUTTER, SURFACE_RADIUS } from '../components/GradientHeader';
 import { common } from '@kit.AbilityKit';
 import fs from '@ohos.file.fs';
 import picker from '@ohos.file.picker';
@@ -31,7 +31,6 @@ struct HealthHistory {
   @State currentTab: number = 0;
   @State isLoading: boolean = true;
   @State isExporting: boolean = false;
-  @StorageProp("topSafeHeight") topSafeHeight: number = 48;
   aboutToAppear(): void {
     this.loadHistory();
   }
@@ -208,9 +207,7 @@ struct HealthHistory {
           .objectFit(ImageFit.Contain).backgroundColor(this.themeManager.colors.cardBackgroundColor)
           .borderRadius(20).rotate({ angle: 180 }).accessibilityText('返回')
           .onClick((): void => { this.pathStack.pop(); })
-        Text('历史记录')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold).fontColor(this.themeManager.colors.primaryTextColor)
-          .margin({ left: 12 }).layoutWeight(1)
+        Blank()
         Text(this.isExporting ? '准备中' : '导出事件 CSV')
           .fontSize(14).fontWeight(FontWeight.Medium).fontColor(this.themeManager.colors.linkTextColor)
           .padding({ left: 14, right: 14, top: 9, bottom: 9 })
@@ -219,7 +216,7 @@ struct HealthHistory {
           .onClick((): void => { this.exportRecords(); })
       }
       .width('100%')
-      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: this.topSafeHeight + 8, bottom: 12 })
+      .padding({ left: PAGE_HORIZONTAL_GUTTER, right: PAGE_HORIZONTAL_GUTTER, top: 8, bottom: 12 })
     }
   }
 

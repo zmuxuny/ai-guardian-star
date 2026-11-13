@@ -17,7 +17,6 @@ import {
 } from '../face/FaceEnrollmentFlow';
 import {
   GradientHeader,
-  PAGE_TITLE_SIZE,
   SURFACE_PADDING,
   SURFACE_RADIUS,
 } from '../components/GradientHeader';
@@ -30,7 +29,6 @@ export function FaceEnrollmentBuilder(): void {
 @Component
 export struct FaceEnrollment {
   @State themeManager: ThemeManager = ThemeManager.getInstance();
-  @StorageProp('topSafeHeight') topSafeHeight: number = 48;
   @State name: string = '';
   @State nameError: string = '';
   @State step: FaceEnrollmentStep = 'name';
@@ -294,12 +292,9 @@ export struct FaceEnrollment {
         .backgroundColor(this.themeManager.colors.cardBackgroundColor)
         .accessibilityText('返回').enabled(!this.busy)
         .onClick((): void => { this.goBack(); })
-        Text('人脸数据采集')
-          .fontSize(PAGE_TITLE_SIZE).fontWeight(FontWeight.Bold)
-          .fontColor(this.themeManager.colors.primaryTextColor)
-          .layoutWeight(1)
+        Blank()
       }.width('100%').padding({
-        left: SURFACE_PADDING, right: SURFACE_PADDING, top: this.topSafeHeight + 8, bottom: 12,
+        left: SURFACE_PADDING, right: SURFACE_PADDING, top: 8, bottom: 12,
       })
     }
   }

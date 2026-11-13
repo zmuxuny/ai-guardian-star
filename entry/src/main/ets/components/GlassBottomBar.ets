@@ -1,7 +1,6 @@
 import { careIconTint } from '../common/CarePalette';
 import { curves } from '@kit.ArkUI';
 import { reduceMotion, softTap } from '../common/UiFeedback';
-import { ThemeManager } from '../common/ThemeManager';
 
 export const GLASS_TAB_CLEARANCE: number = 88;
 
@@ -22,7 +21,6 @@ export struct GlassBottomBar {
   @Prop accent: string = '#0A5C43';
   @Prop tint: string = '#DDF4E9';
 
-  @State themeManager: ThemeManager = ThemeManager.getInstance();
   @State touchSlot: number = -1;
   @State lift: number = 0;
   onSelect: (slot: number) => void = () => {};
@@ -93,9 +91,15 @@ export struct GlassBottomBar {
     else this.getUIContext().animateTo({ curve: curves.springMotion(0.35, 0.78) }, reset);
   }
 
+  // 中性透明液态玻璃：深色背景上用白字，浅色阅读页上用深字，不随状态染色
   private glyphColor(active: boolean): string {
-    if (active) return this.accent;
-    return this.darkSurface ? '#E2F0EA' : this.themeManager.colors.secondaryTextColor;
+    if (this.darkSurface) return active ? '#FFFFFF' : '#CCFFFFFF';
+    return active ? '#10231C' : '#8010231C';
+  }
+
+  private barTint(): string {
+    // 低遮罩 + 轻模糊：能透出底下的内容，而不是一块磨砂白板
+    return this.darkSurface ? '#0AFFFFFF' : '#33FFFFFF';
   }
 
   @Builder
@@ -118,14 +122,12 @@ export struct GlassBottomBar {
       Column()
         .width('100%').height('100%')
         .borderRadius(999)
-        .backgroundColor((this.darkSurface || this.themeManager.isDarkMode) ? '#24FFFFFF' : this.tint)
+        .backgroundColor(this.darkSurface ? '#3DFFFFFF' : '#CCFFFFFF')
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: (this.darkSurface || this.themeManager.isDarkMode)
-            ? [['#30FFFFFF', 0], ['#03FFFFFF', 1]]
-            : [['#C7FFFFFF', 0], ['#0CFFFFFF', 0.75], ['#62FFFFFF', 1]],
+          colors: [['#33FFFFFF', 0], ['#08FFFFFF', 1]],
         })
-        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#3DFFFFFF' : '#DFFFFFFF' })
+        .border({ width: 1, color: this.darkSurface ? '#66FFFFFF' : '#FFFFFFFF' })
       // Clip the accent layer to the moving lens so partially covered icons keep their position.
       Row() {
         ForEach(this.items, (item: GlassTabItem) => {
@@ -150,19 +152,17 @@ export struct GlassBottomBar {
         .width('100%').height('100%')
         .borderRadius(999)
         .backgroundEffect({
-          radius: 7,
-          saturation: 1.32,
-          brightness: 1.02,
-          color: (this.darkSurface || this.themeManager.isDarkMode) ? '#8A1C1C1E' : '#77FFFFFF',
+          radius: 4,
+          saturation: 1.4,
+          brightness: 1.0,
+          color: this.barTint(),
         })
         .linearGradient({
           direction: GradientDirection.Bottom,
-          colors: (this.darkSurface || this.themeManager.isDarkMode)
-            ? [['#1FFFFFFF', 0], ['#10101624', 0.55], ['#33000000', 1]]
-            : [['#B3FFFFFF', 0], ['#18FFFFFF', 0.52], ['#174B6590', 1]],
+          colors: [['#14FFFFFF', 0], ['#00FFFFFF', 0.4], ['#00000000', 1]],
         })
-        .border({ width: 1, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#48FFFFFF' : '#F0FFFFFF' })
-        .shadow({ radius: 20, offsetY: 6, color: (this.darkSurface || this.themeManager.isDarkMode) ? '#64000000' : '#2B142747' })
+        .border({ width: 1, color: this.darkSurface ? '#40FFFFFF' : '#99FFFFFF' })
+        .shadow({ radius: 24, offsetY: 10, color: this.darkSurface ? '#64000000' : '#4010231C' })
         .scale({ x: 1 + 0.03 * this.lift, y: 1 + 0.02 * this.lift })
         .hitTestBehavior(HitTestMode.None)
       Row() {

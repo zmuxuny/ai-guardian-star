@@ -29,11 +29,11 @@
 
 ## 应用界面
 
-以下截图取自 HarmonyOS 手机端（2026-10-28，实时画面已打码），应用同时提供平板自适应布局。
+以下截图为新版界面，取自 HarmonyOS 26 模拟器（2026-11-13，截图时开发板未在线），应用同时提供平板自适应布局。
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="实时守护主页" width="200" /><br /><sub><b>实时守护</b><br />设备状态与实时告警</sub></td>
+    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="实时守护主页" width="200" /><br /><sub><b>实时守护</b><br />状态、告警与一键通话</sub></td>
     <td align="center"><img src="docs/screenshots/event-records.png" alt="事件记录页" width="200" /><br /><sub><b>事件记录</b><br />跌倒、久坐与陌生人历史</sub></td>
     <td align="center"><img src="docs/screenshots/ai-assistant.png" alt="AI 健康助手页" width="200" /><br /><sub><b>AI 健康助手</b><br />三档数据授权</sub></td>
     <td align="center"><img src="docs/screenshots/profile.png" alt="个人中心页" width="200" /><br /><sub><b>个人中心</b><br />资料、人脸登记与常用地址</sub></td>

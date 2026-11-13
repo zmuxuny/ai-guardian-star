@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>智护星登录样张</title>
+<style>
+:root{--ink:#10231C;--ease:cubic-bezier(.16,1,.3,1);
+--spring:linear(0,.19 4%,.52 9%,.86 15%,1.06 21%,1.13 26%,1.12 31%,1.04 41%,.99 51%,.99 61%,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:#07120E}
+body{min-height:100vh;display:flex;flex-wrap:wrap;gap:48px;align-items:center;justify-content:center;padding:32px 16px;color:#fff;font:15px/1.5 "HarmonyOS Sans SC","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+::selection{background:#fff;color:var(--ink)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.cap{width:390px;text-align:center;color:#C4D4CC;font-size:14px;margin-top:14px}
+
+.phone{width:414px;height:868px;flex:none;border-radius:56px;background:#000;padding:12px;box-shadow:0 0 0 1px #2A3A33,0 50px 90px -30px #000}
+.screen{width:390px;height:844px;border-radius:44px;overflow:hidden;position:relative;isolation:isolate;display:flex;flex-direction:column;
+--base:#052A1F;--c1:#17B07C;--c2:#0B7A54;--c3:#7BE0B8;--solid:#0A5C43;--gl:rgba(255,255,255,.13);--on2:rgba(255,255,255,.84)}
+.amb{position:absolute;inset:-30px;background:var(--base);z-index:-1}
+.amb i{position:absolute;border-radius:50%;filter:blur(54px);opacity:.5;animation:drift 18s ease-in-out infinite alternate}
+.amb i:nth-child(1){width:340px;height:340px;right:-90px;top:20px;background:var(--c1)}
+.amb i:nth-child(2){width:330px;height:380px;left:-120px;top:230px;background:var(--c2);animation-duration:23s;animation-direction:alternate-reverse}
+.amb i:nth-child(3){width:300px;height:260px;left:90px;bottom:-60px;background:var(--c3);opacity:.24;animation-duration:27s}
+@keyframes drift{to{transform:translate3d(30px,-22px,0) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){.amb i{animation:none}}
+
+.g{position:relative;background:var(--gl);-webkit-backdrop-filter:blur(22px) saturate(1.7);backdrop-filter:blur(22px) saturate(1.7);border-radius:28px;
+box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 0 0 1px rgba(255,255,255,.13),inset 0 -10px 18px -12px rgba(255,255,255,.3),0 22px 40px -24px rgba(0,0,0,.7)}
+
+.sb{height:44px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;font-weight:600;flex:none}
+.sb i{width:26px;height:12px;border:1.5px solid currentColor;border-radius:4px;position:relative}
+.sb i::after{content:"";position:absolute;inset:1.5px;background:currentColor;border-radius:1.5px}
+
+/* 品牌区：占上半屏，和主页的状态词同一种大字读法 */
+.brand{padding:72px 24px 0;flex:1}
+.mark{width:64px;height:64px}
+.brand h1{font-size:56px;line-height:1.05;font-weight:700;letter-spacing:-.02em;margin-top:22px;text-shadow:0 18px 40px rgba(0,0,0,.25)}
+.brand p{margin-top:12px;font-size:16px;color:var(--on2);max-width:260px}
+
+/* 表单：整块玻璃卡贴在下半屏，拇指够得着 */
+.form{margin:0 16px 18px;padding:18px 16px 16px;flex:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:rgba(0,0,0,.22);border-radius:16px;padding:4px;gap:4px}
+.seg button{height:40px;border-radius:12px;font-size:15px;font-weight:600;color:var(--on2);transition:background .25s var(--ease),color .25s}
+.seg button[aria-pressed=true]{background:#fff;color:var(--ink)}
+.f{margin-top:12px}
+.f label{display:block;font-size:13px;color:var(--on2);margin:0 0 6px 4px}
+.box{display:flex;align-items:center;gap:8px;height:54px;border-radius:18px;padding:0 6px 0 16px;background:rgba(0,0,0,.2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.box:focus-within{box-shadow:inset 0 0 0 2px #fff}
+.box.err{box-shadow:inset 0 0 0 2px #FFB4A6}
+.box input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:17px;color:#fff;caret-color:#fff;outline:none}
+.box input::placeholder{color:rgba(255,255,255,.62)}
+.box .pre{font-size:17px;color:var(--on2);padding-right:10px;border-right:1px solid rgba(255,255,255,.22)}
+.ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--on2);flex:none}
+.code{height:42px;padding:0 14px;border-radius:14px;background:rgba(255,255,255,.18);font-size:14px;font-weight:600;white-space:nowrap;flex:none}
+.hint{font-size:13px;color:#FFD0C6;margin:6px 0 0 4px;display:flex;gap:6px;align-items:center}
+.opts{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.chk{display:flex;align-items:center;gap:8px;height:44px;font-size:15px}
+.chk i{width:22px;height:22px;border-radius:7px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7);display:grid;place-items:center}
+.chk[aria-checked=true] i{background:#fff;box-shadow:none;color:var(--solid)}
+.chk[aria-checked=true] i::after{content:"";width:10px;height:6px;border:solid currentColor;border-width:0 0 2px 2px;transform:translateY(-1px) rotate(-45deg)}
+.link{height:44px;font-size:15px;color:#fff;font-weight:600}
+.btn{width:100%;height:56px;border-radius:28px;margin-top:6px;background:#fff;color:var(--solid);font-size:18px;font-weight:700;
+box-shadow:inset 0 -6px 12px -8px rgba(0,0,0,.25),0 14px 26px -14px rgba(0,0,0,.6);transition:transform .5s var(--spring)}
+.btn:active{transform:scale(.96)}
+.alt{display:block;margin:6px auto 0;height:44px;padding:0 16px;font-size:15px;color:var(--on2)}
+.alt b{color:#fff}
+.legal{font-size:12px;color:rgba(255,255,255,.7);text-align:center;margin-top:2px}
+.legal u{text-underline-offset:3px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="rings" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2.5"/><circle cx="32" cy="32" r="19.5" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2.5"/><circle cx="32" cy="32" r="9" fill="#fff"/></symbol>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.8M6.6 6.6C3.8 8.4 2 12 2 12s3.6 6 10 6c1.6 0 3-.4 4.3-1"/><path d="M9.9 10a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></symbol>
+</svg>
+
+<!-- 样张 A：登录 -->
+<div>
+<div class="phone"><div class="screen">
+  <div class="amb"><i></i><i></i><i></i></div>
+  <div class="sb"><span>9:41</span><i></i></div>
+  <section class="brand">
+    <svg class="mark" aria-hidden="true"><use href="#rings"/></svg>
+    <h1>智护星</h1>
+    <p>关怀我们的过去，保障我们的未来</p>
+  </section>
+  <form class="form g" onsubmit="return false">
+    <div class="seg" role="group" aria-label="登录方式">
+      <button type="button" aria-pressed="true">手机号</button>
+      <button type="button" aria-pressed="false">邮箱（已有账号）</button>
+    </div>
+    <div class="f">
+      <label for="a-phone">手机号</label>
+      <div class="box"><span class="pre">+86</span><input id="a-phone" inputmode="numeric" placeholder="请输入手机号" autocomplete="tel"></div>
+    </div>
+    <div class="f">
+      <label for="a-pw">密码</label>
+      <div class="box"><input id="a-pw" type="password" placeholder="至少 4 位" autocomplete="current-password">
+        <button type="button" class="ib" aria-label="显示密码"><svg class="i"><use href="#eyeoff"/></svg></button></div>
+    </div>
+    <div class="opts">
+      <button type="button" class="chk" role="checkbox" aria-checked="true"><i></i>记住我</button>
+      <button type="button" class="link">忘记密码？</button>
+    </div>
+    <button class="btn">登录</button>
+    <button type="button" class="alt">还没有账号？<b>注册</b></button>
+  </form>
+</div></div>
+<p class="cap">A　登录：上半屏品牌大字，表单整块玻璃卡贴底</p>
+</div>
+
+<!-- 样张 B：注册 / 出错 -->
+<div>
+<div class="phone"><div class="screen">
+  <div class="amb"><i></i><i></i><i></i></div>
+  <div class="sb"><span>9:41</span><i></i></div>
+  <section class="brand" style="padding-top:40px">
+    <svg class="mark" aria-hidden="true"><use href="#rings"/></svg>
+    <h1>注册账号</h1>
+    <p>使用手机号验证码创建账号</p>
+  </section>
+  <form class="form g" onsubmit="return false">
+    <div class="f" style="margin-top:0">
+      <label for="b-phone">手机号</label>
+      <div class="box err"><span class="pre">+86</span><input id="b-phone" inputmode="numeric" value="138 0000" aria-invalid="true" aria-describedby="b-hint"></div>
+      <p class="hint" id="b-hint"><svg class="i" style="width:16px;height:16px"><use href="#alert"/></svg>请输入正确的手机号</p>
+    </div>
+    <div class="f">
+      <label for="b-code">短信验证码</label>
+      <div class="box"><input id="b-code" inputmode="numeric" placeholder="6 位验证码"><button type="button" class="code">获取验证码</button></div>
+    </div>
+    <div class="f">
+      <label for="b-pw">密码</label>
+      <div class="box"><input id="b-pw" type="password" placeholder="至少 4 位">
+        <button type="button" class="ib" aria-label="显示密码"><svg class="i"><use href="#eyeoff"/></svg></button></div>
+    </div>
+    <div class="f">
+      <label for="b-pw2">确认密码</label>
+      <div class="box"><input id="b-pw2" type="password" placeholder="请再次输入密码"></div>
+    </div>
+    <button class="btn" style="margin-top:16px">注册</button>
+    <button type="button" class="alt">已有账号？<b>返回登录</b></button>
+  </form>
+</div></div>
+<p class="cap">B　注册与出错：同一张卡换内容，错误用浅红描边加文字说明</p>
+</div>
+
+</body>
+</html>

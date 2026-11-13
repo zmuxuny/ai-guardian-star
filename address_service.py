@@ -1,13 +1,38 @@
 """Account-owned saved residences. No device permission or external map dependency."""
 import math
 import time
-import sqlite3
 from flask import request, jsonify, g
+
+import db
 
 MAX_ADDRESSES = 20
 
 
 def create_address_schema(conn):
+    if db.IS_MYSQL:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS t_saved_address ("
+            "id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, "
+            "username VARCHAR(64) NOT NULL, "
+            "label VARCHAR(128) NOT NULL, "
+            "detail VARCHAR(1024) NOT NULL, "
+            "latitude DOUBLE NULL, "
+            "longitude DOUBLE NULL, "
+            "is_default TINYINT NOT NULL DEFAULT 0, "
+            "version BIGINT NOT NULL DEFAULT 1, "
+            "created_at BIGINT NOT NULL, "
+            "updated_at BIGINT NOT NULL, "
+            "is_default_active TINYINT GENERATED ALWAYS AS (NULLIF(is_default, 0)) STORED, "
+            "KEY idx_saved_address_owner (username), "
+            "UNIQUE KEY idx_saved_address_default (username, is_default_active)"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+        )
+        conn.execute("DROP TRIGGER IF EXISTS saved_address_delete_user")
+        conn.execute(
+            "CREATE TRIGGER saved_address_delete_user AFTER DELETE ON t_user "
+            "FOR EACH ROW DELETE FROM t_saved_address WHERE username=OLD.username"
+        )
+        return
     conn.executescript('''
       CREATE TABLE IF NOT EXISTS t_saved_address (
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,
@@ -141,7 +166,7 @@ def register_address_routes(app, bearer_required, get_db):
         except AddressError as error:
             conn.rollback()
             return jsonify(success=False, message=error.message), error.status
-        except sqlite3.Error:
+        except db.DatabaseError:
             conn.rollback()
             app.logger.error('saved address storage operation failed')
             return jsonify(success=False, message='地址服务暂不可用，请稍后重试'), 503

@@ -29,11 +29,11 @@ The current public prerelease includes a deployable HarmonyOS HAP and an activel
 
 ## Screenshots
 
-Captured on a HarmonyOS phone on 2026-10-28 (live video blurred). The application also ships tablet layouts.
+Captured on the HarmonyOS 26 emulator on 2026-11-13 with the redesigned UI (board offline at capture time). The application also ships tablet layouts.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="200" /><br /><sub><b>Live guardian</b><br />Device status and real-time alerts</sub></td>
+    <td align="center"><img src="docs/screenshots/home-monitor.png" alt="Live guardian home page" width="200" /><br /><sub><b>Live guardian</b><br />Status, alerts and one-tap voice call</sub></td>
     <td align="center"><img src="docs/screenshots/event-records.png" alt="Event records page" width="200" /><br /><sub><b>Event records</b><br />Fall, sedentary and stranger history</sub></td>
     <td align="center"><img src="docs/screenshots/ai-assistant.png" alt="AI health assistant page" width="200" /><br /><sub><b>AI health assistant</b><br />Three data-sharing levels</sub></td>
     <td align="center"><img src="docs/screenshots/profile.png" alt="Profile page" width="200" /><br /><sub><b>Profile</b><br />Account, face enrollment and saved addresses</sub></td>

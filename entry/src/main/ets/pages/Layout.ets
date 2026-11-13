@@ -51,6 +51,7 @@ export struct Layout {
 
   private selectGlassTab(slot: number): void {
     const index = !this.aiEnabled && slot === 2 ? 3 : slot;
+    if (index !== this.currentIndex) this.onTabChanged(this.currentIndex);
     this.currentIndex = index;
     this.scrollTravel = 0;
     this.glassCompact = false;
@@ -69,28 +70,62 @@ export struct Layout {
     });
   }
 
+  // 四页常驻，切换统一用样张的 0.28 秒淡入 + 轻缩放；离场页动画结束后再隐藏
+  @State leavingIndex: number = -1;
+  private leaveTimer: number = -1;
+
+  private onTabChanged(previous: number): void {
+    if (this.leaveTimer !== -1) clearTimeout(this.leaveTimer);
+    this.leavingIndex = previous;
+    this.leaveTimer = setTimeout((): void => {
+      this.leaveTimer = -1;
+      this.leavingIndex = -1;
+    }, 300) as number;
+  }
+
+  private tabVisibility(index: number): Visibility {
+    return this.currentIndex === index || this.leavingIndex === index ? Visibility.Visible : Visibility.None;
+  }
+
+  @Builder
+  tabPage(index: number, bottomInset: number): void {
+    Column() {
+      if (index === 0) {
+        mainPage({ pathStack: this.pathStack, bottomInset: bottomInset,
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(0, delta, state); } })
+      } else if (index === 1) {
+        record({ bottomInset: bottomInset, onOpenHome: (): void => { this.selectGlassTab(0); },
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(1, delta, state); } })
+      } else if (index === 2) {
+        AiChat({
+          bottomInset: bottomInset,
+          onOpenHome: (): void => { this.selectGlassTab(0); },
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(2, delta, state); },
+        })
+      } else {
+        person({ pathStack: this.pathStack, bottomInset: bottomInset,
+          onOpenHome: (): void => { this.selectGlassTab(0); },
+          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(3, delta, state); } })
+      }
+    }
+    .width('100%').height('100%')
+    .visibility(this.tabVisibility(index))
+    .zIndex(this.currentIndex === index ? 1 : 0)
+    .hitTestBehavior(this.currentIndex === index ? HitTestMode.Default : HitTestMode.None)
+    .opacity(this.currentIndex === index ? 1 : 0)
+    .scale({ x: this.currentIndex === index ? 1 : 0.965, y: this.currentIndex === index ? 1 : 0.965 })
+    .animation({ duration: reduceMotion() ? 0 : 280, curve: Curve.FastOutSlowIn })
+  }
+
   @Builder
   pageStack(bottomInset: number = 0): void {
     Stack() {
-      Column() { mainPage({ pathStack: this.pathStack, bottomInset: bottomInset,
-        onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(0, delta, state); } }) }.width('100%').height('100%')
-        .visibility(this.currentIndex === 0 ? Visibility.Visible : Visibility.None)
-      if (this.currentIndex === 1) {
-        Column() { record({ bottomInset: bottomInset, onOpenHome: (): void => { this.selectGlassTab(0); },
-          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(1, delta, state); } }) }.width('100%').height('100%')
-      }
+      this.tabPage(0, bottomInset)
+      this.tabPage(1, bottomInset)
       if (this.aiEnabled) {
-        Column() { AiChat({
-          onOpenHome: (): void => { this.selectGlassTab(0); },
-          onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(2, delta, state); },
-        }) }.width('100%').height('100%').padding({ bottom: bottomInset })
-          .backgroundColor(this.themeManager.colors.backgroundColor)
-          .visibility(this.currentIndex === 2 ? Visibility.Visible : Visibility.None)
+        this.tabPage(2, bottomInset)
       }
-      Column() { person({ pathStack: this.pathStack, bottomInset: bottomInset,
-        onOpenHome: (): void => { this.selectGlassTab(0); },
-        onTabScroll: (delta: number, state: ScrollState): void => { this.observeScroll(3, delta, state); } }) }.width('100%').height('100%')
-        .visibility(this.currentIndex === 3 ? Visibility.Visible : Visibility.None)
+      this.tabPage(3, bottomInset)
     }
   }
 
@@ -146,7 +181,7 @@ export struct Layout {
               selected: !this.aiEnabled && this.currentIndex === 3 ? 2 : this.currentIndex,
               viewportWidth: this.viewportWidth,
               compact: this.glassCompact,
-              darkSurface: this.currentIndex === 0,
+              darkSurface: this.currentIndex === 0 || this.themeManager.isDarkMode,
               accent: this.currentIndex === 0 || this.themeManager.isDarkMode ? this.palette().accent : this.palette().solid,
               tint: this.palette().wash,
               onSelect: (slot: number): void => { this.selectGlassTab(slot); },
@@ -169,13 +204,8 @@ export struct Layout {
       })
     }
     .hideTitleBar(true)
-    .linearGradient({
-      direction: GradientDirection.Bottom,
-      colors: this.currentIndex === 0
-        ? [[this.palette().glow, 0], [this.palette().backdrop, 1]]
-        : [[this.themeManager.isDarkMode ? this.themeManager.colors.cardBackgroundColor : this.palette().wash, 0],
-          [this.themeManager.colors.backgroundColor, 0.36], [this.themeManager.colors.backgroundColor, 1]],
-    })
+    // 各页自己铺满安全区；这里只留与阅读页相同的底色，避免切换时露出别的颜色
+    .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onShown((): void => { this.updateSystemBars(); })
     .onReady((context: NavDestinationContext): void => {
