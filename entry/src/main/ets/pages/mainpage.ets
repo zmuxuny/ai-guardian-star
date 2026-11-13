@@ -5,9 +5,9 @@ import { UserManager } from '../common/UserManager';
 import { isHomeEventType, homeEventTitle } from '../common/HomeEventRules';
 import { CameraStreamView } from '../components/CameraStreamView';
 import { AudioTransferManager } from '../common/AudioTransferManager';
-import { abilityAccessCtrl, common } from '@kit.AbilityKit';
+import { toggleDeviceCall } from '../common/CallControl';
 import { curves } from '@kit.ArkUI';
-import { reduceMotion, showToast, softTap } from '../common/UiFeedback';
+import { reduceMotion, softTap } from '../common/UiFeedback';
 
 // 样张 docs/ui-demo 的深色状态页取值
 const GLASS: string = '#24FFFFFF';
@@ -21,7 +21,7 @@ export struct mainPage {
   @Prop bottomInset: number = 0;
   onTabScroll: (delta: number, state: ScrollState) => void = () => {};
   pathStack: NavPathStack = new NavPathStack();
-  @StorageLink('homeCameraFullscreenActive') cameraFullscreenActive: boolean = false;
+  @StorageLink('homeCameraFullscreenActive') @Watch('onFullscreenChange') cameraFullscreenActive: boolean = false;
   @State mqttManager: MqttManager = MqttManager.getInstance();
   @State homeEvents: HealthEvent[] = [];
   @State homeLoading: boolean = true;
@@ -64,32 +64,16 @@ export struct mainPage {
     if (this.callBusy) return;
     this.callBusy = true;
     try {
-      if (this.isTalking || this.audioManager.isCallActive()) {
-        await this.audioManager.stopCall();
-        this.isTalking = false;
-        return;
-      }
-      if (!this.mqttManager.deviceOnline) {
-        showToast(this.getUIContext(), { message: '设备未连接，无法发起通话' });
-        return;
-      }
-      const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      const permission = await abilityAccessCtrl.createAtManager()
-        .requestPermissionsFromUser(context, ['ohos.permission.MICROPHONE']);
-      if (!this.homeVisible) return;
-      if (permission.authResults[0] !== 0) {
-        showToast(this.getUIContext(), { message: '需要麦克风权限才能通话' });
-        return;
-      }
-      await this.audioManager.startCall();
-      if (!this.homeVisible) { await this.audioManager.stopCall(); return; }
-      this.isTalking = this.audioManager.isCallActive();
-    } catch (_) {
-      this.isTalking = false;
-      if (this.homeVisible) showToast(this.getUIContext(), { message: '通话连接失败，请稍后重试' });
+      await toggleDeviceCall(this.getUIContext(), (): boolean => this.homeVisible);
     } finally {
       this.callBusy = false;
+      this.isTalking = this.audioManager.isCallActive();
     }
+  }
+
+  /** 从全屏画面返回时立即同步通话状态（全屏里可能挂断或接通） */
+  onFullscreenChange(): void {
+    if (!this.cameraFullscreenActive) this.isTalking = this.audioManager.isCallActive();
   }
 
   private palette(): CarePalette {
@@ -301,6 +285,10 @@ export struct mainPage {
             Text('实时').fontSize(11).fontColor('#FFFFFF')
           }.padding({ left: 8, right: 10, top: 4, bottom: 4 }).borderRadius(99)
           .backgroundColor('#D110231C').margin({ left: 6, top: 6 })
+          // 右下角全屏标记：提示小画面可点开
+          Image($r('app.media.ic_home_expand')).width(24).height(24).supportSvg2(true)
+            .padding(5).borderRadius(99).backgroundColor('#D110231C')
+            .position({ right: 6, bottom: 6 })
         }
         .width(132).height(100).padding(5).borderRadius(20).backgroundColor(GLASS)
         .border({ width: 1, color: GLASS_EDGE })
@@ -323,7 +311,7 @@ export struct mainPage {
               .fontColor(this.isTalking ? '#FFFFFF' : this.palette().solid)
           }
         }
-        .layoutWeight(1).height(54).stateEffect(false)
+        .width('100%').height(54).stateEffect(false)
         .backgroundColor(this.isTalking ? '#C7361F' : '#FFFFFF')
         .shadow({ radius: 26, offsetY: 14, color: '#80000000' })
         .enabled(!this.callBusy)
@@ -331,20 +319,7 @@ export struct mainPage {
         .animation({ curve: curves.springMotion(0.4, 0.7) })
         .onTouch((event: TouchEvent): void => { this.trackPress('call', event); })
         .onClick((): void => { softTap(); this.toggleCall(); })
-
-        Button({ type: ButtonType.Capsule }) {
-          Row({ space: 8 }) {
-            Image($r('app.media.ic_camera')).width(20).height(20).supportSvg2(true)
-              .colorFilter(careIconTint('#FFFFFF'))
-            Text('看画面').fontSize(17).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
-          }
-        }
-        .layoutWeight(1).height(54).stateEffect(false)
-        .backgroundColor(GLASS).border({ width: 1, color: GLASS_EDGE })
-        .scale({ x: this.pressScale('view', 0.93), y: this.pressScale('view', 0.93) })
-        .animation({ curve: curves.springMotion(0.4, 0.7) })
-        .onTouch((event: TouchEvent): void => { this.trackPress('view', event); })
-        .onClick((): void => { softTap(); this.openCamera(); })
+        .accessibilityText(this.isTalking ? '挂断通话' : '和老人语音通话')
       }.width('100%').margin({ top: 20 })
     }.width('100%').padding({ left: 20, right: 20, top: 8 })
   }
