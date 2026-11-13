@@ -761,9 +761,10 @@ export struct Profile {
   build() {
     NavDestination() {
       Column() {
-        this.PageHeader()
-        // 内容区域改为可滚动，容纳新增的安全设置区
+        // 内容区域可滚动；页头随内容滑走，内容可滑进状态栏
         Scroll() {
+          Column() {
+          this.PageHeader()
           if (getWindowSizeClass(this.viewportWidth) === 'compact') {
             Column() {
               this.AvatarSection()
@@ -780,9 +781,11 @@ export struct Profile {
             .padding({ left: 24, right: 24, top: 16 })
             .alignItems(VerticalAlign.Top)
           }
+          }.width('100%')
         }
         .layoutWeight(1).scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
-        .width('100%')
+        .width('100%').align(Alignment.Top)
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       }
       .width('100%').height('100%')
       .onAreaChange((_oldValue: Area, newValue: Area): void => {
