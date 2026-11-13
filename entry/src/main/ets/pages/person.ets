@@ -898,7 +898,6 @@ export struct person {
     }
     .width("100%")
     .height("100%")
-    
     .backgroundColor(this.themeManager.colors.backgroundColor)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onAreaChange((_oldValue: Area, newValue: Area): void => {
