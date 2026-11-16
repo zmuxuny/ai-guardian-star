@@ -6,7 +6,7 @@
 
 **Spec:** ../specs/2026-11-16-sedentary-care-design.md
 
-**Global Constraints:** 当前 feature/jyx-home；不修改检测入口；不增加依赖；不连接设备/服务；只暂存本次文件；已有基线备份。
+**Global Constraints:** 用户工作与推送目标仅为 zy；不修改检测入口；不增加依赖；不连接设备/服务；只暂存本次文件；已有基线备份。
 
 用户已要求继续实现；在当前会话直接执行，不另行引入设计确认轮次。
 
@@ -33,7 +33,9 @@ work_state_read/write 未出现在本会话可用工具目录，无法调用；�
 
 专项 22 项通过；离线场景 199 个通过，涵盖 156 个状态/事件组合。场景 JSON 的终端输出与文件导出一致，可重复运行得到相同结果。
 
-项目全套 unittest：261 项，OK，18 项因设备/MQTT条件跳过。首次运行缺少 Flask/PyMySQL；通过在忽略的 `.tmp/sedentary-test-deps` 安装项目已有固定依赖并设置进程级 PYTHONPATH 完成回归，未修改系统 Python、依赖文件或业务代码。
+正确目标 zy 上专项 22 项及场景 199 个通过。全套 unittest 180 项，1 项失败、18 项因设备/MQTT条件跳过。失败项为 `test_cloud_json_contract_fields_are_preserved_in_release_obfuscation`，缺少 hint、photoCount、recognitionStatus 的保留声明；在干净的远端 zy 基线快照同样复现，属于既有失败，本次不修改无关人脸接口代码。测试所需的已有固定依赖安装在忽略的 `.tmp/sedentary-test-deps`，仅设置进程级 PYTHONPATH，未修改系统 Python 或依赖文件。
+
+目标分支纠正：误推的 feature/jyx-home 已由 `eb397f2` 反向提交恢复原内容；本功能独立提交移入 zy 为 `4ba8ca4`，没有合并其他分支，也没有强推。此前 261 项通过的记录对应误选的 feature/jyx-home 基线，不代表 zy 的全套验证结果。
 
 独立只读审查无须修复项；补充验证各提醒阶段暂停恢复、待 L1 跨静默终点恢复。
 

@@ -4,6 +4,10 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+当前交接（2026-11-16，T-20261116-01）：仅向用户的 `zy` 交付；久坐状态机提交 `4ba8ca4`，误推 feature/jyx-home 已由 `eb397f2` 恢复原内容，无强推或其他分支合并。
+
+zy 上专项 22 项、场景 199 个通过；全套 180 项中 1 项失败、18 项跳过。人脸字段混淆保留失败已在原始 origin/zy 快照复现，未改无关代码。未部署设备或音频；OpenWolf 命令不可用。规则和复跑命令见 `docs/superpowers/specs/2026-11-16-sedentary-care-design.md`。
+
 ## 2026-11-05 15:10 · codex · T-20261104-01 / T-20261104-02 · 待真机验证
 
 > 分支：`wip/codex-20261105-board-face-to-zy`；App 提交 `c4c490e`、`7f47104`，整合提交 `58abfee`。
