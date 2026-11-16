@@ -17,7 +17,8 @@ def create_care_router(runtime, token_provider=None):
     router = APIRouter(prefix='/api/care', dependencies=[Depends(authenticate)])
     @router.get('/shadow-report')
     def shadow_report():
-        return {'schema_version': 1, 'mode':runtime.config.mode, 'reports':runtime.shadow_reports()}
+        return {'schema_version': 1, 'mode':runtime.config.mode, 'reports':runtime.shadow_reports(),
+                'broadcasts':runtime.shadow_broadcasts()}
     def scope(model_version, person_id):
         if model_version != runtime.config.model_version or person_id not in runtime.config.person_ids:
             raise HTTPException(404, 'care_scope_not_found')

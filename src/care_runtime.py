@@ -9,6 +9,8 @@ from pathlib import Path
 import threading
 import time
 import uuid
+from types import MappingProxyType
+from typing import Mapping
 
 if __package__:
     from .sedentary_care import CareMachine, Config, Event
@@ -34,6 +36,7 @@ class RuntimeConfig:
     token_env: str = 'AI_GUARDIAN_CARE_API_TOKEN'
     weekly_enabled: bool = False
     weekly_regions: tuple = ('unknown',)
+    face_label_ids: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         _key(self.model_version, 'model_version')
@@ -53,6 +56,16 @@ class RuntimeConfig:
             raise ValueError('configure 1..32 unique stable person IDs')
         for person in self.person_ids:
             _key(person, 'person_id')
+        if not isinstance(self.face_label_ids, Mapping) or len(self.face_label_ids) > 32:
+            raise ValueError('configure at most 32 local face label bindings')
+        aliases = {}
+        for label, identity in self.face_label_ids.items():
+            _key(label, 'face_label')
+            _key(identity, 'person_id')
+            if identity not in self.person_ids or (label in self.person_ids and label != identity):
+                raise ValueError('face label binding crosses configured identity scope')
+            aliases[label] = identity
+        object.__setattr__(self, 'face_label_ids', MappingProxyType(aliases))
         if self.token_env != 'AI_GUARDIAN_CARE_API_TOKEN':
             raise ValueError('use the dedicated private care API token environment variable')
 
@@ -75,6 +88,7 @@ class CareRuntime:
         self._lock, self._closed = threading.RLock(), False
         self._flush_lock = threading.Lock()
         self._shadow_history = deque(maxlen=100)
+        self._shadow_broadcasts = deque(maxlen=100)
         self._stores, self._machines, self._active = {}, {}, {}
         self._coverage = {}
         self._regions = {}
@@ -141,6 +155,7 @@ class CareRuntime:
             self.shadow.close()
             self.shadow = ShadowRunner(TrackerBaseline(),region_candidate,max_pending=2)
             self._shadow_history.clear()
+            self._shadow_broadcasts.clear()
             return result
 
     def resume_person(self, person):
@@ -210,6 +225,8 @@ class CareRuntime:
                                       if session else CareMachine(self.clock, self.config.machine))
             self._active[person] = session['active_event_id'] if session else None
             raise
+        if self.config.mode == 'shadow':
+            self._shadow_broadcasts.extend(deepcopy(messages))
         machine.speaker.records.clear()
         machine.transitions.clear()
         return {'person_id': person, 'snapshot': snapshot, 'broadcasts': messages}
@@ -217,7 +234,8 @@ class CareRuntime:
     def _person(self, alert):
         person = alert.get('care_person_id')
         if person is None and str(alert.get('face_label', '')).startswith('known:'):
-            person = alert['face_label'][6:]
+            label = alert['face_label'][6:]
+            person = self.config.face_label_ids.get(label, label)
         return person if person in self._stores else None
 
     def on_detection(self, alerts, new_events):
@@ -329,6 +347,11 @@ class CareRuntime:
     def shadow_reports(self):
         with self._lock:
             return deepcopy(list(self._shadow_history) + self.shadow.reports())
+
+    def shadow_broadcasts(self):
+        """Bounded diagnostic copy; no audio, live queue or recording side effect."""
+        with self._lock:
+            return deepcopy(list(self._shadow_broadcasts))
 
     def close(self):
         with self._lock:

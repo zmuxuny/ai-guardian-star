@@ -14,6 +14,7 @@
 - mode：off / shadow / live；shadow 与 live 分开保存会话，不相互继承计时与事件。
 - db_path：相对私有 JSON 所在目录或本机绝对路径，必须为本地持久 SQLite 文件，不能是内存或 URI。目录需有足够空间，仅运行账户可读写；不要放临时目录或 Git 工作树。
 - person_ids：1..32 个稳定人物标识，必须与 known: 后的身份一致，或由上游提供明确的 care_person_id；不会把跟踪框 id 自动当成稳定人物。未知/未登记目标不绑定到其他人的会话。
+- face_label_ids：可选私有映射“识别名称→已配置的稳定person_id”。原检测器known:后若为登记name而非user_id，必须由本机登记表生成该映射；拒绝未配置ID和冲突映射，不把跟踪框ID或名称冒充账户ID。未映射/改名后未知身份暂停，不猜测绑定。
 - model_version：实际部署模型 checkpoint/OM 的版本或校验标识；切换版本必须更换该字段，不能沿用旧计时或反馈。
 - region_id：区域标识；未有映射时使用显式 unknown，不猜测位置。
 - machine：沿用 Config 默认值（30分钟 L0、5分钟升级/重复、观测30秒失效、不可靠120秒作废、回应10分钟、22:00–07:00静默）；本次五场景没有缩短默认阈值。
@@ -44,7 +45,7 @@ python3.11 -m unittest test_care_delivery test_care_release test_local_care_stor
 - GET /api/care/{model_version}/{person_id}/events：返回 event_id、原发生时间和状态快照。
 - POST /api/care/{model_version}/{person_id}/events/{event_id}/feedback：body 为 payload 或 operation=revoke/restore、reason；拒绝替换 event_id/发生时间。目标不存在于人物/模型/模式作用域则404。
 - GET /api/care/{model_version}/{person_id}/feedback：默认 active；审计时显式 status=revoked/all。
-- GET /api/care/shadow-report：认证后的本设备最近至多约100条影子报告，不等于持久历史或跨设备接口。
+- GET /api/care/shadow-report：认证后的本设备最近至多约100条影子报告，以及broadcasts字段中至多100条当前进程真实产生的模拟播报；记录含事件ID、触发时刻、级别和文案ID。仅用于诊断，不进live发件箱/真实音频/录像；重启清空，验收前另存设备私有证据。不是持久历史或跨设备接口。
 
 事件首次生成即写入 care_events；反馈 target_id、历史录像 events.id、event_recordings.event_id 及 outbox.event_id 使用同一值。反馈更新、审计和 outbox 入队同一事务。重复提交一条反馈行，revision 增加。撤销保留审计，并排队携带 is_revoked=true 的新版本。
 
