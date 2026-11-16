@@ -77,13 +77,13 @@ python3 "$STAGING/care_release.py" apply --bundle "$STAGING/care-release.zip" --
 工具先完成全量哈希检查，再备份旧代码与 SQLite backup API 一致性快照，最后逐文件原子替换。整个多文件安装不是单个文件系统事务；若中断，保持服务停止，使用已生成 backup.json 执行回退。不要直接复制可能带 WAL 的 DB 文件。
 prepared 回退清单在覆盖代码前写入，之后不再截断重写；安装命令成功退出才代表完成，清单的 prepared 状态也可直接回退。
 重复部署或中断后的重试，应先用第一次的备份恢复基线，再使用新的备份目录安装；工具拒绝把已安装的新版本误当成2499d1d回退点。
-5. 先保持 mode=off 启动服务，确认旧检测/录像/告警正常。再以私有配置启用 shadow，token 由私有服务环境注入；`systemctl daemon-reload`（仅修改了 unit/drop-in 时）后重启。初始化自动备份并增量迁移 care DB 至 v3，原反馈/常态样本不改写。
+5. 先保持 mode=off 启动服务，确认旧检测/录像/告警正常。再以私有配置启用 shadow，token 由私有服务环境注入；`systemctl daemon-reload`（仅修改了 unit/drop-in 时）后重启。初始化自动备份并增量迁移 care DB 至 v4，原反馈/常态样本不改写。
 6. 按清单逐项验收。不能把本机结果当作板端结果；live 和 sync_enabled=true 必须另获实际场景及接收端验收准入，默认不开。
 
 ## 回退步骤
 
 1. 停止 guardian-board.service；从私有环境移除新增 AI_GUARDIAN_CARE_CONFIG 或将原私有配置恢复为 off；保留新增数据库和补传队列，防止丢反馈。
-2. 如安装后还有新反馈，先用 SQLite backup API 另存当前 DB；不要先用旧 v2 快照覆盖 v3 DB。
+2. 如安装后还有新反馈，先用 SQLite backup API 另存当前 DB；不要先用旧 v2 快照覆盖 v4 DB。
 3. 使用安装时那份独立工具执行代码回退（工具不启动服务、不删除数据库）：
 
 ```sh
@@ -91,7 +91,7 @@ python3 "$STAGING/care_release.py" rollback --app-root "$APP_ROOT" --backup "$BA
 systemctl start guardian-board.service
 ```
 
-被替换文件恢复安装前的基线字节（准入要求2499d1d），新文件只按白名单逐个移除；若安装后代码又被独立修改则拒绝覆盖，需人工核对。v3 DB原样保留，但旧程序不得用 v2 store 打开它；旧服务默认不引用新 care DB，因此可保持隔离。只有确需旧数据读取时，才在另一路径打开迁移前备份，并保留 v3 新数据供后续前向恢复，不能自动降级。
+被替换文件恢复安装前的基线字节（准入要求2499d1d），新文件只按白名单逐个移除；若安装后代码又被独立修改则拒绝覆盖，需人工核对。v4 DB原样保留，但旧程序不得用 v2 store 打开它；旧服务默认不引用新 care DB，因此可保持隔离。只有确需旧数据读取时，才在另一路径打开迁移前备份，并保留 v4 新数据供后续前向恢复，不能自动降级。
 4. 复验：旧服务启动、检测帧/推理状态、旧告警开关及主题、原录像查询和播放、care API 不再注册、无 care 补传线程、未删数据库/模型/配置。确认没有新增外发。回退不代表新 care 功能仍可用。
 
 ## 板端验收清单（待设备操作者逐项勾选）
@@ -113,3 +113,5 @@ systemctl start guardian-board.service
 ## 真实 App 对接待办
 
 板端管理 API 与本地进程内回写已接通；真实 App 的事件 ID 获取、反馈入口与账号/设备安全授权尚未接通，已交给 Jianyuanxi： https://github.com/zmuxuny/ai-guardian-star/issues/25 。旧 MQTT 通知未加新字段，不得用旧跟踪框 ID 代替 care event_id。issue 明确了 App 修改范围、401/404/422/503处理、撤销/恢复和不处理的影响；本次不会把真实 App 回写、云端落库或真实设备效果标成已验证。
+
+区域周报新增配置、接口、保留策略及回退至8c1ab28的特殊处理见 [weekly-report-contract.md](weekly-report-contract.md)。schema3旧运行时不能直接打开schema4库。

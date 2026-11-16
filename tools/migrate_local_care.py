@@ -21,7 +21,7 @@ from src.local_care_migrations import migrate_database
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('database', type=Path)
-    parser.add_argument('--target-version', type=int, choices=(1, 2, 3))
+    parser.add_argument('--target-version', type=int, choices=(1, 2, 3, 4))
     args = parser.parse_args(argv)
     try:
         result = migrate_database(args.database, target_version=args.target_version)

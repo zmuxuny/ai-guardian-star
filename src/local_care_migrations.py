@@ -13,11 +13,14 @@ import uuid
 
 
 APPLICATION_ID = 0x43415245
-LATEST_VERSION = 3
+LATEST_VERSION = 4
 _SQL_ROOT = Path(__file__).resolve().parent / 'migrations' / 'local_care'
 MIGRATIONS = {1: _SQL_ROOT / '001_initial.sql', 2: _SQL_ROOT / '002_baseline_source.sql',
-              3: _SQL_ROOT / '003_delivery.sql'}
+              3: _SQL_ROOT / '003_delivery.sql', 4: _SQL_ROOT / '004_weekly.sql'}
 _KEYS = {
+    'weekly_observations': ('person_id','model_version','mode','observation_id'),
+    'weekly_policies': ('person_id','model_version','mode'),
+    'care_privacy': ('person_id','model_version'),
     'feedback': ('person_id', 'model_version', 'target_id', 'window_start'),
     'feedback_audit': ('person_id', 'model_version', 'target_id', 'window_start', 'revision'),
     'baseline_samples': ('person_id', 'model_version', 'sample_id'),
@@ -26,6 +29,9 @@ _KEYS = {
     'care_outbox': ('person_id', 'model_version', 'message_id'),
 }
 _COLUMNS = {
+    'weekly_observations': {'person_id','model_version','mode','observation_id','region_id','started_at','ended_at','valid','quality'},
+    'weekly_policies': {'person_id','model_version','mode','retention_days','min_samples','last_cleanup'},
+    'care_privacy': {'person_id','model_version','erased_at'},
     'feedback': {'person_id', 'model_version', 'target_id', 'window_start', 'event_at',
                  'payload_json', 'created_at', 'updated_at', 'is_revoked', 'revoked_at',
                  'revocation_reason', 'revision'},
@@ -39,6 +45,7 @@ _COLUMNS = {
                     'payload_json','created_at','attempts','last_error','delivered_at'},
 }
 _INDEXES = {
+    'weekly_observations_scope_time': ('weekly_observations', ('person_id','model_version','mode','ended_at','started_at')),
     'feedback_scope_status_time': ('feedback', ('person_id', 'model_version', 'is_revoked',
                                                'updated_at', 'target_id', 'window_start')),
     'baseline_scope_category_time': ('baseline_samples', ('person_id', 'model_version',
@@ -82,11 +89,15 @@ def _version(db):
     if version == 0:
         if objects or app_id not in (0, APPLICATION_ID):
             raise ValueError('refusing to adopt an unknown database')
-    elif app_id != APPLICATION_ID or version not in (1, 2, 3):
+    elif app_id != APPLICATION_ID or version not in MIGRATIONS:
         raise ValueError('unknown database or unsupported schema version')
     else:
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        expected_tables = set(_KEYS) if version >= 3 else set(_KEYS) - {'care_events','care_sessions','care_outbox'}
+        expected_tables = set(_KEYS)
+        if version < 4:
+            expected_tables -= {'weekly_observations','weekly_policies','care_privacy'}
+        if version < 3:
+            expected_tables -= {'care_events','care_sessions','care_outbox'}
         if tables != expected_tables:
             raise ValueError('incomplete local care schema')
         for table, key in _KEYS.items():

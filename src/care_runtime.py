@@ -12,12 +12,12 @@ import uuid
 
 if __package__:
     from .sedentary_care import CareMachine, Config, Event
-    from .care_delivery_store import DeliveryStore
+    from .weekly_store import WeeklyStore
     from .local_care_store import _key
     from .shadow_mode import ShadowRunner, TrackerBaseline, region_candidate
 else:
     from sedentary_care import CareMachine, Config, Event
-    from care_delivery_store import DeliveryStore
+    from weekly_store import WeeklyStore
     from local_care_store import _key
     from shadow_mode import ShadowRunner, TrackerBaseline, region_candidate
 
@@ -32,10 +32,18 @@ class RuntimeConfig:
     machine: Config = field(default_factory=Config)
     sync_enabled: bool = False
     token_env: str = 'AI_GUARDIAN_CARE_API_TOKEN'
+    weekly_enabled: bool = False
+    weekly_regions: tuple = ('unknown',)
 
     def __post_init__(self):
         _key(self.model_version, 'model_version')
         _key(self.region_id, 'region_id')
+        if type(self.weekly_enabled) is not bool or not isinstance(self.weekly_regions,tuple) or not 1 <= len(self.weekly_regions) <= 15 or len(set(self.weekly_regions)) != len(self.weekly_regions):
+            raise ValueError('invalid weekly configuration')
+        for region in self.weekly_regions:
+            _key(region,'weekly_region')
+        if self.weekly_enabled and self.region_id not in self.weekly_regions:
+            raise ValueError('default region must be registered')
         if self.mode not in ('shadow','live') or type(self.sync_enabled) is not bool:
             raise ValueError('invalid care mode or sync flag')
         if self.sync_enabled and self.mode != 'live':
@@ -68,10 +76,12 @@ class CareRuntime:
         self._flush_lock = threading.Lock()
         self._shadow_history = deque(maxlen=100)
         self._stores, self._machines, self._active = {}, {}, {}
+        self._coverage = {}
+        self._regions = {}
         self.history = self.recorder = None
         self.shadow = ShadowRunner(TrackerBaseline(), region_candidate, max_pending=2)
         for person in config.person_ids:
-            store = DeliveryStore(config.db_path, person, config.model_version, clock=self.utc)
+            store = WeeklyStore(config.db_path, person, config.model_version, clock=self.utc)
             self._stores[person] = store
             session = store.session(config.mode)
             machine = (CareMachine.restore(self.clock, session['checkpoint'], config.machine)
@@ -108,7 +118,61 @@ class CareRuntime:
     def _ref(self, person, kind, event_id=None):
         return {'person_id': person, 'model_version': self.config.model_version,
                 'event_id': event_id or uuid.uuid4().hex, 'mode': self.config.mode,
-                'kind': kind, 'region_id': self.config.region_id, 'started_at': self.utc(), 'ended_at': None}
+                'kind': kind, 'region_id': self._regions.get(person,self.config.region_id), 'started_at': self.utc(), 'ended_at': None}
+
+    def weekly(self, person, week_start, offset_minutes=480):
+        if not self.config.weekly_enabled:
+            raise RuntimeError('weekly reporting is disabled')
+        # Store obtains its own consistent SQLite read snapshot; calculation
+        # must not hold the detection lock during a potentially large report.
+        return self.store(person).weekly(self.config.mode,week_start,
+            regions=self.config.weekly_regions,offset_minutes=offset_minutes)
+
+    def erase_person(self, person):
+        # Same lock order as flush: wait for any in-flight send before erasing.
+        with self._flush_lock, self._lock:
+            result = self.store(person).erase()
+            self._coverage.pop(person,None)
+            self._regions.pop(person,None)
+            self._active[person] = None
+            self._machines[person] = CareMachine(self.clock,self.config.machine)
+            # Reports may mix several people; discard the entire ephemeral
+            # comparison cache rather than retain deleted derived statistics.
+            self.shadow.close()
+            self.shadow = ShadowRunner(TrackerBaseline(),region_candidate,max_pending=2)
+            self._shadow_history.clear()
+            return result
+
+    def resume_person(self, person):
+        with self._lock:
+            return self.store(person).resume()
+
+    def _weekly_observe(self, person, rows=None):
+        if not self.config.weekly_enabled:
+            return
+        now = self.utc()
+        previous = self._coverage.get(person)
+        if previous:
+            start, expiry, region, valid, quality = previous
+            end = min(now,expiry)
+            if end > start:
+                self.store(person).coverage(self.config.mode,region,start,end,valid=valid,quality=quality)
+                self._coverage[person] = (end,expiry,region,valid,quality)
+        if rows is not None:
+            # Explicit missing detections stop coverage; downtime is never inferred.
+            self._coverage.pop(person,None)
+            if rows:
+                row = rows[0]
+                quality = row.get('care_quality')
+                valid = len(rows)==1 and row.get('pose_reliable') is not False
+                if quality is not None and (type(quality) not in (int,float) or not 0 <= quality <= 1):
+                    quality, valid = None, False
+                region = row.get('care_region_id',self.config.region_id)
+                if region not in self.config.weekly_regions:
+                    region='unknown'
+                self._regions[person] = region
+                self._coverage[person] = (now,now+30,region,valid,quality)
+        self.store(person).maintain(self.config.mode)
 
     def _step(self, person, event):
         store, machine = self.store(person), self._machines[person]
@@ -161,6 +225,7 @@ class CareRuntime:
             if self._closed:
                 raise RuntimeError('care runtime is closed')
             self._shadow_history.extend(self.shadow.pop_completed())
+            alerts = [a for a in alerts if not (self._person(a) and self.store(self._person(a)).erased())]
             by_person = {}
             for alert in alerts:
                 person = self._person(alert)
@@ -168,7 +233,10 @@ class CareRuntime:
                     by_person.setdefault(person, []).append(alert)
             states, record_refs, refs, normalized = [], [], {}, []
             for person in self.config.person_ids:
+                if self.store(person).erased():
+                    continue
                 rows = by_person.get(person, [])
+                self._weekly_observe(person,rows)
                 if len(rows) > 1:
                     event = Event.LOW_CONFIDENCE
                 elif not rows:
@@ -188,7 +256,7 @@ class CareRuntime:
             for kind in ('fall','sit','stranger'):
                 for alert in new_events.get(kind, []):
                     person = self._person(alert)
-                    if person is None:
+                    if person is None or self.store(person).erased():
                         continue
                     identity = self._active[person] if kind == 'sit' else None
                     ref = self.store(person).event(identity, self.config.mode) if identity else None
@@ -198,7 +266,7 @@ class CareRuntime:
                     if self.config.mode == 'live':
                         refs[(kind, alert['id'])] = ref
                     normalized.append({'event_id': ref['event_id'], 'person_id': person,
-                                       'model_version': self.config.model_version, 'region_id': self.config.region_id,
+                                       'model_version': self.config.model_version, 'region_id': ref['region_id'],
                                        'kind': kind, 'start_ms': at_ms, 'end_ms': at_ms})
             self.shadow.run({'query': {'start_ms': at_ms, 'end_ms': at_ms + 1},
                              'frames': [{'at_ms': at_ms, 'model_version': self.config.model_version,
@@ -211,7 +279,12 @@ class CareRuntime:
         with self._lock:
             if self._closed:
                 raise RuntimeError('care runtime is closed')
-            results = [self._step(person, Event.TIMEOUT) for person in self.config.person_ids]
+            results = []
+            for person in self.config.person_ids:
+                if self.store(person).erased():
+                    continue
+                self._weekly_observe(person)
+                results.append(self._step(person,Event.TIMEOUT))
             if self.config.mode == 'live':
                 for result in results:
                     result['recording_errors'] = []
@@ -320,5 +393,7 @@ def runtime_from_env(environ=None):
             machine[name] = wall_time.fromisoformat(machine[name])
     raw['machine'] = Config(**machine)
     raw['person_ids'] = tuple(raw['person_ids'])
+    if 'weekly_regions' in raw:
+        raw['weekly_regions'] = tuple(raw['weekly_regions'])
     raw['db_path'] = path.parent / raw['db_path']
     return CareRuntime(RuntimeConfig(**raw))

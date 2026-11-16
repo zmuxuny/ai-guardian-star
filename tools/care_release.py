@@ -15,6 +15,8 @@ FILES = (
     'src/ascend_board_server.py','src/sedentary_care.py','src/local_care_store.py',
     'src/local_care_migrations.py','src/shadow_mode.py','src/care_runtime.py',
     'src/care_delivery_store.py','src/care_api.py','src/care_transport.py',
+    'src/weekly_store.py','src/weekly_report.py','src/migrations/local_care/004_weekly.sql',
+    'test_weekly_report.py','tools/run_weekly_scenarios.py','docs/weekly-report-contract.md',
     'src/migrations/local_care/001_initial.sql','src/migrations/local_care/002_baseline_source.sql',
     'src/migrations/local_care/003_delivery.sql','tools/migrate_local_care.py',
     'tools/care_release.py','tools/run_care_delivery.py','test_care_delivery.py',

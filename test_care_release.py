@@ -107,7 +107,7 @@ class ReleaseTests(unittest.TestCase):
             with connection(backup / 'care-db.sqlite') as db:
                 self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 2)
                 self.assertEqual(db.execute('SELECT count(*) FROM feedback').fetchone()[0], 1)
-            migrate_database(database)
+            migrate_database(database, target_version=3)
             with connection(database) as db:
                 db.execute("INSERT INTO feedback VALUES ('p1','m1','new',600,601,'{}',1000,1000,0,NULL,NULL,1)")
             rollback(app, backup)

@@ -343,7 +343,7 @@ class DeliveryTests(unittest.TestCase):
         with connection(path) as db:
             db.execute("INSERT INTO feedback VALUES ('p1','m1','old-event',600,601,'{}',1000,1000,0,NULL,NULL,1)")
             before = tuple(db.execute('SELECT * FROM feedback').fetchone())
-        result = migrate_database(path)
+        result = migrate_database(path, target_version=3)
         with connection(path) as db:
             self.assertEqual(tuple(db.execute('SELECT * FROM feedback').fetchone()), before)
             self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 3)

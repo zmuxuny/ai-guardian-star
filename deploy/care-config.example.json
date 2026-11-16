@@ -5,5 +5,7 @@
   "model_version": "SET_ACTUAL_MODEL_VERSION",
   "region_id": "unknown",
   "sync_enabled": false,
+  "weekly_enabled": false,
+  "weekly_regions": ["unknown"],
   "token_env": "AI_GUARDIAN_CARE_API_TOKEN"
 }
