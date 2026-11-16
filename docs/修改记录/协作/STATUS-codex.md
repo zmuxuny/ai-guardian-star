@@ -4,7 +4,15 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
-当前交接（2026-11-16，T-20261116-02）：`zy` @ `840ee77`，本地反馈与个人常态库存储已完成离线验收，仅推送 zy。
+当前交接（2026-11-16，T-20261116-03）：`zy` @ `8a27bf6`，影子模式与区域聚合的五项离线目标全部完成；三字段混淆保留修复 `97b6de1`。
+
+- 真实 AlertEpisodeTracker 基线、独立有界后台影子执行、区域聚合固定协议与 read_batch 可替换入口；不接真实事件，不改旧 helper/服务入口。
+- 26 项专项通过，17 场景 109 项检查通过；全套 232 项无失败、18 项环境跳过，原有字段保留失败已清除。
+- 独立审查与修复复核通过；运行命令和指标口径见 `docs/superpowers/specs/2026-11-16-shadow-region-aggregation.md`。
+- 所有本次问题可自行处理，无 App 负责人阻塞，不创建 issue。未做上板、真实源或 App Release 包验证，这些不属于本次离线验收。
+- OpenWolf 命令未安装，已尝试扫描并核查全局命令位置，辅助索引未更新。
+
+上次交接（2026-11-16，T-20261116-02）：`zy` @ `840ee77`，本地反馈与个人常态库存储已完成离线验收，仅推送 zy。
 
 - 入口 `src/local_care_store.py`，迁移 `src/local_care_migrations.py` 与相邻 SQL；用法见 `docs/superpowers/specs/2026-11-16-local-care-storage.md`。
 - 固定 300 秒事件窗去重；重提覆盖、软撤销默认隐藏、显式恢复、追加审计；全部业务键/查询绑定人物和模型版本，样本支持 posture/activity/routine。
