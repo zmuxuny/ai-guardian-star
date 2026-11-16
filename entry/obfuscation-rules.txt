@@ -59,6 +59,9 @@
     hasAvatar
     imageBase64
     mimeType
+    recognitionStatus
+    photoCount
+    hint
     updatedAt
     verifyCode
     kind
