@@ -13,13 +13,17 @@ import uuid
 
 
 APPLICATION_ID = 0x43415245
-LATEST_VERSION = 2
+LATEST_VERSION = 3
 _SQL_ROOT = Path(__file__).resolve().parent / 'migrations' / 'local_care'
-MIGRATIONS = {1: _SQL_ROOT / '001_initial.sql', 2: _SQL_ROOT / '002_baseline_source.sql'}
+MIGRATIONS = {1: _SQL_ROOT / '001_initial.sql', 2: _SQL_ROOT / '002_baseline_source.sql',
+              3: _SQL_ROOT / '003_delivery.sql'}
 _KEYS = {
     'feedback': ('person_id', 'model_version', 'target_id', 'window_start'),
     'feedback_audit': ('person_id', 'model_version', 'target_id', 'window_start', 'revision'),
     'baseline_samples': ('person_id', 'model_version', 'sample_id'),
+    'care_events': ('person_id', 'model_version', 'event_id'),
+    'care_sessions': ('person_id', 'model_version', 'mode'),
+    'care_outbox': ('person_id', 'model_version', 'message_id'),
 }
 _COLUMNS = {
     'feedback': {'person_id', 'model_version', 'target_id', 'window_start', 'event_at',
@@ -29,12 +33,19 @@ _COLUMNS = {
                        'operation', 'recorded_at', 'snapshot_json'},
     'baseline_samples': {'person_id', 'model_version', 'sample_id', 'category',
                          'payload_json', 'sampled_at', 'created_at', 'updated_at'},
+    'care_events': {'person_id','model_version','event_id','mode','kind','region_id','started_at','ended_at'},
+    'care_sessions': {'person_id','model_version','mode','checkpoint_json','active_event_id','updated_at'},
+    'care_outbox': {'person_id','model_version','message_id','mode','event_id','message_type','revision',
+                    'payload_json','created_at','attempts','last_error','delivered_at'},
 }
 _INDEXES = {
     'feedback_scope_status_time': ('feedback', ('person_id', 'model_version', 'is_revoked',
                                                'updated_at', 'target_id', 'window_start')),
     'baseline_scope_category_time': ('baseline_samples', ('person_id', 'model_version',
                                                           'category', 'sampled_at', 'sample_id')),
+    'care_events_scope_time': ('care_events', ('person_id','model_version','mode','started_at','event_id')),
+    'care_outbox_scope_pending': ('care_outbox', ('person_id','model_version','delivered_at','created_at',
+                                               'event_id','message_type','revision')),
 }
 
 
@@ -71,17 +82,20 @@ def _version(db):
     if version == 0:
         if objects or app_id not in (0, APPLICATION_ID):
             raise ValueError('refusing to adopt an unknown database')
-    elif app_id != APPLICATION_ID or version not in (1, 2):
+    elif app_id != APPLICATION_ID or version not in (1, 2, 3):
         raise ValueError('unknown database or unsupported schema version')
     else:
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if tables != set(_KEYS):
+        expected_tables = set(_KEYS) if version >= 3 else set(_KEYS) - {'care_events','care_sessions','care_outbox'}
+        if tables != expected_tables:
             raise ValueError('incomplete local care schema')
         for table, key in _KEYS.items():
+            if table not in expected_tables:
+                continue
             # Identifiers are internal constants, never caller-supplied SQL.
             columns = db.execute(f'PRAGMA table_info({table})').fetchall()
             actual_key = tuple(r['name'] for r in sorted(columns, key=lambda r: r['pk']) if r['pk'])
-            expected = _COLUMNS[table] | ({'source'} if table == 'baseline_samples' and version == 2 else set())
+            expected = _COLUMNS[table] | ({'source'} if table == 'baseline_samples' and version >= 2 else set())
             if actual_key != key or {r['name'] for r in columns} != expected:
                 raise ValueError('incompatible local care schema')
             indexes = db.execute(f'PRAGMA index_list({table})').fetchall()

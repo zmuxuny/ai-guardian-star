@@ -14,7 +14,7 @@ import unittest
 from unittest.mock import patch
 
 from src.local_care_store import LocalCareStore
-from src.local_care_migrations import migrate_database
+from src.local_care_migrations import migrate_database, LATEST_VERSION
 
 
 @contextmanager
@@ -219,7 +219,8 @@ class StoreTests(unittest.TestCase):
     def test_every_table_pk_and_index_include_both_scope_fields(self):
         with raw_db(self.path) as db:
             tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-            self.assertEqual(set(tables), {'feedback', 'feedback_audit', 'baseline_samples'})
+            self.assertEqual(set(tables), {'feedback', 'feedback_audit', 'baseline_samples',
+                                          'care_events', 'care_sessions', 'care_outbox'})
             for table in tables:
                 columns = db.execute(f'PRAGMA table_info({table})').fetchall()
                 self.assertTrue({'person_id', 'model_version'} <= {r[1] for r in columns if r[5]})
@@ -260,7 +261,7 @@ class MigrationTests(unittest.TestCase):
             row = db.execute('SELECT * FROM baseline_samples').fetchone()
             self.assertEqual(row[:-1], before[0])
             self.assertIsNone(row[-1])
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 2)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], LATEST_VERSION)
         with raw_db(result['backup_path']) as backup:
             self.assertEqual(backup.execute('SELECT * FROM baseline_samples').fetchall(), before)
             self.assertEqual(backup.execute('PRAGMA user_version').fetchone()[0], 1)
@@ -271,7 +272,7 @@ class MigrationTests(unittest.TestCase):
         migrate_database(self.path, target_version=1)
         bad = Path(self.temp.name) / 'broken.sql'
         bad.write_text('ALTER TABLE baseline_samples ADD COLUMN extra TEXT; INVALID SQL;', encoding='utf-8')
-        with patch.object(migrations, 'MIGRATIONS', {1: migrations.MIGRATIONS[1], 2: bad}):
+        with patch.object(migrations, 'MIGRATIONS', {**migrations.MIGRATIONS, 2: bad}):
             with self.assertRaises(sqlite3.OperationalError):
                 migrate_database(self.path)
         with raw_db(self.path) as db:
@@ -375,7 +376,7 @@ class MigrationTests(unittest.TestCase):
     def test_fresh_database_initialization_is_concurrent_safe(self):
         with ThreadPoolExecutor(max_workers=8) as pool:
             results = list(pool.map(lambda _: migrate_database(self.path), range(16)))
-        self.assertEqual({r['to_version'] for r in results}, {2})
+        self.assertEqual({r['to_version'] for r in results}, {LATEST_VERSION})
         self.assertEqual(sum(r['from_version'] == 0 for r in results), 1)
 
     def test_schema_without_scoped_audit_foreign_key_is_rejected(self):
@@ -385,7 +386,7 @@ class MigrationTests(unittest.TestCase):
         script = re.sub(r',\s*FOREIGN KEY \(person_id, model_version, target_id, window_start\)\s*'
                         r'REFERENCES feedback\(person_id, model_version, target_id, window_start\)', '', script)
         broken.write_text(script, encoding='utf-8')
-        with patch.object(migrations, 'MIGRATIONS', {1: broken, 2: migrations.MIGRATIONS[2]}):
+        with patch.object(migrations, 'MIGRATIONS', {**migrations.MIGRATIONS, 1: broken}):
             with self.assertRaises(ValueError):
                 migrate_database(self.path)
 

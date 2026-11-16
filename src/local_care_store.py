@@ -139,7 +139,11 @@ class LocalCareStore:
         key = self._feedback_key(target_id, event_at)
         encoded, now = _payload(payload), _timestamp(self._clock())
         with self._write() as db:
-            db.execute('''INSERT INTO feedback
+            return self._submit_in(db, key, event_at, encoded, now)
+
+    def _submit_in(self, db, key, event_at, encoded, now):
+        """Shared transaction primitive, including audit, for durable delivery."""
+        db.execute('''INSERT INTO feedback
                 (person_id,model_version,target_id,window_start,event_at,payload_json,
                  created_at,updated_at,is_revoked,revision)
                 VALUES (?,?,?,?,?,?,?,?,0,1)
@@ -148,9 +152,9 @@ class LocalCareStore:
                     updated_at=MAX(feedback.updated_at,excluded.updated_at),
                     revision=feedback.revision+1''',
                        self._params + key + (float(event_at), encoded, now, now))
-            row = self._select_feedback(db, key, status='all')
-            self._audit(db, row, 'submit')
-            return _feedback(row)
+        row = self._select_feedback(db, key, status='all')
+        self._audit(db, row, 'submit')
+        return _feedback(row)
 
     def get_feedback(self, target_id, event_at, *, status='active'):
         key = self._feedback_key(target_id, event_at)
@@ -177,19 +181,22 @@ class LocalCareStore:
         key = self._feedback_key(target_id, event_at)
         now = _timestamp(self._clock())
         with self._write() as db:
-            row = self._select_feedback(db, key, status='all')
-            if row is None:
-                raise LookupError('feedback does not exist in this person/model scope')
-            if bool(row['is_revoked']) == revoke:
-                return _feedback(row)
-            updated = max(now, row['updated_at'])
-            db.execute('''UPDATE feedback SET is_revoked=?,revoked_at=?,revocation_reason=?,
+            return self._lifecycle_in(db, key, now, revoke, reason)
+
+    def _lifecycle_in(self, db, key, now, revoke, reason):
+        row = self._select_feedback(db, key, status='all')
+        if row is None:
+            raise LookupError('feedback does not exist in this person/model scope')
+        if bool(row['is_revoked']) == revoke:
+            return _feedback(row)
+        updated = max(now, row['updated_at'])
+        db.execute('''UPDATE feedback SET is_revoked=?,revoked_at=?,revocation_reason=?,
                 updated_at=?,revision=revision+1
                 WHERE person_id=? AND model_version=? AND target_id=? AND window_start=?''',
                        (int(revoke), updated if revoke else None, reason, updated) + self._params + key)
-            row = self._select_feedback(db, key, status='all')
-            self._audit(db, row, 'revoke' if revoke else 'restore')
-            return _feedback(row)
+        row = self._select_feedback(db, key, status='all')
+        self._audit(db, row, 'revoke' if revoke else 'restore')
+        return _feedback(row)
 
     def revoke_feedback(self, target_id, event_at, *, reason=''):
         if not isinstance(reason, str) or len(reason) > 2000:

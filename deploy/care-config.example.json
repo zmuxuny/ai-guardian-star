@@ -1,0 +1,9 @@
+{
+  "mode": "off",
+  "db_path": "private-data/care.db",
+  "person_ids": ["SET_STABLE_PERSON_ID"],
+  "model_version": "SET_ACTUAL_MODEL_VERSION",
+  "region_id": "unknown",
+  "sync_enabled": false,
+  "token_env": "AI_GUARDIAN_CARE_API_TOKEN"
+}

@@ -53,6 +53,9 @@ event_cache = None
 cleanup_scheduler = None
 alert_mqtt = None
 heartbeat_publisher = None
+care_runtime = None
+care_worker = None
+care_last_poll = 0.0
 continuous_store = None
 continuous_recorder = None
 continuous_cleanup = None
@@ -69,6 +72,35 @@ shutdown_started = False
 UDP_PORT = 8888
 udp_socket = None
 phone_addr = None
+
+
+def dispatch_care_detection(runtime, alerts, new_events):
+    """Executed by the detection loop; failure cannot replace legacy alerts."""
+    if runtime is None:
+        return {'mode':'off', 'states':[], 'event_refs':{}, 'record_refs':[]}
+    try:
+        return runtime.process_frame(alerts, new_events)
+    except Exception as exc:
+        print(f'[Care] frame_failed code={type(exc).__name__}')
+        return {'mode': 'failed', 'states': [], 'event_refs': {}, 'record_refs': []}
+
+
+def trigger_history_event(cache, kind, alert, care_result, at):
+    ref = care_result['event_refs'].get((kind, alert.get('id')))
+    if ref is not None:
+        return record_event(cache, ref)
+    return cache.trigger(kind, at=at, person_id=None if alert.get('id') is None else str(alert['id']),
+                         payload={'kind': kind})
+
+
+def poll_care_without_observation(runtime):
+    global care_last_poll
+    if runtime is not None and time.monotonic() - care_last_poll >= 1:
+        care_last_poll = time.monotonic()
+        try:
+            runtime.tick()
+        except Exception as exc:
+            print(f'[Care] tick_failed code={type(exc).__name__}')
 
 def get_host_ip():
     try:
@@ -872,6 +904,21 @@ def run_system():
         event_cache = None
         cleanup_scheduler = None
 
+    global care_runtime, record_event
+    try:
+        care_runtime = None
+        if os.environ.get('AI_GUARDIAN_CARE_CONFIG'):
+            from care_runtime import runtime_from_env, record_event
+            from care_api import create_care_router
+            care_runtime = runtime_from_env()
+        if care_runtime is not None:
+            care_runtime.recorder = event_cache
+            app.include_router(create_care_router(care_runtime))
+            print(f'[Care] initialized mode={care_runtime.config.mode}')
+    except Exception as exc:
+        print(f'[Care] init_failed code={type(exc).__name__}')
+        care_runtime = None
+
     # Continuous video has its own managed root, quota and rolling 24-hour
     # retention. It uses the existing camera capture, never a second opener.
     global continuous_store, continuous_recorder, continuous_cleanup
@@ -910,7 +957,7 @@ def run_system():
         continuous_store = continuous_recorder = continuous_cleanup = None
 
     def inference_loop():
-        global system_detector, video_frame_started_at, heartbeat_publisher
+        global system_detector, video_frame_started_at, heartbeat_publisher, care_worker, care_last_poll
         detector = AclLiteStreamDetector(model_path=MODEL_PATH, camera_index=0)
         continuous_sink = None
         if continuous_recorder is not None:
@@ -949,6 +996,10 @@ def run_system():
         heartbeat_publisher.start()
         _fps_count = 0
         _fps_timer = time.time()
+        if care_runtime is not None and care_runtime.config.sync_enabled:
+            from care_transport import DeliveryWorker, MqttCareSender
+            care_worker = DeliveryWorker(care_runtime, MqttCareSender(mqtt_client.client))
+            care_worker.start()
         event_tracker = AlertEpisodeTracker()
         _last_face_label = None
 
@@ -959,11 +1010,13 @@ def run_system():
                     res = detector.get_detected_frame()
                     if (not detector.camera_is_live()
                             or frame_started_at < detector.camera_connected_since):
+                        poll_care_without_observation(care_runtime)
                         _fps_count = 0
                         _fps_timer = time.time()
                         time.sleep(0.015)
                         continue
                     if res is None:
+                        poll_care_without_observation(care_runtime)
                         time.sleep(0.015)
                         continue
 
@@ -973,6 +1026,7 @@ def run_system():
                         latest_overlay["at"] = time.monotonic()
                     # Raw/throttled frames do not establish an empty or recovered scene.
                     if not detector.last_frame_inferred:
+                        poll_care_without_observation(care_runtime)
                         continue
                     # Submit the ANNOTATED frame (inference ran on it): clips keep the
                     # boxes, skeleton and status text so playback shows why an event
@@ -1046,15 +1100,12 @@ def run_system():
                     )
 
                     new_events = event_tracker.update(alerts, _now)
+                    care_result = dispatch_care_detection(care_runtime, alerts, new_events)
                     if event_cache is not None:
                         for _kind in ("fall", "sit", "stranger"):
                             for _alert in new_events.get(_kind, []):
                                 try:
-                                    _pid = _alert.get("id")
-                                    event_cache.trigger(
-                                        _kind, at=_now,
-                                        person_id=None if _pid is None else str(_pid),
-                                        payload={"kind": _kind})
+                                    trigger_history_event(event_cache, _kind, _alert, care_result, _now)
                                 except Exception as exc:
                                     print(f"[Record] trigger {_kind} failed: {type(exc).__name__}")
                     for alert in new_events["fall"]:
@@ -1108,6 +1159,10 @@ def run_system():
     @app.on_event("shutdown")
     async def shutdown_event():
         global mic_broadcast_handle
+        if care_worker is not None:
+            care_worker.stop()
+        if care_runtime is not None:
+            care_runtime.close()
         if continuous_recorder is not None:
             try:
                 continuous_recorder.stop(timeout=30)

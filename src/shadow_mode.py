@@ -91,12 +91,13 @@ class ShadowRunner:
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='care-shadow')
         self._slots = threading.BoundedSemaphore(max_pending)
         self._lock = threading.Lock()
-        self._records, self._futures = [], []
+        self._records, self._futures = {}, []
+        self._sequence = 0
         self._closed = False
 
     def _set(self, record):
         with self._lock:
-            self._records[record['sequence'] - 1] = record
+            self._records[record['sequence']] = record
 
     def _evaluate(self, snapshot, context, record):
         try:
@@ -130,9 +131,11 @@ class ShadowRunner:
 
     def run(self, batch):
         with self._lock:
-            record = {'schema_version': 1, 'sequence': len(self._records) + 1, 'status': 'pending',
+            self._sequence += 1
+            self._futures = [f for f in self._futures if not f.done()]
+            record = {'schema_version': 1, 'sequence': self._sequence, 'status': 'pending',
                       'candidate': None, 'comparison': None, 'error': None}
-            self._records.append(deepcopy(record))
+            self._records[record['sequence']] = deepcopy(record)
             closed = self._closed
         context = None
         if closed or not self._slots.acquire(blocking=False):
@@ -183,7 +186,13 @@ class ShadowRunner:
 
     def reports(self):
         with self._lock:
-            return deepcopy(self._records)
+            return deepcopy([self._records[key] for key in sorted(self._records)])
+
+    def pop_completed(self):
+        """Owning long-running services may archive finished reports off-thread."""
+        with self._lock:
+            keys = sorted(k for k, r in self._records.items() if r['status'] != 'pending')
+            return [deepcopy(self._records.pop(key)) for key in keys]
 
     def close(self):
         with self._lock:

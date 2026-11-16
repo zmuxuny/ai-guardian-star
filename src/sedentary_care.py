@@ -177,6 +177,60 @@ class CareMachine:
         return deepcopy({'snapshot': self.snapshot(), 'transitions': self.transitions,
                          'broadcasts': self.speaker.records})
 
+    def checkpoint(self):
+        """Versioned restart state; histories live in the owning durable store."""
+        config = {name: (value.isoformat() if hasattr(value, 'isoformat') else value)
+                  for name, value in vars(self.config).items()}
+        names = ('phase', 'seated', 'remaining', 'pending', 'level', 'counts',
+                 'uncertain_since', 'uncertainty_reason', 'last_observation', '_now')
+        return deepcopy({'schema_version': 1, 'config': config,
+                         'wall_time': self.clock.wall_at(self._now).isoformat(),
+                         'values': {name: getattr(self, name) for name in names}})
+
+    @classmethod
+    def restore(cls, clock, checkpoint, config=None):
+        """Rebase monotonic time; offline time is unknown, never trusted sitting."""
+        machine = cls(clock, config)
+        expected = machine.checkpoint()
+        if (not isinstance(checkpoint, dict) or checkpoint.get('schema_version') != 1
+                or checkpoint.get('config') != expected['config']
+                or not isinstance(checkpoint.get('values'), dict)
+                or set(checkpoint['values']) != set(expected['values'])):
+            raise ValueError('incompatible care checkpoint')
+        values = deepcopy(checkpoint['values'])
+        if (values['phase'] not in ('IDLE', 'SITTING', 'L0', 'L1', 'ACK', 'EXHAUSTED')
+                or values['level'] not in (None, 'L0', 'L1') or values['pending'] not in (None, 'L0', 'L1')
+                or not isinstance(values['counts'], dict) or set(values['counts']) != {'L0', 'L1'}
+                or any(type(n) is not int or n < 0 for n in values['counts'].values())
+                or values['counts']['L0'] > 1 or values['counts']['L1'] > machine.config.max_l1):
+            raise ValueError('invalid care checkpoint state')
+        for name in ('seated', 'remaining', '_now', 'uncertain_since', 'last_observation'):
+            value = values[name]
+            if value is None and name not in ('seated', '_now'):
+                continue
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError('invalid checkpoint time')
+        if values['seated'] < 0 or (values['remaining'] is not None and values['remaining'] < 0):
+            raise ValueError('invalid checkpoint duration')
+        saved_wall = datetime.fromisoformat(checkpoint['wall_time'])
+        if saved_wall.tzinfo is None:
+            raise ValueError('checkpoint wall time requires timezone')
+        downtime = (clock.wall_at(clock.now) - saved_wall).total_seconds()
+        if downtime < 0:
+            raise ValueError('wall clock moved backwards across restart')
+        shift = clock.now - values['_now']
+        for name, value in values.items():
+            if name in ('_now', 'uncertain_since', 'last_observation') and value is not None:
+                value += shift
+            setattr(machine, name, value)
+        if machine.phase != 'IDLE':
+            age = downtime + (values['_now'] - values['uncertain_since']
+                              if values['uncertain_since'] is not None else 0)
+            machine.uncertain_since = clock.now - age
+            machine.uncertainty_reason = 'restart_gap'
+            machine.handle(Event.TIMEOUT)
+        return machine
+
     def _trace(self, event, before, decision='noop'):
         self.transitions.append({
             'at': self._now, 'event': event, 'before': before,

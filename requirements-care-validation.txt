@@ -1,0 +1,4 @@
+# Local simulation only. Does not replace board/CANN dependency requirements.
+numpy==1.26.4
+fastapi==0.115.12
+httpx==0.28.1
