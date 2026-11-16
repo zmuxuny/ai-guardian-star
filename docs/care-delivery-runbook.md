@@ -6,6 +6,8 @@
 
 重要输入语义：当前检测器 `_is_long_sit_state` 使用持续静止计时，`is_sitting` 不是经过真实坐姿分类验收的结果。静止站立可能被视为该代理输入。本地“可信 SIT”模拟成功不代表真实坐姿正确；在完成下方静止站立/真实起身验收和输入语义决策前，只能关闭或使用 shadow，不能批准 live 久坐提醒上线。
 
+现有平铺部署使用 [原环境适配说明](board-environment-adaptation.md) 的专用工具；以下src目录安装流程仅适用于符合其基线的目录，不能直接覆盖平铺设备。
+
 ## 配置（私有文件，不提交实际配置）
 
 - AI_GUARDIAN_CARE_CONFIG：设备私有 JSON 文件路径；缺省关闭。字段仅限 deploy/care-config.example.json 与 machine 阈值配置，拒绝未知字段。
@@ -22,7 +24,7 @@
 
 本次核心新增存储/状态/影子模块只用标准库；认证 API 复用原服务 FastAPI，录像复用原 HistoryStore/EventClipCache，补传复用原 Paho client，不引入第二个摄像头或 Broker。
 
-运行前必须 Python >=3.11（本机验证3.11.15）、SQLite >=3.24。开发板现有 CANN、ACL、OpenCV、音频和 SDK 不在此次升级范围，不应为跑本地测试自动更新它们。既有边端依赖见 requirements-edge.txt；建议记录部署时的实际版本并保存在私有备份，不贴完整环境或凭据。
+运行前必须 Python >=3.9、SQLite >=3.24。环境适配补丁使用Optional注解及兼容的文件导出API，适配开发板原Python3.9.2；详细版本与实测结果见board-environment-adaptation.md。3.11仍是本机固定复跑环境，不要求替换设备解释器。开发板现有 CANN、ACL、OpenCV、音频和 SDK 不在此次升级范围，不应为跑本地测试自动更新它们。既有边端依赖见 requirements-edge.txt；建议记录部署时的实际版本并保存在私有备份，不贴完整环境或凭据。
 
 本机模拟固定主依赖：numpy 1.26.4、FastAPI 0.115.12、httpx 0.28.1；测试安装清单 requirements-care-validation.txt。只安装到隔离环境，不修改系统 Python：
 

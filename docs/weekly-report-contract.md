@@ -41,7 +41,7 @@
 
 ## 本机验证、升级与回退
 
-Python 3.11+ / SQLite 3.24+，统计和存储只用标准库。API复用现有 FastAPI；安装本机验证依赖：`python -m pip install -r requirements-care-validation.txt`。一键运行 `python tools/run_weekly_scenarios.py --output .tmp/weekly-results.json`，失败非零退出。输出含 expected/actual 和每个存储场景完整聚合结果；覆盖跨周、重复、反馈撤销、时区、过期及无观测、阈值、质量/重叠、作用域、删除、Runtime/API。全仓回归：`python -m unittest discover -v`。
+Python 3.9+ / SQLite 3.24+（原板端3.9.2的适配验证见board-environment-adaptation.md），统计和存储只用标准库。API复用现有 FastAPI；安装本机验证依赖：`python -m pip install -r requirements-care-validation.txt`。一键运行 `python tools/run_weekly_scenarios.py --output .tmp/weekly-results.json`，失败非零退出。输出含 expected/actual 和每个存储场景完整聚合结果；覆盖跨周、重复、反馈撤销、时区、过期及无观测、阈值、质量/重叠、作用域、删除、Runtime/API。全仓回归：`python -m unittest discover -v`。
 
 迁移004为增量新增3张表，历史行不重写；原1/2/3脚本不变。使用 `python tools/migrate_local_care.py <设备私有数据库路径>` 或首次Runtime初始化自动迁移，升级已有库时先生成一致性备份。一起部署两个 weekly 模块和004 SQL，已有 `tools/care_release.py` 的文件清单已包含，部署前停止服务并备份代码/配置/数据库，按原 care-delivery-runbook 操作。
 

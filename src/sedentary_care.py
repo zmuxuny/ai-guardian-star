@@ -11,6 +11,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
+from typing import Optional
 import math
 
 
@@ -52,8 +53,8 @@ class Config:
     observation_ttl: float = 30
     uncertainty_ttl: float = 120
     max_l1: int = 2
-    quiet_start: time | None = time(22)
-    quiet_end: time | None = time(7)
+    quiet_start: Optional[time] = time(22)
+    quiet_end: Optional[time] = time(7)
 
     def __post_init__(self):
         for name in ('l0_seconds', 'upgrade_seconds', 'repeat_seconds',

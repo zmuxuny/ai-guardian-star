@@ -25,7 +25,8 @@ def main(argv=None, *, cases=None):
     content = json.dumps(report, ensure_ascii=False, allow_nan=False, indent=2) + '\n'
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(content, encoding='utf-8', newline='\n')
+        with args.output.open('w', encoding='utf-8', newline='\n') as stream:
+            stream.write(content)
     print(content, end='')
     return 0 if report['passed'] else 1
 

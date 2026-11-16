@@ -1,6 +1,6 @@
 # 久坐关怀状态机与模拟验收
 
-实现：`src/sedentary_care.py`；场景：`tools/run_sedentary_scenarios.py`；专项断言：`test_sedentary_care.py`、`test_sedentary_scenarios.py`。只依赖 Python 3.11+ 标准库，不调用真实传感器、音频或外部服务。既有板端以人体框持续静止近似判断久坐，本次没有修改或接入该链路。
+实现：`src/sedentary_care.py`；场景：`tools/run_sedentary_scenarios.py`；专项断言：`test_sedentary_care.py`、`test_sedentary_scenarios.py`。只依赖 Python 3.9+ 标准库（3.9适配补丁使用Optional注解；原板端验证见docs/board-environment-adaptation.md），不调用真实传感器、音频或外部服务。既有板端以人体框持续静止近似判断久坐，本次没有修改或接入该链路。
 
 ## 一键运行与输出
 
