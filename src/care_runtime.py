@@ -263,6 +263,8 @@ class CareRuntime:
                     alert = rows[0]
                     event = (Event.LOW_CONFIDENCE if alert.get('pose_reliable') is False else
                              Event.NON_SIT if 'FALL' in alert.get('status', '') else
+                             Event.NON_SIT if alert.get('care_observation') == 'moving' else
+                             Event.LOW_CONFIDENCE if alert.get('care_observation') not in (None,'still') else
                              Event.SIT if alert.get('is_sitting') is True else
                              Event.NON_SIT if alert.get('is_sitting') is False else Event.MISSING)
                 step = self._step(person, event)

@@ -205,6 +205,7 @@ class InferenceTests(unittest.TestCase):
         for index in range(121):
             alert = detector._build_alerts(frame, [detection], 100 + index / 10)[0]
             self.assertEqual(alert["is_sitting"], index >= 100)
+            self.assertEqual(alert["care_observation"], 'still' if index >= 100 else 'warming')
         self.assertEqual(alert["sit_duration_sec"], 12)
         self.assertEqual(len(detector.person_states[1]["box_history"]), 12)
         # Visible shoulders below ankles trigger the real structural fall rule.
@@ -218,6 +219,7 @@ class InferenceTests(unittest.TestCase):
             alert = detector._build_alerts(frame, [detection], 112.1 + index / 10)[0]
         self.assertEqual(alert["status"], "FALL DETECTED")
         self.assertFalse(alert["is_sitting"])
+        self.assertEqual(alert["care_observation"], 'unreliable')
         self.assertIsNone(detector.person_states[1]["stationary_timer"].since)
 
     def test_throttled_frame_keeps_return_contract_and_is_not_an_observation(self):

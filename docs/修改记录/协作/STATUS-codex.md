@@ -4,6 +4,14 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+当前执行（2026-11-17，T-20261117-03）：wip/codex-20261116-board-env / df6d71c基线；AF-01红绿复现并完成最小修复，先交付zy再最小部署，仅shadow复验、不提PR。
+
+- 改动：StationaryTimer新增关怀warming/still/moving/unreliable判据，duration原算法不变；provider仅加字段，CareRuntime积累期/低质量冻结、明确移动仍NON_SIT。120秒/旧告警/SDK/模型/接线不改。
+- 验证：本机最终313项无失败18跳过；3.9专项34项，65文件实编译；生产检测AST确认原输出阈值不变；原板3.9.2隔离22项、实际三文件应用/回退演练通过，原运行文件未动。独立审查通过。
+- 发布：tools/care_runtime_patch.py限定3文件，原provider精确增字段且AST去字段必须相同；原指纹、停服、独占备份、原子写/中断回退、拒未知编辑；DB不回滚。profile三项新指纹来自实际payload，其他25项保持。
+- 新备份：20261117-af01/preflight，28文件、2DB、1配置verified，实际off。私有原文件/包/配置/DB留staging与.tmp，不入Git。
+- 待办：提交push后最小实装off，Probe通过再新shadow现场短停5秒，核同ID/次数/零outbox；未实测不报通过。全第2步及3–6步仍保持原验收门禁，App#25/真实音频边界不变。
+
 当前交接（2026-11-17，T-20261117-02）：wip/codex-20261116-board-env / de8a9ec基线；复连验收第1步通过，第2步FAIL，仅交付zy、不提PR。
 
 - 交付：docs/board-reconnection-validation-2026-11-17.md，逐项真实结果及问题去向；实际310B4/aarch64、Python3.9.2/SQLite3.40.1、28指纹通过；新备份28文件、2DB、1配置verified。

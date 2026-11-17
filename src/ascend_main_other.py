@@ -2629,6 +2629,8 @@ class AclLiteStreamDetector:
                 "now_ts": now_ts,
                 "is_sitting": is_sitting,
                 "sit_duration_sec": sit_duration_sec,
+                "care_observation": (timer.care_observation(now_ts, VLM_LONG_SIT_THRESHOLD_SECONDS)
+                                     if timer is not None else "unreliable"),
             })
             self._maybe_trigger_vlm_events(frame, person_id, latest_state, det, now_ts)
         return alerts

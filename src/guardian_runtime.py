@@ -24,6 +24,7 @@ class StationaryTimer:
         self.since = None
         self.last_seen = None
         self.samples = 0
+        self._care_update = 'unreliable'
 
     def update(self, box, now_ts):
         width = max(1.0, box[2] - box[0])
@@ -38,6 +39,8 @@ class StationaryTimer:
         moved = (self.anchor is not None
                  and math.hypot(center[0] - self.anchor[0],
                                 center[1] - self.anchor[1]) > threshold)
+        self._care_update = ('unreliable' if interrupted else 'moving' if moved
+                             else 'warming')
         if self.anchor is None or interrupted or moved:
             self.anchor = center
             self.since = now_ts
@@ -50,6 +53,18 @@ class StationaryTimer:
                 or not 0 <= now_ts - self.last_seen <= self.max_gap):
             return 0.0
         return max(0.0, now_ts - self.since)
+
+    def care_observation(self, now_ts, threshold):
+        """Add care evidence without changing the legacy stillness duration.
+
+        A fresh anchor/short stable history cannot prove that a restored user
+        stood up. Actual observed displacement can; a gap cannot.
+        """
+        if self.last_seen is None or not 0 <= now_ts - self.last_seen <= self.max_gap:
+            return 'unreliable'
+        if self._care_update in ('moving', 'unreliable'):
+            return self._care_update
+        return 'still' if self.duration(now_ts) >= threshold else 'warming'
 
 
 class AlertEpisodeTracker:

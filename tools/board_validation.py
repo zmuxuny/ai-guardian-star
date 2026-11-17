@@ -96,7 +96,7 @@ def offline_audit(repo, output):
     output.mkdir(parents=True, exist_ok=True)
     paths = list((repo/'src').rglob('*.py'))
     paths += [repo/'tools'/name for name in ('board_validation.py','care_flat_release.py',
-              'care_release.py','run_shadow_scenarios.py','run_care_delivery.py','run_weekly_scenarios.py')]
+              'care_release.py','care_runtime_patch.py','run_shadow_scenarios.py','run_care_delivery.py','run_weekly_scenarios.py')]
     rows = []
     for index,path in enumerate(sorted(set(paths))):
         issues = portability_issues(path.read_text(encoding='utf-8-sig'))
@@ -113,7 +113,9 @@ def build_kit(repo, destination):
     repo, destination = Path(repo), Path(destination)
     names = ['tools/board_validation.py','deploy/board/care-validation-baseline.json']
     for name in ('docs/board-offline-preparation-2026-11-17.md','tools/Invoke-BoardValidation.ps1',
-                 'test_weekly_report.py','tools/care_flat_release.py','tools/care_release.py'):
+                 'test_weekly_report.py','tools/care_flat_release.py','tools/care_release.py',
+                 'tools/care_runtime_patch.py','test_care_restart_input.py','test_care_runtime_patch.py',
+                 'docs/board-short-restart-fix-2026-11-17.md'):
         if (repo/name).is_file(): names.append(name)
     # Isolated weekly fixtures use only these local modules; no sensor imports.
     for name in ('local_care_store','local_care_migrations','care_delivery_store','weekly_store','weekly_report',
