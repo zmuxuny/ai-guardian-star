@@ -1641,3 +1641,7 @@
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
 | 21:25 | 实时画面与通话统一走 api.aistar.asia 的 HTTPS/WSS 反代；扣子模型切换并部署 Doubao-Seed-2.0-mini；SSE 工作流错误不再伪装成成功 | config.ets, api.aistar.asia.conf, wenxin_proxy.py, test_wenxin_proxy.py, 99-usb-camera-power.rules | 89 项测试和 Release HAP 构建通过；HTTPS JPEG/状态、WSS、AI 端到端均通过；Logitech C270 禁用 USB 自动休眠后越过原 3 分钟冻结点 | ~14000 |
+
+## Session: 2026-11-17
+
+- Codex 离线交付复连验证工具、冻结板端指纹和顺序清单；64文件Python3.9编译、108模拟、独立包周报12项通过。未连接设备、不改硬件/业务；上次第2步仍未完成，复连先确认旧shadow清理。见 docs/board-offline-preparation-2026-11-17.md。

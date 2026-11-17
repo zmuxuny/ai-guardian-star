@@ -4,6 +4,15 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+当前交接（2026-11-17，T-20261117-01）：wip/codex-20261116-board-env，基线e463172；离线准备交付zy，不提PR；本轮没有连接或修改设备。
+
+- 交付：docs/board-offline-preparation-2026-11-17.md；历史实际结果、10项适配结论、六步顺序清单及明确阻塞项；tools/Invoke-BoardValidation.ps1 + board_validation.py、冻结部署指纹、新工具20项回归。
+- 修改仅验证设施，无src业务变化；昨日Optional/导出API/平铺部署/身份映射修复保持；不改硬件布置、SDK、OM、原音视频服务。ARM64 C桥及准确SoC/原ATC来源只能在线/资料确认。
+- 验证：本机独立Python3.9.25实际编译64文件，108项模拟通过，验证包独立解包周报12项通过，PowerShell7解析/Prepare通过。只证明离线兼容，不冒充板端认证。
+- 独立审查已修复：恢复失败可重试；启用override前确认看门狗；按同一人员/会话/事件判定。备份不覆盖、live拒绝、门禁不绕过，原数据不删除。
+- T-20261116-08仍未通过：最后样本身份P2已映射，但IDLE/0秒/L0-L1均0；未取得随后50秒结果，旧自动off未回读。复连先收尾旧会话并Probe，再第2步真实动作；不得进入3–6步。
+- App仍#25；真实音频/回应/抢占/接收端未齐，脚本明确BLOCKED，不新开空PR。OpenWolf命令不可用，未更新辅助索引。
+
 当前执行（2026-11-16 22:02，T-20261116-07）：原环境适配修复063ea04已部署off，保留Python3.9.2及现有硬件布置；仅交付zy，不提PR。
 
 - 交付：docs/board-environment-adaptation.md、board-environment-adaptation-evidence.md；默认off，未启用live/真实播报。

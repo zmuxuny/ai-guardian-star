@@ -1,0 +1,50 @@
+{
+  "app_root": "/root/ai_guardian",
+  "architecture": "aarch64",
+  "atc_conversion_record": "not_available",
+  "expected_files": {
+    "ascend_audio_output.py": "6b7a4baa6ce945514d54b359b7801787b468abd80a1d3084eef52f91bee84969",
+    "ascend_board_server.py": "2eed3e7a2a03cdb067f61434cd2613a2a3ad1172c4d61e81ad500806a22166d2",
+    "ascend_main_other.py": "bc837a59feb3d82ea0523506710cbdc7ca5f8af8c90ab4ba7f5c5d6620b755ff",
+    "ascend_video_stream.py": "bbe359920beadaa7e7a53ba32506d4888952fc1b0d34d606e40c1ce4f1de3084",
+    "ascend_voice_stream.py": "db32de410a0c8e3f322a5511b5ee7448f86c4bd1cf113a5f43b978991de2e4bf",
+    "best.om": "3521835ffa0cc4d68990d37204ead5ca43b9722d8a5917ec21f28b82df9a0a87",
+    "care_api.py": "2353ac7ff80b20b41698b09705fae7482e6c71f85f8beb7c1d1a3c20c2caafac",
+    "care_delivery_store.py": "d051bf5f793310c51cecf80b0a1f44b73a75898ea5ed6cf65109e7ca3ff6f0ac",
+    "care_runtime.py": "0051f5d90247a7914c801f24ffb772b9aa957b29ea46591a2a709bbcecdd84c7",
+    "care_transport.py": "9a9766dc97d762fff3a63d0b995d3eb5b4d7af3f75b3f7861127a13b508460e6",
+    "guardian_event_cache.py": "e5bceed79bca3009f8335cbe433a6a6b579ca1c7cb2992994c2617c221a98bd8",
+    "guardian_history.py": "6f4eb1e1e37e17e83dec6a48babd2923c7fd92cd55a3f1455e3e3da6021f03b4",
+    "guardian_recording.py": "ff28f5995ced57dc65681d4742f7d892e2a43e8cda5804ddd201143f83c593fe",
+    "guardian_recording_config.py": "fdef9ab4ec175cf44e2c5535b5c23f551f5d5c121c1eeb48434c01e29a17a4fe",
+    "guardian_runtime.py": "d34f95fdce5f106f37a0f090b516b77145b089cc2c3e582b081aa4665fd838c7",
+    "guardian_storage.py": "67d48ff0be6fc110048834146e48ecf995c67acfe0983a5cf12f3bc0a7ae16cc",
+    "local_care_migrations.py": "63bc8ce4c881c26d5dfcc79ef39c0d18bc11994ce8d3316e497c643ca55a8bb1",
+    "local_care_store.py": "35abcb59db98ee2e6ff8a5689cdbe496618cef4b74d90457bffe39a7f1c732ca",
+    "migrations/local_care/001_initial.sql": "9e97c4dd1052f0fc9924a203e186df1f216aec5faab1bfc7aca23fb7d30f4a57",
+    "migrations/local_care/002_baseline_source.sql": "eeaad028eaeda72daac7b5cfa5adddc32278a698c4206397eac44ce4d6c9e2bc",
+    "migrations/local_care/003_delivery.sql": "7a4522441622a32de0cb3e23e8d91da041f4338daf698940d360eecc7a1f6438",
+    "migrations/local_care/004_weekly.sql": "ea1873fce73a7db9da0a4d61264656944786abe5a2cfa4da4c39592de5a7a62d",
+    "region_aggregation.py": "ae293a88ff62ecd0e086f3739bc2cf9487f7b749118a09aa08df2a770627a7b5",
+    "sedentary_care.py": "63e757355c7b52a963d38ef30adaa39c016166624d8f7d1541bee2137bd9232d",
+    "shadow_mode.py": "33b7fc3e8e8fc19a1c3759a4b644840055dd0338e2e4461fa6234d8d3c5a2a66",
+    "start.sh": "3db9598da3abf875de558db1acff32c6ec9fe464c5856e4974dee22b45eda55c",
+    "weekly_report.py": "19aaf7ee47f91a7ae25af0ac228841db414e16a86b73369e949c8d4ff7ac1d8c",
+    "weekly_store.py": "bee986d94a5c73aa35e1ce681b79f3cc7acef62ffbf8992741202a231724f8e1"
+  },
+  "http_base": "http://127.0.0.1:5000",
+  "native_audio_library": "libguardian_audio.so",
+  "observed_date": "2026-11-16",
+  "python_min": [
+    3,
+    9
+  ],
+  "runtime_revision": "e463172",
+  "schema_version": 1,
+  "service": "guardian-board.service",
+  "soc_identity": "not_recorded",
+  "sqlite_min": [
+    3,
+    24
+  ]
+}
