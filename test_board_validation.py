@@ -93,6 +93,36 @@ class ValidationTests(unittest.TestCase):
                                                                   {'level':'L1','event_id':'two','role':'P2'}])
         self.assertNotEqual(validation.assess_shadow([row])['checks']['reminders'],'PASS')
 
+    def test_repeated_cover_cases_compare_frozen_time_within_each_episode(self):
+        rows=[]
+        for events,seconds in ((['a'],0.88),(['a','b'],1.86)):
+            for _ in range(2):
+                rows.append(dict(phase='cover',confirmed_action=True,actor_role='P2',session_id='same',
+                                 states={'P2':dict(state='PAUSED',seated_seconds=seconds,event_ids=events)}))
+        self.assertEqual(validation.assess_shadow(rows)['checks']['cover'],'PASS')
+        rows[-1]['states']['P2']['seated_seconds']=2.86
+        self.assertEqual(validation.assess_shadow(rows)['checks']['cover'],'FAIL')
+
+    def test_expired_idle_samples_do_not_turn_valid_freeze_into_drift(self):
+        rows=[dict(phase='cover',confirmed_action=True,actor_role='P2',states={'P2':dict(
+            state='PAUSED',phase=phase,seated_seconds=seconds,event_ids=['real-event'],at=at,uncertainty_seconds=uncertainty)})
+            for phase,seconds,at,uncertainty in (('SITTING',1.86,100,10),('SITTING',1.86,101,11),('IDLE',0,210.1,0),('IDLE',0,211,1))]
+        self.assertEqual(validation.assess_shadow(rows)['checks']['cover'],'PASS')
+        self.assertNotEqual(validation.assess_shadow(rows[2:])['checks']['cover'],'PASS')
+
+    def test_cover_cannot_hide_early_reset_or_reset_with_missing_deadline_proof(self):
+        rows=[dict(phase='cover',confirmed_action=True,actor_role='P2',states={'P2':dict(
+            state='PAUSED',phase=phase,seated_seconds=seconds,event_ids=['real-event'],at=at,uncertainty_seconds=uncertainty)})
+            for phase,seconds,at,uncertainty in (('SITTING',1.86,100,10),('SITTING',1.86,101,11),('IDLE',0,102,0))]
+        self.assertEqual(validation.assess_shadow(rows)['checks']['cover'],'FAIL')
+        del rows[-1]['states']['P2']['at']
+        self.assertNotEqual(validation.assess_shadow(rows)['checks']['cover'],'PASS')
+
+    def test_cover_without_event_identity_cannot_prove_freeze(self):
+        rows=[dict(phase='cover',confirmed_action=True,actor_role='P2',states={'P2':dict(
+            state='PAUSED',phase='SITTING',seated_seconds=1.86,event_ids=[])}) for _ in range(2)]
+        self.assertNotEqual(validation.assess_shadow(rows)['checks']['cover'],'PASS')
+
     def test_owned_dropin_is_required_for_cleanup(self):
         session=self.root/'session';session.mkdir()
         (session/'token').write_text('private-token')

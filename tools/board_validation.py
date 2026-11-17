@@ -191,10 +191,32 @@ def assess_shadow(rows, restart_results=()):
                     and row['states'].get(actor,{}).get('state')=='IDLE'
                     and row['states'][actor].get('seated_seconds')==0 for row in sample):value='PASS'
             if phase=='cover':
-                paused=[s for s in states if s.get('state')=='PAUSED']
-                if len(paused)>=2:
-                    values=[s['seated_seconds'] for s in paused]
-                    value='PASS' if max(values)-min(values)<0.3 else 'FAIL'
+                paused=[s for s in states if s.get('state')=='PAUSED' and s.get('event_ids')]
+                # Repeating a physical case can start a new real event. Compare
+                # frozen values only while the exported event history is equal.
+                # A changed history splits evidence conservatively; never join
+                # two different sitting rounds to manufacture a freeze/pass.
+                by_episode={}
+                for state in paused:
+                    by_episode.setdefault(tuple(state['event_ids']),[]).append(state)
+                ranges=[];expiry=[]
+                for segment in by_episode.values():
+                    active=[];latest=None
+                    for state in segment:
+                        if state.get('phase')!='IDLE':
+                            active.append(state['seated_seconds']);latest=state
+                        elif latest is not None:
+                            # Clearing at the real 120s deadline is expected;
+                            # clearing earlier (or without time proof) must not
+                            # be hidden by excluding all idle snapshots.
+                            times=(state.get('at'),latest.get('at'),latest.get('uncertainty_seconds'))
+                            if all(isinstance(t,(int,float)) and not isinstance(t,bool) for t in times):
+                                expiry.append('PASS' if times[0]-(times[1]-times[2])>=120 else 'FAIL')
+                            else: expiry.append('NOT_EXERCISED')
+                    if len(active)>=2: ranges.append(max(active)-min(active))
+                if ranges:
+                    value=('FAIL' if any(delta>=0.3 for delta in ranges) or 'FAIL' in expiry else
+                           'NOT_EXERCISED' if 'NOT_EXERCISED' in expiry else 'PASS')
             if phase=='leave' and len(sample)>=2:
                 duration=sample[-1].get('sample_monotonic',0)-sample[0].get('sample_monotonic',0)
                 if duration>=120 and any(s.get('seated_seconds',0)>0 for s in states) and sample[-1].get('states',{}).get(actor,{}).get('state')=='IDLE':value='PASS'

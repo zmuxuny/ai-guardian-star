@@ -1645,3 +1645,7 @@
 ## Session: 2026-11-17
 
 - Codex 离线交付复连验证工具、冻结板端指纹和顺序清单；64文件Python3.9编译、108模拟、独立包周报12项通过。未连接设备、不改硬件/业务；上次第2步仍未完成，复连先确认旧shadow清理。见 docs/board-offline-preparation-2026-11-17.md。
+
+## Session: 2026-11-17 board-reconnection
+
+- 原板310B4/3.9.2复连，第1步准入/备份通过；坐下L0/L1、冻结/120秒归零和零新outbox有实测。短停5秒在75秒内换事件并重发L0，归Codex T-20261117-03；第2步FAIL，3–6未进入。18:48回读off/28指纹/camera7.3通过。验证工具跨轮/到期误报已修，112模拟通过；详见docs/board-reconnection-validation-2026-11-17.md。
