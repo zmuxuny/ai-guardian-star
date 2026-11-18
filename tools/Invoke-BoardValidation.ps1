@@ -19,9 +19,13 @@ param(
     [string]$Proof,
     [string[]]$IncludeSession = @(),
     [switch]$ConfirmedAction,
+    [switch]$FastDemo,
+    [switch]$AudioDemo,
     [switch]$Quiet
 )
 $ErrorActionPreference = 'Stop'
+if ($AudioDemo) { $FastDemo = $true }
+if ($FastDemo -and $Action -ne 'StartShadow') { throw '-FastDemo only applies to StartShadow.' }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repoRoot '.tmp/board-ready-kit' }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
@@ -77,7 +81,7 @@ if ($Action -eq 'DownloadEvidence') {
     $destination = Join-Path $OutputDirectory 'private-evidence'
     New-Item -ItemType Directory -Force -Path $destination | Out-Null
     # Deliberately exclude token/config/roles, database backups, images and media.
-    foreach ($name in @('ledger.json','probe.json','off-resources.json','observations.jsonl','step2-assessment.json','restart-short.json','restart-long.json','step3-feedback.json','step3-media.json','step3-signoff.json','step4-weekly.json','step4-lifecycle.json','step4-signoff.json','step5-audio.json','step6-resources.json')) {
+    foreach ($name in @('ledger.json','probe.json','test-profile.json','off-resources.json','observations.jsonl','step2-assessment.json','restart-short.json','restart-long.json','step3-feedback.json','step3-media.json','step3-signoff.json','step4-weekly.json','step4-lifecycle.json','step4-signoff.json','step5-audio.json','step6-resources.json')) {
         & scp @connection -q -P $Port "${target}:$Session/$name" $destination 2>$null
         if ($LASTEXITCODE -ne 0) { Write-Output "Evidence not available: $name" }
     }
@@ -131,7 +135,7 @@ switch ($Action) {
     'Feedback' { $arguments += @('--role',$Role) }
     'WeeklyLifecycle' { $arguments += @('--role',$Role) }
     'CompleteStep' { $arguments += @('--step',"$Step"); if ($Proof) { $arguments += @('--proof',$Proof) } }
-    'StartShadow' { if ($Quiet) { $arguments += '--quiet' } }
+    'StartShadow' { if ($Quiet) { $arguments += '--quiet' }; if ($FastDemo) { $arguments += '--fast-demo' }; if ($AudioDemo) { $arguments += '--audio-demo' } }
     'Assess2' { foreach ($folder in $IncludeSession) { $arguments += @('--include-session',$folder) } }
 }
 $command = 'pid=$(systemctl show guardian-board.service -p MainPID --value); board_py=$(readlink "/proc/$pid/exe"); if [ -z "$board_py" ]; then board_py=$(command -v python3); fi; cd ' + (Quote-Posix $remoteRoot) + '; PYTHONDONTWRITEBYTECODE=1 "$board_py" tools/board_validation.py '

@@ -24,7 +24,8 @@ def production_entry(name):
     tree = ast.parse((ROOT / 'src/ascend_board_server.py').read_text(encoding='utf-8'))
     node = next(n for n in tree.body if getattr(n, 'name', '') == name)
     namespace = {'process_care_frame': process_care_frame, 'record_event': record_event}
-    exec(compile(ast.Module(body=[node], type_ignores=[]), 'ascend_board_server.py', 'exec'), namespace)
+    audio_helper = next(n for n in tree.body if getattr(n, 'name', '') == 'dispatch_care_audio')
+    exec(compile(ast.Module(body=[audio_helper, node], type_ignores=[]), 'ascend_board_server.py', 'exec'), namespace)
     return namespace[name]
 
 

@@ -8,6 +8,7 @@ import ast
 import datetime
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -32,6 +33,8 @@ DROPIN = Path('/run/systemd/system/guardian-board.service.d/90-care-shadow-accep
 PHASES = ('baseline','seated','standing','stand-still','cover','leave','return','quiet')
 STATE_KEYS = ('at','wall_time','state','phase','seated_seconds','remaining_seconds',
               'uncertainty_seconds','uncertainty_reason','level','pending_level','counts','quiet')
+DEMO_DETECTOR_ENV = {'AI_GUARDIAN_VLM_LONG_SIT_SECONDS':'2'}
+DEMO_AUDIO_ENV = {'AI_GUARDIAN_CARE_AUDIO_DIR':'/root/ai_guardian/care_audio_assets','AI_GUARDIAN_CARE_DEMO_AUDIO':'1'}
 
 
 def read_json(path):
@@ -115,11 +118,12 @@ def build_kit(repo, destination):
     for name in ('docs/board-offline-preparation-2026-11-17.md','tools/Invoke-BoardValidation.ps1',
                  'test_weekly_report.py','tools/care_flat_release.py','tools/care_release.py',
                  'tools/care_runtime_patch.py','test_care_restart_input.py','test_care_runtime_patch.py',
+                 'test_board_validation.py','docs/board-retest-ready-2026-11-18.md','docs/board-fast-demo-2026-11-18.md',
                  'docs/board-short-restart-fix-2026-11-17.md'):
         if (repo/name).is_file(): names.append(name)
     # Isolated weekly fixtures use only these local modules; no sensor imports.
     for name in ('local_care_store','local_care_migrations','care_delivery_store','weekly_store','weekly_report',
-                 'sedentary_care','shadow_mode','region_aggregation','guardian_runtime','care_runtime','care_transport'):
+                 'sedentary_care','shadow_mode','region_aggregation','guardian_runtime','care_runtime','care_transport','care_api'):
         names.append('src/'+name+'.py')
     names += [p.relative_to(repo).as_posix() for p in (repo/'src/migrations/local_care').glob('*.sql')]
     blobs = {name:(repo/name).read_bytes() for name in sorted(names)}
@@ -155,13 +159,31 @@ def sanitize_state(state, role):
     return dict(role=role,**{key:state[key] for key in STATE_KEYS if key in state})
 
 
+def visible_actor(sample):
+    roles=sorted(set(sample.get('recognized_roles',[])))
+    if not roles: raise ValueError('recognized_actor_required; specify a previously observed role for absence phases')
+    return max(roles,key=lambda role:sample.get('states',{}).get(role,{}).get('seated_seconds',0))
+
+
 def owns_dropin(content, session):
     session = Path(session)
     if not (session/'token').is_file(): return False
     expected={'[Service]', 'Environment=AI_GUARDIAN_CARE_CONFIG='+str(session/'config.json'),
               'Environment=AI_GUARDIAN_CARE_API_TOKEN='+(session/'token').read_text().strip()}
+    profile_path=session/'test-profile.json'
+    if profile_path.exists():
+        try: profile=read_json(profile_path)
+        except (OSError,ValueError): return False
+        overrides=profile.get('detector_environment',{})
+        if overrides:
+            if profile.get('name')!='fast-demo' or overrides!=DEMO_DETECTOR_ENV: return False
+            expected.update('Environment='+key+'='+value for key,value in overrides.items())
+        audio=profile.get('audio_environment',{})
+        if audio:
+            if profile.get('name')!='fast-demo' or audio!=DEMO_AUDIO_ENV:return False
+            expected.update('Environment='+key+'='+value for key,value in audio.items())
     lines=[line.strip() for line in content.splitlines() if line.strip()]
-    return len(lines)==3 and set(lines)==expected
+    return len(lines)==len(expected) and set(lines)==expected
 
 
 def assess_shadow(rows, restart_results=()):
@@ -387,7 +409,8 @@ class DeviceRun:
             time.sleep(0.1)
         raise ValueError('watchdog_not_confirmed; temporary override not enabled')
 
-    def start_shadow(self, quiet=False):
+    def start_shadow(self, quiet=False, fast_demo=False, audio_demo=False):
+        if audio_demo and not fast_demo:raise ValueError('audio_demo_requires_fast_demo')
         self.probe()  # Cached yesterday's PASS must not authorize today's write.
         require_steps(self.ledger(),2)
         if (self.session/'config.json').exists() or DROPIN.exists(): raise ValueError('existing_session_must_be_reviewed_and_closed')
@@ -421,23 +444,28 @@ class DeviceRun:
         try: people=db.execute('SELECT user_id,name FROM t_face_feature ORDER BY user_id').fetchall()
         finally: db.close()
         if not 1<=len(people)<=32 or len(set(name for _,name in people))!=len(people): raise ValueError('missing_or_ambiguous_local_identity')
-        machine=dict(l0_seconds=15,upgrade_seconds=10,repeat_seconds=10)
+        machine=dict(l0_seconds=2 if fast_demo else 15,upgrade_seconds=3 if fast_demo else 10,repeat_seconds=5 if fast_demo else 10)
         if not quiet: machine.update(quiet_start=None,quiet_end=None)
         config=dict(mode='shadow',sync_enabled=False,db_path='isolated/care.db',person_ids=[p[0] for p in people],
                     face_label_ids={p[1]:p[0] for p in people},model_version='acceptance-'+secrets.token_hex(8),
                     region_id='unknown',machine=machine)
         validate_test_config(config)
         write_json(self.session/'config.json',config)
+        detector_environment=dict(DEMO_DETECTOR_ENV) if fast_demo else {}
+        audio_environment=dict(DEMO_AUDIO_ENV) if audio_demo else {}
+        write_json(self.session/'test-profile.json',dict(name='fast-demo' if fast_demo else 'acceptance',machine=machine,detector_environment=detector_environment,audio_environment=audio_environment))
         write_json(self.session/'roles.json',{p[0]:'P%d'%(i+1) for i,p in enumerate(people)})
         token=secrets.token_hex(32);(self.session/'token').write_text(token);(self.session/'token').chmod(0o600)
         content='[Service]\nEnvironment=AI_GUARDIAN_CARE_CONFIG='+str(self.session/'config.json')+'\nEnvironment=AI_GUARDIAN_CARE_API_TOKEN='+token+'\n'
+        content+=''.join('Environment='+key+'='+value+'\n' for key,value in detector_environment.items())
+        content+=''.join('Environment='+key+'='+value+'\n' for key,value in audio_environment.items())
         DROPIN.parent.mkdir(parents=True,exist_ok=True)
         self._arm_watchdog()  # Confirm detached recovery BEFORE enabling override.
         try:
             with DROPIN.open('x') as stream: stream.write(content)
             DROPIN.chmod(0o600);self.runner(['systemctl','daemon-reload']);self.runner(['systemctl','restart',SERVICE])
             self.wait_ready()
-            return dict(status='PASS',mode='shadow',sync_enabled=False,accelerated_profile=machine,restore_off_after_seconds=1800)
+            return dict(status='PASS',mode='shadow',sync_enabled=False,trigger_profile='fast-demo' if fast_demo else 'acceptance',accelerated_profile=machine,detector_environment=detector_environment,audio_environment=audio_environment,restore_off_after_seconds=1800)
         except BaseException:
             if DROPIN.exists() and owns_dropin(DROPIN.read_text(),self.session): self.recover_off()
             raise
@@ -532,23 +560,53 @@ class DeviceRun:
 
     def restart_case(self, kind, role):
         require_steps(self.ledger(),2)
-        config=read_json(self.session/'config.json');validate_test_config(config)
-        if not DROPIN.exists() or not owns_dropin(DROPIN.read_text(),self.session): raise ValueError('only_owned_shadow_service_may_restart')
+        if kind not in ('short','long'): raise ValueError('invalid_restart_kind')
+        path=self.session/('restart-'+kind+'.json')
+        pending=dict(status='INCOMPLETE',kind=kind,role=role,stage='preflight',
+                     started_at=datetime.datetime.now(datetime.timezone.utc).isoformat())
+        write_json(path,pending)  # A failed rerun must never leave yesterday's PASS.
+        try:
+            config=read_json(self.session/'config.json');validate_test_config(config)
+            if not DROPIN.exists() or not owns_dropin(DROPIN.read_text(),self.session): raise ValueError('only_owned_shadow_service_may_restart')
+            return self._restart_case(kind,role,path,pending)
+        except Exception as exc:
+            pending['error_type']=type(exc).__name__;write_json(path,pending)
+            raise
+
+    def _restart_case(self, kind, role, path, pending):
         sample=self.sample()
         if role=='auto':
-            if len(sample['recognized_roles'])!=1: raise ValueError('unique_visible_actor_required')
-            role=sample['recognized_roles'][0]
+            role=visible_actor(sample)
         before=sample['states'].get(role)
         if not before or before['seated_seconds']<=0: raise ValueError('active_real_sitting_sample_required')
+        if role not in sample['recognized_roles']: raise ValueError('visible_actor_required')
+        if kind=='short' and before.get('counts')!={'L0':1,'L1':2}:
+            raise ValueError('exhausted_reminders_required_before_short_restart')
+        pending.update(stage='stopping',role=role,before=before);write_json(path,pending)
         self.runner(['systemctl','stop',SERVICE])
         try:
             time.sleep(5 if kind=='short' else 130)
         finally: self.runner(['systemctl','start',SERVICE])
-        self.wait_ready();self.observe(35);after=self.sample()['states'][role]
-        same=bool(before['event_ids']) and before['event_ids'][-1:]==after['event_ids'][-1:]
-        passed=(same and after['counts']['L0']==before['counts']['L0']) if kind=='short' else (not same and bool(after['event_ids']))
-        result=dict(status='PASS' if passed else 'FAIL',kind=kind,role=role,before=before,after=after)
-        write_json(self.session/('restart-'+kind+'.json'),result);return result
+        pending['stage']='recovering';write_json(path,pending)
+        self.wait_ready();recovery=self.sample()
+        pending['stage']='observing';write_json(path,pending)
+        observation=self.observe(35);final=self.sample()
+        restored=recovery['states'].get(role,{});after=final['states'].get(role,{})
+        stamps=[row.get('sample_monotonic') for row in (sample,recovery,final)]
+        measured=all(isinstance(t,(int,float)) and not isinstance(t,bool) and math.isfinite(t) for t in stamps)
+        gap=stamps[1]-stamps[0] if measured else None
+        timing=measured and stamps[2]>=stamps[1] and (5<=gap<120 if kind=='short' else gap>=120)
+        visible=all(role in row.get('recognized_roles',[]) for row in (recovery,final))
+        evidence=timing and visible and observation.get('status')=='PASS' and bool(restored) and bool(after)
+        same=lambda state:bool(before.get('event_ids')) and before['event_ids'][-1:]==state.get('event_ids',[])[-1:]
+        if kind=='short':
+            passed=all(same(s) and s.get('counts')==before['counts'] and s.get('seated_seconds',0)>=before['seated_seconds']-0.3 for s in (restored,after))
+        else: passed=not same(after) and bool(after.get('event_ids')) and after.get('seated_seconds',0)>0
+        result=dict(status=('PASS' if passed else 'FAIL') if evidence else 'INCOMPLETE',kind=kind,role=role,
+                    before=before,recovery=restored,after=after,recovery_gap_seconds=gap,
+                    sample_monotonic=stamps,checks=dict(timing=bool(timing),visible_actor=visible,
+                    observation=observation.get('status'),event_and_counts=passed))
+        write_json(path,result);return result
 
     def feedback_case(self, role='auto'):
         require_steps(self.ledger(),3)
@@ -722,12 +780,15 @@ def main(argv=None):
     parser.add_argument('--role',default='auto')
     parser.add_argument('--reference-time',type=float)
     parser.add_argument('--quiet',action='store_true')
+    parser.add_argument('--fast-demo',action='store_true')
+    parser.add_argument('--audio-demo',action='store_true')
     parser.add_argument('--step',type=int,choices=(2,3,4,5,6))
     parser.add_argument('--proof',type=Path)
     parser.add_argument('--include-session',type=Path,action='append',default=[])
     parser.add_argument('--flat-backup',type=Path,default=Path('/root/guardian-preflight-backups/20261116-env-adapt-135914/overlay'))
     parser.add_argument('--identity-backup',type=Path,default=Path('/root/guardian-care-staging/shadow-acceptance-20261116/pre-shadow-backup'))
     args=parser.parse_args(argv)
+    if (args.fast_demo or args.audio_demo) and args.action!='start-shadow': parser.error('demo options only apply to start-shadow')
     if args.action=='offline': result=offline_audit(ROOT,args.output)
     elif args.action=='pack': result=build_kit(ROOT,args.output)
     else:
@@ -736,13 +797,11 @@ def main(argv=None):
         if args.action=='probe': result=device.probe()
         elif args.action in ('baseline-resources','stability'): result=device.resource_observe(args.seconds,args.action=='stability')
         elif args.action=='recover-off': result=device.recover_off()
-        elif args.action=='start-shadow': result=device.start_shadow(args.quiet)
+        elif args.action=='start-shadow': result=device.start_shadow(args.quiet,args.fast_demo or args.audio_demo,args.audio_demo)
         elif args.action=='mark':
             role=args.role
             if role=='auto':
-                visible=device.sample()['recognized_roles']
-                if len(visible)!=1: raise ValueError('unique_visible_actor_required; specify a previously observed role explicitly')
-                role=visible[0]
+                role=visible_actor(device.sample())
             write_json(device.session/'phase.json',dict(name=args.phase,confirmed=args.confirmed_action,role=role));result=dict(status='RECORDED',phase=args.phase,role=role)
         elif args.action=='observe': result=device.observe(args.seconds)
         elif args.action=='assess2': result=device.assess(args.include_session)
