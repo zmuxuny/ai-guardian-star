@@ -55,6 +55,7 @@ alert_mqtt = None
 heartbeat_publisher = None
 care_runtime = None
 care_worker = None
+care_audio_player = None
 care_last_poll = 0.0
 continuous_store = None
 continuous_recorder = None
@@ -79,10 +80,29 @@ def dispatch_care_detection(runtime, alerts, new_events):
     if runtime is None:
         return {'mode':'off', 'states':[], 'event_refs':{}, 'record_refs':[]}
     try:
-        return runtime.process_frame(alerts, new_events)
+        result = runtime.process_frame(alerts, new_events)
+        dispatch_care_audio(result.get('states', []))
+        return result
     except Exception as exc:
         print(f'[Care] frame_failed code={type(exc).__name__}')
         return {'mode': 'failed', 'states': [], 'event_refs': {}, 'record_refs': []}
+
+
+def dispatch_care_audio(steps):
+    player = globals().get('care_audio_player')
+    if player is not None:
+        try:
+            player.handle_steps(steps)
+        except Exception as exc:
+            print(f'[CareAudio] dispatch_failed code={type(exc).__name__}')
+
+
+def play_intercom_audio(data):
+    player = globals().get('care_audio_player')
+    if player is not None:
+        player.intercom(data)
+    else:
+        audio_hw.put_audio_frame(data)
 
 
 def trigger_history_event(cache, kind, alert, care_result, at):
@@ -98,7 +118,7 @@ def poll_care_without_observation(runtime):
     if runtime is not None and time.monotonic() - care_last_poll >= 1:
         care_last_poll = time.monotonic()
         try:
-            runtime.tick()
+            dispatch_care_audio(runtime.tick())
         except Exception as exc:
             print(f'[Care] tick_failed code={type(exc).__name__}')
 
@@ -738,7 +758,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
             data = message.get("bytes")
             if data:
-                audio_hw.put_audio_frame(data)
+                play_intercom_audio(data)
     except WebSocketDisconnect:
         print("🎧 WebSocket intercom disconnected")
     except Exception as e:
@@ -765,7 +785,7 @@ def udp_receive_thread():
                 phone_addr = addr
                 print(f"🔗 更新连接目标: {addr}")
             if data:
-                audio_hw.put_audio_frame(data)
+                play_intercom_audio(data)
         except socket.timeout:
             continue
         except Exception as e:
@@ -790,6 +810,8 @@ def cleanup_system():
         except Exception:
             pass
         system_detector = None
+    if care_audio_player is not None:
+        care_audio_player.close()
     if hasattr(audio_hw, "stop_audio_service"):
         try:
             audio_hw.stop_audio_service()
@@ -918,6 +940,20 @@ def run_system():
     except Exception as exc:
         print(f'[Care] init_failed code={type(exc).__name__}')
         care_runtime = None
+
+    global care_audio_player
+    care_audio_player = None
+    audio_directory = os.environ.get('AI_GUARDIAN_CARE_AUDIO_DIR')
+    demo_audio = os.environ.get('AI_GUARDIAN_CARE_DEMO_AUDIO') == '1'
+    if care_runtime is not None and audio_directory and (care_runtime.config.mode == 'live' or demo_audio):
+        try:
+            from care_audio import CareAudioPlayer
+            care_audio_player = CareAudioPlayer(audio_directory, audio_hw.put_audio_frame,
+                lambda: bool(getattr(audio_hw, 'get_audio_status', lambda: {})().get('output_enabled')))
+            care_audio_player.start()
+        except Exception as exc:
+            print(f'[CareAudio] init_failed code={type(exc).__name__}')
+            care_audio_player = None
 
     # Continuous video has its own managed root, quota and rolling 24-hour
     # retention. It uses the existing camera capture, never a second opener.
@@ -1159,6 +1195,8 @@ def run_system():
     @app.on_event("shutdown")
     async def shutdown_event():
         global mic_broadcast_handle
+        if care_audio_player is not None:
+            care_audio_player.close()
         if care_worker is not None:
             care_worker.stop()
         if care_runtime is not None:

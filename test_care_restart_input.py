@@ -10,6 +10,28 @@ from src.sedentary_care import Config, VirtualClock
 
 
 class RestartInputTests(unittest.TestCase):
+    def test_demo_tolerates_small_jitter_and_reminds_at_four_seconds_then_clears_on_motion(self):
+        from dataclasses import replace
+        demo=CareRuntime(replace(self.config,db_path=Path(self.temp.name)/'demo.db',
+            machine=Config(l0_seconds=2,upgrade_seconds=3,repeat_seconds=5,quiet_start=None,quiet_end=None)),clock=self.clock)
+        self.addCleanup(demo.close)
+        timer=StationaryTimer()
+        for second in range(13):
+            if second:self.clock.advance(1)
+            shift=second%3
+            timer.update([shift,0,100+shift,200],self.clock.now)
+            demo.on_detection([dict(id=1,care_person_id='p1',is_sitting=timer.duration(self.clock.now)>=2,
+                care_observation=timer.care_observation(self.clock.now,2))],{})
+            if second==3:self.assertEqual(demo.state('p1')['counts']['L0'],0)
+            if second==4:self.assertEqual(demo.state('p1')['counts']['L0'],1)
+            if second==7:self.assertEqual(demo.state('p1')['counts']['L1'],1)
+        self.assertEqual(demo.state('p1')['counts'],{'L0':1,'L1':2})
+        self.assertEqual(demo.events('p2'),[])
+        self.clock.advance(1);timer.update([80,0,180,200],self.clock.now)
+        demo.on_detection([dict(id=1,care_person_id='p1',is_sitting=False,
+            care_observation=timer.care_observation(self.clock.now,2))],{})
+        self.assertEqual(demo.state('p1')['seated_seconds'],0)
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.clock=VirtualClock(datetime(2026,11,17,12,tzinfo=timezone.utc))

@@ -8,6 +8,84 @@ from tools import board_validation as validation
 
 
 class ValidationTests(unittest.TestCase):
+    def test_auto_actor_accepts_multiple_recognized_people_and_selects_active_one(self):
+        sample=dict(recognized_roles=['P1','P2'],states={'P1':{'seated_seconds':0},'P2':{'seated_seconds':25}})
+        self.assertEqual(validation.visible_actor(sample),'P2')
+        sample['states']['P1']['seated_seconds']=40
+        self.assertEqual(validation.visible_actor(sample),'P1')
+        sample['recognized_roles']=[]
+        with self.assertRaises(ValueError): validation.visible_actor(sample)
+
+    def restart_fixture(self, kind='short', change=None, before_change=None, elapsed=7, observation='PASS'):
+        from copy import deepcopy
+        from unittest.mock import patch
+        device=validation.DeviceRun(self.root/'restart-session',self.root/'app',runner=lambda args:'')
+        device.set_step(1,'PASS')
+        validation.write_json(device.session/'config.json',dict(mode='shadow',sync_enabled=False))
+        (device.session/'token').write_text('fixture-only')
+        dropin=self.root/'owned.conf'
+        dropin.write_text('[Service]\nEnvironment=AI_GUARDIAN_CARE_CONFIG='+str(device.session/'config.json')+'\nEnvironment=AI_GUARDIAN_CARE_API_TOKEN=fixture-only\n')
+        state=dict(seated_seconds=35,counts=dict(L0=1,L1=2),event_ids=['original'])
+        if before_change: before_change(state)
+        before=dict(sample_monotonic=1000,recognized_roles=['P1'],states=dict(P1=state))
+        recovered=deepcopy(before);recovered['sample_monotonic']=1000+elapsed
+        after=deepcopy(recovered);after['sample_monotonic']+=35
+        if change: change(recovered);change(after)
+        with patch.object(validation,'DROPIN',dropin), patch.object(device,'sample',side_effect=[before,recovered,after]), patch.object(device,'wait_ready'), patch.object(device,'observe',return_value=dict(status=observation),side_effect=RuntimeError('fixture-observation-error') if observation=='RAISE' else None), patch.object(validation.time,'sleep'):
+            return device.restart_case(kind,'auto')
+
+    def test_failed_rerun_invalidates_previous_restart_pass(self):
+        self.assertEqual(self.restart_fixture()['status'],'PASS')
+        with self.assertRaises(RuntimeError): self.restart_fixture(observation='RAISE')
+        result=validation.read_json(self.root/'restart-session/restart-short.json')
+        self.assertEqual(result['status'],'INCOMPLETE')
+        self.assertNotEqual(validation.assess_shadow([], [result])['checks']['short_restart'],'PASS')
+
+    def test_short_restart_requires_both_reminder_counts_unchanged(self):
+        result=self.restart_fixture(change=lambda row:row['states']['P1']['counts'].update(L1=3))
+        self.assertEqual(result['status'],'FAIL')
+
+    def test_short_restart_without_measured_gap_cannot_pass(self):
+        result=self.restart_fixture(elapsed=121)
+        self.assertEqual(result['status'],'INCOMPLETE')
+
+    def test_short_restart_records_actual_recovery_gap(self):
+        result=self.restart_fixture()
+        self.assertEqual(result['status'],'PASS')
+        self.assertEqual(result['recovery_gap_seconds'],7)
+
+    def test_restart_requires_visible_actor_after_recovery(self):
+        result=self.restart_fixture(change=lambda row:row.update(recognized_roles=[]))
+        self.assertEqual(result['status'],'INCOMPLETE')
+
+    def test_restart_observation_failure_cannot_pass(self):
+        result=self.restart_fixture(observation='FAIL')
+        self.assertEqual(result['status'],'INCOMPLETE')
+
+    def test_restart_missing_clock_or_actor_state_cannot_pass(self):
+        result=self.restart_fixture(change=lambda row:row.pop('sample_monotonic'))
+        self.assertEqual(result['status'],'INCOMPLETE')
+        result=self.restart_fixture(change=lambda row:row.update(states={}))
+        self.assertEqual(result['status'],'INCOMPLETE')
+
+    def test_short_restart_detects_reset_even_if_event_id_survives(self):
+        result=self.restart_fixture(change=lambda row:row['states']['P1'].update(seated_seconds=0))
+        self.assertEqual(result['status'],'FAIL')
+
+    def test_short_restart_requires_exhausted_counts_before_stopping(self):
+        with self.assertRaisesRegex(ValueError,'exhausted'):
+            self.restart_fixture(before_change=lambda state:state['counts'].update(L1=1))
+
+    def test_short_restart_detects_changed_event_and_reset_time(self):
+        result=self.restart_fixture(change=lambda row:row['states']['P1'].update(event_ids=['replacement'],seated_seconds=0))
+        self.assertEqual(result['status'],'FAIL')
+
+    def test_long_restart_needs_measured_120_seconds_and_new_event(self):
+        result=self.restart_fixture(kind='long',elapsed=131,change=lambda row:row['states']['P1'].update(event_ids=['new']))
+        self.assertEqual(result['status'],'PASS')
+        result=self.restart_fixture(kind='long',elapsed=7,change=lambda row:row['states']['P1'].update(event_ids=['new']))
+        self.assertEqual(result['status'],'INCOMPLETE')
+
     def test_resource_measurement_cannot_bypass_step_gate_or_hide_failed_service(self):
         from unittest.mock import patch
         device=validation.DeviceRun(self.root/'session',self.root/'app',runner=lambda args:'0')
@@ -188,7 +266,7 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):device.feedback_case()
         self.assertEqual(calls,[])
 
-    def test_watchdog_is_armed_before_runtime_override_or_restart(self):
+    def shadow_start_fixture(self, fast_demo=False, audio_demo=False):
         import sqlite3
         from unittest.mock import patch
         session=self.root/'session';session.mkdir();app=self.root/'app';(app/'db').mkdir(parents=True)
@@ -212,8 +290,46 @@ class ValidationTests(unittest.TestCase):
         def read_bytes(path):
             return b'UNCHANGED=value\0' if path.as_posix()=='/proc/99/environ' else original_read(path)
         with patch.object(validation,'DROPIN',dropin),patch.object(validation,'BASELINE',baseline),patch.object(device,'probe',probe),patch.object(device,'_arm_watchdog',arm),patch.object(device,'wait_ready',lambda:None),patch.object(Path,'read_bytes',read_bytes):
-            self.assertEqual(device.start_shadow()['status'],'PASS')
+            self.assertEqual(device.start_shadow(fast_demo=fast_demo,audio_demo=audio_demo)['status'],'PASS')
         self.assertTrue(armed);self.assertEqual((app/'original.py').read_bytes(),b'preserve')
+        return validation.read_json(session/'config.json')
+
+    def test_watchdog_is_armed_before_runtime_override_or_restart(self):
+        config=self.shadow_start_fixture()
+        self.assertEqual(config['machine']['l0_seconds'],15)
+
+    def test_explicit_audio_demo_is_owned_and_unknown_audio_path_is_not(self):
+        self.shadow_start_fixture(fast_demo=True,audio_demo=True)
+        session=self.root/'session';content=(self.root/'run/override.conf').read_text()
+        self.assertTrue(validation.owns_dropin(content,session))
+        self.assertIn('Environment=AI_GUARDIAN_CARE_DEMO_AUDIO=1',content)
+        self.assertFalse(validation.owns_dropin(content.replace('/root/ai_guardian/care_audio_assets','/other'),session))
+
+    def test_fast_demo_triggers_l0_after_two_seconds_without_changing_default(self):
+        from src.sedentary_care import Config,VirtualClock,CareMachine,Event
+        config=self.shadow_start_fixture(fast_demo=True)
+        self.assertEqual(config['mode'],'shadow');self.assertIs(config['sync_enabled'],False)
+        self.assertEqual(Config().l0_seconds,1800)
+        clock=VirtualClock();machine=CareMachine(clock,Config(**config['machine']))
+        machine.handle(Event.SIT);clock.advance(2);machine.handle(Event.SIT)
+        self.assertEqual(len(machine.speaker.records),1)
+        clock.advance(3);machine.handle(Event.SIT)
+        self.assertEqual(len(machine.speaker.records),2)
+        clock.advance(5);machine.handle(Event.SIT)
+        self.assertEqual(len(machine.speaker.records),3)
+        profile=validation.read_json(self.root/'session/test-profile.json')
+        self.assertEqual(profile['detector_environment'],{'AI_GUARDIAN_VLM_LONG_SIT_SECONDS':'2'})
+        self.assertTrue(validation.owns_dropin((self.root/'run/override.conf').read_text(),self.root/'session'))
+
+    def test_demo_detector_override_ownership_is_exact_and_requires_profile(self):
+        session=self.root/'ownership';session.mkdir();(session/'token').write_text('fixture-only')
+        content='[Service]\nEnvironment=AI_GUARDIAN_CARE_CONFIG='+str(session/'config.json')+'\nEnvironment=AI_GUARDIAN_CARE_API_TOKEN=fixture-only\nEnvironment=AI_GUARDIAN_VLM_LONG_SIT_SECONDS=2\n'
+        self.assertFalse(validation.owns_dropin(content,session))
+        validation.write_json(session/'test-profile.json',dict(name='fast-demo',detector_environment={'AI_GUARDIAN_VLM_LONG_SIT_SECONDS':'2'}))
+        self.assertTrue(validation.owns_dropin(content,session))
+        self.assertFalse(validation.owns_dropin(content.replace('SECONDS=2','SECONDS=1'),session))
+        self.assertFalse(validation.owns_dropin(content+'Environment=UNRELATED=1\n',session))
+
 
     def test_two_layer_rollback_plan_keeps_new_patch_from_failing_old_overlay(self):
         from tools.care_flat_release import PATHS
@@ -244,6 +360,8 @@ class ValidationTests(unittest.TestCase):
             names=archive.namelist()
             self.assertIn('tools/board_validation.py',names)
             self.assertIn('deploy/board/care-validation-baseline.json',names)
+            self.assertIn('test_board_validation.py',names)
+            self.assertIn('src/care_api.py',names)
             self.assertFalse(any(n.endswith(('.db','.om','.p7b','.cer')) or 'token' in n for n in names))
             manifest=json.loads(archive.read('kit-manifest.json'))
             self.assertEqual(manifest['files']['tools/board_validation.py'],hashlib.sha256(archive.read('tools/board_validation.py')).hexdigest())
