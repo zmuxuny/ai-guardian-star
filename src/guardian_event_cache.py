@@ -161,7 +161,7 @@ class EventClipCache:
             return self._reject("invalid_frame")
         with self._lock:
             if self._stop.is_set():
-                return self._reject("not_running")
+                return self._reject_locked("not_running")
             if self._clip is not None:
                 self._clip.pending.append(packet)
                 self._clip.pending_bytes += packet.nbytes
@@ -177,8 +177,12 @@ class EventClipCache:
 
     def _reject(self, reason):
         with self._lock:
-            self._dropped += 1
-            self._rejected[reason] = self._rejected.get(reason, 0) + 1
+            return self._reject_locked(reason)
+
+    def _reject_locked(self, reason):
+        # Caller already owns _lock; never acquire the non-reentrant lock twice.
+        self._dropped += 1
+        self._rejected[reason] = self._rejected.get(reason, 0) + 1
         return False
 
     def _trim_buffer(self):
