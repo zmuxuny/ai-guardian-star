@@ -21,7 +21,7 @@ pwsh.exe -NoProfile -File .\tools\Invoke-CareDemo.ps1 -Action Stop -IdentityFile
 
 `127.0.0.1:7890` 必须已有本机 SOCKS 服务；脚本复用 Git for Windows 的 `connect.exe`。直连可用时，开启命令去掉 `-SocksProxy`；已有记录需要切回直连时显式传 `-SocksProxy ''`。路由保存在本地，后续查询/关闭自动复用，SSH 主机校验保持开启。
 
-去掉 `-AudioDemo` 即为静默演示。演示复用原 FastDemo：稳定约 2 秒后累计，约 3 秒/5 秒触发提醒，使用隔离关怀配置和数据库，关闭云同步；仍需识别到登记人员并满足现有状态条件，不能保证坐下立刻播放。识别可见性的专项问题本轮暂缓。
+去掉 `-AudioDemo` 即为静默演示。演示复用原 FastDemo：久坐检测阈值 2 秒，L0 累计阈值 2 秒，升级间隔 3 秒、重复间隔 5 秒，使用隔离关怀配置和数据库，关闭云同步；仍需识别到登记人员并满足现有状态条件，不能保证坐下立刻播放。识别可见性的专项问题本轮暂缓。
 
 脚本自动记录独占会话到 `.tmp/care-demo-operator/state.json`，不保存私钥或令牌。`Start` 先确认设备 off，再落盘 pending 后远程开启；重复开启会被拒绝。网络中断后保留此目录，在新 PowerShell 中重新运行 `Stop`，仍会针对原会话恢复。不要删目录或换工作区后直接当作已关闭。
 
