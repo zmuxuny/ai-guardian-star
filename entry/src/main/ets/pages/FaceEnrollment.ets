@@ -38,6 +38,7 @@ export struct FaceEnrollment {
   @State capturedPreview?: image.PixelMap = undefined;
   @State inputFocused: boolean = false;
   @State guideDiameter: number = 260;
+  @State guideOffsetY: number = 0;
   private previewWidth: number = 0;
   private previewHeight: number = 0;
   private previewProfile?: camera.Profile;
@@ -399,7 +400,8 @@ export struct FaceEnrollment {
           const height = Number(area.height);
           this.previewWidth = this.getUIContext().vp2px(width);
           this.previewHeight = this.getUIContext().vp2px(height);
-          this.guideDiameter = Math.max(0, Math.min(260, width - 32, height - 24));
+          this.guideDiameter = Math.max(0, Math.min(360, width - 24, height - 32));
+          this.guideOffsetY = -Math.min(40, Math.max(0, (height - this.guideDiameter) / 2 - 16));
           try {
             this.updatePreviewGeometry();
           } catch (error) {
@@ -416,11 +418,13 @@ export struct FaceEnrollment {
       Stack({ alignContent: Alignment.Center }) {
         Rect().width('100%').height('100%').fill(this.themeManager.colors.cardBackgroundColor)
         Circle().width(this.guideDiameter).height(this.guideDiameter).fill('#000000').blendMode(BlendMode.DST_OUT)
+          .translate({ y: this.guideOffsetY })
       }
       .width('100%').height('100%')
       .blendMode(BlendMode.SRC_OVER, BlendApplyType.OFFSCREEN)
       Circle().width(this.guideDiameter).height(this.guideDiameter).fill(Color.Transparent)
         .stroke(this.themeManager.colors.linkTextColor).strokeWidth(3)
+        .translate({ y: this.guideOffsetY })
       if (!this.cameraReady && this.capturedPreview === undefined) {
         Column({ space: 10 }) {
           LoadingProgress().width(30).height(30).color(this.themeManager.colors.linkTextColor)
