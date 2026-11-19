@@ -37,8 +37,7 @@ export struct FaceEnrollment {
   @State cameraMessage: string = '正在启动相机…';
   @State capturedPreview?: image.PixelMap = undefined;
   @State inputFocused: boolean = false;
-  @State guideWidth: number = 260;
-  @State guideHeight: number = 340;
+  @State guideDiameter: number = 260;
   private previewWidth: number = 0;
   private previewHeight: number = 0;
   private previewProfile?: camera.Profile;
@@ -400,9 +399,7 @@ export struct FaceEnrollment {
           const height = Number(area.height);
           this.previewWidth = this.getUIContext().vp2px(width);
           this.previewHeight = this.getUIContext().vp2px(height);
-          const guideScale = Math.max(0, Math.min(1, (width - 32) / 260, (height - 24) / 340));
-          this.guideWidth = 260 * guideScale;
-          this.guideHeight = 340 * guideScale;
+          this.guideDiameter = Math.max(0, Math.min(260, width - 32, height - 24));
           try {
             this.updatePreviewGeometry();
           } catch (error) {
@@ -418,11 +415,11 @@ export struct FaceEnrollment {
       }
       Stack({ alignContent: Alignment.Center }) {
         Rect().width('100%').height('100%').fill(this.themeManager.colors.cardBackgroundColor)
-        Ellipse().width(this.guideWidth).height(this.guideHeight).fill('#000000').blendMode(BlendMode.DST_OUT)
+        Circle().width(this.guideDiameter).height(this.guideDiameter).fill('#000000').blendMode(BlendMode.DST_OUT)
       }
       .width('100%').height('100%')
       .blendMode(BlendMode.SRC_OVER, BlendApplyType.OFFSCREEN)
-      Ellipse().width(this.guideWidth).height(this.guideHeight).fill(Color.Transparent)
+      Circle().width(this.guideDiameter).height(this.guideDiameter).fill(Color.Transparent)
         .stroke(this.themeManager.colors.linkTextColor).strokeWidth(3)
       if (!this.cameraReady && this.capturedPreview === undefined) {
         Column({ space: 10 }) {
