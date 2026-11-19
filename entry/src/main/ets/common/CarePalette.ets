@@ -8,7 +8,7 @@ export interface CarePalette {
   solid: string;
   accent: string;
   wash: string;
-  /** 主页大字（样张 .word） */
+  /** 主页大字，统一使用两个字的状态标题。 */
   word: string;
   /** 样张 --c1，光斑与胶囊圆点 */
   tone: string;
@@ -34,7 +34,7 @@ const FALL: CarePalette = {
 const UNKNOWN: CarePalette = {
   label: '设备未确认', detail: '等待设备连接后确认当前状态',
   backdrop: '#142824', glow: '#2F4B43', solid: '#345149', accent: '#C5DED4', wash: '#E5EEEA',
-  word: '待确认', tone: '#5F8A7C', tone2: '#3A5F54',
+  word: '未知', tone: '#5F8A7C', tone2: '#3A5F54',
 };
 
 export function carePalette(fall: boolean, sedentary: boolean, online: boolean): CarePalette {

@@ -270,10 +270,10 @@ export struct mainPage {
         Column() {
           Text(this.palette().word)
             .width('100%').maxLines(1)
-            .minFontSize(24).maxFontSize(this.palette().word.length > 2 ? 64 : 96)
+            .minFontSize(24).maxFontSize(96)
             .heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF').lineHeight(this.palette().word.length > 2 ? 70 : 100)
+            .fontColor('#FFFFFF').lineHeight(100)
             .textShadow({ radius: 40, color: '#40000000', offsetY: 18 })
           Text(this.heroLines()).fontSize(15).lineHeight(22).fontColor(ON2)
             .margin({ top: 12 }).constraintSize({ minHeight: 45 })
