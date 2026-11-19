@@ -558,8 +558,6 @@ async function fetchStats(){
         if(d.uptime_seconds!=null)startTs=Date.now()-d.uptime_seconds*1000;
         const fps=d.fps??0;
         if(fps>0){
-            // 部分浏览器的 MJPEG 流不触发 onload，有帧率即视为流正常
-            if(!streamOk)videoEl.onload();
             const fpsStr=fps.toFixed(1);
             document.getElementById('det-fps2').textContent=fpsStr;
             document.getElementById('r-fps').textContent=fpsStr+' fps';
