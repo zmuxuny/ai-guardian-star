@@ -55,7 +55,7 @@ class _CapturingBackend:
 
     def start(self, partial_path, final_path, metadata):
         self._inner.start(partial_path, final_path, metadata)
-        self._on_open(metadata.get("segment_id"), metadata.get("relpath"))
+        self._on_open(metadata.get("segment_id"))
 
     def write(self, packet):
         return self._inner.write(packet)
@@ -180,7 +180,6 @@ class EventClipCache:
             return self._reject_locked(reason)
 
     def _reject_locked(self, reason):
-        # Caller already owns _lock; never acquire the non-reentrant lock twice.
         self._dropped += 1
         self._rejected[reason] = self._rejected.get(reason, 0) + 1
         return False
@@ -286,15 +285,26 @@ class EventClipCache:
                     continue
                 if clip.manager is None and clip.failed is None:
                     self._open_clip(clip)
-                packet = self._next_packet(clip)
+                manager_state = clip.manager.status() if clip.manager is not None else {}
+                with self._lock:
+                    if manager_state.get("state") == "failed":
+                        clip.failed = manager_state.get("error") or "clip_manager_failed"
+                    finish = clip.failed is not None or (
+                        not clip.pending and (stopping or self._monotonic() >= clip.deadline_monotonic))
+                    if finish:
+                        # New events and frames belong to the next clip while this one is sealed.
+                        self._clip = None
+                        self._dropped += len(clip.pending)
+                        clip.pending.clear()
+                        clip.pending_bytes = 0
+                    packet = clip.pending.popleft() if clip.pending else None
+                    if packet is not None:
+                        clip.pending_bytes -= packet.nbytes
+                if finish:
+                    self._finish_clip(clip)
+                    continue
                 if packet is not None:
                     self._submit(clip, packet)
-                    continue
-                with self._lock:
-                    deadline = clip.deadline_monotonic
-                    pending = len(clip.pending)
-                if pending == 0 and (stopping or self._monotonic() >= deadline):
-                    self._finish_clip(clip)
                     continue
                 self._wake.wait(0.05)
                 self._wake.clear()
@@ -310,9 +320,10 @@ class EventClipCache:
             self.config, enabled=True, segment_seconds=max(1, int(span)),
             queue_frames=max(self.config.queue_frames,
                              min(300, int(math.ceil(self.config.record_fps * 2)) + 1)))
+        factory = _CapturingFactory(
+            self._factory, lambda segment_id: self._bind_recording(clip, segment_id))
         manager = RecordingManager(clip_config, store=self.store,
-                                   backend_factory=_CapturingFactory(self._factory,
-                                                                     self._bind_recording),
+                                   backend_factory=factory,
                                    clock=self._clock, monotonic=self._monotonic)
         if not manager.start():
             with self._lock:
@@ -325,18 +336,9 @@ class EventClipCache:
             return
         clip.manager = manager
 
-    def _bind_recording(self, segment_id, relpath):
+    def _bind_recording(self, clip, segment_id):
         with self._lock:
-            if self._clip is not None:
-                self._clip.recording_id = segment_id
-
-    def _next_packet(self, clip):
-        with self._lock:
-            if not clip.pending:
-                return None
-            packet = clip.pending.popleft()
-            clip.pending_bytes -= packet.nbytes
-            return packet
+            clip.recording_id = segment_id
 
     def _submit(self, clip, packet):
         """Blocking retry: a dropped pre-roll frame is a lost part of the clip."""
@@ -354,6 +356,8 @@ class EventClipCache:
                                          monotonic_at=packet.monotonic_at,
                                          frame_id=packet.frame_id):
                 return True
+            if clip.manager.status().get("state") == "failed":
+                break
             if time.monotonic() >= deadline:
                 break
             time.sleep(0.005)
@@ -388,7 +392,6 @@ class EventClipCache:
                 "manager_state": state.get("state"),
                 "written_frames": state.get("written_frames"),
             }
-            self._clip = None
         if completed and clip.recording_id and callable(self._on_clip_ready):
             try:
                 self._on_clip_ready(list(clip.event_ids), clip.recording_id)
