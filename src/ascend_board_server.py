@@ -1241,7 +1241,8 @@ def run_system():
     print("=" * 50 + "\n")
 
     try:
-        uvicorn.run(app, host="0.0.0.0", port=TARGET_PORT, log_level="error")
+        uvicorn.run(app, host="0.0.0.0", port=TARGET_PORT, log_level="error",
+                    timeout_graceful_shutdown=5)
     except KeyboardInterrupt:
         pass
     finally:
