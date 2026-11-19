@@ -4,6 +4,17 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-19 · codex · T-20261119-07 · 网页关怀展示设计与本地验收完成，未上线
+
+> 分支wip/codex-20261119-care-web，基于zy@7ec6dec。预览http://127.0.0.1:15502/?scenario=reminder；全部示例数据，不连接板端。
+
+- 延续正式6001深色监护台，中栏首位关怀区域，当前模式/可见登记人员/累计时长/正文/本轮次数，保留视频/人脸/对讲；手机和平板恢复正常滚动。
+- 五状态：off、等待识别、提醒、暂停、断线；只读刷新，不因打开页面启用关怀，不把触发等同播放。
+- stats新增最小care投影，限定当前有效可见人员；无私有ID/令牌/历史，原care鉴权保持；初始化失败区别off，live/恢复文案复用固定TEXTS。
+- 验证：6新增含真实live与SQLite恢复、16原runtime回归全过；1440/820/390布局通过、关怀区axe0违规、状态/刷新/aria-live去重通过；独立审查及修订复核通过。
+- 影响：src/ascend_board_server.py、tests/test_care_web.py、tests/test_runtime.py、tools/preview_care_web.py及docs/board-care-web-design-2026-11-19.md。
+- 未验：原板编译/新stats接入及公网实际显示；未部署/未合zy/未改实际基线/未开启板端。发布须基于现板备份做最小补丁，保留入口独立增强并验收off。
+
 ## 2026-11-19 · codex · T-20261119-06 · 15分钟阶段观察及演示启停实机通过，已off
 
 > 功能e6177ec；WIP实测后交付zy。详细证据见docs/board-stability-demo-2026-11-19.md，操作见docs/board-care-demo-operator.md。
@@ -27,15 +38,3 @@
 - 收尾：66观察care outbox全0；19:26 CLOSED；19:30:56交接Probe PASS：off/无配置、camera=true/fps7.6、31指纹通过。已通知用户可以活动，本轮未启用AudioDemo。
 - 影响：现板缓存源码/实际基线同步、docs/board-restart-timing-2026-11-19.md及本协作记录；私有原始证据.tmp/final-restart-20261119/不提交，画像/身份/密钥不入库。
 - 未验：恢复/末次身份可见性、完整第2步和长期运行；不推进门禁，不把核心分支实测等同完整通过。正式网页/App待办不变。
-
-## 2026-11-19 · codex · T-20261119-04 · HTTP持流关停修复上板，实机干净退出通过
-
-> 功能cc55ca5/合并7877164，先推送zy再部署；实际入口增强保留。
-
-- 根因复现：原Uvicorn0.39.0无限等待HTTP流结束，先于lifespan清理；原板真实持流子进程8秒不退，SIGINT已正常捕获。
-- 修复：仅uvicorn.run增加5秒连接/请求排空上限；原3.9.2候选整文件编译通过，真实HTTP流测试6.73秒退出并执行lifespan，独立审查无阻断。
-- 部署：实际原件/基线/服务状态已备份server-shutdown-20261119/backup；只替换入口，新指纹2ec73e2…663587，其他30文件不变，SDK/模型/数据库/服务预算不变。
-- 实机：保持真实/video_feed连接至进程退出，12.276秒、Result=success、退出码0、PID0/控制组空；随后重启恢复。
-- 收尾：15:08:03 Probe PASS，off/无关怀配置、camera=true/fps7.7、31指纹通过；不保存图像。先前临时听音已取消且关闭，本轮未再启用关怀。
-- 影响：入口、新HTTP退出测试、实际指纹基线及docs/board-shutdown-stream-2026-11-19.md和协作记录。证据.tmp/server-shutdown-20261119/evidence.tar.gz不提交。
-- 边界：5秒不限制lifespan内部清理；当前off持流场景通过，其他异常/满载条件不泛化。真人短停/长停、完整第2步和长期运行仍待验，网络波动未宣称修复。

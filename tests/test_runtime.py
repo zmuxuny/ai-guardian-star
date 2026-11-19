@@ -245,6 +245,8 @@ class StatsTests(unittest.IsolatedAsyncioTestCase):
         namespace = {"system_detector": detector, "time": time,
                      "camera_video_is_live": lambda: True, "JSONResponse": lambda value: value,
                      "video_hw": SimpleNamespace(get_stats=lambda: stats)}
+        namespace.update(care_runtime=None, care_audio_player=None, care_initialization_failed=False)
+        load_definition("ascend_board_server.py", "care_display_snapshot", namespace)
         get_stats = load_definition("ascend_board_server.py", "api_stats", namespace)
         with patch("time.monotonic", return_value=101):
             self.assertEqual((await get_stats())["detections"], 1)
