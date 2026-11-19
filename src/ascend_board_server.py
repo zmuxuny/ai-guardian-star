@@ -54,6 +54,7 @@ cleanup_scheduler = None
 alert_mqtt = None
 heartbeat_publisher = None
 care_runtime = None
+care_initialization_failed = False
 care_worker = None
 care_audio_player = None
 care_last_poll = 0.0
@@ -249,6 +250,54 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
 .dot-green{background:var(--success);box-shadow:0 0 6px var(--success);}
 .dot-pulse{animation:pulse-dot 2s infinite;}
 @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+/* 关怀：延续监护台深色系统，以真实状态和提醒正文为中心。 */
+:root{--care:#5ee3c1;--care-ink:#b7f5e5;--muted:#a8b6cc;}
+button:focus-visible,summary:focus-visible{outline:2px solid var(--care);outline-offset:4px;}
+::selection{background:#245981;color:#fff;}
+.col-mid,.right-col{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#475569 transparent;}
+.care-card{padding:18px;}
+.care-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+.care-head h2{font-size:15px;line-height:1.4;font-weight:700;}
+.care-mode{font-size:11px;padding:4px 8px;border-radius:5px;background:#334155;color:#d7e0ed;white-space:nowrap;}
+.care-mode.on{background:#123f3b;color:var(--care);}
+.care-mode.issue{background:#49351e;color:#ffce8b;}
+.care-title{font-size:23px;font-weight:700;line-height:1.4;margin-bottom:8px;letter-spacing:-.02em;}
+.care-copy{font-size:12px;line-height:1.8;color:var(--muted);max-width:65ch;}
+.care-people{display:grid;gap:0;margin-top:14px;}
+.care-person{padding:12px 0;border-top:1px solid var(--border);}
+.care-person-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;}
+.care-person-name{font-size:14px;font-weight:700;overflow-wrap:anywhere;}
+.care-person-time{font-size:12px;color:var(--care-ink);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.care-message{font-size:16px;line-height:1.65;overflow-wrap:anywhere;color:#e9fff7;}
+.care-person-meta{font-size:11px;line-height:1.8;color:var(--muted);margin-top:6px;}
+.care-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:18px;padding-top:12px;border-top:1px solid var(--border);}
+.care-updated{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.care-refresh{border:1px solid #52657f;border-radius:7px;padding:7px 11px;background:transparent;color:var(--text);font:inherit;font-size:11px;cursor:pointer;min-height:34px;}
+.care-refresh:hover{background:#334155;}
+.care-refresh:disabled{opacity:.6;cursor:wait;}
+.care-note{font-size:10px;line-height:1.7;color:var(--muted);margin-top:10px;}
+@media(min-width:1100px){main{grid-template-columns:minmax(0,1.12fr) minmax(0,1fr) minmax(0,.88fr);}}
+@media(max-width:900px){
+ html,body{height:auto;min-height:100%;overflow:auto;}
+ header{height:auto;min-height:56px;gap:12px;flex-wrap:wrap;padding:14px 16px;}
+ .hd-info{gap:12px;flex-wrap:wrap;line-height:1.5;font-size:10px;}
+ main{display:grid;grid-template-columns:1fr 1fr;overflow:visible;}
+ .col,.right-col{overflow:visible;min-width:0;}
+ .col-mid{grid-column:2;grid-row:1 / span 2;}
+ .right-col{grid-column:1;}
+ .video-box{flex:none;aspect-ratio:4/3;min-height:180px;}
+ .log-box{flex:none;max-height:180px;min-height:100px;}
+ .call-card{flex:none;}.call-hint{padding-top:14px;}
+}
+@media(max-width:600px){
+ main{display:flex;flex-direction:column;}.col-mid{order:1;}.col-left{order:0;}.right-col{order:2;}
+ .col-left,.col-mid{border-right:0;}.col,.right-col{padding:10px 14px;gap:12px;}
+ .col-left .log-box{display:none;}.video-box{aspect-ratio:16/10;min-height:0;}
+ .care-card{padding:18px;}.care-title{font-size:24px;}
+ .care-refresh{min-height:44px;padding:8px 14px;}
+ .btn{min-height:44px;}.card-label,.card-title{font-size:12px;}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;}}
 </style>
 </head>
 <body>
@@ -290,6 +339,16 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;overflow
 
 <!-- ── 中栏：状态 → 数据统计 → 置信度 → 人脸 ── -->
 <div class="col col-mid">
+    <section class="card care-card" aria-labelledby="care-heading">
+        <div class="care-head"><h2 id="care-heading">关怀提醒</h2><span id="care-mode" class="care-mode">连接中</span></div>
+        <div id="care-announcement" role="status" aria-live="polite" aria-atomic="true">
+            <div id="care-title" class="care-title">正在读取关怀状态</div>
+            <p id="care-copy" class="care-copy">连接设备后，将显示当前人员的关怀进度。</p>
+        </div>
+        <div id="care-people" class="care-people"></div>
+        <div class="care-footer"><span id="care-updated" class="care-updated">等待设备数据</span><button id="care-refresh" class="care-refresh" type="button">刷新状态</button></div>
+        <p class="care-note">打开本页面不会开启关怀。提醒已触发不等于语音已播放。</p>
+    </section>
     <!-- 检测状态 -->
     <div class="card">
         <div class="card-label">当前检测状态</div>
@@ -478,10 +537,17 @@ function canLogFace(key){
 let _lastSitLog=0;
 
 async function fetchStats(){
+    if(fetchStats.pending)return;
+    fetchStats.pending=true;
+    const refresh=document.getElementById('care-refresh');
+    refresh.disabled=true;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),5000);
     try{
-        const r=await fetch('/api/stats');
-        if(!r.ok)return;
+        const r=await fetch('/api/stats',{cache:'no-store',signal:controller.signal});
+        if(!r.ok)throw new Error('stats_unavailable');
         const d=await r.json();
+        renderCare(d.care);
 
         // 检测状态
         const st=d.status||'正常';
@@ -594,8 +660,49 @@ async function fetchStats(){
                 }
             });
         }
-    }catch(e){}
+    }catch(e){renderCare(null,true);}
+    finally{clearTimeout(timeout);fetchStats.pending=false;refresh.disabled=false;}
 }
+function renderCare(care,disconnected=false){
+    const setText=(el,value)=>{if(el.textContent!==value)el.textContent=value;};
+    const mode=document.getElementById('care-mode');
+    const title=document.getElementById('care-title');
+    const copy=document.getElementById('care-copy');
+    const people=document.getElementById('care-people');
+    const updated=document.getElementById('care-updated');
+    people.replaceChildren();
+    mode.className='care-mode';
+    if(disconnected||!care||!['off','shadow','live'].includes(care.mode)){
+        mode.textContent=disconnected?'连接中断':'状态待确认';mode.classList.add('issue');
+        setText(title,disconnected?'暂时无法读取设备':'关怀状态暂不可用');
+        setText(copy,disconnected?'连接恢复后会自动更新，也可以点击刷新重试。':'当前设备未返回有效关怀状态，请稍后刷新。');
+        updated.textContent='未取得最新状态';return;
+    }
+    updated.textContent='已更新 '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
+    if(care.mode==='off'){
+        mode.textContent='已关闭';setText(title,'关怀暂未开启');
+        setText(copy,'实时监测仍可查看。开启关怀后，这里会显示已识别人员的累计时长和提醒。');return;
+    }
+    mode.textContent=care.mode==='shadow'?'演示模式':'关怀已开启';mode.classList.add('on');
+    const rows=Array.isArray(care.people)?care.people:[];
+    setText(title,rows.length&&rows.every(p=>p.uncertainty_reason)?'当前计时已暂停':rows.some(p=>p.reminder)?'该起来活动一下了':rows.length?'正在关注久坐状态':'等待已识别人员入镜');
+    setText(copy,rows.length?(care.audio_available?'语音通道可用；对讲时优先播放对讲声音。':'当前仅显示提醒，未启用关怀语音。'):'面部可识别后开始展示，无需画面中只有一人。');
+    const phases={IDLE:'等待坐姿',SITTING:'正在累计',L0:'温和提醒',L1:'再次提醒',EXHAUSTED:'本轮提醒已完成',ACK:'已确认，稍后再关怀'};
+    rows.forEach(p=>{
+        const row=document.createElement('article');row.className='care-person';
+        const head=document.createElement('div');head.className='care-person-head';
+        const name=document.createElement('span');name.className='care-person-name';name.textContent=p.name;
+        const time=document.createElement('span');time.className='care-person-time';
+        const seconds=Math.max(0,Math.floor(Number(p.seated_seconds)||0));
+        time.textContent='累计 '+(seconds>=60?Math.floor(seconds/60)+' 分 '+seconds%60+' 秒':seconds+' 秒');
+        head.append(name,time);row.append(head);
+        if(p.reminder){const text=document.createElement('p');text.className='care-message';text.textContent=p.reminder.text||'请起身活动一下';row.append(text);}
+        const meta=document.createElement('p');meta.className='care-person-meta';
+        meta.textContent=(p.uncertainty_reason?'计时已暂停':phases[p.phase]||'正在监测')+' · 温和提醒 '+(p.counts?.L0||0)+' 次 · 再次提醒 '+(p.counts?.L1||0)+' 次';
+        row.append(meta);people.append(row);
+    });
+}
+document.getElementById('care-refresh').addEventListener('click',fetchStats);
 setInterval(fetchStats,800);fetchStats();
 
 let ws,audioCtx,scriptNode,micSource;
@@ -708,7 +815,42 @@ async def api_stats():
         "face_label":      s.get("face_label"),   # 向后兼容
         "face_score":      s.get("face_score"),   # 向后兼容
         "faces":           s.get("faces", []),    # 多人人脸数组
+        "care": care_display_snapshot(care_runtime, s.get("faces", []), care_audio_player is not None,
+                                      initialization_failed=care_initialization_failed),
     })
+
+
+def care_display_snapshot(runtime, faces, audio_available, initialization_failed=False):
+    """Current public display only: no private IDs, history, tokens or mutation."""
+    if runtime is None:
+        return {'mode': 'unavailable' if initialization_failed else 'off', 'audio_available': False, 'people': []}
+    try:
+        people, seen = [], set()
+        messages = runtime.shadow_broadcasts() if runtime.config.mode == 'shadow' else []
+        for face in faces:
+            label = face.get('label', '')
+            if not label.startswith('known:'):
+                continue
+            name = label[6:]
+            identity = runtime.config.face_label_ids.get(name, name)
+            if identity not in runtime.config.person_ids or identity in seen:
+                continue
+            seen.add(identity)
+            state = runtime.state(identity)
+            latest = next((m for m in reversed(messages) if m.get('person_id') == identity), None)
+            reminder = None
+            if latest and state.get('level') and sum(state.get('counts', {}).values()) > 0:
+                reminder = {key: latest.get(key) for key in ('level', 'text', 'wall_time')}
+            elif state.get('level') in ('L0', 'L1') and sum(state.get('counts', {}).values()) > 0:
+                from sedentary_care import TEXTS
+                reminder = dict(level=state['level'], text=TEXTS[state['level']][1], wall_time=None)
+            people.append(dict(name=name, state=state.get('state'), phase=state.get('phase'),
+                               seated_seconds=state.get('seated_seconds', 0),
+                               level=state.get('level'), counts=state.get('counts', {}),
+                               uncertainty_reason=state.get('uncertainty_reason'), reminder=reminder))
+        return {'mode': runtime.config.mode, 'audio_available': bool(audio_available), 'people': people}
+    except Exception:
+        return {'mode': 'unavailable', 'audio_available': False, 'people': []}
 
 
 @app.get("/video_feed")
@@ -926,7 +1068,8 @@ def run_system():
         event_cache = None
         cleanup_scheduler = None
 
-    global care_runtime, record_event
+    global care_runtime, record_event, care_initialization_failed
+    care_initialization_failed = False
     try:
         care_runtime = None
         if os.environ.get('AI_GUARDIAN_CARE_CONFIG'):
@@ -939,6 +1082,7 @@ def run_system():
             print(f'[Care] initialized mode={care_runtime.config.mode}')
     except Exception as exc:
         print(f'[Care] init_failed code={type(exc).__name__}')
+        care_initialization_failed = True
         care_runtime = None
 
     global care_audio_player
