@@ -6,6 +6,7 @@ param(
     [int]$Port = 6022,
     [string]$UserName = 'root',
     [string]$IdentityFile,
+    [ValidatePattern('^$|^127\.0\.0\.1:[0-9]{1,5}$')][string]$SocksProxy,
     [string]$Session = '/root/guardian-care-staging/care-validation-20261117',
     [string]$AppRoot = '/root/ai_guardian',
     [string]$OutputDirectory,
@@ -58,6 +59,13 @@ if (-not (Test-Path -LiteralPath $bundlePath)) { throw 'Run -Action Prepare firs
 $bundleHash = (Get-FileHash -LiteralPath $bundlePath -Algorithm SHA256).Hash.ToLowerInvariant()
 $remoteRoot = '/root/guardian-care-staging/ready-kit-' + $bundleHash.Substring(0,12)
 $connection = @('-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=10')
+if ($SocksProxy) {
+    $proxyPort = [int]($SocksProxy.Split(':')[1])
+    if ($proxyPort -lt 1 -or $proxyPort -gt 65535) { throw 'Invalid local SOCKS port.' }
+    $connect = Join-Path $env:ProgramFiles 'Git/mingw64/bin/connect.exe'
+    if (-not (Test-Path -LiteralPath $connect -PathType Leaf)) { throw 'Git connect.exe is required for -SocksProxy.' }
+    $connection += @('-o',('ProxyCommand="' + $connect + '" -S ' + $SocksProxy + ' %h %p'))
+}
 $target = "$UserName@$HostName"
 if ($IdentityFile) {
     if (-not (Test-Path -LiteralPath $IdentityFile -PathType Leaf)) { throw 'Private identity file is unavailable.' }
