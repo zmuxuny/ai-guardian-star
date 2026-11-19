@@ -4,6 +4,18 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-19 · codex · T-20261118-07 · 已部署并实测自动语音，已恢复off
+
+> 分支：codex/zy-care-audio-integration-20261118；来源zy@2131ee2，功能d4a1a9f。
+> 用户授权继续部署，并现场确认自动语音“听到了，正常”。
+
+- 部署：核对原28项指纹后，备份全部基线代码、私有服务/环境及1份SQLite快照；原3.9.2编译通过，只安装入口、care_audio.py及两段PCM语音。实际入口独立增强保留。
+- 真实验证：AudioDemo独立shadow、sync=false、2/3/5秒；登记P2同轮L0一次/L1两次，24采样无错误、live outbox全0，用户听音正常；没有用手动重播代替。
+- 收尾：13:30:43 Probe PASS，service active、care off、无关怀配置、camera=true/fps7.5，31项指纹全部通过；临时阈值/音频覆盖已撤销。
+- 影响：deploy/board/care-validation-baseline.json、语音交付说明及本协作记录。生产备份/root/guardian-care-staging/care-audio-deploy-20261119/backup；本地私有证据.tmp/care-audio-deploy-20261119/evidence.tar.gz，不提交语音/数据库/环境。
+- 过程：首轮包路径预检在停服前退出，修正payload前缀后完成；恢复时SSH断连，随后核对实际恢复记录和进程并复验通过。
+- 未验：真实对讲抢占、完整长时间验收、App回执/公网页面。下一步按需继续这些项目，当前保持off；未改主工作区或其他成员分支。
+
 ## 2026-11-18 · codex · T-20261118-07 · 已合并交付，部署留待明日
 
 > 目标：origin/zy；功能提交d4a1a9f，合并提交f884fda；来源为已验证的语音/演示代码3dd0ff1及其演示档依赖。
@@ -25,16 +37,3 @@
 - 验证：3.9源与独立包49项通过；独立审查通过；板端实际进程2秒环境与machine2/3/5读回，原3.9.2隔离Timer+Runtime演示场景1项通过，非真人新演示。
 - 收尾：RecoverOff成功，HTTP短暂未就绪后22:25:01实际Probe PASS：active/off/无关怀配置、28指纹PASS、camera=true/fps7.6；实际阈值环境与原备份一致，临时覆盖已撤销。
 - 无需用户继续配合。本地提交未push；完整验收缺项保留，不将演示结果冒充正式验收。证据位于本轮.tmp/board-demo-threshold-*私有目录。
-
-## 2026-11-18 22:09 · codex · T-20261118-03 · 快速演示完成，已恢复off
-
-> 分支：wip/codex-20261118-retest-ready；FastDemo提交48f7c4a，多人员测试提交a30908d；本地提交未push。
-> 交付：docs/board-fast-demo-2026-11-18.md、docs/board-retest-evidence-2026-11-18.md；下次继续完整验收，不要求唯一人员。
-
-- 用户决定：转头身份波动先不排查，久坐演示更易触发；任何已识别人员均可，不要求只有一人。
-- 修改：工具显式-FastDemo，shadow5/5/10秒、profile留证；默认验收15/10/10和正式1800秒均未改。Mark/Restart自动从已识别角色选计时最长者，后续固定角色，未知身份不绑定。
-- 离线：3.9专项47项、独立包47项通过；65文件3.9实编译、PowerShell解析与独立审查通过。新即用包.tmp/board-multi-person-kit，旧实测包及证据不覆盖。
-- 在线：zy=P2，另有一个登记项不代表画面两人。5秒shadow已触发同事件L0=1/L1=2，22:03计时130秒；用户真实起身后272.276→0，两采样间隔1.126秒，归零时P2仍被识别。92样本无错误、outbox全0。
-- 限制：standing标记晚于真实清零，保留自动NOT_EXERCISED，不改证据充通过。新多人auto已本地验证，板端此轮用显式P2；完整第2步/长停/遮挡/静默未完，第3–6步不推进。
-- 收尾：RecoverOff成功，SSH间歇超时后22:09:58再Probe PASS：active/off/无配置、28指纹PASS、camera=true/fps7.4。未改业务源码/模型/阈值/SDK/接线，未开live或真实关怀音频。
-- 用户已去忙，本轮不再需要现场动作；未来完整验收再安排配合。私有证据.tmp/board-fast-demo-20261118-220033，不入Git。
