@@ -4,7 +4,7 @@
   "atc_conversion_record": "not_available",
   "expected_files": {
     "ascend_audio_output.py": "6b7a4baa6ce945514d54b359b7801787b468abd80a1d3084eef52f91bee84969",
-    "ascend_board_server.py": "bb730bfd6b2a968fdaf6844d951a3b66c61e454eeae9ae6420742b3167f8da44",
+    "ascend_board_server.py": "2ec73e2aa5a9d0c9dbc467a5b597bf9444e4631169ed25bbb77ffd49fc663587",
     "ascend_main_other.py": "55d40f371d3dc4c36c26b7ae3282ffdd259d072402a3c5b13f60d086d7e42282",
     "ascend_video_stream.py": "bbe359920beadaa7e7a53ba32506d4888952fc1b0d34d606e40c1ce4f1de3084",
     "ascend_voice_stream.py": "db32de410a0c8e3f322a5511b5ee7448f86c4bd1cf113a5f43b978991de2e4bf",
@@ -42,7 +42,7 @@
     3,
     9
   ],
-  "runtime_revision": "e463172+AF-01+care-audio-d4a1a9f+cache-stop-65c14dd",
+  "runtime_revision": "e463172+AF-01+care-audio-d4a1a9f+cache-stop-65c14dd+http-drain-cc55ca5",
   "schema_version": 1,
   "service": "guardian-board.service",
   "soc_identity": "Ascend310B4",

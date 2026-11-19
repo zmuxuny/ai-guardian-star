@@ -4,6 +4,18 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-19 · codex · T-20261119-04 · HTTP持流关停修复上板，实机干净退出通过
+
+> 功能cc55ca5/合并7877164，先推送zy再部署；实际入口增强保留。
+
+- 根因复现：原Uvicorn0.39.0无限等待HTTP流结束，先于lifespan清理；原板真实持流子进程8秒不退，SIGINT已正常捕获。
+- 修复：仅uvicorn.run增加5秒连接/请求排空上限；原3.9.2候选整文件编译通过，真实HTTP流测试6.73秒退出并执行lifespan，独立审查无阻断。
+- 部署：实际原件/基线/服务状态已备份server-shutdown-20261119/backup；只替换入口，新指纹2ec73e2…663587，其他30文件不变，SDK/模型/数据库/服务预算不变。
+- 实机：保持真实/video_feed连接至进程退出，12.276秒、Result=success、退出码0、PID0/控制组空；随后重启恢复。
+- 收尾：15:08:03 Probe PASS，off/无关怀配置、camera=true/fps7.7、31指纹通过；不保存图像。先前临时听音已取消且关闭，本轮未再启用关怀。
+- 影响：入口、新HTTP退出测试、实际指纹基线及docs/board-shutdown-stream-2026-11-19.md和协作记录。证据.tmp/server-shutdown-20261119/evidence.tar.gz不提交。
+- 边界：5秒不限制lifespan内部清理；当前off持流场景通过，其他异常/满载条件不泛化。真人短停/长停、完整第2步和长期运行仍待验，网络波动未宣称修复。
+
 ## 2026-11-19 · codex · T-20261119-03 · 缓存死锁修复上板，内存阶段观察完成
 
 > 来源zy@75a80a5；功能65c14dd/整合fc442e4已推送并上板。代码和31项指纹实际核验。
@@ -27,14 +39,3 @@
 - 控制恢复：云端备份frps单元/状态/私有日志后仅重启frps（active），未改配置或wenxin；中转重新连板。14:22:41 RecoverOff及Probe PASS：active/off/无配置、camera7.4fps、31指纹通过。
 - 影响：docs/board-stability-restart-2026-11-19.md、TASKS、本人STATUS及归档；最小私有证据.tmp/board-stability-20261119/evidence.tar.gz不提交。
 - 待续：穿透链路反复中断原因、RSS增长归因、真人短停/长停和完整顺序验收；不推进第2步/第6步门禁。其他端工作保持原待办。
-
-## 2026-11-19 · codex · T-20261119-01 · WebSocket对讲抢占与恢复实测通过
-
-> 分支：codex/zy-care-audio-integration-20261118；板端代码基线zy@7464b04，未改生产代码。
-> 用户已现场确认：对讲清楚，后续提醒也恢复了。
-
-- 真实输入：独立AudioDemo识别后L0事件约0.488秒插入“这是对讲测试”，经原/ws/intercom发送114帧/2.28秒；后续同轮两次L1。未录制麦克风。
-- 证据：私有传输结果与用户听音确认分开保存；不宣称自动测得物理中断延迟。输出缓冲约180ms边界保留。
-- 收尾：13:57:03 Probe PASS；service active、care off/无配置、camera=true/fps7.3、31指纹通过；临时环境撤销、独立care outbox=0。
-- 影响：仅语音交付文档、TASKS、本人STATUS及旧记录归档；私有证据.tmp/care-arbitration-20261119/evidence.tar.gz与listen-confirmation.json不提交。
-- 未验：UDP实际抢占、完整长时间/顺序验收、App回执与公网页面；原服务退出慢独立待办保留。下一步继续板端剩余验收，当前保持off，无需用户继续配合本轮。
