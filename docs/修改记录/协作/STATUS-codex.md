@@ -4,6 +4,18 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-19 · codex · T-20261119-06 · 持续观察与演示入口并行推进，SSH中断待补实机
+
+> 分支：wip/codex-20261119-demo-operator；基于9a5e976。新工具未合入zy、未部署生产。
+
+- 用户明确身份可见性暂缓；不再要求真人坐姿配合。
+- 19:44启动900秒off只读观察；19:55:41已读139样本/697.497秒，camera=true/7.7fps，主服务PID11184/NRestarts0、frpc PID2464/NRestarts0，RSS约602MiB/Swap0。
+- 后续板端SSH直连/SOCKS/中继关闭或握手超时；云端SSH和6022监听正常。完整900秒摘要未取回，不能标通过；未启动新演示，沿用此前off状态，末次实际确认需补。
+- 新增Invoke-CareDemo.ps1：Start/Stop/Status/Prepare、默认静默/显式语音、会话持久化/排重/中断恢复；验证CLI新增本地SOCKS共用SSH/SCP。
+- 本地：准备PASS/66文件编译、4项进程/代理回归PASS、独立审查无阻断；真实新脚本启停尚未执行。
+- 影响：两工具、tests/test_care_demo_operator.py、docs/board-care-demo-operator.md和board-stability-demo-2026-11-19.md；私有证据不提交。
+- 下一步：取回summary和31指纹/off收尾→静默启停实测→通过后交付zy；身份专项/正式网页/App暂缓。
+
 ## 2026-11-19 · codex · T-20261119-05 · 核心计时分支实测符合预期，身份门禁待验，已off
 
 > 基线现板29daa760…18a3已隔离31项/审查通过，以e4bc621/合并d433a0e原样同步zy；本轮未写生产模块。
@@ -27,15 +39,3 @@
 - 收尾：15:08:03 Probe PASS，off/无关怀配置、camera=true/fps7.7、31指纹通过；不保存图像。先前临时听音已取消且关闭，本轮未再启用关怀。
 - 影响：入口、新HTTP退出测试、实际指纹基线及docs/board-shutdown-stream-2026-11-19.md和协作记录。证据.tmp/server-shutdown-20261119/evidence.tar.gz不提交。
 - 边界：5秒不限制lifespan内部清理；当前off持流场景通过，其他异常/满载条件不泛化。真人短停/长停、完整第2步和长期运行仍待验，网络波动未宣称修复。
-
-## 2026-11-19 · codex · T-20261119-03 · 缓存死锁修复上板，内存阶段观察完成
-
-> 来源zy@75a80a5；功能65c14dd/整合fc442e4已推送并上板。代码和31项指纹实际核验。
-
-- 修复：停止后的迟到画面在普通Lock内二次加锁；真实线程先复现卡住，再最小拆分持锁拒收。原板Python3.9.2相关31项全部通过，独立审查无阻断。
-- 发布：只安装guardian_event_cache.py，其他30文件不变；原件/配置状态私有备份board-health-20261119/cache-fix-backup。SDK/模型/数据库不动。
-- 内存：同一进程120样本/598.373秒/零错误，摄像头持续正常；RSS约637.0→640.7MiB，后半段略降，无持续单向增长证据，不证明排除长期泄漏。
-- 未解：新代码off停机仍32.21秒/Result=timeout，MainPID0且ControlGroup空后已恢复；FRP工作连接超时仍需查，不能把缓存修复等同于全部停机/网络问题解决。
-- 用户临时要求听音后取消，未触发语音；14:54:43已实际CLOSED/Probe PASS：off、无配置、camera7.7fps、31指纹通过。
-- 影响：缓存模块、新线程回归、实际指纹基线及docs/board-health-cache-stop-2026-11-19.md；证据.tmp/board-health-20261119/evidence-cache-fix.tar.gz私有不提交。
-- 下一步：继续验证HTTP长连接与退出等待，T-20261119-04；真人短停/长停和长期验收保持待验。
