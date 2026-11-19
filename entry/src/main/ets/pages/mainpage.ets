@@ -269,10 +269,12 @@ export struct mainPage {
       }) {
         Column() {
           Text(this.palette().word)
-            .fontSize(this.palette().word.length > 2 ? 64 : 96).fontWeight(FontWeight.Bold)
+            .width('100%').maxLines(1)
+            .minFontSize(24).maxFontSize(this.palette().word.length > 2 ? 64 : 96)
+            .heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
+            .fontWeight(FontWeight.Bold)
             .fontColor('#FFFFFF').lineHeight(this.palette().word.length > 2 ? 70 : 100)
             .textShadow({ radius: 40, color: '#40000000', offsetY: 18 })
-            .maxLines(1)
           Text(this.heroLines()).fontSize(15).lineHeight(22).fontColor(ON2)
             .margin({ top: 12 }).constraintSize({ minHeight: 45 })
         }.flexGrow(this.wideLayout ? 0 : 1).flexShrink(1).alignItems(HorizontalAlign.Start)
