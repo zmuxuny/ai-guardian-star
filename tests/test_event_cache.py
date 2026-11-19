@@ -168,6 +168,26 @@ class EventClipCacheTests(unittest.TestCase):
         self.assertTrue(self.wait_until(lambda: self.cache.status()["completed_clips"] == 1))
         self.assertEqual(self.backends[0].packets[0].shape, (48, 64, 3))
 
+    def test_encoder_failure_releases_clip_before_the_deadline(self):
+        class BrokenBackend(FakeBackend):
+            def write(self, packet):
+                raise RuntimeError("encoder failed")
+
+        self.start_cache(lambda _: (BrokenBackend if not self.backends else FakeBackend)(self.backends))
+        self.feed(3)
+        failed = self.cache.trigger("fall")
+        self.feed(4)
+        self.assertTrue(self.wait_until(lambda: self.cache.status()["completed_clips"] == 1))
+        self.assertFalse(self.cache.status()["last_clip"]["finalized"])
+        self.assertEqual(self.store.list_event_recordings(failed["event_id"]), [])
+
+        next_clip = self.cache.trigger("sit")
+        self.assertFalse(next_clip["extended"])
+        self.feed(4)
+        self.clock.advance(1.5)
+        self.assertTrue(self.wait_until(lambda: self.cache.status()["completed_clips"] == 2))
+        self.assertEqual(len(self.store.list_event_recordings(next_clip["event_id"])), 1)
+
     def test_existing_event_can_be_linked_without_creating_another(self):
         self.start_cache()
         self.feed(3)

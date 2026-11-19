@@ -129,7 +129,7 @@ def register_recording_routes(app, bearer_required):
         if not clip:
             return None, (jsonify(success=False, message='录像已过期或不在筛选范围，请刷新'), 404)
         if not clip.get('downloadable', True) or not clip.get('segmentId'):
-            return None, (jsonify(success=False, message='异常视频正在生成，请稍后刷新'), 429)
+            return None, (jsonify(success=False, message='该事件目前没有可播放的录像'), 429)
         return clip, None
 
     @app.post('/api/recordings/stream-url')

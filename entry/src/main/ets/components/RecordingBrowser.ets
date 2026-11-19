@@ -352,12 +352,8 @@ export struct RecordingBrowser {
     return body;
   }
 
-  /** 点击片段：换取签名地址后在线播放，不下载到本机。 */
+  /** 点击片段时让云端核对最新录像状态，再换取播放地址。 */
   private async play(clip: RecordingClip): Promise<void> {
-    if (clip.downloadable === false) {
-      this.toast('异常视频正在生成，请稍后刷新');
-      return;
-    }
     const body = this.clipRequest(clip);
     if (body === undefined) return;
     const version = ++this.playbackVersion;
@@ -580,7 +576,7 @@ export struct RecordingBrowser {
       .backgroundColor(this.themeManager.isDarkMode ? '#24FFFFFF' : '#26' + this.palette().tone.substring(1))
       .enabled(clip.downloadable !== false && this.downloadingId === '')
       .opacity(clip.downloadable === false ? 0.4 : 1)
-      .accessibilityText(clip.downloadable === false ? '视频生成中' : `把${this.eventLabel(clip.eventType)}视频保存到手机`)
+      .accessibilityText(clip.downloadable === false ? '暂无可下载的视频' : `把${this.eventLabel(clip.eventType)}视频保存到手机`)
       .onClick((): void => { this.saveClip(clip); })
     }.width('100%').padding({ top: 12, bottom: 12 })
       .border({ width: { top: 1 }, color: this.line() })

@@ -506,7 +506,7 @@ class RecordingApiStatusTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertIn('已过期', body['message'])
 
-    def test_media_keeps_429_for_a_clip_that_is_still_being_generated(self):
+    def test_media_does_not_claim_generation_without_an_available_clip(self):
         pending = {'success': True, 'clips': [
             {'id': 'event-a', 'segmentId': '', 'downloadable': False}], 'eventCount': 1}
         with patch.object(self.api, '_snapshot', return_value=pending):
@@ -514,7 +514,7 @@ class RecordingApiStatusTests(unittest.TestCase):
                 'asOf': 1_800_000_000_000, 'filter': 'all', 'clipId': 'event-a',
                 'windowStart': 1000, 'windowEnd': 2000})
         self.assertEqual(status, 429)
-        self.assertIn('正在生成', body['message'])
+        self.assertEqual(body['message'], '该事件目前没有可播放的录像')
 
     def test_media_keeps_503_for_an_unavailable_board_bridge(self):
         with patch.object(self.api, '_snapshot',
