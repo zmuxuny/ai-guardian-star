@@ -16,7 +16,7 @@
     "care_delivery_store.py": "d051bf5f793310c51cecf80b0a1f44b73a75898ea5ed6cf65109e7ca3ff6f0ac",
     "care_runtime.py": "0fbb796564c33bdd5da7a335ceb2cd64163d3e7ef2efd8f96c6a01ca79f087ef",
     "care_transport.py": "9a9766dc97d762fff3a63d0b995d3eb5b4d7af3f75b3f7861127a13b508460e6",
-    "guardian_event_cache.py": "e5bceed79bca3009f8335cbe433a6a6b579ca1c7cb2992994c2617c221a98bd8",
+    "guardian_event_cache.py": "444597a96cbcd99a1efa7fbbfe205e6c46cb8c776016baa86918e3fb9e87cd91",
     "guardian_history.py": "6f4eb1e1e37e17e83dec6a48babd2923c7fd92cd55a3f1455e3e3da6021f03b4",
     "guardian_recording.py": "ff28f5995ced57dc65681d4742f7d892e2a43e8cda5804ddd201143f83c593fe",
     "guardian_recording_config.py": "fdef9ab4ec175cf44e2c5535b5c23f551f5d5c121c1eeb48434c01e29a17a4fe",
@@ -42,7 +42,7 @@
     3,
     9
   ],
-  "runtime_revision": "e463172+AF-01+care-audio-d4a1a9f",
+  "runtime_revision": "e463172+AF-01+care-audio-d4a1a9f+cache-stop-65c14dd",
   "schema_version": 1,
   "service": "guardian-board.service",
   "soc_identity": "Ascend310B4",

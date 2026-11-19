@@ -4,6 +4,18 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-19 · codex · T-20261119-03 · 缓存死锁修复上板，内存阶段观察完成
+
+> 来源zy@75a80a5；功能65c14dd/整合fc442e4已推送并上板。代码和31项指纹实际核验。
+
+- 修复：停止后的迟到画面在普通Lock内二次加锁；真实线程先复现卡住，再最小拆分持锁拒收。原板Python3.9.2相关31项全部通过，独立审查无阻断。
+- 发布：只安装guardian_event_cache.py，其他30文件不变；原件/配置状态私有备份board-health-20261119/cache-fix-backup。SDK/模型/数据库不动。
+- 内存：同一进程120样本/598.373秒/零错误，摄像头持续正常；RSS约637.0→640.7MiB，后半段略降，无持续单向增长证据，不证明排除长期泄漏。
+- 未解：新代码off停机仍32.21秒/Result=timeout，MainPID0且ControlGroup空后已恢复；FRP工作连接超时仍需查，不能把缓存修复等同于全部停机/网络问题解决。
+- 用户临时要求听音后取消，未触发语音；14:54:43已实际CLOSED/Probe PASS：off、无配置、camera7.7fps、31指纹通过。
+- 影响：缓存模块、新线程回归、实际指纹基线及docs/board-health-cache-stop-2026-11-19.md；证据.tmp/board-health-20261119/evidence-cache-fix.tar.gz私有不提交。
+- 下一步：继续验证HTTP长连接与退出等待，T-20261119-04；真人短停/长停和长期验收保持待验。
+
 ## 2026-11-19 · codex · T-20261119-02 · 五分钟连续运行完成，重启未完成，已off
 
 > 分支：codex/zy-care-audio-integration-20261118；基线zy@dc74e78，未修改生产代码。
@@ -26,15 +38,3 @@
 - 收尾：13:57:03 Probe PASS；service active、care off/无配置、camera=true/fps7.3、31指纹通过；临时环境撤销、独立care outbox=0。
 - 影响：仅语音交付文档、TASKS、本人STATUS及旧记录归档；私有证据.tmp/care-arbitration-20261119/evidence.tar.gz与listen-confirmation.json不提交。
 - 未验：UDP实际抢占、完整长时间/顺序验收、App回执与公网页面；原服务退出慢独立待办保留。下一步继续板端剩余验收，当前保持off，无需用户继续配合本轮。
-
-## 2026-11-19 · codex · T-20261118-07 · 已部署并实测自动语音，已恢复off
-
-> 分支：codex/zy-care-audio-integration-20261118；来源zy@2131ee2，功能d4a1a9f。
-> 用户授权继续部署，并现场确认自动语音“听到了，正常”。
-
-- 部署：核对原28项指纹后，备份全部基线代码、私有服务/环境及1份SQLite快照；原3.9.2编译通过，只安装入口、care_audio.py及两段PCM语音。实际入口独立增强保留。
-- 真实验证：AudioDemo独立shadow、sync=false、2/3/5秒；登记P2同轮L0一次/L1两次，24采样无错误、live outbox全0，用户听音正常；没有用手动重播代替。
-- 收尾：13:30:43 Probe PASS，service active、care off、无关怀配置、camera=true/fps7.5，31项指纹全部通过；临时阈值/音频覆盖已撤销。
-- 影响：deploy/board/care-validation-baseline.json、语音交付说明及本协作记录。生产备份/root/guardian-care-staging/care-audio-deploy-20261119/backup；本地私有证据.tmp/care-audio-deploy-20261119/evidence.tar.gz，不提交语音/数据库/环境。
-- 过程：首轮包路径预检在停服前退出，修正payload前缀后完成；恢复时SSH断连，随后核对实际恢复记录和进程并复验通过。
-- 未验：真实对讲抢占、完整长时间验收、App回执/公网页面。下一步按需继续这些项目，当前保持off；未改主工作区或其他成员分支。
