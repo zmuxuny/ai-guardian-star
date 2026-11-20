@@ -8,6 +8,13 @@ import tempfile
 from pathlib import Path
 from contextlib import closing
 from unittest.mock import patch
+from datetime import datetime, timezone, timedelta
+from dataclasses import replace
+import ast
+import threading
+import sys
+
+sys.path.insert(0,str(Path(__file__).resolve().parent/'src'))
 import unittest
 
 from src.posture_features import extract_posture, eligible_label, evaluate, histogram_bins
@@ -215,6 +222,264 @@ class StoreTests(unittest.TestCase):
         with closing(sqlite3.connect(old)) as db:
             self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],4)
             self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='partial'").fetchone())
+
+    def test_trusted_event_is_never_recommended_for_extension(self):
+        guards=dict(long_still=False,no_response=False,radar_fall=False)
+        for identity in ('n1','n2','n3','candidate'):
+            self.event(identity)
+            self.store.capture_event('shadow',identity,posture(),'cam1',guards=guards)
+            self.feedback(identity,payload={'feedback':'trusted'} if identity=='candidate' else
+                          {'feedback':'untrusted','reason':'not_fall'})
+        report=self.store.personal_report('shadow','cam1')
+        self.assertEqual(report['would_extend_confirmation_events'],0)
+        self.assertGreater(report['positive_match_events'],0)
+
+    def test_static_suggestion_is_recomputed_after_withdrawal_and_quality_reasons_are_aggregate(self):
+        guards=dict(long_still=False,no_response=False,radar_fall=False)
+        for identity in ('n1','n2','n3','candidate'):
+            self.event(identity)
+            self.store.capture_event('shadow',identity,posture(),'cam1',guards=guards)
+            if identity!='candidate': self.feedback(identity)
+        first=self.store.personal_report('shadow','cam1')
+        self.assertEqual(first['would_extend_confirmation_events'],1)
+        self.feedback('n1',operation='revoke')
+        self.assertEqual(self.store.personal_report('shadow','cam1')['would_extend_confirmation_events'],0)
+        self.event('bad'); self.capture('bad',feature=dict(version='posture_v1',valid=False,reason='invalid_pose'))
+        self.event('unknown'); self.capture('unknown')
+        report=self.store.personal_report('shadow','cam1')
+        self.assertEqual(report['quality_reasons'],{'invalid_pose':1})
+        self.assertEqual(report['protection_reasons']['radar_fall_unknown'],1)
+
+    def test_new_foreign_keys_are_checked_before_adopting_existing_schema(self):
+        from src.local_care_migrations import migrate_database, MIGRATIONS
+        old=self.path.with_name('bad_fk.db')
+        script=MIGRATIONS[5].read_text(encoding='utf8')
+        script=script.replace(',\n    FOREIGN KEY(person_id,model_version,event_id) REFERENCES care_events(person_id,model_version,event_id)','')
+        broken=self.path.with_name('no_fk.sql'); broken.write_text(script,encoding='utf8')
+        migrate_database(old,target_version=4)
+        with patch.dict(MIGRATIONS,{5:broken}):
+            with self.assertRaises(ValueError): migrate_database(old)
+
+    def test_feedback_while_collection_disabled_still_refreshes_saved_samples(self):
+        from src.weekly_store import WeeklyStore
+        self.event(); self.capture(); self.feedback()
+        disabled=WeeklyStore(self.path,'p','m',clock=lambda:self.now)
+        disabled.event_feedback('e','shadow',operation='revoke')
+        self.assertFalse(self.store.samples('shadow','cam1')['normal'])
+        disabled.event_feedback('e','shadow',operation='restore')
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+
+
+class RuntimeTests(unittest.TestCase):
+    def setUp(self):
+        from src.care_runtime import CareRuntime, RuntimeConfig
+        from src.sedentary_care import VirtualClock
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.clock = VirtualClock(datetime(2026,11,20,12,tzinfo=timezone(timedelta(hours=8))))
+        self.config = RuntimeConfig(db_path=Path(self.directory.name)/'care.db',person_ids=('p',),
+                                    model_version='m',mode='shadow',personal_baseline_enabled=True,camera_revision='cam1',region_id='room')
+        self.runtime = CareRuntime(self.config,clock=self.clock)
+        self.addCleanup(self.runtime.close)
+
+    def alert(self,fall=True,**extra):
+        box,kpts,shape = pose_input()
+        return dict(id=7,face_label='known:p',status='FALL DETECTED' if fall else 'Normal',
+                    fall_raw=fall,is_sitting=False,box=box,kpts=kpts,frame_shape=shape,**extra)
+
+    def record(self,identity='real',alert=None):
+        alert=alert or self.alert()
+        self.runtime.process_frame([alert],{'fall':[alert]})
+        self.runtime.observe_recorded_event('fall',alert,
+            dict(event_id=identity,kind='fall',started_at=self.runtime.utc()))
+        self.assertTrue(self.runtime.personal.flush())
+
+    def test_shadow_real_recorded_id_feedback_and_no_new_recording(self):
+        alert = self.alert()
+        result = self.runtime.process_frame([alert],{'fall':[alert]})
+        self.assertFalse(self.runtime.events('p'))
+        self.record()
+        events = self.runtime.events('p')
+        self.assertEqual([r['event_id'] for r in events],['real'])
+        self.assertFalse(result['event_refs'])
+        self.runtime.feedback('p','real',{'feedback':'untrusted','reason':'not_fall'})
+        self.assertEqual(len(self.runtime.store('p').samples('shadow','cam1')['normal']),1)
+        self.assertFalse(self.runtime.pending('p'))
+
+    def test_histogram_throttled_and_ambiguous_or_alerted_frames_excluded(self):
+        normal = self.alert(False)
+        for _ in range(20): self.runtime.process_frame([normal],{})
+        self.assertTrue(self.runtime.personal.flush())
+        self.assertEqual(self.runtime.personal_report('p')['histogram_observations'],1)
+        for rows in ([normal,normal],[self.alert()], [dict(normal,face_label='stranger')],
+                     [dict(normal,fall_raw=True)], [dict(normal,pose_reliable=False)]):
+            self.clock.advance(2); self.runtime.process_frame(rows,{})
+        self.assertTrue(self.runtime.personal.flush())
+        self.assertEqual(self.runtime.personal_report('p')['histogram_observations'],1)
+        self.clock.advance(2); self.runtime.process_frame([normal],{})
+        self.assertTrue(self.runtime.personal.flush())
+        self.assertEqual(self.runtime.personal_report('p')['histogram_observations'],2)
+
+    def test_erased_person_drops_queued_work_and_requires_explicit_resume(self):
+        self.record()
+        self.runtime.erase_person('p')
+        self.record('after_erase')
+        self.assertFalse(self.runtime.events('p'))
+        self.assertEqual(self.runtime.personal_report('p')['evaluated_events'],0)
+        self.runtime.resume_person('p'); self.record('after_resume')
+        self.assertEqual([r['event_id'] for r in self.runtime.events('p')],['after_resume'])
+
+    def test_disabled_feature_does_not_change_existing_events_or_start_worker(self):
+        from src.care_runtime import CareRuntime
+        other = CareRuntime(replace(self.config,db_path=Path(self.directory.name)/'disabled.db',personal_baseline_enabled=False),clock=self.clock)
+        self.addCleanup(other.close)
+        self.assertIsNone(other.personal)
+        alert = self.alert()
+        before = copy.deepcopy(alert)
+        other.process_frame([alert],{'fall':[alert]})
+        self.assertEqual(len(other.events('p')),1)
+        self.assertEqual(alert,before)
+
+    def test_entry_supplies_frame_shape_without_mutating_legacy_alerts(self):
+        from test_care_delivery import production_entry
+        alert=self.alert(); shape=alert.pop('frame_shape'); before=copy.deepcopy(alert)
+        result=production_entry('dispatch_care_detection')(self.runtime,[alert],{'fall':[alert]},shape)
+        self.assertEqual(result['mode'],'shadow')
+        self.runtime.observe_recorded_event('fall',alert,dict(event_id='shape',kind='fall',started_at=self.runtime.utc()))
+        self.assertTrue(self.runtime.personal.flush())
+        self.runtime.feedback('p','shape',{'feedback':'trusted'})
+        self.assertEqual(len(self.runtime.store('p').samples('shadow','cam1')['risk']),1)
+        self.assertEqual(alert,before)
+
+    def test_unknown_identity_missing_record_id_and_invalid_feature_do_not_throw(self):
+        self.runtime.observe_recorded_event('fall',self.alert(),{})
+        self.runtime.observe_recorded_event('fall',self.alert(face_score=.1),None)
+        self.runtime.observe_recorded_event('fall',dict(self.alert(),face_label='unknown'),{'event_id':'u'})
+        self.assertTrue(self.runtime.personal.flush())
+        self.assertFalse(self.runtime.events('p'))
+
+    def test_api_uses_existing_auth_and_exposes_only_aggregate(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from src.care_api import create_care_router
+        app = FastAPI(); app.include_router(create_care_router(self.runtime,lambda:'private-test'))
+        self.record()
+        with TestClient(app) as client:
+            route='/api/care/m/p/personal-baseline'
+            self.assertEqual(client.get(route).status_code,401)
+            headers={'Authorization':'Bearer private-test'}
+            response=client.get(route,headers=headers)
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(response.json()['evaluated_events'],1)
+            for key in ('torso_angle','hip_height','aspect_ratio','kpts','box','event_id'):
+                self.assertNotIn(key,response.text)
+            self.assertEqual(client.get('/api/care/m/q/personal-baseline',headers=headers).status_code,404)
+
+    def test_real_history_entry_preserves_id_through_feature_and_feedback(self):
+        import sys
+        sys.path.insert(0,str(Path(__file__).resolve().parent/'src'))
+        from src.guardian_recording_config import RecordingConfig
+        from src.guardian_storage import initialize_storage
+        from src.guardian_history import HistoryStore
+        from src.guardian_event_cache import EventClipCache
+        from test_care_delivery import production_entry
+        config=RecordingConfig(enabled=True,data_root=Path(self.directory.name)/'recordings',
+                               storage_quota_bytes=10**7,min_free_bytes=1,encoder='test-only-fake')
+        initialize_storage(config)
+        history=HistoryStore(config); self.addCleanup(history.close)
+        cache=EventClipCache(config,history,None,clock=self.runtime.utc,monotonic=lambda:self.clock.now)
+        alert=self.alert(); before=copy.deepcopy(alert)
+        result=self.runtime.process_frame([alert],{'fall':[alert]})
+        actual=production_entry('trigger_history_event')(cache,'fall',alert,result,self.runtime.utc(),self.runtime)
+        self.assertTrue(self.runtime.personal.flush())
+        identity=actual['event_id']
+        self.assertEqual(history.get_event(identity)['id'],identity)
+        self.assertEqual([e['event_id'] for e in self.runtime.events('p')],[identity])
+        self.runtime.feedback('p',identity,{'feedback':'trusted'})
+        self.assertEqual(self.runtime.store('p').samples('shadow','cam1')['risk'][0]['event_id'],identity)
+        self.assertEqual(alert,before)
+        self.assertEqual(cache._clip.event_ids,[identity])
+
+    def test_legacy_recording_result_survives_private_observation_failure(self):
+        from test_care_delivery import production_entry
+        from types import SimpleNamespace
+        trigger=production_entry('trigger_history_event')
+        expected={'event_id':'real','state':'recording'}
+        cache=SimpleNamespace(trigger=lambda *args,**kwargs:expected)
+        broken=SimpleNamespace(observe_history_result=lambda *args:(_ for _ in ()).throw(OSError('private')))
+        self.assertIs(trigger(cache,'fall',self.alert(),{'event_refs':{}},self.runtime.utc(),broken),expected)
+
+    def test_close_drains_private_writer(self):
+        self.record()
+        self.runtime.close()
+        self.assertFalse(self.runtime.personal._thread.is_alive())
+
+    def test_live_existing_ref_reused_and_feedback_outbox_has_no_features(self):
+        from src.care_runtime import CareRuntime
+        from src.guardian_recording_config import RecordingConfig
+        from src.guardian_storage import initialize_storage
+        from src.guardian_history import HistoryStore
+        from src.guardian_event_cache import EventClipCache
+        from test_care_delivery import production_entry
+        live=CareRuntime(replace(self.config,mode='live',db_path=Path(self.directory.name)/'live.db'),clock=self.clock)
+        self.addCleanup(live.close)
+        config=RecordingConfig(enabled=True,data_root=Path(self.directory.name)/'live-recordings',
+                               storage_quota_bytes=10**7,min_free_bytes=1,encoder='test-only-fake')
+        initialize_storage(config)
+        history=HistoryStore(config); self.addCleanup(history.close)
+        cache=EventClipCache(config,history,None,clock=live.utc,monotonic=lambda:self.clock.now)
+        alert=self.alert()
+        result=live.process_frame([alert],{'fall':[alert]})
+        identity=result['event_refs'][('fall',7)]['event_id']
+        actual=production_entry('trigger_history_event')(cache,'fall',alert,result,live.utc(),live)
+        self.assertEqual(actual['event_id'],identity)
+        self.assertTrue(live.personal.flush())
+        live.feedback('p',identity,{'feedback':'trusted'})
+        self.assertEqual(len(live.events('p')),1)
+        encoded=json.dumps(live.pending('p'))
+        for field in ('torso_angle','hip_height','aspect_ratio','feature_json','frame_shape','kpts'):
+            self.assertNotIn(field,encoded)
+
+    def test_worker_failure_and_queue_overflow_leave_original_input_untouched(self):
+        alert=self.alert(); before=copy.deepcopy(alert)
+        self.runtime.process_frame([alert],{'fall':[alert]})
+        entered,release=threading.Event(),threading.Event()
+        original=self.runtime.store('p').capture_event
+        def slow(*args,**kwargs):
+            entered.set(); release.wait(5); return original(*args,**kwargs)
+        with patch.object(self.runtime.store('p'),'capture_event',side_effect=slow):
+            self.runtime.observe_recorded_event('fall',alert,dict(event_id='first',kind='fall',started_at=self.runtime.utc()))
+            self.assertTrue(entered.wait(2))
+            for i in range(50):
+                self.runtime.observe_recorded_event('fall',alert,dict(event_id='overflow'+str(i),kind='fall',started_at=self.runtime.utc()))
+            self.assertGreater(self.runtime.personal.diagnostics()['dropped'],0)
+            release.set()
+            self.assertTrue(self.runtime.personal.flush())
+        with patch.object(self.runtime.store('p'),'capture_event',side_effect=OSError('secret-data')):
+            self.record('failure')
+        self.assertGreater(self.runtime.personal.diagnostics()['errors'],0)
+        self.assertEqual(alert,before)
+
+
+class PackagingTests(unittest.TestCase):
+    def test_all_existing_packages_include_personal_modules_and_schema5(self):
+        import zipfile
+        from tools.care_release import FILES
+        from tools.care_flat_release import MODULES,MIGRATIONS
+        from tools.board_validation import build_kit
+        modules=('posture_features','personal_baseline_store','personal_baseline')
+        for module in modules:
+            self.assertIn('src/'+module+'.py',FILES)
+            self.assertIn(module,MODULES)
+        self.assertIn('005_personal_baseline.sql',MIGRATIONS)
+        with tempfile.TemporaryDirectory() as directory:
+            destination=Path(directory)/'kit.zip'
+            build_kit(Path(__file__).resolve().parent,destination)
+            with zipfile.ZipFile(destination) as archive:
+                names=archive.namelist()
+                for module in modules:
+                    self.assertIn('src/'+module+'.py',names)
+                self.assertIn('src/migrations/local_care/005_personal_baseline.sql',names)
 
 
 if __name__ == '__main__':

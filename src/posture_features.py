@@ -89,11 +89,11 @@ def evaluate(feature, normal, risk, guards):
     validate_feature(feature)
     if not isinstance(guards,dict) or any(guards.get(k) is not False for k in GUARDS):
         return 'protected'
+    if any(_similar(feature,row['feature']) for row in risk):
+        return 'positive_match'
     unique = {row['event_id']:row['feature'] for row in normal}
     if len(unique)<3:
         return 'insufficient'
-    if any(_similar(feature,row['feature']) for row in risk):
-        return 'positive_match'
     return 'suggest_extend' if sum(_similar(feature,f) for f in unique.values())>=3 else 'no_match'
 
 

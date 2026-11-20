@@ -62,3 +62,9 @@ Files: docs/personal-baseline-runbook.md、协作TASKS/STATUS及本计划。
 
 用户已明确“确认设计，继续实现”，本计划在同一会话直接执行，不再增加确认轮次。
 work_state工具未暴露，暂以本计划的执行记录保存进度，待工具可用再同步。
+
+- Task1完成：d0e522a；5项特征RED→GREEN。
+- Task2完成：5da0f37；新存储及原存储/周报52项通过。
+- Task3执行：真实HistoryStore/EventClipCache影子原ID贯穿，live引用和outbox隔离、后台队列/认证测试通过；Task4回归和审核继续。
+- Ruling：在服务入口传实际frame_shape，保持检测器源文件不变；入口已持有同一帧，能避免覆盖设备上的检测器独立增强，代价是调用方缺少shape时特征不可用（保守跳过）。
+- Ruling：关闭采集后既有事件反馈仍刷新已存派生资格，避免再开启时撤销记录复活；只关闭采集不屏蔽撤销事务。

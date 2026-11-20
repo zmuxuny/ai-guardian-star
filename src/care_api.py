@@ -23,6 +23,16 @@ def create_care_router(runtime, token_provider=None):
         if model_version != runtime.config.model_version or person_id not in runtime.config.person_ids:
             raise HTTPException(404, 'care_scope_not_found')
 
+    @router.get('/{model_version}/{person_id}/personal-baseline')
+    def personal_baseline(model_version: str, person_id: str):
+        scope(model_version,person_id)
+        if runtime.personal is None:
+            raise HTTPException(503,'personal_baseline_disabled')
+        try:
+            return runtime.personal_report(person_id)
+        except Exception:
+            raise HTTPException(503,'personal_baseline_unavailable') from None
+
     def weekly_scope(model_version, person_id):
         scope(model_version, person_id)
         if not runtime.config.weekly_enabled:

@@ -24,8 +24,8 @@ from tools.care_release import ROOT, BASELINE, _git, _safe, digest, REQUIRES as 
 
 MODULES = ('sedentary_care','local_care_store','local_care_migrations','shadow_mode',
            'region_aggregation','care_runtime','care_delivery_store','care_api',
-           'care_transport','weekly_store','weekly_report')
-MIGRATIONS = ('001_initial.sql','002_baseline_source.sql','003_delivery.sql','004_weekly.sql')
+           'care_transport','weekly_store','weekly_report','posture_features','personal_baseline_store','personal_baseline')
+MIGRATIONS = ('001_initial.sql','002_baseline_source.sql','003_delivery.sql','004_weekly.sql','005_personal_baseline.sql')
 REQUIRES = tuple(p for p in SOURCE_REQUIRES if p != 'src/region_aggregation.py')
 ENTRY = 'ascend_board_server.py'
 PATHS = tuple(m+'.py' for m in MODULES) + tuple('migrations/local_care/'+s for s in MIGRATIONS) + (ENTRY,)

@@ -37,10 +37,16 @@ class RuntimeConfig:
     weekly_enabled: bool = False
     weekly_regions: tuple = ('unknown',)
     face_label_ids: Mapping[str, str] = field(default_factory=dict)
+    personal_baseline_enabled: bool = False
+    camera_revision: str = None
 
     def __post_init__(self):
         _key(self.model_version, 'model_version')
         _key(self.region_id, 'region_id')
+        if type(self.personal_baseline_enabled) is not bool:
+            raise ValueError('invalid personal baseline switch')
+        if self.camera_revision is not None:
+            _key(self.camera_revision,'camera_revision')
         if type(self.weekly_enabled) is not bool or not isinstance(self.weekly_regions,tuple) or not 1 <= len(self.weekly_regions) <= 15 or len(set(self.weekly_regions)) != len(self.weekly_regions):
             raise ValueError('invalid weekly configuration')
         for region in self.weekly_regions:
@@ -92,10 +98,20 @@ class CareRuntime:
         self._stores, self._machines, self._active = {}, {}, {}
         self._coverage = {}
         self._regions = {}
+        self.personal = None
+        self._personal_tracks = {}
+        self._personal_frame_shape = None
         self.history = self.recorder = None
         self.shadow = ShadowRunner(TrackerBaseline(), region_candidate, max_pending=2)
+        store_class = WeeklyStore
+        if config.personal_baseline_enabled:
+            if __package__:
+                from .personal_baseline_store import PersonalBaselineStore
+            else:
+                from personal_baseline_store import PersonalBaselineStore
+            store_class = PersonalBaselineStore
         for person in config.person_ids:
-            store = WeeklyStore(config.db_path, person, config.model_version, clock=self.utc)
+            store = store_class(config.db_path, person, config.model_version, clock=self.utc)
             self._stores[person] = store
             session = store.session(config.mode)
             machine = (CareMachine.restore(self.clock, session['checkpoint'], config.machine)
@@ -106,11 +122,20 @@ class CareRuntime:
                 expiry = next((t for t in machine.transitions if t['event']=='uncertainty_expired'), None)
                 store.save_step(config.mode, machine.checkpoint(), None, closed_id=session['active_event_id'],
                                 closed_at=datetime.fromisoformat(expiry['snapshot']['wall_time']).timestamp() if expiry else None)
+        if config.personal_baseline_enabled:
+            if __package__:
+                from .personal_baseline import PersonalBaselineWorker
+            else:
+                from personal_baseline import PersonalBaselineWorker
+            self.personal = PersonalBaselineWorker(self._stores,config.mode,config.camera_revision)
 
     def utc(self):
         return self.clock.wall_at(self.clock.now).timestamp()
 
-    def process_frame(self, alerts, new_events):
+    def process_frame(self, alerts, new_events, *, frame_shape=None):
+        if self.personal:
+            with self._lock:
+                self._personal_frame_shape = frame_shape
         return process_care_frame(self, alerts, new_events)
 
     def store(self, person):
@@ -145,7 +170,10 @@ class CareRuntime:
     def erase_person(self, person):
         # Same lock order as flush: wait for any in-flight send before erasing.
         with self._flush_lock, self._lock:
+            if self.personal:
+                self.personal.suspend(person)
             result = self.store(person).erase()
+            self._personal_tracks.clear()
             self._coverage.pop(person,None)
             self._regions.pop(person,None)
             self._active[person] = None
@@ -160,7 +188,71 @@ class CareRuntime:
 
     def resume_person(self, person):
         with self._lock:
-            return self.store(person).resume()
+            result = self.store(person).resume()
+            if self.personal:
+                self.personal.resume(person)
+            return result
+
+    def _posture(self, alert, at):
+        if __package__:
+            from .posture_features import extract_posture
+        else:
+            from posture_features import extract_posture
+        region = alert.get('care_region_id',self.config.region_id)
+        if region not in self.config.weekly_regions and region!=self.config.region_id:
+            region='unknown'
+        return extract_posture(alert.get('box'),alert.get('kpts'),alert.get('frame_shape',self._personal_frame_shape),region,at)
+
+    def _personal_observe(self, alerts):
+        self._personal_tracks.clear()
+        if not self.personal or len(alerts)!=1:
+            return
+        alert=alerts[0]
+        person=self._person(alert)
+        if person is None or alert.get('pose_reliable') is False:
+            return
+        self._personal_tracks[alert.get('id')]=person
+        if ('FALL' in alert.get('status','') or alert.get('fall_raw') is not False
+                or alert.get('is_sitting') is not False or alert.get('face_label')=='stranger'):
+            return
+        feature=self._posture(alert,self.utc())
+        if feature['valid']:
+            self.personal.observe(person,feature,self.utc())
+
+    def observe_recorded_event(self, kind, alert, record):
+        """Only the real recording result may introduce a shadow fall identity."""
+        if not self.personal or self._closed or kind!='fall' or not isinstance(record,dict):
+            return
+        try:
+            with self._lock:
+                person=self._person(alert)
+                if person is None or self._personal_tracks.get(alert.get('id'))!=person:
+                    return
+                identity=_key(record.get('event_id'),'event_id')
+                if record.get('kind')!=kind:
+                    return
+                at=record['started_at']
+                ref=dict(person_id=person,model_version=self.config.model_version,event_id=identity,
+                         mode=self.config.mode,kind=kind,region_id=self.config.region_id,started_at=at,ended_at=None)
+                self.personal.event(person,ref,self._posture(alert,at),alert.get('personal_guards'))
+        except Exception:
+            self.personal.error()
+
+    def observe_history_result(self, cache, kind, alert, result):
+        if not self.personal or not isinstance(result,dict) or not result.get('event_id'):
+            return
+        try:
+            row=cache.store.get_event(result['event_id'])
+            if row is not None:
+                self.observe_recorded_event(kind,alert,dict(event_id=row['id'],kind=row['kind'],started_at=row['started_at']))
+        except Exception:
+            self.personal.error()
+
+    def personal_report(self, person):
+        self.store(person)
+        if not self.personal:
+            raise RuntimeError('personal baseline disabled')
+        return self.store(person).personal_report(self.config.mode,self.config.camera_revision)
 
     def _weekly_observe(self, person, rows=None):
         if not self.config.weekly_enabled:
@@ -243,6 +335,12 @@ class CareRuntime:
             if self._closed:
                 raise RuntimeError('care runtime is closed')
             self._shadow_history.extend(self.shadow.pop_completed())
+            # Inspect original multiplicity before filtering erased/unknown people.
+            try:
+                self._personal_observe(alerts)
+            except Exception:
+                if self.personal:
+                    self.personal.error()
             alerts = [a for a in alerts if not (self._person(a) and self.store(self._person(a)).erased())]
             by_person = {}
             for alert in alerts:
@@ -277,6 +375,9 @@ class CareRuntime:
                 for alert in new_events.get(kind, []):
                     person = self._person(alert)
                     if person is None or self.store(person).erased():
+                        continue
+                    if kind=='fall' and self.personal and self.config.mode=='shadow':
+                        # Real history entry will notify us with its durable ID.
                         continue
                     identity = self._active[person] if kind == 'sit' else None
                     ref = self.store(person).event(identity, self.config.mode) if identity else None
@@ -361,6 +462,8 @@ class CareRuntime:
                 return
             self._closed = True
         self.shadow.close()
+        if self.personal:
+            self.personal.close()
 
 
 def record_event(cache, ref):

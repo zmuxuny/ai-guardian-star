@@ -136,6 +136,16 @@ def _version(db):
                 or tuple((r['from'], r['to']) for r in sorted(foreign_keys, key=lambda r: r['seq']))
                 != tuple((name, name) for name in _KEYS['feedback'])):
             raise ValueError('audit foreign key is missing person/model scope')
+        if version>=5:
+            for table,parent,names in (
+                    ('posture_features','care_events',('person_id','model_version','event_id')),
+                    ('posture_samples','posture_features',('person_id','model_version','mode','event_id'))):
+                links=db.execute(f'PRAGMA foreign_key_list({table})').fetchall()
+                if (len(links)!=len(names) or len({r['id'] for r in links})!=1
+                        or any(r['table']!=parent for r in links)
+                        or tuple((r['from'],r['to']) for r in sorted(links,key=lambda r:r['seq']))
+                        !=tuple((name,name) for name in names)):
+                    raise ValueError('posture foreign key is missing scope')
     return version
 
 

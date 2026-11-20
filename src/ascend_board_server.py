@@ -76,12 +76,15 @@ udp_socket = None
 phone_addr = None
 
 
-def dispatch_care_detection(runtime, alerts, new_events):
+def dispatch_care_detection(runtime, alerts, new_events, frame_shape=None):
     """Executed by the detection loop; failure cannot replace legacy alerts."""
     if runtime is None:
         return {'mode':'off', 'states':[], 'event_refs':{}, 'record_refs':[]}
     try:
-        result = runtime.process_frame(alerts, new_events)
+        if frame_shape is not None and runtime.config.personal_baseline_enabled:
+            result = runtime.process_frame(alerts, new_events, frame_shape=frame_shape)
+        else:
+            result = runtime.process_frame(alerts, new_events)
         dispatch_care_audio(result.get('states', []))
         return result
     except Exception as exc:
@@ -106,12 +109,20 @@ def play_intercom_audio(data):
         audio_hw.put_audio_frame(data)
 
 
-def trigger_history_event(cache, kind, alert, care_result, at):
+def trigger_history_event(cache, kind, alert, care_result, at, runtime=None):
     ref = care_result['event_refs'].get((kind, alert.get('id')))
     if ref is not None:
-        return record_event(cache, ref)
-    return cache.trigger(kind, at=at, person_id=None if alert.get('id') is None else str(alert['id']),
-                         payload={'kind': kind})
+        result = record_event(cache, ref)
+    else:
+        result = cache.trigger(kind, at=at, person_id=None if alert.get('id') is None else str(alert['id']),
+                               payload={'kind': kind})
+    if runtime is not None:
+        try:
+            runtime.observe_history_result(cache,kind,alert,result)
+        except Exception:
+            # Private observation cannot fail or re-trigger the real recording.
+            pass
+    return result
 
 
 def poll_care_without_observation(runtime):
@@ -1278,12 +1289,12 @@ def run_system():
                     )
 
                     new_events = event_tracker.update(alerts, _now)
-                    care_result = dispatch_care_detection(care_runtime, alerts, new_events)
+                    care_result = dispatch_care_detection(care_runtime, alerts, new_events, frame.shape[:2])
                     if event_cache is not None:
                         for _kind in ("fall", "sit", "stranger"):
                             for _alert in new_events.get(_kind, []):
                                 try:
-                                    trigger_history_event(event_cache, _kind, _alert, care_result, _now)
+                                    trigger_history_event(event_cache, _kind, _alert, care_result, _now, care_runtime)
                                 except Exception as exc:
                                     print(f"[Record] trigger {_kind} failed: {type(exc).__name__}")
                     for alert in new_events["fall"]:

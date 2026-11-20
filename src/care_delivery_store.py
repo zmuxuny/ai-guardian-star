@@ -11,7 +11,11 @@ else:
 class DeliveryStore(LocalCareStore):
     def _refresh_sample(self, db, event):
         # Hook participates in the SAME transaction as feedback and audit.
-        pass
+        if __package__:
+            from .personal_baseline_store import refresh_sample
+        else:
+            from personal_baseline_store import refresh_sample
+        refresh_sample(self,db,event)
 
     def event(self, event_id, mode):
         with connection(self._path) as db:

@@ -123,7 +123,8 @@ def build_kit(repo, destination):
         if (repo/name).is_file(): names.append(name)
     # Isolated weekly fixtures use only these local modules; no sensor imports.
     for name in ('local_care_store','local_care_migrations','care_delivery_store','weekly_store','weekly_report',
-                 'sedentary_care','shadow_mode','region_aggregation','guardian_runtime','care_runtime','care_transport','care_api'):
+                 'sedentary_care','shadow_mode','region_aggregation','guardian_runtime','care_runtime','care_transport','care_api',
+                 'posture_features','personal_baseline_store','personal_baseline'):
         names.append('src/'+name+'.py')
     names += [p.relative_to(repo).as_posix() for p in (repo/'src/migrations/local_care').glob('*.sql')]
     blobs = {name:(repo/name).read_bytes() for name in sorted(names)}

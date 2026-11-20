@@ -17,6 +17,23 @@ LOCAL_TIME = timezone(timedelta(hours=8))
 INVALID_REASONS = frozenset(('invalid_pose','invalid_or_truncated_box','unreliable_keypoints','degenerate_torso','ambiguous_identity'))
 
 
+def refresh_sample(store, db, event):
+    """Also used when collection is switched off: withdrawals still take effect."""
+    keys = store._params+(event['mode'],event['event_id'])
+    db.execute('DELETE FROM posture_samples WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',keys)
+    feature = db.execute('SELECT * FROM posture_features WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',keys).fetchone()
+    if feature is None or not feature['camera_revision'] or event['kind']!='fall':
+        return
+    if json.loads(feature['feature_json']).get('valid') is not True:
+        return
+    feedback = store._select_feedback(db,store._feedback_key(event['event_id'],event['started_at']),status='all')
+    if feedback is None:
+        return
+    label = eligible_label(json.loads(feedback['payload_json']),bool(feedback['is_revoked']))
+    if label:
+        db.execute('INSERT INTO posture_samples VALUES (?,?,?,?,?,?)',keys+(label,feedback['revision']))
+
+
 class PersonalBaselineStore(WeeklyStore):
     def _collecting(self, db):
         if db.execute('SELECT 1 FROM care_privacy WHERE person_id=? AND model_version=?',self._params).fetchone():
@@ -50,19 +67,7 @@ class PersonalBaselineStore(WeeklyStore):
             self._refresh_sample(db,event)
 
     def _refresh_sample(self, db, event):
-        keys = self._params+(event['mode'],event['event_id'])
-        db.execute('DELETE FROM posture_samples WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',keys)
-        feature = db.execute('SELECT * FROM posture_features WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',keys).fetchone()
-        if feature is None or not feature['camera_revision'] or event['kind']!='fall':
-            return
-        if json.loads(feature['feature_json']).get('valid') is not True:
-            return
-        feedback = self._select_feedback(db,self._feedback_key(event['event_id'],event['started_at']),status='all')
-        if feedback is None:
-            return
-        label = eligible_label(json.loads(feedback['payload_json']),bool(feedback['is_revoked']))
-        if label:
-            db.execute('INSERT INTO posture_samples VALUES (?,?,?,?,?,?)',keys+(label,feedback['revision']))
+        refresh_sample(self,db,event)
 
     def _samples_in(self, db, mode, camera):
         cutoff = self._clock()-self._policy_in(db,mode)['retention_days']*86400
@@ -114,15 +119,23 @@ class PersonalBaselineStore(WeeklyStore):
             db.execute('COMMIT')
         counts = dict(evaluated_events=0,normal_match_events=0,protected_events=0,insufficient_events=0,
                       would_extend_confirmation_events=0,positive_match_events=0,no_match_events=0,invalid_events=0)
+        quality_reasons,protection_reasons={},{}
         for row in rows[:1000]:
             counts['evaluated_events']+=1
             feature = json.loads(row['feature_json'])
             if not feature.get('valid'):
                 counts['invalid_events']+=1
+                reason=feature['reason']
+                quality_reasons[reason]=quality_reasons.get(reason,0)+1
                 continue
             normal = [r for r in samples['normal'] if r['event_id']!=row['event_id']]
-            risk = [r for r in samples['risk'] if r['event_id']!=row['event_id']]
+            risk = samples['risk']
             guards = json.loads(row['guards_json'])
+            for name in GUARDS:
+                value=guards.get(name)
+                if value is not False:
+                    reason=name+('_active' if value is True else '_not_available' if value=='not_available' else '_unknown')
+                    protection_reasons[reason]=protection_reasons.get(reason,0)+1
             outcome = 'insufficient' if capped or not camera else evaluate(feature,normal,risk,guards)
             if outcome=='suggest_extend':
                 counts['would_extend_confirmation_events']+=1
@@ -133,4 +146,5 @@ class PersonalBaselineStore(WeeklyStore):
         return dict(schema_version=1,feature_version=VERSION,config_version=CONFIG_VERSION,
                     mode=mode,camera_revision=camera_revision,assessment='confirmed_event_static_suggestion',
                     histogram_observations=hist,normal_samples=len(samples['normal']),risk_samples=len(samples['risk']),
+                    quality_reasons=quality_reasons,protection_reasons=protection_reasons,
                     truncated=len(rows)>1000,samples_capped=capped,**counts)
