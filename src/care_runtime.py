@@ -10,6 +10,8 @@ import threading
 import time
 import uuid
 from types import MappingProxyType
+from functools import wraps
+import sqlite3
 from typing import Mapping
 
 if __package__:
@@ -17,11 +19,45 @@ if __package__:
     from .weekly_store import WeeklyStore
     from .local_care_store import _key
     from .shadow_mode import ShadowRunner, TrackerBaseline, region_candidate
+    from .local_care_migrations import nonblocking_connections
 else:
     from sedentary_care import CareMachine, Config, Event
     from weekly_store import WeeklyStore
     from local_care_store import _key
     from shadow_mode import ShadowRunner, TrackerBaseline, region_candidate
+    from local_care_migrations import nonblocking_connections
+
+
+def _detection_io(method):
+    @wraps(method)
+    def run(self,*args,**kwargs):
+        failed=[] if method.__name__=='tick' else {'mode':'failed','states':[],'event_refs':{},'record_refs':[]}
+        if self.personal and method.__name__=='process_frame':
+            # Refresh multiplicity even when private disk IO makes care skip a frame.
+            self._personal_frame_shape=kwargs.get('frame_shape')
+            self._remember_personal_identity(args[0] if args else kwargs.get('alerts',()))
+        if not self._lock.acquire(blocking=False):
+            if self.personal:
+                self.personal.error()
+            return failed
+        writer_slot=False
+        try:
+            if self.personal:
+                writer_slot=self.personal.detection_slot()
+                if not writer_slot:
+                    self.personal.error()
+                    return failed
+            with nonblocking_connections():
+                return method(self,*args,**kwargs)
+        except sqlite3.OperationalError:
+            if self.personal:
+                self.personal.error()
+            return failed
+        finally:
+            if writer_slot:
+                self.personal.release_detection_slot()
+            self._lock.release()
+    return run
 
 
 @dataclass(frozen=True)
@@ -101,6 +137,7 @@ class CareRuntime:
         self.personal = None
         self._personal_tracks = {}
         self._personal_frame_shape = None
+        self._personal_maintenance = {}
         self.history = self.recorder = None
         self.shadow = ShadowRunner(TrackerBaseline(), region_candidate, max_pending=2)
         store_class = WeeklyStore
@@ -132,6 +169,7 @@ class CareRuntime:
     def utc(self):
         return self.clock.wall_at(self.clock.now).timestamp()
 
+    @_detection_io
     def process_frame(self, alerts, new_events, *, frame_shape=None):
         if self.personal:
             with self._lock:
@@ -203,15 +241,22 @@ class CareRuntime:
             region='unknown'
         return extract_posture(alert.get('box'),alert.get('kpts'),alert.get('frame_shape',self._personal_frame_shape),region,at)
 
-    def _personal_observe(self, alerts):
+    def _remember_personal_identity(self, alerts):
         self._personal_tracks.clear()
         if not self.personal or len(alerts)!=1:
-            return
+            return None
         alert=alerts[0]
         person=self._person(alert)
         if person is None or alert.get('pose_reliable') is False:
-            return
+            return None
         self._personal_tracks[alert.get('id')]=person
+        return person
+
+    def _personal_observe(self, alerts):
+        person=self._remember_personal_identity(alerts)
+        if person is None:
+            return
+        alert=alerts[0]
         if ('FALL' in alert.get('status','') or alert.get('fall_raw') is not False
                 or alert.get('is_sitting') is not False or alert.get('face_label')=='stranger'):
             return
@@ -256,6 +301,13 @@ class CareRuntime:
 
     def _weekly_observe(self, person, rows=None):
         if not self.config.weekly_enabled:
+            now=self.utc()
+            if self.personal:
+                self.personal.maintain(person,now)
+            elif now-self._personal_maintenance.get(person,float('-inf'))>=3600:
+                # Existing private records still expire when new collection is off.
+                self.store(person).maintain(self.config.mode)
+                self._personal_maintenance[person]=now
             return
         now = self.utc()
         previous = self._coverage.get(person)
@@ -396,6 +448,7 @@ class CareRuntime:
             return {'states': states, 'event_refs': refs, 'record_refs': record_refs,
                     'mode': self.config.mode}
 
+    @_detection_io
     def tick(self):
         with self._lock:
             if self._closed:
@@ -458,12 +511,13 @@ class CareRuntime:
 
     def close(self):
         with self._lock:
-            if self._closed:
-                return
+            first=not self._closed
             self._closed = True
-        self.shadow.close()
+        if first:
+            self.shadow.close()
         if self.personal:
-            self.personal.close()
+            return self.personal.close()
+        return True
 
 
 def record_event(cache, ref):

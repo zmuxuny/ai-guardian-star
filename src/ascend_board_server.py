@@ -134,6 +134,14 @@ def poll_care_without_observation(runtime):
         except Exception as exc:
             print(f'[Care] tick_failed code={type(exc).__name__}')
 
+
+def close_care_runtime(runtime):
+    result=runtime.close()
+    if result is False:
+        print('[Care] private_writer_shutdown_incomplete')
+    return result
+
+
 def get_host_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1353,7 +1361,7 @@ def run_system():
         if care_worker is not None:
             care_worker.stop()
         if care_runtime is not None:
-            care_runtime.close()
+            close_care_runtime(care_runtime)
         if continuous_recorder is not None:
             try:
                 continuous_recorder.stop(timeout=30)

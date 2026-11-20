@@ -7,11 +7,15 @@ import socket
 import tempfile
 from pathlib import Path
 from contextlib import closing
+from contextlib import contextmanager
 from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
 from dataclasses import replace
 import ast
 import threading
+import time
+import io
+from contextlib import redirect_stdout
 import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parent/'src'))
@@ -57,6 +61,7 @@ class FeatureTests(unittest.TestCase):
 
     def test_feedback_labels_are_strict_and_revocation_wins(self):
         self.assertEqual(eligible_label({'feedback':'trusted'},False),'risk')
+        self.assertEqual(eligible_label({'feedback':'trusted','reason':'other'},False),'risk')
         for reason in ('not_fall','sitting_or_lying'):
             self.assertEqual(eligible_label({'feedback':'untrusted','reason':reason},False),'normal')
         for payload in ({'feedback':'untrusted'}, {'feedback':'uncertain'}, {'label':'confirmed'},
@@ -413,6 +418,102 @@ class RuntimeTests(unittest.TestCase):
         self.record()
         self.runtime.close()
         self.assertFalse(self.runtime.personal._thread.is_alive())
+
+    def test_background_sqlite_writer_does_not_delay_legacy_detection_dispatch(self):
+        from test_care_delivery import production_entry
+        original=self.runtime.store('p')._write
+        entered,release=threading.Event(),threading.Event()
+        @contextmanager
+        def delayed_write():
+            with original() as db:
+                if threading.current_thread().name=='personal-posture':
+                    entered.set(); release.wait(.8)
+                yield db
+        with patch.object(self.runtime.store('p'),'_write',delayed_write):
+            self.runtime.personal.observe('p',posture(),self.runtime.utc())
+            self.assertTrue(entered.wait(2))
+            alert=self.alert(); before=copy.deepcopy(alert)
+            start=time.monotonic()
+            result=production_entry('dispatch_care_detection')(self.runtime,[alert],{'fall':[alert]})
+            elapsed=time.monotonic()-start
+            release.set()
+            self.assertTrue(self.runtime.personal.flush())
+        self.assertLess(elapsed,.3)
+        self.assertEqual(result['mode'],'failed')
+        self.assertEqual(alert,before)
+        recovered=self.runtime.process_frame([alert],{'fall':[alert]})
+        self.assertEqual(recovered['mode'],'shadow')
+
+    def test_tick_cleans_expired_personal_data_without_new_observation(self):
+        self.record()
+        self.runtime.process_frame([self.alert(False)],{})
+        self.assertTrue(self.runtime.personal.flush())
+        self.clock.advance(100*86400)
+        self.runtime.tick()
+        self.assertTrue(self.runtime.personal.flush())
+        with closing(sqlite3.connect(self.config.db_path)) as db:
+            for table in ('posture_features','posture_samples','posture_histograms'):
+                self.assertEqual(db.execute('SELECT count(*) FROM '+table).fetchone()[0],0)
+
+    def test_busy_frame_must_not_reuse_previous_single_person_identity(self):
+        self.record()
+        alert=self.alert()
+        self.runtime.personal._execute.acquire()
+        try:
+            result=self.runtime.process_frame([alert,dict(alert,id=8)],{'fall':[alert]})
+            self.assertEqual(result['mode'],'failed')
+        finally:
+            self.runtime.personal._execute.release()
+        self.runtime.observe_recorded_event('fall',alert,dict(event_id='ambiguous',kind='fall',started_at=self.runtime.utc()))
+        self.assertTrue(self.runtime.personal.flush())
+        self.assertNotIn('ambiguous',[r['event_id'] for r in self.runtime.events('p')])
+
+    def test_collection_off_and_restart_still_clean_existing_expired_data(self):
+        from src.care_runtime import CareRuntime
+        self.record(); self.runtime.process_frame([self.alert(False)],{})
+        self.assertTrue(self.runtime.personal.flush()); self.runtime.close()
+        self.clock.advance(100*86400)
+        disabled=CareRuntime(replace(self.config,personal_baseline_enabled=False),clock=self.clock)
+        self.addCleanup(disabled.close)
+        disabled.tick()
+        with closing(sqlite3.connect(self.config.db_path)) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM posture_features').fetchone()[0],0)
+            self.assertEqual(db.execute('SELECT count(*) FROM posture_histograms').fetchone()[0],0)
+
+    def test_suspending_person_purges_queue_and_idle_worker_drops_feature_locals(self):
+        self.record()
+        self.runtime.personal._execute.acquire()
+        try:
+            # Worker cannot execute these pending private snapshots.
+            for i in range(3):
+                self.runtime.personal.event('p',dict(event_id='queued'+str(i)),posture())
+        finally:
+            self.runtime.personal._execute.release()
+        self.runtime.erase_person('p')
+        with self.runtime.personal._queue.mutex:
+            self.assertFalse(any(item[1]=='p' for item in self.runtime.personal._queue.queue))
+        self.assertTrue(self.runtime.personal.flush())
+        frame=sys._current_frames()[self.runtime.personal._thread.ident]
+        while frame and frame.f_code.co_name!='_run': frame=frame.f_back
+        self.assertIsNotNone(frame)
+        self.assertIsNone(frame.f_locals.get('value'))
+        self.assertIsNone(frame.f_locals.get('feature'))
+
+    def test_runtime_close_reports_incomplete_drain_and_allows_retry(self):
+        actual=self.runtime.personal.close
+        with patch.object(self.runtime.personal,'close',return_value=False):
+            self.assertIs(self.runtime.close(),False)
+        self.assertIs(self.runtime.close(),True)
+        self.assertFalse(self.runtime.personal._thread.is_alive())
+
+    def test_service_shutdown_reports_private_writer_incomplete_status(self):
+        from test_care_delivery import production_entry
+        from types import SimpleNamespace
+        output=io.StringIO()
+        with redirect_stdout(output):
+            result=production_entry('close_care_runtime')(SimpleNamespace(close=lambda:False))
+        self.assertIs(result,False)
+        self.assertIn('private_writer_shutdown_incomplete',output.getvalue())
 
     def test_live_existing_ref_reused_and_feedback_outbox_has_no_features(self):
         from src.care_runtime import CareRuntime

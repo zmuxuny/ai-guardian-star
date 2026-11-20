@@ -13,6 +13,7 @@ class PersonalBaselineWorker:
         self._closed = False
         self._generation = {p:0 for p in stores}
         self._disabled, self._last = set(), {}
+        self._last_maintenance = {}
         self._counts = dict(accepted=0,dropped=0,errors=0)
         self._thread = threading.Thread(target=self._run,name='personal-posture',daemon=True)
         self._thread.start()
@@ -28,11 +29,20 @@ class PersonalBaselineWorker:
         with self._state:
             return dict(self._counts,queued=self._queue.qsize())
 
+    def detection_slot(self):
+        """Never queue a detector behind private disk IO; it may skip care only."""
+        return self._execute.acquire(blocking=False)
+
+    def release_detection_slot(self):
+        self._execute.release()
+
     def _submit(self, kind, person, value, at=None):
         with self._state:
             if self._closed or person not in self.stores or person in self._disabled:
                 return False
             if kind=='hist' and (self.camera is None or at-self._last.get(person,float('-inf'))<1):
+                return False
+            if kind=='maintenance' and at-self._last_maintenance.get(person,float('-inf'))<3600:
                 return False
             try:
                 self._queue.put_nowait((kind,person,self._generation[person],deepcopy(value),at))
@@ -41,6 +51,8 @@ class PersonalBaselineWorker:
                 return False
             if kind=='hist':
                 self._last[person]=at
+            if kind=='maintenance':
+                self._last_maintenance[person]=at
             self._count('accepted')
             return True
 
@@ -50,18 +62,32 @@ class PersonalBaselineWorker:
     def observe(self, person, feature, at):
         return self._submit('hist',person,feature,at)
 
+    def maintain(self, person, at):
+        return self._submit('maintenance',person,None,at)
+
     def suspend(self, person):
         # Wait for the one in-flight writer before the caller erases its DB rows.
         with self._execute, self._state:
             self._generation[person]+=1
             self._disabled.add(person)
             self._last.pop(person,None)
+            self._last_maintenance.pop(person,None)
+            with self._queue.mutex:
+                kept=[item for item in self._queue.queue if item[1]!=person]
+                removed=len(self._queue.queue)-len(kept)
+                self._queue.queue.clear()
+                self._queue.queue.extend(kept)
+                self._queue.unfinished_tasks-=removed
+                self._queue.not_full.notify_all()
+                if not self._queue.unfinished_tasks:
+                    self._queue.all_tasks_done.notify_all()
 
     def resume(self, person):
         with self._state:
             self._generation[person]+=1
             self._disabled.discard(person)
             self._last.pop(person,None)
+            self._last_maintenance.pop(person,None)
 
     def _run(self):
         while True:
@@ -85,12 +111,14 @@ class PersonalBaselineWorker:
                         ref,feature,guards=value
                         store.create_event(ref)
                         store.capture_event(self.mode,ref['event_id'],feature,self.camera,guards=guards)
-                    else:
+                    elif kind=='hist':
                         store.observe_histogram(self.mode,value,self.camera,at)
                     store.maintain(self.mode)
             except Exception:
                 self.error()
             finally:
+                # Do not retain the last private snapshot in an idle thread frame.
+                value=ref=feature=guards=None
                 self._queue.task_done()
 
     def flush(self, timeout=10):

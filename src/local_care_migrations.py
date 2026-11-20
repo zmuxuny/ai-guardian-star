@@ -6,6 +6,7 @@ or cloud connection is used. Existing databases are backed up before upgrading.
 """
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 import os
 from pathlib import Path
 import sqlite3
@@ -13,6 +14,19 @@ import uuid
 
 
 APPLICATION_ID = 0x43415245
+_BUSY_TIMEOUT = ContextVar('care_sqlite_busy_timeout_ms',default=5000)
+
+
+@contextmanager
+def nonblocking_connections():
+    """Detection never waits behind the optional background SQLite writer."""
+    token=_BUSY_TIMEOUT.set(0)
+    try:
+        yield
+    finally:
+        _BUSY_TIMEOUT.reset(token)
+
+
 LATEST_VERSION = 5
 _SQL_ROOT = Path(__file__).resolve().parent / 'migrations' / 'local_care'
 MIGRATIONS = {1: _SQL_ROOT / '001_initial.sql', 2: _SQL_ROOT / '002_baseline_source.sql',
@@ -77,10 +91,11 @@ def database_path(path):
 
 @contextmanager
 def connection(path):
-    db = sqlite3.connect(str(path), timeout=5, isolation_level=None)
+    timeout_ms=_BUSY_TIMEOUT.get()
+    db = sqlite3.connect(str(path), timeout=timeout_ms/1000, isolation_level=None)
     try:
         db.row_factory = sqlite3.Row
-        db.execute('PRAGMA busy_timeout=5000')
+        db.execute(f'PRAGMA busy_timeout={timeout_ms}')
         db.execute('PRAGMA foreign_keys=ON')
         db.execute('PRAGMA synchronous=FULL')
         if db.execute('PRAGMA journal_mode').fetchone()[0].lower() not in ('delete', 'wal', 'truncate', 'persist'):

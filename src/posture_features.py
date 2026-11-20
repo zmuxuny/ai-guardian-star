@@ -70,7 +70,7 @@ def extract_posture(box, kpts, frame_shape, region_id, at):
 def eligible_label(payload, revoked):
     if revoked or not isinstance(payload,dict):
         return None
-    if payload.get('feedback') == 'trusted' and payload.get('reason') in (None,''):
+    if payload.get('feedback') == 'trusted':
         return 'risk'
     if payload.get('feedback') == 'untrusted' and payload.get('reason') in ('not_fall','sitting_or_lying'):
         return 'normal'
