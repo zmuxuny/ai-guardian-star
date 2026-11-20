@@ -1,0 +1,13 @@
+# Codex 状态归档
+
+## 2026-11-19 · codex · T-20261119-06 · 15分钟阶段观察及演示启停实机通过，已off
+
+> 功能e6177ec；WIP实测后交付zy。详细证据见docs/board-stability-demo-2026-11-19.md，操作见docs/board-care-demo-operator.md。
+
+- 观察：179样本/899.537秒/零错误，同一启动和进程，无重启；全部camera正常/逐次出帧，6.6–8.0fps/均值7.455。
+- 内存：RSS599.9→602.1MiB/+2.29MiB，后半+2160KiB；线程16–18、fd26–37，不泛化为排除长期泄漏。
+- SSH中途关闭/超时，直连/代理/中继皆有波动；重连取回完整摘要，板端采样未中断，不宣称网络已修复。
+- 入口：Start/Stop/Status/Prepare，默认静默/显式语音，持久会话排重/锁/中断恢复；验证CLI支持本地SOCKS，SSH/SCP共用主机校验。
+- 验证：本地准备PASS/66编译、4项进程/代理回归PASS、独立审查无阻断；原板新入口静默Start→Status→Stop→Status全部通过，31指纹通过。
+- 收尾：CLOSED，实际off/无配置、camera正常；未播放语音，未改生产业务源码。私有样本与操作回执.tmp/stability-demo-20261119/不提交。
+- 范围：身份可见性按用户要求暂缓，不修改历史INCOMPLETE；正式网页/App及小时级观察待后续。

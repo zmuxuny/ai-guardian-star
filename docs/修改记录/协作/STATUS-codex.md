@@ -4,16 +4,20 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
-## 2026-11-20 · codex · T-20261120-01 · 优先级②板端设计待确认
+## 2026-11-20 · codex · T-20261120-01 · 优先级②板端本地实现与验证完成，待上板
 
-> 分支wip/codex-20261120-personal-baseline，基线origin/zy@10fa28a；仅本地文档，未实现、未部署。
+> 分支wip/codex-20261120-personal-baseline；基线10fa28a；功能d0e522a/5da0f37/32c35fa，审查修复f640bce；仅本地提交。
 
-- 用户确认沿用分工：本轮板端，App/云端由Jianyuanxi负责，继续跟踪#25。
-- 设计：事件归一化特征、反馈资格/撤销、无告警直方图、只读静态影子建议；未知保护证据不放行。
-- 独立检查定位shadow关怀ID与真实录像ID可能不一致，列为首项集成接线及测试要求。
-- 影响：设计文档及自己的STATUS/TASKS；主工作区未提交文档、其他worktree均未改。
-- 验证：已读取最新Issue23/25、最新远端状态和实际源文件；既有专项53项中52通过，1项因当前Python缺fastapi而ERROR；设计独立复核无重要问题。
-- 下一步：用户确认设计后写实施计划与失败用例；本轮尚无新功能验证证据。
+- 用户确认设计及板端范围；App/云端继续Jianyuanxi与#25，未代改。
+- 完成事件归一化特征、反馈正负样本及撤销/恢复、无告警直方图、认证静态影子汇总；默认关闭，不改原跌倒判定。
+- 实际HistoryStore/EventClipCache验证录像原ID贯穿特征/反馈；新增输入从服务入口传帧尺寸，检测器文件未改。
+- 独立审查3项重要问题与删除/关停边界均已RED→GREEN修复；写锁争用时跳过附加关怀帧，原录像/告警继续，代价是可能推迟关怀更新。
+- 验证：新专项最终36项通过；组合223项运行222通过/1个POSIX测试Windows跳过；最后入口86项运行85通过/同1跳过；69文件3.9语法及本机编译、独立平铺导入通过。
+- 影响：新增posture_features/personal_baseline_store/personal_baseline与迁移005；care runtime/API/入口/生命周期、打包清单、测试及说明。详见docs/personal-baseline-evidence-2026-11-20.md与运行说明。
+- 未验：原板3.9运行、真实App反馈/MP4、姿态准确率及长期运行；真实保护证据不足时建议为0，不等同减少误报。
+- 未push/未合zy/未部署/未开启live；原主工作区和其他worktree均未改。
+- 下一步：核对现板指纹及私有备份后隔离shadow上板验收；按既有顺序先验证和push再部署，App继续#25。
+- 回退：保留WIP提交；schema5不可用旧快照覆盖新反馈，旧程序用升级前副本独立路径，见运行说明。
 
 ## 2026-11-19 · codex · T-20261119-08 · 公网关怀网页已发布，最终off验收通过
 
@@ -37,15 +41,3 @@
 - 验证：6新增含真实live与SQLite恢复、16原runtime回归全过；1440/820/390布局通过、关怀区axe0违规、状态/刷新/aria-live去重通过；独立审查及修订复核通过。
 - 影响：src/ascend_board_server.py、tests/test_care_web.py、tests/test_runtime.py、tools/preview_care_web.py及docs/board-care-web-design-2026-11-19.md。
 - 未验：原板编译/新stats接入及公网实际显示；未部署/未合zy/未改实际基线/未开启板端。发布须基于现板备份做最小补丁，保留入口独立增强并验收off。
-
-## 2026-11-19 · codex · T-20261119-06 · 15分钟阶段观察及演示启停实机通过，已off
-
-> 功能e6177ec；WIP实测后交付zy。详细证据见docs/board-stability-demo-2026-11-19.md，操作见docs/board-care-demo-operator.md。
-
-- 观察：179样本/899.537秒/零错误，同一启动和进程，无重启；全部camera正常/逐次出帧，6.6–8.0fps/均值7.455。
-- 内存：RSS599.9→602.1MiB/+2.29MiB，后半+2160KiB；线程16–18、fd26–37，不泛化为排除长期泄漏。
-- SSH中途关闭/超时，直连/代理/中继皆有波动；重连取回完整摘要，板端采样未中断，不宣称网络已修复。
-- 入口：Start/Stop/Status/Prepare，默认静默/显式语音，持久会话排重/锁/中断恢复；验证CLI支持本地SOCKS，SSH/SCP共用主机校验。
-- 验证：本地准备PASS/66编译、4项进程/代理回归PASS、独立审查无阻断；原板新入口静默Start→Status→Stop→Status全部通过，31指纹通过。
-- 收尾：CLOSED，实际off/无配置、camera正常；未播放语音，未改生产业务源码。私有样本与操作回执.tmp/stability-demo-20261119/不提交。
-- 范围：身份可见性按用户要求暂缓，不修改历史INCOMPLETE；正式网页/App及小时级观察待后续。
