@@ -29,10 +29,15 @@ jobs:
             requirements-production.txt
             requirements-moderation.txt
             requirements-sms.txt
+            requirements-care-validation.txt
       - run: python -m pip install --requirement requirements-production.txt
+      - name: 安装板端离线验证依赖
+        run: python -m pip install --requirement requirements-care-validation.txt
       - name: 安装真实 MQTT broker 回归测试依赖
         run: python -m pip install amqtt==0.11.3
       - run: python -m unittest discover -v
+      - name: 关怀控制与展示离线回归
+        run: python -m unittest discover -s tests -p 'test_care_*.py' -v
       - run: python -m py_compile wenxin_proxy.py security_utils.py mqtt_access.py guardian_mqtt_plugin.py deploy/sqlite_maintenance.py deploy/ops_monitor.py
       - run: git diff --check HEAD^ HEAD
 

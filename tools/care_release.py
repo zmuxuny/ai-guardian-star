@@ -14,7 +14,7 @@ BASELINE = '2499d1d'
 FILES = (
     'src/ascend_board_server.py','src/sedentary_care.py','src/local_care_store.py',
     'src/local_care_migrations.py','src/shadow_mode.py','src/care_runtime.py',
-    'src/care_delivery_store.py','src/care_api.py','src/care_transport.py',
+    'src/care_delivery_store.py','src/care_api.py','src/care_transport.py','src/care_control.py',
     'src/weekly_store.py','src/weekly_report.py','src/migrations/local_care/004_weekly.sql',
     'test_weekly_report.py','tools/run_weekly_scenarios.py','docs/weekly-report-contract.md',
     'src/migrations/local_care/001_initial.sql','src/migrations/local_care/002_baseline_source.sql',
