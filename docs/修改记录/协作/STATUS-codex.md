@@ -6,7 +6,7 @@
 
 ## 2026-11-20 · codex · T-20261120-01 · 网页关怀开关本地完成，用户要求先提草稿PR
 
-> 分支wip/codex-20261120-care-web-switch，基于zy@10fa28a；PR目标zy，未合并未部署，待板端。
+> 分支wip/codex-20261120-care-web-switch，基于zy@10fa28a；草稿PR #27目标zy（https://github.com/zmuxuny/ai-guardian-star/pull/27），功能fbf2828；未合并未部署，待板端。
 
 - 用户选择管理口令一次解锁；小开关反映实际模式，切换中禁用/等待、失败提示，明确30分钟自动关演示关怀与语音。
 - 独立care_control模块：同源写校验、HttpOnly签名会话8小时跨重启、限频、固定布尔操作；密钥不进网页/仓库，正式口令尚未生成。
