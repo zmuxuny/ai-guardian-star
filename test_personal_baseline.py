@@ -364,21 +364,31 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(self.runtime.events('p'))
 
     def test_api_uses_existing_auth_and_exposes_only_aggregate(self):
+        import asyncio
         from fastapi import FastAPI
-        from fastapi.testclient import TestClient
         from src.care_api import create_care_router
         app = FastAPI(); app.include_router(create_care_router(self.runtime,lambda:'private-test'))
         self.record()
-        with TestClient(app) as client:
-            route='/api/care/m/p/personal-baseline'
-            self.assertEqual(client.get(route).status_code,401)
-            headers={'Authorization':'Bearer private-test'}
-            response=client.get(route,headers=headers)
-            self.assertEqual(response.status_code,200)
-            self.assertEqual(response.json()['evaluated_events'],1)
-            for key in ('torso_angle','hip_height','aspect_ratio','kpts','box','event_id'):
-                self.assertNotIn(key,response.text)
-            self.assertEqual(client.get('/api/care/m/q/personal-baseline',headers=headers).status_code,404)
+        async def get(path,authorized=False):
+            messages=[]
+            async def receive(): return {'type':'http.request','body':b'','more_body':False}
+            async def send(message): messages.append(message)
+            headers=[(b'authorization',b'Bearer private-test')] if authorized else []
+            scope=dict(type='http',asgi={'version':'3.0'},http_version='1.1',method='GET',scheme='http',
+                       path=path,raw_path=path.encode(),root_path='',query_string=b'',headers=headers,
+                       client=('127.0.0.1',12345),server=('127.0.0.1',80))
+            await app(scope,receive,send)
+            status=next(m['status'] for m in messages if m['type']=='http.response.start')
+            body=b''.join(m.get('body',b'') for m in messages if m['type']=='http.response.body')
+            return status,body
+        route='/api/care/m/p/personal-baseline'
+        self.assertEqual(asyncio.run(get(route))[0],401)
+        status,body=asyncio.run(get(route,True))
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)['evaluated_events'],1)
+        for key in ('torso_angle','hip_height','aspect_ratio','kpts','box','event_id'):
+            self.assertNotIn(key,body.decode())
+        self.assertEqual(asyncio.run(get('/api/care/m/q/personal-baseline',True))[0],404)
 
     def test_real_history_entry_preserves_id_through_feature_and_feedback(self):
         import sys
