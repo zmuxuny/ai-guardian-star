@@ -58,6 +58,9 @@ care_initialization_failed = False
 care_worker = None
 care_audio_player = None
 care_last_poll = 0.0
+from care_control import create_control_router
+app.include_router(create_control_router(lambda: care_runtime.config.mode if care_runtime is not None
+                                        else 'unavailable' if care_initialization_failed else 'off'))
 continuous_store = None
 continuous_recorder = None
 continuous_cleanup = None
@@ -276,6 +279,19 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--care);outline
 .care-refresh:hover{background:#334155;}
 .care-refresh:disabled{opacity:.6;cursor:wait;}
 .care-note{font-size:10px;line-height:1.7;color:var(--muted);margin-top:10px;}
+.care-controls{display:flex;align-items:center;gap:8px;}
+.care-switch{width:46px;min-height:44px;padding:0;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;}
+.care-switch-track{display:block;width:42px;height:24px;border-radius:20px;background:#52657f;position:relative;transition:background .16s;}
+.care-switch-track::after{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .16s;}
+.care-switch[aria-checked=true] .care-switch-track{background:#167e67;}
+.care-switch[aria-checked=true] .care-switch-track::after{transform:translateX(18px);}
+.care-switch:disabled{opacity:.5;cursor:not-allowed;}
+.care-access{border:0;background:transparent;padding:4px 0;color:#a5d8ff;cursor:pointer;font:inherit;font-size:11px;min-height:32px;}
+.care-unlock{display:grid;gap:8px;margin:12px 0;padding:12px 0;border-top:1px solid var(--border);}
+.care-unlock[hidden]{display:none;}.care-unlock label{font-size:12px;color:var(--muted);}
+.care-unlock-row{display:flex;gap:8px;}.care-unlock input{min-width:0;flex:1;border:1px solid #52657f;border-radius:7px;background:#0f172a;color:var(--text);padding:10px;font:inherit;font-size:13px;caret-color:var(--care);}
+.care-unlock input:focus-visible{outline:2px solid var(--care);outline-offset:2px;}
+.care-control-feedback{font-size:11px;line-height:1.7;color:var(--care-ink);margin-top:8px;}
 @media(min-width:1100px){main{grid-template-columns:minmax(0,1.12fr) minmax(0,1fr) minmax(0,.88fr);}}
 @media(max-width:900px){
  html,body{height:auto;min-height:100%;overflow:auto;}
@@ -340,14 +356,17 @@ button:focus-visible,summary:focus-visible{outline:2px solid var(--care);outline
 <!-- ── 中栏：状态 → 数据统计 → 置信度 → 人脸 ── -->
 <div class="col col-mid">
     <section class="card care-card" aria-labelledby="care-heading">
-        <div class="care-head"><h2 id="care-heading">关怀提醒</h2><span id="care-mode" class="care-mode">连接中</span></div>
+        <div class="care-head"><h2 id="care-heading">关怀提醒</h2><div class="care-controls"><span id="care-mode" class="care-mode">连接中</span><button id="care-switch" class="care-switch" role="switch" aria-label="关怀模式" aria-checked="false" disabled type="button"><span class="care-switch-track" aria-hidden="true"></span></button></div></div>
         <div id="care-announcement" role="status" aria-live="polite" aria-atomic="true">
             <div id="care-title" class="care-title">正在读取关怀状态</div>
             <p id="care-copy" class="care-copy">连接设备后，将显示当前人员的关怀进度。</p>
         </div>
         <div id="care-people" class="care-people"></div>
+        <button id="care-access" class="care-access" type="button" aria-expanded="false" aria-controls="care-unlock">解锁操作</button>
+        <form id="care-unlock" class="care-unlock" hidden><label for="care-password">管理口令</label><div class="care-unlock-row"><input id="care-password" type="password" autocomplete="current-password" maxlength="200" required placeholder="输入管理口令"><button class="care-refresh" type="submit">解锁</button></div></form>
+        <p id="care-control-feedback" class="care-control-feedback" role="status" aria-live="polite">解锁后可自行开启或关闭关怀。</p>
         <div class="care-footer"><span id="care-updated" class="care-updated">等待设备数据</span><button id="care-refresh" class="care-refresh" type="button">刷新状态</button></div>
-        <p class="care-note">打开本页面不会开启关怀。提醒已触发不等于语音已播放。</p>
+        <p class="care-note">打开页面不会自动开启。开关启用演示关怀与语音，30 分钟后自动关闭。提醒触发不等于语音已播放。</p>
     </section>
     <!-- 检测状态 -->
     <div class="card">
@@ -662,6 +681,7 @@ async function fetchStats(){
     finally{clearTimeout(timeout);fetchStats.pending=false;refresh.disabled=false;}
 }
 function renderCare(care,disconnected=false){
+    updateCareSwitch(care?.mode);
     const setText=(el,value)=>{if(el.textContent!==value)el.textContent=value;};
     const mode=document.getElementById('care-mode');
     const title=document.getElementById('care-title');
@@ -701,6 +721,61 @@ function renderCare(care,disconnected=false){
     });
 }
 document.getElementById('care-refresh').addEventListener('click',fetchStats);
+const careControl={unlocked:false,busy:false,mode:null};
+function careFeedback(text){const e=document.getElementById('care-control-feedback');if(e.textContent!==text)e.textContent=text;}
+function updateCareSwitch(mode){
+    if(typeof careControl==='undefined')return;
+    careControl.mode=['off','shadow','live'].includes(mode)?mode:null;
+    const e=document.getElementById('care-switch');
+    e.setAttribute('aria-checked',String(mode==='shadow'||mode==='live'));
+    e.disabled=!careControl.unlocked||careControl.busy||!careControl.mode;
+    e.setAttribute('aria-busy',String(careControl.busy));
+}
+async function careRequest(path,method='GET',body){
+    const r=await fetch('/api/care-control/'+path,{method,credentials:'same-origin',cache:'no-store',
+        headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,
+        signal:AbortSignal.timeout(12000)});
+    if(!r.ok){const e=new Error('control_request_failed');e.code=r.status;throw e;}
+    return r.json();
+}
+async function pollCareControl(){
+    if(pollCareControl.pending)return;pollCareControl.pending=true;
+    try{
+        const s=await careRequest('status');careControl.unlocked=true;
+        careControl.busy=['pending','running'].includes(s.status);
+        document.getElementById('care-access').textContent='锁定操作';
+        document.getElementById('care-unlock').hidden=true;
+        document.getElementById('care-access').setAttribute('aria-expanded','false');
+        if(careControl.busy)careFeedback(s.enabled?'正在开启，设备重连后会更新状态…':'正在关闭，设备重连后会更新状态…');
+        else if(s.status==='error')careFeedback('上次切换未完成。请以当前状态为准，可重试或联系设备管理员。');
+        else careFeedback('已解锁，可使用右上角开关。锁定操作不会关闭关怀。');
+        updateCareSwitch(s.mode);
+    }catch(e){
+        if(e.code===401){careControl.unlocked=false;careControl.busy=false;document.getElementById('care-access').textContent='解锁操作';updateCareSwitch(careControl.mode);}
+        else if(e.code===503){careFeedback('设备尚未配置开关权限，请联系管理员。');}
+        else if(careControl.busy)careFeedback('设备切换中，正在重新连接…');
+    }finally{pollCareControl.pending=false;}
+}
+document.getElementById('care-switch').addEventListener('click',async()=>{
+    if(!careControl.unlocked||careControl.busy||!careControl.mode)return;
+    const enabled=careControl.mode==='off';careControl.busy=true;updateCareSwitch(careControl.mode);
+    careFeedback(enabled?'正在请求开启…':'正在请求关闭…');
+    try{await careRequest('mode','PUT',{enabled});await pollCareControl();}
+    catch(e){careControl.busy=false;updateCareSwitch(careControl.mode);careFeedback('未确认切换成功，正在重新查询设备状态。');await pollCareControl();}
+});
+document.getElementById('care-access').addEventListener('click',async()=>{
+    if(careControl.unlocked){try{await careRequest('lock','POST');careControl.unlocked=false;careFeedback('操作已锁定，关怀模式保持原状态。');await pollCareControl();}catch(e){careFeedback('锁定未完成，请重试。');}return;}
+    const form=document.getElementById('care-unlock');form.hidden=!form.hidden;
+    document.getElementById('care-access').setAttribute('aria-expanded',String(!form.hidden));
+    if(!form.hidden)document.getElementById('care-password').focus();
+});
+document.getElementById('care-unlock').addEventListener('submit',async e=>{
+    e.preventDefault();const input=document.getElementById('care-password');const button=e.target.querySelector('button');button.disabled=true;
+    try{await careRequest('unlock','POST',{password:input.value});input.value='';await pollCareControl();}
+    catch(error){input.value='';careFeedback(error.code===401?'管理口令不正确，请重试。':error.code===429?'尝试过于频繁，请稍后重试。':'暂时无法解锁，请检查设备连接后重试。');}
+    finally{button.disabled=false;}
+});
+setInterval(pollCareControl,2500);pollCareControl();
 setInterval(fetchStats,800);fetchStats();
 
 let ws,audioCtx,scriptNode,micSource;

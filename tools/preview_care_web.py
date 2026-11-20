@@ -37,6 +37,30 @@ def stats(scenario):
 
 
 class Handler(BaseHTTPRequestHandler):
+    override_mode=None
+    def json_response(self, value, status=200, cookie=None):
+        body=json.dumps(value).encode();self.send_response(status)
+        self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store')
+        if cookie:self.send_header('Set-Cookie',cookie)
+        self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path=='/api/care-control/unlock':
+            try:body=json.loads(self.rfile.read(min(int(self.headers.get('Content-Length','0')),512)))
+            except ValueError:body={}
+            ok=body.get('password')=='demo'
+            self.json_response({'unlocked':ok},200 if ok else 401,'preview-unlocked=1; Path=/; HttpOnly' if ok else None)
+        elif self.path=='/api/care-control/lock':self.json_response({'unlocked':False},cookie='preview-unlocked=; Max-Age=0; Path=/')
+        else:self.send_error(404)
+
+    def do_PUT(self):
+        if self.path!='/api/care-control/mode':self.send_error(404);return
+        if 'preview-unlocked=1' not in self.headers.get('Cookie',''):self.json_response({},401);return
+        try:body=json.loads(self.rfile.read(min(int(self.headers.get('Content-Length','0')),512)))
+        except ValueError:body={}
+        if type(body.get('enabled')) is not bool:self.json_response({},422);return
+        type(self).override_mode=body['enabled'];self.json_response({'status':'done'},202)
+
     def do_GET(self):
         url = urlsplit(self.path)
         scenario = parse_qs(url.query).get('scenario', ['off'])[0]
@@ -45,7 +69,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         if url.path == '/':
             body, content = page(scenario).encode('utf-8'), 'text/html; charset=utf-8'
+        elif url.path=='/api/care-control/status':
+            if 'preview-unlocked=1' not in self.headers.get('Cookie',''):self.json_response({},401);return
+            self.json_response(dict(status='idle',unlocked=True,mode='shadow' if type(self).override_mode else 'off'));return
         elif url.path == '/api/stats' and scenario != 'disconnected':
+            if type(self).override_mode is not None:scenario='reminder' if type(self).override_mode else 'off'
             body, content = json.dumps(stats(scenario), ensure_ascii=False).encode('utf-8'), 'application/json'
         else:
             self.send_error(503 if url.path == '/api/stats' else 404)
