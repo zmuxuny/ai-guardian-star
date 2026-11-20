@@ -4,6 +4,17 @@
 > 只保留最近 3 条，最新在上；更早条目移到 `archive/YYYY-MM/`。
 > 格式见 `TEMPLATE.md`。
 
+## 2026-11-20 · codex · T-20261120-02 · PR27浅历史CI失败已定位并修复
+
+> 分支wip/codex-20261120-care-web-switch；原CI run44677714335。PR仍为草稿，目标zy；未合并未部署。
+
+- 用户要求查看PR反馈；GitHub文字评论/review/行评论为空，实际反馈为python CI失败。
+- 原根目录336测试/12错误/10跳过；全部12错误来自checkout depth2缺少历史发布基线2499d1d，非板端或开关运行错误。
+- 本地独立浅克隆先确认缺基线，再unshallow确认恢复；CI的python checkout改fetch-depth0并说明历史依赖。
+- 本地正确加载已有私有测试依赖后，test_board_environment和test_care_release共13项全部通过（未操作设备）。
+- 影响仅.github/workflows/ci.yml和本协作记录；提交回原PR，远程复验结果以PR检查为准。
+- 开发板连接按用户要求停止；原板编译/systemd闭环/真实开关和看门狗仍待用户通知后进行。
+
 ## 2026-11-20 · codex · T-20261120-01 · 网页关怀开关本地完成，用户要求先提草稿PR
 
 > 分支wip/codex-20261120-care-web-switch，基于zy@10fa28a；草稿PR #27目标zy（https://github.com/zmuxuny/ai-guardian-star/pull/27），功能fbf2828；未合并未部署，待板端。
@@ -27,14 +38,3 @@
 - 最终2026-11-19T20:29:39.425078+08:00 Probe PASS：off/无配置、camera=7.7fps、31指纹通过；新入口98ef0d24…d5fe，其他30文件不变。本机演示包已更新。
 - 影响：网页源码、浏览器回归、实际基线、发布说明及协作文档；私有备份/回执.tmp/care-web-publish-20261119/不提交，未修改模型/SDK/数据库。
 - 边界：本轮没有开启关怀/播放语音/真人触发；激活态沿用此前和离线验证，身份专项暂缓，网络波动仍存在。
-
-## 2026-11-19 · codex · T-20261119-07 · 网页关怀展示设计与本地验收完成，未上线
-
-> 分支wip/codex-20261119-care-web，基于zy@7ec6dec。预览http://127.0.0.1:15502/?scenario=reminder；全部示例数据，不连接板端。
-
-- 延续正式6001深色监护台，中栏首位关怀区域，当前模式/可见登记人员/累计时长/正文/本轮次数，保留视频/人脸/对讲；手机和平板恢复正常滚动。
-- 五状态：off、等待识别、提醒、暂停、断线；只读刷新，不因打开页面启用关怀，不把触发等同播放。
-- stats新增最小care投影，限定当前有效可见人员；无私有ID/令牌/历史，原care鉴权保持；初始化失败区别off，live/恢复文案复用固定TEXTS。
-- 验证：6新增含真实live与SQLite恢复、16原runtime回归全过；1440/820/390布局通过、关怀区axe0违规、状态/刷新/aria-live去重通过；独立审查及修订复核通过。
-- 影响：src/ascend_board_server.py、tests/test_care_web.py、tests/test_runtime.py、tools/preview_care_web.py及docs/board-care-web-design-2026-11-19.md。
-- 未验：原板编译/新stats接入及公网实际显示；未部署/未合zy/未改实际基线/未开启板端。发布须基于现板备份做最小补丁，保留入口独立增强并验收off。
