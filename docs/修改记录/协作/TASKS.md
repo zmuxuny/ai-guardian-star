@@ -71,6 +71,8 @@
 
 | T-20261119-08 | 公网6001关怀网页发布与实机收尾 | codex | c242531与修复474c6eb/5769d3b先推后部署；原板3.9.2编译/6回归、浏览器首帧RED→GREEN；最小替换且30文件不变，最终20:29 off/31指纹/PASS | 已完成 | 2026-11-19 |
 
+| T-20261120-01 | Issue #23 优先级②板端特征、个人常态及影子对比 | codex | wip/codex-20261120-personal-baseline；基线10fa28a；设计见docs/superpowers/specs/2026-11-20-personal-baseline-design.md | 进行中（设计待确认，未实现） | 2026-11-20 |
+
 ## 备注
 
 - `T-20261025-01` 的代码已在 `zy` 工作区，但尚未提交；归属和验收边界以 `STATUS-codex.md` / `STATUS-deepseek.md` 的最新记录为准。
