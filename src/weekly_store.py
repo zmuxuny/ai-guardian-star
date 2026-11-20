@@ -155,11 +155,16 @@ class WeeklyStore(DeliveryStore):
                 (SELECT active_event_id FROM care_sessions WHERE person_id=? AND model_version=? AND mode=? AND active_event_id IS NOT NULL)''',
                 self._params+(mode,cutoff)+self._params+(mode,))]
             for identity in ids:
+                for table in ('posture_samples','posture_features'):
+                    db.execute(f'DELETE FROM {table} WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',
+                               self._params+(mode,identity))
                 for table in ('feedback_audit','feedback'):
                     db.execute(f'DELETE FROM {table} WHERE person_id=? AND model_version=? AND target_id=?', self._params+(identity,))
                 db.execute('DELETE FROM care_outbox WHERE person_id=? AND model_version=? AND event_id=?',self._params+(identity,))
                 db.execute('DELETE FROM care_events WHERE person_id=? AND model_version=? AND mode=? AND event_id=?',self._params+(mode,identity))
             db.execute('DELETE FROM weekly_observations WHERE person_id=? AND model_version=? AND mode=? AND ended_at<=?',self._params+(mode,cutoff))
+            db.execute('DELETE FROM posture_histograms WHERE person_id=? AND model_version=? AND mode=? AND day_start<?',
+                       self._params+(mode,cutoff))
             db.execute('UPDATE weekly_observations SET started_at=? WHERE person_id=? AND model_version=? AND mode=? AND started_at<? AND ended_at>?',
                        (cutoff,)+self._params+(mode,cutoff,cutoff))
             db.execute('''INSERT INTO weekly_policies VALUES (?,?,?,?,?,?) ON CONFLICT(person_id,model_version,mode)
@@ -168,7 +173,7 @@ class WeeklyStore(DeliveryStore):
 
     def erase(self):
         with self._write() as db:
-            for table in ('feedback_audit','feedback','baseline_samples','care_outbox','care_sessions','care_events','weekly_observations','weekly_policies'):
+            for table in ('posture_samples','posture_features','posture_histograms','feedback_audit','feedback','baseline_samples','care_outbox','care_sessions','care_events','weekly_observations','weekly_policies'):
                 db.execute(f'DELETE FROM {table} WHERE person_id=? AND model_version=?',self._params)
             db.execute('INSERT OR REPLACE INTO care_privacy VALUES (?,?,?)',self._params+(_timestamp(self._clock()),))
         return {'status':'erased'}

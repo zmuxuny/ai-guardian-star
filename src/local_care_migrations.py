@@ -13,11 +13,15 @@ import uuid
 
 
 APPLICATION_ID = 0x43415245
-LATEST_VERSION = 4
+LATEST_VERSION = 5
 _SQL_ROOT = Path(__file__).resolve().parent / 'migrations' / 'local_care'
 MIGRATIONS = {1: _SQL_ROOT / '001_initial.sql', 2: _SQL_ROOT / '002_baseline_source.sql',
-              3: _SQL_ROOT / '003_delivery.sql', 4: _SQL_ROOT / '004_weekly.sql'}
+              3: _SQL_ROOT / '003_delivery.sql', 4: _SQL_ROOT / '004_weekly.sql',
+              5: _SQL_ROOT / '005_personal_baseline.sql'}
 _KEYS = {
+    'posture_features': ('person_id','model_version','mode','event_id'),
+    'posture_samples': ('person_id','model_version','mode','event_id'),
+    'posture_histograms': ('person_id','model_version','mode','feature_version','camera_revision','day_start','region_id','time_slot','axis','bin'),
     'weekly_observations': ('person_id','model_version','mode','observation_id'),
     'weekly_policies': ('person_id','model_version','mode'),
     'care_privacy': ('person_id','model_version'),
@@ -29,6 +33,9 @@ _KEYS = {
     'care_outbox': ('person_id', 'model_version', 'message_id'),
 }
 _COLUMNS = {
+    'posture_features': {'person_id','model_version','mode','event_id','feature_version','camera_revision','feature_json','guards_json','captured_at'},
+    'posture_samples': {'person_id','model_version','mode','event_id','label','feedback_revision'},
+    'posture_histograms': set(_KEYS['posture_histograms']) | {'count'},
     'weekly_observations': {'person_id','model_version','mode','observation_id','region_id','started_at','ended_at','valid','quality'},
     'weekly_policies': {'person_id','model_version','mode','retention_days','min_samples','last_cleanup'},
     'care_privacy': {'person_id','model_version','erased_at'},
@@ -45,6 +52,7 @@ _COLUMNS = {
                     'payload_json','created_at','attempts','last_error','delivered_at'},
 }
 _INDEXES = {
+    'posture_features_scope_time': ('posture_features', ('person_id','model_version','mode','captured_at','event_id')),
     'weekly_observations_scope_time': ('weekly_observations', ('person_id','model_version','mode','ended_at','started_at')),
     'feedback_scope_status_time': ('feedback', ('person_id', 'model_version', 'is_revoked',
                                                'updated_at', 'target_id', 'window_start')),
@@ -94,6 +102,8 @@ def _version(db):
     else:
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         expected_tables = set(_KEYS)
+        if version < 5:
+            expected_tables -= {'posture_features','posture_samples','posture_histograms'}
         if version < 4:
             expected_tables -= {'weekly_observations','weekly_policies','care_privacy'}
         if version < 3:

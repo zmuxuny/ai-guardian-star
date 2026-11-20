@@ -221,7 +221,8 @@ class StoreTests(unittest.TestCase):
             tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")]
             self.assertEqual(set(tables), {'feedback', 'feedback_audit', 'baseline_samples',
                                           'care_events', 'care_sessions', 'care_outbox',
-                                          'weekly_observations','weekly_policies','care_privacy'})
+                                  'weekly_observations','weekly_policies','care_privacy',
+                                  'posture_features','posture_samples','posture_histograms'})
             for table in tables:
                 columns = db.execute(f'PRAGMA table_info({table})').fetchall()
                 self.assertTrue({'person_id', 'model_version'} <= {r[1] for r in columns if r[5]})

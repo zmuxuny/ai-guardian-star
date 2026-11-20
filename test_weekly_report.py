@@ -79,14 +79,14 @@ class WeeklyTests(unittest.TestCase):
         self.assertEqual(self.row(self.report(min_samples=1))['trend']['direction'], 'flat')
 
     def test_v3_migration_preserves_history_and_backup(self):
-        from src.local_care_migrations import migrate_database,connection
+        from src.local_care_migrations import migrate_database,connection,LATEST_VERSION
         path=Path(self.tmp.name)/'v3.db'
         migrate_database(path,target_version=3)
         with connection(path) as db:
             db.execute("INSERT INTO care_events VALUES ('p','v1','original','shadow','fall','room',1000,1001)")
             before=tuple(db.execute('SELECT * FROM care_events').fetchone())
         result=migrate_database(path)
-        self.assertEqual(result['to_version'],4)
+        self.assertEqual(result['to_version'],LATEST_VERSION)
         with connection(path) as db:
             self.assertEqual(tuple(db.execute('SELECT * FROM care_events').fetchone()),before)
         with connection(result['backup_path']) as db:

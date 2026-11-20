@@ -9,6 +9,10 @@ else:
 
 
 class DeliveryStore(LocalCareStore):
+    def _refresh_sample(self, db, event):
+        # Hook participates in the SAME transaction as feedback and audit.
+        pass
+
     def event(self, event_id, mode):
         with connection(self._path) as db:
             row = db.execute('SELECT * FROM care_events WHERE person_id=? AND model_version=? AND event_id=? AND mode=?',
@@ -91,6 +95,7 @@ class DeliveryStore(LocalCareStore):
                 feedback = self._submit_in(db, key, event['started_at'], encoded, now)
             else:
                 feedback = self._lifecycle_in(db, key, now, operation == 'revoke', reason if operation == 'revoke' else None)
+            self._refresh_sample(db, event)
             if mode == 'live':
                 self._enqueue(db, event_id, 'feedback', feedback['revision'],
                               {'schema_version': 1, 'event_id': event_id, 'feedback': feedback}, now)

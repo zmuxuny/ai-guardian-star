@@ -1,6 +1,13 @@
 """Offline acceptance for event posture, personal feedback and shadow isolation."""
 import copy
 import math
+import json
+import sqlite3
+import socket
+import tempfile
+from pathlib import Path
+from contextlib import closing
+from unittest.mock import patch
 import unittest
 
 from src.posture_features import extract_posture, eligible_label, evaluate, histogram_bins
@@ -78,6 +85,136 @@ class FeatureTests(unittest.TestCase):
             self.assertEqual(evaluate(f,[dict(event_id=str(i),feature=changed) for i in range(3)],[],guards),'no_match')
         self.assertEqual(histogram_bins(posture()),{'torso_angle':0,'hip_height':6,'aspect_ratio':1})
         self.assertEqual(histogram_bins(posture(90,1,4)),{'torso_angle':5,'hip_height':9,'aspect_ratio':5})
+
+
+class StoreTests(unittest.TestCase):
+    def setUp(self):
+        from src.personal_baseline_store import PersonalBaselineStore
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name)/'care.db'
+        self.now = 1767225600.
+        self.store = PersonalBaselineStore(self.path,'p','m',clock=lambda:self.now)
+
+    def event(self,identity='e',mode='shadow',kind='fall',**updates):
+        ref = dict(person_id='p',model_version='m',event_id=identity,mode=mode,kind=kind,
+                   region_id='room',started_at=self.now,ended_at=None)
+        ref.update(updates)
+        self.store.create_event(ref)
+        return ref
+
+    def capture(self,identity='e',mode='shadow',camera='cam1',feature=None):
+        return self.store.capture_event(mode,identity,posture() if feature is None else feature,camera)
+
+    def feedback(self,identity='e',mode='shadow',**kwargs):
+        return self.store.event_feedback(identity,mode,kwargs.pop('payload',{'feedback':'untrusted','reason':'not_fall'}),**kwargs)
+
+    def test_samples_follow_feedback_and_revocation_never_revives_on_resubmit(self):
+        self.event(); self.capture(); self.feedback()
+        self.feedback()
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+        self.feedback(payload={'feedback':'trusted'})
+        self.assertEqual(len(self.store.samples('shadow','cam1')['risk']),1)
+        self.feedback(operation='revoke')
+        self.feedback()
+        self.assertEqual(self.store.samples('shadow','cam1'),{'normal':[],'risk':[]})
+        self.feedback(operation='restore')
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+        self.feedback(payload={'feedback':'untrusted','reason':'occluded'})
+        self.assertEqual(self.store.samples('shadow','cam1'),{'normal':[],'risk':[]})
+        self.assertEqual(len(self.store.feedback_audit('e',self.now,status='all')),7)
+
+    def test_feedback_first_capture_reads_latest_state_and_invalid_is_not_sample(self):
+        self.event(); self.feedback(); self.feedback(operation='revoke'); self.capture()
+        self.assertFalse(self.store.samples('shadow','cam1')['normal'])
+        self.feedback(operation='restore')
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+        self.event('invalid'); self.feedback('invalid')
+        self.capture('invalid',feature=dict(version='posture_v1',valid=False,reason='invalid_pose'))
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+        self.event('sit',kind='sit'); self.capture('sit'); self.feedback('sit')
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+
+    def test_scope_camera_mode_and_feature_snapshot_immutable(self):
+        from src.personal_baseline_store import PersonalBaselineStore
+        self.event(); self.capture(); self.feedback()
+        for person,model in [('q','m'),('p','n')]:
+            other = PersonalBaselineStore(self.path,person,model,clock=lambda:self.now)
+            with self.assertRaises(LookupError):
+                other.capture_event('shadow','e',posture(),'cam1')
+            self.assertFalse(other.samples('shadow','cam1')['normal'])
+        self.assertFalse(self.store.samples('live','cam1')['normal'])
+        self.assertFalse(self.store.samples('shadow','cam2')['normal'])
+        with self.assertRaises(LookupError): self.capture(mode='live')
+        self.capture()  # idempotent exact replay
+        with self.assertRaises(ValueError): self.capture(feature=posture(30))
+        with self.assertRaises(ValueError): self.capture(camera='cam2')
+        self.event('no_camera'); self.capture('no_camera',camera=None); self.feedback('no_camera')
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+
+    def test_feedback_and_audit_roll_back_if_sample_refresh_fails(self):
+        self.event(); self.capture(); self.feedback()
+        with patch.object(self.store,'_refresh_sample',side_effect=RuntimeError('disk')):
+            with self.assertRaises(RuntimeError): self.feedback(operation='revoke')
+        self.assertFalse(self.store.get_feedback('e',self.now,status='all')['is_revoked'])
+        self.assertEqual(len(self.store.feedback_audit('e',self.now,status='all')),1)
+        self.assertEqual(len(self.store.samples('shadow','cam1')['normal']),1)
+
+    def test_histograms_report_retention_and_erasure(self):
+        for i in range(4):
+            self.event(str(i)); self.capture(str(i))
+            if i<3: self.feedback(str(i))
+        for _ in range(2): self.store.observe_histogram('shadow',posture(),'cam1',self.now)
+        report = self.store.personal_report('shadow','cam1')
+        self.assertEqual(report['histogram_observations'],2)
+        self.assertEqual(report['evaluated_events'],4)
+        self.assertEqual(report['protected_events'],4)
+        self.assertEqual(report['would_extend_confirmation_events'],0)
+        encoded = json.dumps(report)
+        for forbidden in ('torso_angle','hip_height','aspect_ratio','event_id','feature_json'):
+            self.assertNotIn(forbidden,encoded)
+        with closing(sqlite3.connect(self.path)) as db:
+            self.assertEqual(db.execute('SELECT sum(count) FROM posture_histograms').fetchone()[0],6)
+        self.now += 366*86400
+        self.store.maintain('shadow')
+        self.assertFalse(self.store.samples('shadow','cam1')['normal'])
+        with closing(sqlite3.connect(self.path)) as db:
+            for table in ('posture_features','posture_samples','posture_histograms'):
+                self.assertEqual(db.execute('SELECT count(*) FROM '+table).fetchone()[0],0)
+        self.store.erase()
+        self.event('after')
+        with self.assertRaises(ValueError): self.capture('after')
+
+    def test_offline_restart_and_v4_migration_backup(self):
+        from src.local_care_migrations import migrate_database
+        from src.personal_baseline_store import PersonalBaselineStore
+        old_path = self.path.with_name('old.db')
+        migrate_database(old_path,target_version=4)
+        with closing(sqlite3.connect(old_path)) as db:
+            db.execute("INSERT INTO baseline_samples VALUES ('p','m','old','posture','{}',1,1,1,'legacy')")
+            db.commit()
+        with patch('socket.socket',side_effect=AssertionError('network forbidden')):
+            migrated = PersonalBaselineStore(old_path,'p','m',clock=lambda:self.now)
+            self.assertEqual(migrated.get_sample('old')['source'],'legacy')
+            backups = list(old_path.parent.glob('old.db.v4-*.backup.db'))
+            self.assertEqual(len(backups),1)
+            with closing(sqlite3.connect(backups[0])) as db:
+                self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],4)
+            self.event(); self.capture(); self.feedback()
+            reopened = PersonalBaselineStore(self.path,'p','m',clock=lambda:self.now)
+            self.assertEqual(len(reopened.samples('shadow','cam1')['normal']),1)
+
+    def test_migration5_failure_rolls_back_schema_and_version(self):
+        from src.local_care_migrations import migrate_database, MIGRATIONS
+        old = self.path.with_name('failed.db')
+        migrate_database(old,target_version=4)
+        broken = self.path.with_name('broken.sql')
+        broken.write_text('CREATE TABLE partial (x); SELECT missing FROM no_table;',encoding='utf8')
+        with patch.dict(MIGRATIONS,{5:broken}):
+            with self.assertRaises(sqlite3.OperationalError): migrate_database(old)
+        with closing(sqlite3.connect(old)) as db:
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],4)
+            self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='partial'").fetchone())
 
 
 if __name__ == '__main__':
