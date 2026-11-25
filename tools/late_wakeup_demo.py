@@ -151,17 +151,24 @@ def typical_departure(samples: dict[datetime, Observation]) -> tuple[time, int]:
 
 
 def make_reminder(now: datetime, typical: time) -> dict[str, str]:
+    return routine_reminder(
+        "late_wakeup", now, f"平时约 {typical:%H:%M} 离开床区，今天 {now:%H:%M} 仍在床区。"
+    )
+
+
+def routine_reminder(alert_type: str, now: datetime, reason: str) -> dict[str, str]:
     timestamp = now.isoformat(timespec="seconds")
+    kind = alert_type.replace("_", "-")
     event_id = uuid5(
-        NAMESPACE_URL, f"https://github.com/zmuxuny/ai-guardian-star/late-wakeup-demo/{timestamp}"
+        NAMESPACE_URL, f"https://github.com/zmuxuny/ai-guardian-star/{kind}-demo/{timestamp}"
     )
     return {
         "schema_version": "2",
         "event_id": str(event_id),
-        "alert_type": "late_wakeup",
+        "alert_type": alert_type,
         "timestamp": timestamp,
         "expires_at": (now + REMINDER_TTL).isoformat(timespec="seconds"),
-        "reason": f"平时约 {typical:%H:%M} 离开床区，今天 {now:%H:%M} 仍在床区。",
+        "reason": reason,
     }
 
 
