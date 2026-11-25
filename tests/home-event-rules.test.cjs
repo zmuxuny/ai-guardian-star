@@ -7,19 +7,23 @@ const path = require('node:path');
 const Module = require('node:module');
 const ts = require(process.env.GUARDIAN_TYPESCRIPT_PATH || 'typescript');
 
-function loadRules(name) {
+function loadRules(name, dependencies = {}) {
   const file = path.resolve(__dirname, '../entry/src/main/ets/common', name + '.ets');
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     fileName: name + '.ts'
   }).outputText;
   const loaded = new Module(file, module);
+  loaded.require = id => {
+    assert.ok(Object.hasOwn(dependencies, id), 'Unexpected real dependency: ' + id);
+    return dependencies[id];
+  };
   loaded._compile(code, file);
   return loaded.exports;
 }
 
-const rules = loadRules('HomeEventRules');
 const parser = loadRules('MqttParser');
+const rules = loadRules('HomeEventRules', { './MqttParser': parser });
 
 test('today includes midnight and excludes adjacent calendar dates', () => {
   const now = new Date(2026, 9, 26, 18).getTime();
@@ -56,6 +60,39 @@ test('stranger messages have an explicit homepage label', () => {
   assert.equal(rules.homeEventTitle('stranger'), '陌生人到来');
   assert.equal(rules.homeEventTitle('fall'), '摔倒告警');
   assert.equal(rules.homeEventTitle('sedentary'), '久坐提醒');
+});
+
+const routinePayload = {
+  event: 'routine_alert', schema_version: '2', event_id: 'routine-id', alert_type: 'late_wakeup',
+  timestamp: '2026-11-24T08:30:00+08:00', reason: '平时约 07:00 离开床区。',
+};
+
+test('App parses UTF-8 routine payloads and labels each rule as a home event', () => {
+  for (const [type, title] of [
+    ['late_wakeup', '晚起提醒'],
+    ['daytime_inactivity', '白天活动提醒'],
+    ['night_bathroom_stay', '夜间卫生间停留提醒'],
+  ]) {
+    const payload = { ...routinePayload, alert_type: type };
+    const bytes = new Uint8Array(Buffer.from(JSON.stringify(payload), 'utf8'));
+    const result = parser.parseAlert(bytes.buffer);
+    assert.equal(result.type, 'routine_alert');
+    assert.deepEqual(result.routine, {
+      eventId: routinePayload.event_id, alertType: type, timestamp: Date.parse(payload.timestamp),
+      reason: routinePayload.reason,
+    });
+    assert.equal(rules.isTodayHomeEvent(type, result.routine.timestamp, result.routine.timestamp), true);
+    assert.equal(rules.homeEventTitle(type), title);
+  }
+});
+
+test('malformed and unknown routine payloads cannot masquerade as normal status', () => {
+  for (const change of [
+    { schema_version: 2 }, { schema_version: '5' }, { alert_type: 'unknown' }, { event_id: '' },
+    { timestamp: '2026-11-24T08:30:00' }, { reason: '  ' },
+  ]) {
+    assert.equal(parser.parseAlert(JSON.stringify({ ...routinePayload, ...change })).type, 'unknown');
+  }
 });
 
 function arrivals(times) {
@@ -118,6 +155,27 @@ function mqttHarness() {
   manager.startStrangerRecoveryTimer = () => {}; // This suite checks event writes, not display timers.
   return { manager, writes, setOwner: value => { owner = value; }, setFailure: value => { fail = value; } };
 }
+
+test('routine handler preserves ID and reason under the account without clearing fall state', async () => {
+  const h = mqttHarness();
+  h.manager.isFallDetected = true;
+  h.manager.deviceOnline = false;
+  const payload = JSON.stringify(routinePayload);
+  h.manager.handleMessage('ai_guardian/alerts/fall', payload);
+  h.setOwner('');
+  h.manager.handleMessage(parser.ROUTINE_ALERT_TOPIC, payload);
+  h.setOwner('synthetic-owner-a');
+  h.manager.handleMessage(parser.ROUTINE_ALERT_TOPIC, payload);
+  await Promise.resolve();
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.writes[0].sourceEventId, routinePayload.event_id);
+  assert.equal(h.writes[0].eventTime, Date.parse(routinePayload.timestamp));
+  assert.equal(h.writes[0].eventType, 'late_wakeup');
+  assert.equal(h.writes[0].remark, routinePayload.reason);
+  assert.equal(h.writes[0].username, 'synthetic-owner-a');
+  assert.equal(h.manager.isFallDetected, true);
+  assert.equal(h.manager.deviceOnline, false);
+});
 
 test('real MQTT handler persists each stranger arrival once for the current account', async t => {
   const h = mqttHarness();

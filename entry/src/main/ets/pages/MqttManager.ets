@@ -9,7 +9,7 @@ import {
 import { DatabaseHelper, HealthEvent } from "../database/DatabaseHelper";
 import { UserManager } from "../common/UserManager";
 import { BROKER_URL, ALERT_TOPIC, MQTT_CA_CERT } from '../config';
-import { parseAlert, EventType, payloadToString } from '../common/MqttParser';
+import { parseAlert, EventType, payloadToString, ROUTINE_ALERT_TOPIC, RoutineAlert } from '../common/MqttParser';
 import { CloudService } from '../common/CloudService';
 import { startsStrangerArrival } from '../common/HomeEventRules';
 
@@ -311,6 +311,12 @@ export class MqttManager {
 
     const alert = parseAlert(content);
     if (alert.type === EventType.UNKNOWN) return;
+    if (alert.type === EventType.ROUTINE) {
+      if (topic === ROUTINE_ALERT_TOPIC && alert.routine !== undefined) {
+        this.recordRoutineAlert(alert.routine);
+      }
+      return;
+    }
 
     if (topic.startsWith('guardian/') || topic.startsWith('ai_guardian/')) {
       this.lastDeviceActivity = Date.now();
@@ -470,6 +476,21 @@ export class MqttManager {
     DatabaseHelper.getInstance().insertHealthEvent(event).catch((): void => {
       if (this.lastStrangerActivity === timestamp) this.lastStrangerActivity = 0;
       console.warn('[mqtt]: 陌生人事件保存失败');
+    });
+  }
+
+  private recordRoutineAlert(alert: RoutineAlert): void {
+    const username = this.getCurrentUsername();
+    if (username.trim() === '') return;
+    const date = new Date(alert.timestamp);
+    const event: HealthEvent = {
+      eventType: alert.alertType, eventTime: alert.timestamp, sourceEventId: alert.eventId,
+      dateStr: `${date.getFullYear()}.${this.padZero(date.getMonth() + 1)}.${this.padZero(date.getDate())}`,
+      timeStr: `${this.padZero(date.getHours())}:${this.padZero(date.getMinutes())}:${this.padZero(date.getSeconds())}`,
+      severity: 1, isHandled: 0, username: username, remark: alert.reason
+    };
+    DatabaseHelper.getInstance().insertHealthEvent(event).catch((): void => {
+      console.warn('[mqtt]: 作息提醒保存失败');
     });
   }
 

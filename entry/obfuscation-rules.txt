@@ -50,6 +50,10 @@
     clientId
     topic
     event
+    schema_version
+    event_id
+    alert_type
+    reason
     deviceId
     sequence
     cameraConnected
@@ -129,6 +133,7 @@
     severity
     is_handled
     remark
+    source_event_id
     file_path
     thumbnail_path
     duration_sec

@@ -7,7 +7,7 @@
  *   - t_health_event 健康事件（摔倒 / 久坐）
  *   - t_video_record 监控视频元数据（路径 + 元信息，7天滚动覆盖）
  *
- * 🗂️ 当前版本：DB_VERSION = 4
+ * 🗂️ 当前版本：DB_VERSION = 5
  */
 
 import { relationalStore } from "@kit.ArkData";
@@ -22,7 +22,7 @@ const TAG = "DatabaseHelper";
 
 // ─── 数据库配置 ───────────────────────────────────────────────
 const DB_NAME = "GuardianStar.db";
-const DB_VERSION = 4; // v4: nickname → username, auto-fill phone/email
+const DB_VERSION = 5;
 
 const STORE_CONFIG: relationalStore.StoreConfig = {
   name: DB_NAME,
@@ -70,6 +70,7 @@ const SQL_CREATE_HEALTH_EVENT = `CREATE TABLE IF NOT EXISTS t_health_event (
     severity        INTEGER NOT NULL DEFAULT 1,
     is_handled      INTEGER NOT NULL DEFAULT 0,
     remark          TEXT,
+    source_event_id TEXT,
     username        TEXT    NOT NULL DEFAULT ''
   )`;
 
@@ -119,6 +120,7 @@ export interface HealthEvent {
   severity: number;
   isHandled: number;
   remark?: string;
+  sourceEventId?: string;
   username: string; // 归属用户，用于多账号隔离
 }
 
@@ -182,11 +184,15 @@ export class DatabaseHelper {
 
   // ── 初始化入口（幂等，可多次调用）──────────────────────────
   public async init(context: Context): Promise<void> {
-    if (this.store !== undefined) return; // 已初始化，直接返回
     if (this.initPromise !== undefined) return this.initPromise; // 初始化进行中，等待
+    if (this.store !== undefined) return; // 已初始化，直接返回
 
     this.initPromise = this._doInit(context);
-    return this.initPromise;
+    try {
+      await this.initPromise;
+    } finally {
+      this.initPromise = undefined;
+    }
   }
 
   private async _doInit(context: Context): Promise<void> {
@@ -198,7 +204,12 @@ export class DatabaseHelper {
       hilog.error(DOMAIN, TAG, `getRdbStore 失败 code=${err.code} msg=${err.message}`);
       throw new Error(err.code + ": " + err.message);
     }
-    await this.migrateDatabase();
+    try {
+      await this.migrateDatabase();
+    } catch (error) {
+      this.store = undefined;
+      throw new Error((error as Error).message);
+    }
   }
 
   // ── 数据库版本迁移 ────────────────────────────
@@ -259,6 +270,25 @@ export class DatabaseHelper {
       this.store.version = 4;
       hilog.info(DOMAIN, TAG, `数据库版本已更新为: 4`);
     }
+    await this.ensureHealthEventSourceId();
+    if (this.store.version < DB_VERSION) this.store.version = DB_VERSION;
+  }
+
+  private async ensureHealthEventSourceId(): Promise<void> {
+    const store = this.getStore();
+    const columns = await store.querySql(
+      "SELECT name FROM pragma_table_info('t_health_event') WHERE name = 'source_event_id'"
+    );
+    let hasColumn = false;
+    try {
+      hasColumn = columns.goToFirstRow();
+    } finally {
+      this.closeResultSet(columns);
+    }
+    if (!hasColumn) await store.executeSql("ALTER TABLE t_health_event ADD COLUMN source_event_id TEXT");
+    await store.executeSql(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_health_event_source ON t_health_event(username, source_event_id)"
+    );
   }
 
   // ── 安全获取 store（断言已初始化）─────────────────────────
@@ -496,7 +526,9 @@ export class DatabaseHelper {
   /** 插入健康事件，写入前自动滚动清理超出保留天数的旧记录，返回 rowId */
   public async insertHealthEvent(event: HealthEvent): Promise<number> {
     // 🔄 滚动清理：删除早于 retentionDays 天前的旧事件
-    const cutoff = event.eventTime - this.getRetentionDays() * 24 * 60 * 60 * 1000;
+    const retentionBase = event.sourceEventId === undefined ? event.eventTime : Date.now();
+    const cutoff = retentionBase - this.getRetentionDays() * 24 * 60 * 60 * 1000;
+    if (event.sourceEventId !== undefined && event.eventTime < cutoff) return -1;
     const oldPred = new relationalStore.RdbPredicates("t_health_event");
     oldPred.lessThan("event_time", cutoff);
     try {
@@ -521,10 +553,13 @@ export class DatabaseHelper {
       severity: event.severity,
       is_handled: event.isHandled,
       remark: event.remark ?? null,
+      source_event_id: event.sourceEventId ?? null,
       username: effectiveUsername,
     };
     try {
-      const rowId = await this.getStore().insert("t_health_event", values);
+      const store = this.getStore();
+      const rowId = event.sourceEventId === undefined ? await store.insert("t_health_event", values)
+        : await store.insert("t_health_event", values, relationalStore.ConflictResolution.ON_CONFLICT_IGNORE);
       hilog.info(
         DOMAIN,
         TAG,

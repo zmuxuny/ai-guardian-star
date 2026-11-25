@@ -301,7 +301,7 @@ export struct mainPage {
             Column({ space: 5 }) {
               Text(UserManager.getInstance().isLoggedIn() ? '暂无告警记录' : '登录后查看告警记录').fontSize(14).fontWeight(FontWeight.Medium)
                 .fontColor('#FFFFFF')
-              Text('收到摔倒、久坐或陌生人事件后，会在这里展示').fontSize(12)
+              Text('监护事件和作息提醒会显示在这里').fontSize(12)
                 .fontColor('#E2F0EA')
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
           }.width('100%').padding({
@@ -313,7 +313,8 @@ export struct mainPage {
             Button({ type: ButtonType.Normal }) {
               Row({ space: 12 }) {
                 Image(event.eventType === 'fall' ? $r('app.media.ic_alert_red')
-                  : event.eventType === 'stranger' ? $r('app.media.ic_home_visitor') : $r('app.media.ic_home_sitting'))
+                    : event.eventType === 'stranger' ? $r('app.media.ic_home_visitor')
+                    : event.eventType === 'sedentary' ? $r('app.media.ic_home_sitting') : $r('app.media.ic_record'))
                   .width(42).height(42).padding(8).borderRadius(21)
                   .fillColor(this.eventAccent(event))
                   .backgroundColor(event.eventType === 'fall' || event.eventType === 'stranger'

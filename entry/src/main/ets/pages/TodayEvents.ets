@@ -77,7 +77,8 @@ struct TodayEvents {
     Button({ type: ButtonType.Normal }) {
       Row({ space: 12 }) {
         Image(event.eventType === 'fall' ? $r('app.media.ic_alert_red')
-          : event.eventType === 'stranger' ? $r('app.media.ic_home_visitor') : $r('app.media.ic_home_sitting'))
+          : event.eventType === 'stranger' ? $r('app.media.ic_home_visitor')
+          : event.eventType === 'sedentary' ? $r('app.media.ic_home_sitting') : $r('app.media.ic_record'))
           .width(42).height(42).padding(8).borderRadius(21)
           .fillColor(homeEventAccent(event.eventType, this.theme.isDarkMode))
           .backgroundColor(homeEventSurface(event.eventType, this.theme.isDarkMode))
@@ -127,7 +128,7 @@ struct TodayEvents {
         } else if (this.events.length === 0) {
           Image($r('app.media.ic_record')).width(48).height(48).supportSvg2(true).colorFilter(careIconTint(this.theme.colors.linkTextColor)).margin({ top: 48, bottom: 16 })
           Text('今天暂无事件').fontSize(18).fontWeight(FontWeight.Medium).fontColor(this.theme.colors.primaryTextColor)
-          Text('当天的摔倒、久坐和陌生人记录会显示在这里').fontSize(13)
+          Text('当天的监护事件和作息提醒会显示在这里').fontSize(13)
             .fontColor(this.theme.colors.secondaryTextColor).margin({ top: 8 }).padding(20)
         } else {
           List({ space: 12 }) {

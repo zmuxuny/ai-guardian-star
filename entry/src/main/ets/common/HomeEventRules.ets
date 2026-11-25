@@ -1,6 +1,8 @@
+import { isRoutineAlertType } from './MqttParser';
+
 /** Homepage event rules shared with the MQTT event writer. */
 export function isHomeEventType(type: string): boolean {
-  return type === 'fall' || type === 'sedentary' || type === 'stranger';
+  return type === 'fall' || type === 'sedentary' || type === 'stranger' || isRoutineAlertType(type);
 }
 
 /** Today's calendar date in the phone's local timezone, not a rolling 24 hours. */
@@ -28,6 +30,9 @@ export function homeEventTitle(type: string): string {
   if (type === 'fall') return '摔倒告警';
   if (type === 'sedentary') return '久坐提醒';
   if (type === 'stranger') return '陌生人到来';
+  if (type === 'late_wakeup') return '晚起提醒';
+  if (type === 'daytime_inactivity') return '白天活动提醒';
+  if (type === 'night_bathroom_stay') return '夜间卫生间停留提醒';
   return '监护事件';
 }
 
