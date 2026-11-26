@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "runtime_revision": "4663f9ca8a97c525ba3d248711fa2b52050920ec",
+  "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+  "inputs_sha256": "dd8d526b20b72e93009cf4bc861b273f49d121da554e56650d61c4584c2b1171",
+  "expected_sha256": "6317f0929e2a168995084191f30bbdbda78bdf940981f5562ea51a90ca123be7",
+  "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+  "models": [
+    {
+      "id": "qwen25-15b-q4km",
+      "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "repository": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+      "bytes": 1117320736,
+      "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+      "quantization": "Q4_K_M"
+    },
+    {
+      "id": "qwen3-06b-q8",
+      "file": "Qwen3-0.6B-Q8_0.gguf",
+      "repository": "Qwen/Qwen3-0.6B-GGUF",
+      "revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+      "bytes": 639446688,
+      "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+      "quantization": "Q8_0"
+    }
+  ]
+}
