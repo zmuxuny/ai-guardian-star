@@ -1,5 +1,7 @@
 # caringSystem
 
+- 涉及本地模型、个性化问候对接或作息记录点（Issue #29）时，先读 `docs/issue-29-local-model-guidelines.md` 和 `docs/personalization-message-format-v5.md`。
+
 - OpenWolf 为按需项目索引。陌生模块或跨项目调查时读 `.wolf/anatomy.md`；历史决策影响任务时读 `.wolf/cerebrum.md`。已知文件/符号直接定向搜索。需要维护 OpenWolf 时按 `.wolf/OPENWOLF.md` 的 Slim Protocol 执行。
 - 构建、签名、HAP/APP 交付按 `DEVECO_BUILD.md` 的相关章节；构建成功不代表设备/API 验收成功。
 - 保留无关改动，不顺手重构；优先复用现有代码。缺少影响结果的关键决策时询问，常规实现选择自行处理。
@@ -9,7 +11,7 @@
 ## AI 协作（Codex / DeepSeek）
 
 - 开工先读 `docs/修改记录/协作/README.md`、`TASKS.md` 和对方 `STATUS` 的最新一条；收工前更新自己的 `STATUS` 与 `TASKS`。
-- 未验证代码放 `wip/<agent>-<date>` 分支；`zy` 只接收已验证合并和协作文档。当前阶段只做本地提交，由 Codex 统一 push。
+- 所有交付到 `zy` 的变更（代码、文档和协作记录）均从独立分支通过 PR 提交；不得直接在 `zy` 提交或推送，也不自行合并 PR。未验证代码放 `wip/<agent>-<date>`，由 Codex 统一 push 功能分支并提 PR。用户于 2026-11-26 明确此规则，优先于旧协作说明中的直接提交约定。
 - 记录写分支、提交 SHA、影响文件、验证结果、未验证项、下一步；不贴大段代码，不写密钥和个人信息。
 - 各自使用独立 worktree，禁止在对方工作区提交或覆盖未提交改动；不要用 `git add -A`。
 - 一次逻辑改动一次 commit，提交信息用完整中文，并加 `AI-Agent: <agent>`。

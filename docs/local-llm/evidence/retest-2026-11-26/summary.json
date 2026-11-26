@@ -1,0 +1,71 @@
+{
+  "raw": {
+    "total": 30,
+    "correct": 21,
+    "help_correct": 10,
+    "help_total": 10,
+    "wrong_okay": 7,
+    "false_help": 2,
+    "unclear": 1,
+    "source_counts": {
+      "ok": 30
+    },
+    "median_s": 3.950963040500028,
+    "max_s": 4.924447172999976,
+    "confusion": {
+      "okay": {
+        "okay": 10
+      },
+      "needs_help": {
+        "needs_help": 10
+      },
+      "unclear": {
+        "okay": 7,
+        "unclear": 1,
+        "needs_help": 2
+      }
+    }
+  },
+  "prototype": {
+    "total": 30,
+    "correct": 16,
+    "help_correct": 9,
+    "help_total": 10,
+    "wrong_okay": 0,
+    "false_help": 3,
+    "unclear": 18,
+    "source_counts": {
+      "model_advisory": 23,
+      "rule": 5,
+      "fallback": 2
+    },
+    "median_s": 2.2623962764999987,
+    "max_s": 5.001164969000001,
+    "confusion": {
+      "okay": {
+        "unclear": 10
+      },
+      "needs_help": {
+        "needs_help": 9,
+        "unclear": 1
+      },
+      "unclear": {
+        "unclear": 7,
+        "needs_help": 3
+      }
+    },
+    "model_called": 25,
+    "model_timing_recorded": 23,
+    "ack_max_seconds": 2.1456000013131415e-05
+  },
+  "resources": {
+    "samples": 86,
+    "fps_min": 6.9,
+    "fps_mean": 7.46860465116279,
+    "cpu_busy_mean_percent": 57.732867683201455,
+    "mem_available_min_gib": 13.46346664428711,
+    "model_peak_hwm_mib": 1169.296875,
+    "guardian_peak_hwm_mib": 598.8203125,
+    "max_sample_gap_seconds": 3.075802393999993
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-26T13:24:05.458784+08:00",
+  "policy_version": "experimental-care-text/1",
+  "protocol_integration": false,
+  "initial_service": {
+    "MainPID": "2245",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "baseline_fps_median": 7.300000000000001,
+  "input_sha256": "78d3016aa9f9ba151b2030dd29ad01364d163d79dc6ca7b5c24cf3a5e7408bb3",
+  "expected_sha256": "381925cedfd27f7130fadb4ac02f7b178b5aa57f3515e9d9ed7ce8626215169e",
+  "model_sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+  "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+  "measurements": [
+    {
+      "kind": "first-process:ready",
+      "seconds": 3.0290032090000523
+    },
+    {
+      "kind": "first-prompt",
+      "success": true,
+      "content": "{\"intent\": \"okay\"}",
+      "first_token_seconds": 12.914407479000033,
+      "total_seconds": 15.044659648999982,
+      "intent": "okay"
+    },
+    {
+      "kind": "same-prefix",
+      "success": true,
+      "content": "{\"intent\": \"needs_help\"}",
+      "first_token_seconds": 2.2727630189999672,
+      "total_seconds": 4.373088456999994,
+      "intent": "needs_help"
+    },
+    {
+      "kind": "changed-prefix",
+      "success": true,
+      "content": "{\"intent\": \"needs_help\"}",
+      "first_token_seconds": 14.447517354999945,
+      "total_seconds": 16.576853898999957,
+      "intent": "needs_help"
+    }
+  ],
+  "rows": [],
+  "faults": [],
+  "video_before": {
+    "http_status": 200,
+    "bytes": 13371,
+    "complete_jpeg": true
+  },
+  "finished_at": "2026-11-26T13:24:58.531024+08:00",
+  "resource_samples": 16,
+  "safety_triggered": false,
+  "final_stats": {
+    "fps": 7.7,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2245",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 13721,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true
+}
