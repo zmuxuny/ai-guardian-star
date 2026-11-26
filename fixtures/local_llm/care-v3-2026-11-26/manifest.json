@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "frozen_policy_commit": "aff145b",
+  "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+  "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+  "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+  "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+  "models": [
+    {
+      "id": "qwen25-15b-q4km",
+      "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+      "bytes": 1117320736,
+      "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+    }
+  ],
+  "v3_source_sha256": "f57b775bd5eff9d691d9ec01d60fb4d2b9d163eab13636d429d42cda4d4ba902"
+}
