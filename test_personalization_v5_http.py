@@ -4,6 +4,9 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+import http.client
+import threading
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 
 from src.personalization_v5 import Store
@@ -55,11 +58,34 @@ class HTTPTests(unittest.TestCase):
 
     def test_invalid_json_duplicate_keys_and_oversized_body_are_rejected(self):
         url=self.model_server.url+'/personalization/v2/reminders'
-        for body in (b'[]',b'{"schema_version":"2","schema_version":"3"}',b'{bad',b'x'*65537):
+        for body in (b'[]',b'{"schema_version":"2","schema_version":"3"}',b'{bad'):
             req=urllib.request.Request(url,data=body,headers={'Content-Type':'application/json'})
             with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(req,timeout=3)
             self.assertIn(caught.exception.code,(400,413))
             caught.exception.close()
+        conn=http.client.HTTPConnection('127.0.0.1',self.model_server.http.server_port,timeout=3)
+        try:
+            conn.request('POST','/personalization/v2/reminders',headers={'Content-Type':'application/json','Content-Length':'65537'})
+            response=conn.getresponse();self.assertEqual(response.status,413);response.read()
+        finally:conn.close()
+
+    def test_deeply_nested_ack_retries_instead_of_killing_delivery_worker(self):
+        class BadAck(BaseHTTPRequestHandler):
+            def log_message(self,*args):pass
+            def do_POST(self):
+                self.rfile.read(int(self.headers['Content-Length']))
+                body=b'['*30000+b'0'+b']'*30000
+                self.send_response(200);self.send_header('Content-Length',str(len(body)))
+                self.end_headers();self.wfile.write(body)
+        server=ThreadingHTTPServer(('127.0.0.1',0),BadAck)
+        worker=threading.Thread(target=server.serve_forever,daemon=True);worker.start()
+        try:
+            self.peer.register_reminder(reminder())
+            flush_outbox(self.peer,'http://127.0.0.1:'+str(server.server_port))
+            self.assertEqual(self.peer.pending(),[])
+            self.now+=5
+            self.assertEqual(self.peer.pending()[0]['attempts'],1)
+        finally:server.shutdown();server.server_close();worker.join()
 
     def test_lost_ack_can_arrive_after_result_without_reverting_progress(self):
         self.peer.register_reminder(reminder())

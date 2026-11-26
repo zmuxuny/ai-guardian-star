@@ -20,7 +20,10 @@ from tools.local_llm_prep import endpoint, unique_object
 def read_json(body):
     def invalid(value):
         raise ValueError('nonfinite JSON')
-    return json.loads(body,object_pairs_hook=unique_object,parse_constant=invalid)
+    try:
+        return json.loads(body,object_pairs_hook=unique_object,parse_constant=invalid)
+    except RecursionError as error:
+        raise ValueError('JSON nesting exceeds parser limit') from error
 
 
 def post(url, payload, *, timeout=3):
