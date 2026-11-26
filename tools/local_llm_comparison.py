@@ -17,6 +17,15 @@ from tools.local_care_board_trial import (cpu, guard_monitor, memory, port_avail
 from tools.local_care_prototype import StreamClient
 
 
+def capture_probe(operation, errors, name, default=None):
+    """Record failed cleanup checks as failures while allowing evidence to save."""
+    try:
+        return operation()
+    except Exception as error:
+        errors[name] = type(error).__name__
+        return default
+
+
 def build_runs(cases):
     if not cases or len(cases) % 2 or len({x['id'] for x in cases}) != len(cases):
         raise ValueError('Need an even, unique set of cases')
@@ -66,6 +75,8 @@ def main():
         weight = old / 'models' / model['file']
         assert weight.stat().st_size == model['bytes'] and sha(weight) == model['sha256']
     preparation = json.loads((root / 'results/preparation.json').read_text(encoding='utf-8'))
+    production_before = json.loads((root / 'backup/production-files.before.json').read_text())
+    unit_before = (root / 'backup/guardian-board.service.txt').read_text()
     initial = service()
     assert initial['MainPID'] == str(preparation['service_pid']) and initial['ActiveState'] == 'active'
     assert all(x['stats']['care_mode'] == 'off' for x in preparation['baseline'])
@@ -228,14 +239,22 @@ def main():
         result['last_resource_age_seconds'] = time.monotonic() - started - samples[-1]['elapsed'] if samples else None
         result['safety_triggered'] = unsafe.is_set()
         result['finished_at'] = datetime.datetime.now().astimezone().isoformat()
-        result['final_stats'], result['final_service'], result['video_after'] = stats(), service(), video()
-        before = json.loads((root / 'backup/production-files.before.json').read_text())
-        result['production_file_count'] = len(before)
-        result['production_files_unchanged'] = all(sha(Path('/root/ai_guardian') / n) == h for n, h in before.items())
-        unit = subprocess.check_output(['systemctl', 'cat', 'guardian-board.service'], text=True).strip()
-        result['service_unit_unchanged'] = unit == (root / 'backup/guardian-board.service.txt').read_text()
-        result['model_port_closed'] = not [line for line in Path('/proc/net/tcp').read_text().splitlines()[1:]
-                                           if line.split()[3] == '0A' and line.split()[1].endswith(':46A1')]
+        cleanup_errors = {}
+        result['final_stats'] = capture_probe(stats, cleanup_errors, 'stats')
+        result['final_service'] = capture_probe(service, cleanup_errors, 'service')
+        result['video_after'] = capture_probe(video, cleanup_errors, 'video')
+        result['production_file_count'] = len(production_before)
+        result['production_files_unchanged'] = capture_probe(
+            lambda: all(sha(Path('/root/ai_guardian') / n) == h for n, h in production_before.items()),
+            cleanup_errors, 'production_files', False)
+        result['service_unit_unchanged'] = capture_probe(
+            lambda: subprocess.check_output(['systemctl', 'cat', 'guardian-board.service'], text=True).strip() == unit_before,
+            cleanup_errors, 'service_unit', False)
+        result['model_port_closed'] = capture_probe(
+            lambda: not [line for line in Path('/proc/net/tcp').read_text().splitlines()[1:]
+                         if line.split()[3] == '0A' and line.split()[1].endswith(':46A1')],
+            cleanup_errors, 'model_port', False)
+        result['cleanup_errors'] = cleanup_errors
         result['summaries'] = {model['id']: summarize_model([row for run in result['runs']
                                                            if run['model_id'] == model['id'] for row in run['rows']])
                                for model in manifest['models']}
@@ -244,6 +263,7 @@ def main():
         print(json.dumps({'stage': 'finished', 'completed': result.get('completed', False),
                           'summaries': result['summaries'], 'safety': result['safety_triggered']}), flush=True)
     assert result['completed'] and not unsafe.is_set() and not monitor_errors
+    assert not cleanup_errors, 'Cleanup checks failed; evidence retained'
     assert result['monitor_alive_before_stop'] and result['last_resource_age_seconds'] < 10
     assert result['production_files_unchanged'] and result['service_unit_unchanged'] and result['model_port_closed']
     assert result['final_service'] == initial and result['final_stats']['care_mode'] == 'off'

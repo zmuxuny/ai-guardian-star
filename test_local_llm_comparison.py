@@ -1,10 +1,23 @@
 """Coverage and scoring checks for the frozen two-package comparison."""
 import unittest
 
-from tools.local_llm_comparison import build_runs, summarize_model
+from tools.local_llm_comparison import build_runs, capture_probe, summarize_model
 
 
 class ComparisonTests(unittest.TestCase):
+    def test_failed_cleanup_probe_is_recorded_without_losing_prior_results(self):
+        errors = {}
+        def broken():
+            raise OSError('private endpoint detail must not be recorded')
+        value = capture_probe(broken, errors, 'stats', default=False)
+        self.assertFalse(value)
+        self.assertEqual(errors, {'stats': 'OSError'})
+
+    def test_successful_cleanup_probe_preserves_its_value(self):
+        errors = {}
+        self.assertEqual(capture_probe(lambda: {'fps': 7}, errors, 'stats'), {'fps': 7})
+        self.assertEqual(errors, {})
+
     def test_counterbalanced_schedule_covers_every_case_once_per_model(self):
         cases = [{'id': str(i), 'text': 'synthetic'} for i in range(36)]
         runs = build_runs(cases)
