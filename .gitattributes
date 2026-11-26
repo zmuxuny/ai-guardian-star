@@ -19,3 +19,6 @@ README.md linguist-documentation=true
 
 # Unified patches need a single-space prefix for blank context lines.
 /deploy/board/*.patch whitespace=-blank-at-eol
+
+# Preserve byte-hashed comparison fixtures exactly as uploaded to the board.
+/fixtures/local_llm/comparison-2026-11-26/*.json -text whitespace=cr-at-eol
