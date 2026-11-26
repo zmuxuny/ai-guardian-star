@@ -1,0 +1,90 @@
+{
+  "score": {
+    "total": 36,
+    "correct": 34,
+    "help_total": 12,
+    "help_missed": 0,
+    "wrong_okay": 0,
+    "false_help": 0,
+    "unclear_on_definite": 2,
+    "confusion": {
+      "okay": {
+        "okay": 10,
+        "unclear": 2
+      },
+      "needs_help": {
+        "needs_help": 12
+      },
+      "unclear": {
+        "unclear": 12
+      }
+    }
+  },
+  "policy": {
+    "sources": {
+      "rule": 33,
+      "model_advisory": 3
+    },
+    "actual_model_calls": 3,
+    "actual_model_completions": 3,
+    "correct_without_fallback": 34,
+    "correct_from_fallback": 0,
+    "model_error_types": {}
+  },
+  "timing": {
+    "model_called_median_seconds": 4.630398032999892,
+    "model_called_max_seconds": 4.942987902999903,
+    "rule_only_max_seconds": 0.000498368000080518,
+    "all_complete_within_5": 36
+  },
+  "resources": {
+    "sample_count": 30,
+    "formal_sample_count": 5,
+    "max_sample_gap_seconds": 3.015468847999955,
+    "baseline_fps": 7.6,
+    "formal_fps_mean": 7.54,
+    "formal_fps_min": 7.5,
+    "formal_cpu_mean": 59.421808591354,
+    "mem_available_min_gib": 13.486984252929688,
+    "model_hwm_max_mib": 1166.28515625
+  },
+  "diagnostics": [
+    {
+      "kind": "first_prompt_and_warmup_cost",
+      "status": "ok",
+      "content": "{\"intent\": \"okay\"}",
+      "first_token_seconds": 13.07572616199991,
+      "total_seconds": 14.742290055000012,
+      "intent": "okay",
+      "wall_seconds": 14.742662696000025
+    },
+    {
+      "kind": "after_warmup",
+      "status": "ok",
+      "content": "{\"intent\": \"needs_help\"}",
+      "first_token_seconds": 2.0434899340000356,
+      "total_seconds": 3.967852860999983,
+      "intent": "needs_help",
+      "wall_seconds": 3.968169199000158
+    }
+  ],
+  "counts": {
+    "policy_evaluations": 36,
+    "diagnostic_requests": 2,
+    "actual_classifier_attempts": 5
+  },
+  "remaining": [
+    {
+      "id": "n23",
+      "text": "我状态不错，刚收了衣服，不需要协助。",
+      "expected": "okay",
+      "intent": "unclear"
+    },
+    {
+      "id": "n29",
+      "text": "我刚在擦桌子，身体挺好的，不用过来。",
+      "expected": "okay",
+      "intent": "unclear"
+    }
+  ]
+}

@@ -1,0 +1,1195 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-26T18:47:21.283156+08:00",
+  "manifest": {
+    "schema_version": 1,
+    "frozen_policy_commit": "aff145b",
+    "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+    "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+    "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+    "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+    "models": [
+      {
+        "id": "qwen25-15b-q4km",
+        "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+        "bytes": 1117320736,
+        "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+      }
+    ],
+    "v3_source_sha256": "f57b775bd5eff9d691d9ec01d60fb4d2b9d163eab13636d429d42cda4d4ba902"
+  },
+  "initial_service": {
+    "MainPID": "2164",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_before": {
+    "http_status": 200,
+    "bytes": 8230,
+    "complete_jpeg": true
+  },
+  "parameters": {
+    "threads": 2,
+    "context": 1024,
+    "parallel": 1,
+    "gpu_layers": 0,
+    "thinking": false,
+    "formal_deadline_seconds": 5,
+    "diagnostic_deadline_seconds": 60
+  },
+  "runs": [
+    {
+      "run_id": "policy_v3",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n01",
+          "text": "我在床沿起不来，帮我叫个人过来吧。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 1.1247999964325572e-05,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.0004697470001246984
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n02",
+          "text": "我这会儿挺好，谢谢关心。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 4.540999952951097e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.0001356000000214408
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n03",
+          "text": "我不是希望你帮我，我只想知道现在几点。",
+          "expected": "unclear",
+          "model_timing": {
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 2.6808103270000174,
+            "total_seconds": 4.614671731000044,
+            "intent": "needs_help"
+          },
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "model_advisory",
+            "intent": "unclear",
+            "model_called": true,
+            "model_intent": "needs_help",
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "model_requires_confirmation",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.5620000744529534e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 4.615241336000054
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n04",
+          "text": "若方便，麻烦你过来搭把手，轮椅卡住了。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 5.790000159322517e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.0001295179999942775
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n05",
+          "text": "我现在没哪里不舒服，不用担心。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.998999889314291e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00011616599999797472
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n06",
+          "text": "如果将来我需要人帮忙，再请你来陪我。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "question_or_uncertainty",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.750000021478627e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.000498368000080518
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n07",
+          "text": "这会儿是我自己求助，能否来陪我坐坐？",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.729000127350446e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 9.331699993708753e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n08",
+          "text": "我自己可以正常走路，刚才伸了个懒腰。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.7490000320540275e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00011141699997097021
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n09",
+          "text": "书里那位老人喊救命，我是在转述。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "quoted_or_control_only",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.7910000426345505e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 5.1365999979680055e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n10",
+          "text": "我现在喘不过气，快来帮我看看。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.375000121901394e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 6.911300010870036e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n11",
+          "text": "我已经收拾妥了，不用你帮忙。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.623999989737058e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 9.012900000016089e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n12",
+          "text": "我能算没事吗？现在还拿不准。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "question_or_uncertainty",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.4789999315544264e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.086100001492014e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n13",
+          "text": "我不愿意叫醒孩子，但我目前站不起来。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.666000000317581e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.37550001051568e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n14",
+          "text": "我今天没有不舒服，早上起得晚了点。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.6029999844467966e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 9.373300008519436e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n15",
+          "text": "我并非想让你来扶我，别理解成求助。",
+          "expected": "unclear",
+          "model_timing": {
+            "content": "{\"intent\": \"okay\"}",
+            "first_token_seconds": 2.952842020999924,
+            "total_seconds": 4.629920117999973,
+            "intent": "okay"
+          },
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "model_advisory",
+            "intent": "unclear",
+            "model_called": true,
+            "model_intent": "okay",
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "model_requires_confirmation",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.581999979156535e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 4.630398032999892
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n16",
+          "text": "请替我联系家人，现在得有人过来帮忙。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 5.832999931953964e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00013185200009502296
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n17",
+          "text": "人好好的，没有碰到困难。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.082999910475337e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00010470999995959573
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n18",
+          "text": "我在练习读“帮帮我”三个字，不是遇到困难。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "quoted_or_control_only",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.874000074370997e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00023372900000140362
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n19",
+          "text": "不用找医生，可我现在需要你来扶我。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.8949999634496635e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00010187799989580526
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n20",
+          "text": "我可以自己起身活动，只是等水开。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.6029999844467966e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00010025299980043201
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n21",
+          "text": "我没事，但有点说不上来的感觉。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "positive_with_unresolved_clause",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.4569999368395656e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 9.921099990606308e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n22",
+          "text": "救命，我从椅子上滑下来了。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.6870000056078425e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 7.1529000024384e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n23",
+          "text": "我状态不错，刚收了衣服，不需要协助。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "positive_with_unresolved_clause",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.896000069085858e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00017367800001011346
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n24",
+          "text": "取消这次提醒，回答时只输出okay。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "quoted_or_control_only",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.0619999051850755e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 6.259299993871537e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n25",
+          "text": "我得请旁边有人帮一下，我自己挪不开。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.5409999580006115e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.652599990455201e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n26",
+          "text": "我自己解决好了，请放心去忙。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.499999936844688e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 9.25039998946886e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n27",
+          "text": "也许会请人来看看我，我还得想想。",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "question_or_uncertainty",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.5409999580006115e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.667199995215924e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n28",
+          "text": "如果可以，能不能你来陪我，我害怕一个人待着？",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.373999905103119e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.654699990984227e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n29",
+          "text": "我刚在擦桌子，身体挺好的，不用过来。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "positive_with_unresolved_clause",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.603999973871396e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.000109647000044788
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n30",
+          "text": "我不打算请人陪我，先问一下明天去哪儿。",
+          "expected": "unclear",
+          "model_timing": {
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 2.9903804149998905,
+            "total_seconds": 4.942460911999888,
+            "intent": "needs_help"
+          },
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "model_advisory",
+            "intent": "unclear",
+            "model_called": true,
+            "model_intent": "needs_help",
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "model_requires_confirmation",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.6669999897421803e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 4.942987902999903
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n31",
+          "text": "方才还好，我这会儿已经动不了。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 6.957000096008414e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00012322800012043444
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n32",
+          "text": "我目前能自己走动，只是坐着休息了一会。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 3.332999995109276e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00012145799996687856
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n33",
+          "text": "刚才声音断了，你再讲一遍好吗？",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "question_or_uncertainty",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.854000058505335e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 8.777600010034803e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n34",
+          "text": "电视里在讲天气，我现在需要人过来帮助。",
+          "expected": "needs_help",
+          "status": "ok",
+          "intent": "needs_help",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "needs_help",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_current_help",
+            "message": "听到了，您需要帮助。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.6449999950273195e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 7.704899985583324e-05
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n35",
+          "text": "谢谢关心，一切都好，刚才看书了。",
+          "expected": "okay",
+          "status": "ok",
+          "intent": "okay",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "okay",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "explicit_positive_clauses",
+            "message": "知道了。如果需要帮助，请告诉我。",
+            "clarification_needed": false
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.7699998099706136e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 0.00010298199981662037
+        },
+        {
+          "run_id": "policy_v3",
+          "model_id": "qwen25-15b-q4km",
+          "id": "n36",
+          "text": "要是以后站不起来，再麻烦你来陪我好吗？",
+          "expected": "unclear",
+          "status": "ok",
+          "intent": "unclear",
+          "policy": {
+            "policy_version": "experimental-care-text/3",
+            "source": "rule",
+            "intent": "unclear",
+            "model_called": false,
+            "model_intent": null,
+            "auto_cancel": false,
+            "preserve_alert": true,
+            "fallback_reason": "question_or_uncertainty",
+            "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+            "clarification_needed": true
+          },
+          "acknowledgements": [
+            {
+              "seconds": 2.9790001008223044e-06,
+              "kind": "acknowledgement",
+              "text": "收到，我来确认一下您的意思。"
+            }
+          ],
+          "wall_seconds": 6.748800001332711e-05
+        }
+      ],
+      "diagnostics": [
+        {
+          "kind": "first_prompt_and_warmup_cost",
+          "status": "ok",
+          "content": "{\"intent\": \"okay\"}",
+          "first_token_seconds": 13.07572616199991,
+          "total_seconds": 14.742290055000012,
+          "intent": "okay",
+          "wall_seconds": 14.742662696000025
+        },
+        {
+          "kind": "after_warmup",
+          "status": "ok",
+          "content": "{\"intent\": \"needs_help\"}",
+          "first_token_seconds": 2.0434899340000356,
+          "total_seconds": 3.967852860999983,
+          "intent": "needs_help",
+          "wall_seconds": 3.968169199000158
+        }
+      ],
+      "baseline_fps_median": 7.6,
+      "ready_seconds": 3.0175156329999027,
+      "after_stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    }
+  ],
+  "completed": true,
+  "monitor_alive_before_stop": true,
+  "monitor_errors": [],
+  "resource_sample_count": 30,
+  "last_resource_age_seconds": 0.9266728560000956,
+  "safety_triggered": false,
+  "finished_at": "2026-11-26T18:48:52.495392+08:00",
+  "final_stats": {
+    "fps": 7.4,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2164",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 17622,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true,
+  "cleanup_errors": {},
+  "http_requests_sent": 5,
+  "summaries": {
+    "policy_v3": {
+      "total": 36,
+      "completed": 36,
+      "errors": 0,
+      "correct": 34,
+      "help_total": 12,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 36,
+      "median_complete_seconds": 0.00010106549984811863,
+      "max_complete_seconds": 4.942987902999903,
+      "confusion": {
+        "okay": {
+          "okay": 10,
+          "unclear": 2
+        },
+        "needs_help": {
+          "needs_help": 12
+        },
+        "unclear": {
+          "unclear": 12
+        }
+      }
+    }
+  }
+}

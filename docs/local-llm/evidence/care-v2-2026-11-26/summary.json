@@ -1,0 +1,245 @@
+{
+  "scores": {
+    "raw_v1": {
+      "total": 36,
+      "valid_results": 33,
+      "request_errors": 3,
+      "correct": 23,
+      "help_total": 12,
+      "help_missed": 2,
+      "wrong_okay": 8,
+      "false_help": 2,
+      "unclear_on_definite": 0,
+      "error_types": {
+        "TimeoutError": 3
+      },
+      "confusion": {
+        "okay": {
+          "okay": 12
+        },
+        "needs_help": {
+          "error": 2,
+          "needs_help": 10
+        },
+        "unclear": {
+          "needs_help": 2,
+          "okay": 8,
+          "unclear": 1,
+          "error": 1
+        }
+      }
+    },
+    "raw_v2": {
+      "total": 36,
+      "valid_results": 35,
+      "request_errors": 1,
+      "correct": 20,
+      "help_total": 12,
+      "help_missed": 0,
+      "wrong_okay": 1,
+      "false_help": 14,
+      "unclear_on_definite": 0,
+      "error_types": {
+        "TimeoutError": 1
+      },
+      "confusion": {
+        "okay": {
+          "okay": 7,
+          "needs_help": 5
+        },
+        "needs_help": {
+          "needs_help": 12
+        },
+        "unclear": {
+          "needs_help": 9,
+          "unclear": 1,
+          "error": 1,
+          "okay": 1
+        }
+      }
+    },
+    "policy_v2": {
+      "total": 36,
+      "valid_results": 36,
+      "request_errors": 0,
+      "correct": 27,
+      "help_total": 12,
+      "help_missed": 2,
+      "wrong_okay": 0,
+      "false_help": 1,
+      "unclear_on_definite": 8,
+      "error_types": {},
+      "confusion": {
+        "okay": {
+          "unclear": 6,
+          "okay": 6
+        },
+        "needs_help": {
+          "needs_help": 10,
+          "unclear": 2
+        },
+        "unclear": {
+          "unclear": 11,
+          "needs_help": 1
+        }
+      }
+    }
+  },
+  "legacy_replay_score": {
+    "total": 36,
+    "valid_results": 36,
+    "request_errors": 0,
+    "correct": 18,
+    "help_total": 12,
+    "help_missed": 3,
+    "wrong_okay": 0,
+    "false_help": 3,
+    "unclear_on_definite": 15,
+    "error_types": {},
+    "confusion": {
+      "okay": {
+        "unclear": 12
+      },
+      "needs_help": {
+        "unclear": 3,
+        "needs_help": 9
+      },
+      "unclear": {
+        "needs_help": 3,
+        "unclear": 9
+      }
+    }
+  },
+  "timings": {
+    "raw_v1": {
+      "successful_median": 4.279331307000575,
+      "successful_max": 4.98157742300009,
+      "all_attempt_median": 4.401042737000353,
+      "complete_within_5": 33,
+      "correct_within_5": 23
+    },
+    "raw_v2": {
+      "successful_median": 3.7544280339998295,
+      "successful_max": 4.751369155999782,
+      "all_attempt_median": 3.8263833549999617,
+      "complete_within_5": 35,
+      "correct_within_5": 20
+    }
+  },
+  "resources": {
+    "raw_v1": {
+      "sample_count": 73,
+      "formal_sample_count": 52,
+      "baseline_fps": 7.5,
+      "formal_fps_mean": 7.515384615384615,
+      "formal_fps_min": 7.3,
+      "formal_cpu_mean": 58.14655033189744,
+      "mem_available_min_gib": 13.503093719482422,
+      "model_hwm_max_mib": 1166.53125
+    },
+    "raw_v2": {
+      "sample_count": 67,
+      "formal_sample_count": 46,
+      "baseline_fps": 7.6,
+      "formal_fps_mean": 7.497826086956522,
+      "formal_fps_min": 7.3,
+      "formal_cpu_mean": 57.0511327408292,
+      "mem_available_min_gib": 13.481250762939453,
+      "model_hwm_max_mib": 1187.609375
+    },
+    "policy_v2": {
+      "sample_count": 30,
+      "formal_sample_count": 5,
+      "baseline_fps": 7.6,
+      "formal_fps_mean": 7.4799999999999995,
+      "formal_fps_min": 7.3,
+      "formal_cpu_mean": 56.64273085155008,
+      "mem_available_min_gib": 13.490020751953125,
+      "model_hwm_max_mib": 1187.578125
+    }
+  },
+  "policy": {
+    "sources": {
+      "rule": 32,
+      "model_advisory": 4
+    },
+    "actual_model_calls": 4,
+    "actual_model_completions": 4,
+    "model_error_types": {},
+    "correct_without_fallback": 27,
+    "correct_from_fallback": 0,
+    "rule_only_max_seconds": 0.0003731910001079086,
+    "model_called_median_seconds": 4.200346266500219,
+    "all_max_seconds": 4.543076967999696
+  },
+  "diagnostics": {
+    "raw_v1": [
+      {
+        "kind": "first_prompt_and_warmup_cost",
+        "status": "ok",
+        "content": "{\"intent\": \"okay\"}",
+        "first_token_seconds": 13.277830786999402,
+        "total_seconds": 14.928140574999816,
+        "intent": "okay",
+        "wall_seconds": 14.928557389999696
+      },
+      {
+        "kind": "after_warmup",
+        "status": "ok",
+        "content": "{\"intent\": \"needs_help\"}",
+        "first_token_seconds": 2.0778002139995806,
+        "total_seconds": 4.05844219499977,
+        "intent": "needs_help",
+        "wall_seconds": 4.058784572999684
+      }
+    ],
+    "raw_v2": [
+      {
+        "kind": "first_prompt_and_warmup_cost",
+        "status": "ok",
+        "content": "\"H\"",
+        "first_token_seconds": 13.942287722000401,
+        "total_seconds": 14.793579058999967,
+        "intent": "needs_help",
+        "wall_seconds": 14.794144757999675
+      },
+      {
+        "kind": "after_warmup",
+        "status": "ok",
+        "content": "\"H\"",
+        "first_token_seconds": 2.269149558999743,
+        "total_seconds": 2.8422366259992486,
+        "intent": "needs_help",
+        "wall_seconds": 2.8425782779995643
+      }
+    ],
+    "policy_v2": [
+      {
+        "kind": "first_prompt_and_warmup_cost",
+        "status": "ok",
+        "content": "\"H\"",
+        "first_token_seconds": 14.196915109999281,
+        "total_seconds": 15.05945726399932,
+        "intent": "needs_help",
+        "wall_seconds": 15.05981662100021
+      },
+      {
+        "kind": "after_warmup",
+        "status": "ok",
+        "content": "\"H\"",
+        "first_token_seconds": 2.221101459000238,
+        "total_seconds": 2.801099322000482,
+        "intent": "needs_help",
+        "wall_seconds": 2.8014049719995455
+      }
+    ]
+  },
+  "counts": {
+    "formal_raw_requests": 72,
+    "policy_case_evaluations": 36,
+    "diagnostic_requests": 6,
+    "actual_classifier_attempts": 82,
+    "resource_samples": 170,
+    "max_sample_gap_seconds": 3.0296914380005546
+  }
+}

@@ -1,0 +1,55 @@
+"""Run from repository root with Python; recompute metrics, never inference."""
+from pathlib import Path
+import json, statistics, collections, hashlib, ast
+r=Path('docs/local-llm/evidence/care-v3-2026-11-26')
+read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+d=read(r/'trial.json'); samples=read(r/'resources.json')['samples']
+assert read(r/'exit.json')['exit_code']==0 and d['completed']
+assert len(d['runs'])==1 and d['runs'][0]['run_id']=='policy_v3'
+run=d['runs'][0]; rows=run['rows']; called=[x for x in rows if x['policy']['model_called']]
+assert len(rows)==36 and len({x['id'] for x in rows})==36
+materials=Path('fixtures/local_llm/care-v3-2026-11-26'); manifest=read(materials/'manifest.json')
+for name,key in [('inputs.json','inputs_sha256'),('expected.json','expected_sha256')]:
+ assert hashlib.sha256((materials/name).read_bytes()).hexdigest()==manifest[key]
+executed=read(r/'policy-source.json')['content'].encode('utf-8')
+assert hashlib.sha256(executed).hexdigest()==manifest['v3_source_sha256']
+assert ast.dump(ast.parse(executed))==ast.dump(ast.parse(Path('tools/local_care_text_v3.py').read_bytes()))
+assert d['manifest']==manifest
+inputs=read(materials/'inputs.json')['cases']; labels=read(materials/'expected.json')
+assert [(x['id'],x['text']) for x in rows]==[(x['id'],x['text']) for x in inputs]
+assert all(x['expected']==labels[x['id']] for x in rows)
+assert d['http_requests_sent']==2+len(called)
+assert len(samples)==d['resource_sample_count'] and not d['safety_triggered']
+assert not d['monitor_errors'] and not d['cleanup_errors']
+assert d['monitor_alive_before_stop'] and d['last_resource_age_seconds']<10
+assert all(d[k] for k in ['production_files_unchanged','service_unit_unchanged','model_port_closed'])
+assert d['initial_service']==d['final_service'] and d['final_stats']['care_mode']=='off'
+assert d['video_after']['complete_jpeg'] and d['final_stats']['camera_connected']
+assert all(x['policy']['preserve_alert'] and not x['policy']['auto_cancel'] for x in rows)
+formal=[x for x in samples if x['phase']=='formal']; rules=[x for x in rows if not x['policy']['model_called']]
+out={'score':{'total':36,'correct':sum(x['intent']==x['expected'] for x in rows),
+ 'help_total':sum(x['expected']=='needs_help' for x in rows),
+ 'help_missed':sum(x['expected']=='needs_help' and x['intent']!='needs_help' for x in rows),
+ 'wrong_okay':sum(x['intent']=='okay' and x['expected']!='okay' for x in rows),
+ 'false_help':sum(x['intent']=='needs_help' and x['expected']!='needs_help' for x in rows),
+ 'unclear_on_definite':sum(x['intent']=='unclear' and x['expected']!='unclear' for x in rows),
+ 'confusion':{v:dict(collections.Counter(x['intent'] for x in rows if x['expected']==v)) for v in ['okay','needs_help','unclear']}},
+ 'policy':{'sources':dict(collections.Counter(x['policy']['source'] for x in rows)),
+ 'actual_model_calls':len(called),'actual_model_completions':sum('model_timing' in x for x in called),
+ 'correct_without_fallback':sum(x['intent']==x['expected'] and x['policy']['source']!='fallback' for x in rows),
+ 'correct_from_fallback':sum(x['intent']==x['expected'] and x['policy']['source']=='fallback' for x in rows),
+ 'model_error_types':dict(collections.Counter(x['model_error'] for x in rows if 'model_error' in x))},
+ 'timing':{'model_called_median_seconds':statistics.median(x['wall_seconds'] for x in called),
+ 'model_called_max_seconds':max(x['wall_seconds'] for x in called),
+ 'rule_only_max_seconds':max(x['wall_seconds'] for x in rules),
+ 'all_complete_within_5':sum(x['wall_seconds']<=5 for x in rows)},
+ 'resources':{'sample_count':len(samples),'formal_sample_count':len(formal),
+ 'max_sample_gap_seconds':max(b['elapsed']-a['elapsed'] for a,b in zip(samples,samples[1:])),
+ 'baseline_fps':run['baseline_fps_median'],'formal_fps_mean':statistics.mean(x['stats']['fps'] for x in formal),
+ 'formal_fps_min':min(x['stats']['fps'] for x in formal),'formal_cpu_mean':statistics.mean(x['cpu_busy_percent'] for x in formal),
+ 'mem_available_min_gib':min(x['mem_available_bytes'] for x in samples)/1024**3,
+ 'model_hwm_max_mib':max(x['model_memory']['VmHWM'] for x in samples if x.get('model_memory'))/1024**2},
+ 'diagnostics':run['diagnostics'],'counts':{'policy_evaluations':36,'diagnostic_requests':2,'actual_classifier_attempts':d['http_requests_sent']},
+ 'remaining':[{k:x[k] for k in ('id','text','expected','intent')} for x in rows if x['intent']!=x['expected']]}
+(r/'summary.json').write_bytes((json.dumps(out,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(out,ensure_ascii=False,indent=2))

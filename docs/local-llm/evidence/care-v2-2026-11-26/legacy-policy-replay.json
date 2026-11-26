@@ -1,0 +1,653 @@
+{
+  "note": "仅确定性语义回放，无独立模型请求、延迟或资源测量。",
+  "rows": [
+    {
+      "id": "v01",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "fallback",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "RecordedModelFailure",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v02",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v03",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v04",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v05",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "fallback",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "RecordedModelFailure",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v06",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v07",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v08",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v09",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v10",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v11",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v12",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v13",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v14",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "unclear",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_unclear",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v15",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v16",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "rule",
+        "intent": "unclear",
+        "model_called": false,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "quoted_or_reported",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v17",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "rule",
+        "intent": "unclear",
+        "model_called": false,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "quoted_or_reported",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v18",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v19",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v20",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v21",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "rule",
+        "intent": "unclear",
+        "model_called": false,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "quoted_or_reported",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v22",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v23",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v24",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v25",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v26",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v27",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v28",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "rule",
+        "intent": "needs_help",
+        "model_called": false,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "explicit_self_help",
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v29",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v30",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v31",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v32",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "needs_help",
+        "model_called": true,
+        "model_intent": "needs_help",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": null,
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v33",
+      "expected": "unclear",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v34",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v35",
+      "expected": "okay",
+      "status": "ok",
+      "intent": "unclear",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "model_advisory",
+        "intent": "unclear",
+        "model_called": true,
+        "model_intent": "okay",
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "model_cannot_confirm_okay",
+        "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。"
+      },
+      "replay_only": true
+    },
+    {
+      "id": "v36",
+      "expected": "needs_help",
+      "status": "ok",
+      "intent": "needs_help",
+      "policy": {
+        "policy_version": "experimental-care-text/1",
+        "source": "rule",
+        "intent": "needs_help",
+        "model_called": false,
+        "model_intent": null,
+        "auto_cancel": false,
+        "preserve_alert": true,
+        "fallback_reason": "explicit_self_help",
+        "message": "听到了，您需要帮助。"
+      },
+      "replay_only": true
+    }
+  ]
+}
