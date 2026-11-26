@@ -147,6 +147,32 @@ class StoreTests(unittest.TestCase):
         with closing(sqlite3.connect(unknown)) as db:
             self.assertEqual(db.execute('SELECT name FROM sqlite_master').fetchall(), [('existing',)])
 
+    def test_outbox_failure_rolls_back_result_version_and_slot_release(self):
+        self.model.accept_reminder(reminder())
+        with self.model.write() as db:
+            db.execute("CREATE TRIGGER reject_queue BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT,'injected'); END")
+        self.assertRaises(sqlite3.IntegrityError,self.model.complete,'e1',response='needs_help')
+        self.assertIsNone(self.model.event('e1')['latest'])
+        self.assertEqual(self.model.event('e1')['slot'],1)
+        self.assertEqual(self.model.pending(),[])
+
+    def test_event_deadline_stops_new_version_sending_but_keeps_local_help(self):
+        self.model.accept_reminder(reminder())
+        self.now=NOW+120+86400+395
+        payload=self.model.complete('e1',response='needs_help')
+        self.assertEqual(payload['response'],'needs_help')
+        self.assertEqual(self.model.pending(),[])
+        self.assertTrue(self.model.failed_deliveries())
+        self.assertTrue(self.model.event('e1')['help_required'])
+
+    def test_result_ack_must_match_event_revision_and_endpoint_disposition(self):
+        self.model.accept_reminder(reminder());self.model.complete('e1',response='ok')
+        for change in ({'event_id':'other'},{'revision':2},{'revision':True},{'disposition':'expired'}):
+            item=self.model.pending()[0]
+            self.model.record_delivery(item['id'],200,dict(schema_version='2',event_id='e1',revision=1,disposition='accepted')|change)
+            self.assertEqual(self.model.pending(),[])
+            self.now+=60
+
 
 if __name__ == '__main__':
     unittest.main()

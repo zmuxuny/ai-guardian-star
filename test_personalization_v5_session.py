@@ -114,6 +114,10 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ProtocolError) as caught:self.session.answer('e1','帮忙')
         self.assertEqual(caught.exception.code,410)
 
+    def test_late_unclear_does_not_claim_another_prompt_is_pending(self):
+        self.begin();saved=self.session.answer('e1','好')
+        self.assertEqual(self.session.answer('e1','听不清'),saved)
+
     def test_restart_pending_may_start_started_must_interrupt(self):
         self.session.accept(reminder())
         restored=Session(self.store,self.session.classify,monotonic=lambda:self.mono)

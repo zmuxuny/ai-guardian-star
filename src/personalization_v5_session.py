@@ -180,7 +180,7 @@ class Session:
             origin=self.origins.get(event_id)
             if origin is not None and received_mono-origin<90:
                 saved=self.store.complete(event_id,response='needs_help',received_at=received_wall)
-        return saved
+        return saved or self.store.event(event_id)['latest']
 
     def recover(self):
         """Explicit startup operation; never invoke while another runner owns DB."""
