@@ -20,7 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          # Release/flat-layout regressions read pinned historical Git baselines.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -29,7 +30,8 @@ jobs:
             requirements-production.txt
             requirements-moderation.txt
             requirements-sms.txt
-      - run: python -m pip install --requirement requirements-production.txt
+            requirements-care-validation.txt
+      - run: python -m pip install --requirement requirements-production.txt --requirement requirements-care-validation.txt
       - name: 安装真实 MQTT broker 回归测试依赖
         run: python -m pip install amqtt==0.11.3
       - run: python -m unittest discover -v
