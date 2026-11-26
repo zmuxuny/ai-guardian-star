@@ -31,7 +31,7 @@ POSITIVE = re.compile(
     r'|只是坐着休息)(?:了|的|呢|谢谢关心)?$')
 CARE_CUE = re.compile(r'我|身体|身上|帮|扶|需要|感觉|不适|不舒服|难受|家人|医生')
 WEAK_ASSISTANCE = re.compile(r'请人|来看看我|陪我|陪着我|想找人|想让人|找谁.*帮')
-NEGATION_PREFIX = re.compile(r'(?:并非|不是|没有|不想|不愿意|不打算|不希望|不必|不用|不要|无需|没让|不让|不需要|不)(?:让|请|找|叫|你|我|他|她|人|有人|来|过来|再|现在|真的|在|快)*$')
+NEGATION_PREFIX = re.compile(r'(?:并非|不是|没有|不想|不愿意|不打算|不希望|不必|不用|不要|无需|没让|不让|不需要|没喊|不喊|没叫|不叫|别|不)(?:让|请|找|叫|你|我|他|她|人|有人|来|过来|再|现在|真的|在|快)*$')
 QUALIFIER_PREFIX = re.compile(r'也许|可能|不确定|如果|假如|要是|万一')
 IMPERATIVE_PREFIX = re.compile(r'(?:快来|请来|请你|麻烦|现在请|赶紧来)$')
 NEUTRAL = re.compile(

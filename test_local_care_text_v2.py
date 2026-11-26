@@ -61,7 +61,7 @@ class BoundaryTests(unittest.TestCase):
                 self.assertNotEqual(classify_reply(text, lambda _: {'intent': 'okay'})['intent'], 'okay')
 
     def test_denial_uncertainty_and_hypothesis_are_not_explicit_help(self):
-        for text in ['我并非需要帮助。', '我不想让你帮我。', '我没事，我也许需要帮助。', '如果我需要帮助。']:
+        for text in ['我并非需要帮助。', '我不想让你帮我。', '我没事，我也许需要帮助。', '如果我需要帮助。', '别帮我。', '别扶我。', '我没事，别扶我。', '我没喊你帮我。']:
             with self.subTest(text=text):
                 self.assertNotEqual(classify_reply(text, lambda _: {'intent': 'needs_help'})['intent'], 'needs_help')
 
