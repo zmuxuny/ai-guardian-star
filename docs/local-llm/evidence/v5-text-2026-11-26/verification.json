@@ -16,5 +16,6 @@
     "voice and physical power/network failures",
     "independent help route outside association window",
     "long-term capacity maintenance"
-  ]
+  ],
+  "initial_ci_success": "https://github.com/zmuxuny/ai-guardian-star/actions/runs/45819295375"
 }
