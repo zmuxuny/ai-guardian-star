@@ -56,9 +56,21 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(result['intent'], 'unclear')
 
     def test_positive_keyword_in_a_question_or_contradiction_is_not_confirmation(self):
-        for text in ['我没事吗？', '你别以为我没事。', '我挺好的，但是头有点疼。']:
+        for text in ['我没事吗？', '你别以为我没事。', '我挺好的，但是头有点疼。', '我没事，但胸有点闷。', '我没事，我只是走不了。', '我没事，我不确定现在是什么情况。']:
             with self.subTest(text=text):
                 self.assertNotEqual(classify_reply(text, lambda _: {'intent': 'okay'})['intent'], 'okay')
+
+    def test_denial_uncertainty_and_hypothesis_are_not_explicit_help(self):
+        for text in ['我并非需要帮助。', '我不想让你帮我。', '我没事，我也许需要帮助。', '如果我需要帮助。']:
+            with self.subTest(text=text):
+                self.assertNotEqual(classify_reply(text, lambda _: {'intent': 'needs_help'})['intent'], 'needs_help')
+
+    def test_refusing_one_action_does_not_negate_current_disability(self):
+        self.assert_rule('我现在起不来不用叫家人。', 'needs_help')
+
+    def test_model_evidence_from_a_refused_action_is_not_positive_support(self):
+        result = classify_reply('我身上有种奇怪的感觉。不想请人来看看我。', lambda _: {'intent': 'needs_help'})
+        self.assertEqual(result['intent'], 'unclear')
 
     def test_silence_or_unknown_text_does_not_clear_an_alert(self):
         for text in ['', '我也拿不准身体是什么感觉。']:

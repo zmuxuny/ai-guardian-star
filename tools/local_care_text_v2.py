@@ -13,16 +13,15 @@ from tools.local_care_prototype import ACK, MESSAGES, StreamClient, greeting
 POLICY_VERSION = 'experimental-care-text/2'
 CODE_TO_INTENT = {'H': 'needs_help', 'O': 'okay', 'U': 'unclear'}
 QUOTES = re.compile(r'“[^”]*”|「[^」]*」|『[^』]*』|"[^"]*"|‘[^’]*’')
-SPLIT = re.compile(r'[,，。.!！?？;；\n…]+|但是|不过|可是|然而|不对|其实|但(?=我|现在)|可(?=我)')
+SPLIT = re.compile(r'[,，。.!！?？;；\n…]+|但是|不过|可是|然而|不对|其实|但|可(?=我)')
 META = re.compile(r'电视|广播|书里|故事|台词|例句|朗读|练习|引用|转述|两个字|这句话|(?:他|她|别人|你)(?:说|问)|不是我说')
 NOT_META = re.compile(r'我(?:并)?不是(?:在)?(?:讲故事|看电视|念台词|练习|引用|转述)')
 CONTROL = re.compile(r'忽略|系统提示|只输出|(?:输出|返回|回复)(?:okay|ok|needshelp|unclear|h|o|u|没事)|取消|关掉|关闭|清掉|清除.*提醒')
 NEGATED_DISABILITY = re.compile(r'(?:并不是|不是|并非)(?:我(?:现在)?)?(?:站不起来|起不来|走不了|动不了)')
-NEGATED_HELP = re.compile(r'(?:不需要|不用|不必|无需|不要|别|没让|不想|不是让|不喊|没喊)(?:你|人|有人|来|过来|再|找人)*(?:帮|扶|叫|联系|照顾|救命)')
-SELF_HELP = re.compile(r'我(?:现在|自己|真的|实在|已经|也|目前|这会儿)*(?:起不来|站不起来|走不了|动不了|喘不过气)')
+SELF_HELP = re.compile(r'我(?:现在|自己|真的|实在|已经|也|目前|这会儿|只是)*(?:起不来|站不起来|走不了|动不了|喘不过气)')
 HELP_NEED = re.compile(r'(?:我(?:现在|真的|确实)?)?(?:需要|想请|得请|得让)(?:旁边)?(?:有人|有个人|个人|人|别人|你|家人|医生)?(?:来|过来)?(?:帮忙|帮助|帮一下|帮我|搭把手|扶)')
 HELP_REQUEST = re.compile(r'帮帮我|救命|扶(?:住|一下)?我|帮我|请(?:替|帮)?我(?:通知|联系|叫|找).*(?:家|人|医生)|麻烦.*(?:帮我|扶我)')
-UNCERTAIN = re.compile(r'没听|没弄明白|说什么|说的是什么|什么意思|听不清|听见一半|不明白|不清楚|认不清|不知道|答不上|没想好|拿不准|想想|再说一遍|再讲|再问')
+UNCERTAIN = re.compile(r'没听|没弄明白|说什么|说的是什么|什么意思|听不清|听见一半|不明白|不清楚|不确定|认不清|不知道|答不上|没想好|拿不准|想想|再说一遍|再讲|再问|也许|可能|如果|假如|要是|万一')
 POSITIVE = re.compile(
     r'(?:我(?:现在|目前|今天|这会儿)?(?:没事|挺好|挺好的|很好|一切都好|身体没问题|没有(?:哪里)?不舒服|没哪里不舒服)'
     r'|我(?:现在|目前|这边|已经|自己)*(?:能|可以)(?:自己|正常)*(?:站起来|走|走路|走动|起身(?:活动)?|处理|活动|安排好)'
@@ -30,10 +29,29 @@ POSITIVE = re.compile(
     r'|(?:暂时|也)?(?:不需要|不用|不必|无需)(?:你|人|家人)?(?:帮助|帮忙|帮我|协助|人来|过来|找医生|叫家人|找人陪着)'
     r'|不用麻烦(?:家里人|家人)|不是(?:我|身体)?不舒服|(?:我)?没有(?:碰到|遇到)?(?:困难|问题|求助)'
     r'|只是坐着休息)(?:了|的|呢|谢谢关心)?$')
-CONCERN = re.compile(r'疼|痛|麻|晕|难受|不舒服|起不来|站不起来|动不了|摔|呼吸|胸闷')
-NEGATED_CONCERN = re.compile(r'(?:没有|没|并无)(?:哪里|任何)?(?:不舒服|难受|摔倒|摔跤|跌倒|受伤)')
 CARE_CUE = re.compile(r'我|身体|身上|帮|扶|需要|感觉|不适|不舒服|难受|家人|医生')
 WEAK_ASSISTANCE = re.compile(r'请人|来看看我|陪我|陪着我|想找人|想让人|找谁.*帮')
+NEGATION_PREFIX = re.compile(r'(?:并非|不是|没有|不想|不愿意|不打算|不希望|不必|不用|不要|无需|没让|不让|不需要|不)(?:让|请|找|叫|你|我|他|她|人|有人|来|过来|再|现在|真的|在|快)*$')
+QUALIFIER_PREFIX = re.compile(r'也许|可能|不确定|如果|假如|要是|万一')
+IMPERATIVE_PREFIX = re.compile(r'(?:快来|请来|请你|麻烦|现在请|赶紧来)$')
+NEUTRAL = re.compile(
+    r'(?:谢谢(?:关心|提醒|惦记)?|请放心(?:去忙)?|别担心|放心吧|不用担心'
+    r'|(?:我)?(?:只是|刚才|刚刚|刚|方才|正在|在|是在)?(?:坐着|休息|坐着休息|看书|等水(?:烧)?开|伸了个懒腰|伸个懒腰)(?:一会儿|一会|片刻|一下|了一会儿|了一会|而已|了)?'
+    r'|(?:我)?(?:刚|刚才|刚刚)?在(?:阳台|客厅|房里|屋里|椅子上)(?:坐|坐了|休息)(?:一会儿|一会|片刻)(?:了)?'
+    r'|(?:今天|早上)?(?:起得晚(?:了点)?|多躺了片刻|睡晚了一点)(?:而已)?'
+    r'|(?:我)?(?:只是)?伸手(?:取|拿)(?:杯子|东西))$')
+
+
+def _affirmed(pattern, clause):
+    """Negation qualifies its matched action, not every other action in a clause."""
+    for match in pattern.finditer(clause):
+        prefix = clause[max(0, match.start() - 14):match.start()]
+        if NEGATION_PREFIX.search(prefix):
+            continue
+        if QUALIFIER_PREFIX.search(prefix) and not IMPERATIVE_PREFIX.search(prefix):
+            continue
+        return True
+    return False
 
 
 def _clean(text):
@@ -63,17 +81,15 @@ def rule_intent(text):
         if clause:
             clauses.append(clause)
     for clause in clauses:
-        if not NEGATED_HELP.search(clause) and (SELF_HELP.search(clause) or HELP_NEED.search(clause) or HELP_REQUEST.search(clause)):
+        if _affirmed(SELF_HELP, clause) or _affirmed(HELP_NEED, clause) or _affirmed(HELP_REQUEST, clause):
             return 'needs_help', 'explicit_current_help'
     if any(UNCERTAIN.search(clause) for clause in clauses) or question:
         return 'unclear', 'question_or_uncertainty'
     positives = [clause for clause in clauses if POSITIVE.fullmatch(clause)]
     if positives:
         remaining = [clause for clause in clauses if clause not in positives]
-        if any(CONCERN.search(NEGATED_CONCERN.sub('', clause)) for clause in remaining):
-            return 'unclear', 'positive_with_unresolved_concern'
-        if re.search(r'但是|不过|可是|然而|不对', normalized) and remaining:
-            return 'unclear', 'positive_with_unresolved_contrast'
+        if any(not NEUTRAL.fullmatch(clause) for clause in remaining):
+            return 'unclear', 'positive_with_unresolved_clause'
         return 'okay', 'explicit_positive_clauses'
     if blocked or not clauses:
         return 'unclear', 'quoted_or_control_only'
@@ -100,7 +116,7 @@ def classify_reply(text, infer, *, emit=None):
             # A vague symptom alone is not an explicit request. Keep a fixed
             # clarification unless the advisory has independent assistance cues.
             evidence = _clean(QUOTES.sub(' ', unicodedata.normalize('NFKC', text)))
-            supported_help = proposed == 'needs_help' and WEAK_ASSISTANCE.search(evidence) and not NEGATED_HELP.search(evidence)
+            supported_help = proposed == 'needs_help' and _affirmed(WEAK_ASSISTANCE, evidence)
             result.update(intent='needs_help' if supported_help else 'unclear', source='model_advisory',
                           fallback_reason=None if supported_help else 'model_requires_confirmation')
         except Exception as error:
