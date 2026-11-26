@@ -1,0 +1,41 @@
+from pathlib import Path
+import json,statistics,collections,sys
+sys.path.insert(0,str(Path.cwd()))
+from tools.local_care_prototype import classify_reply as legacy
+r=Path('docs/local-llm/evidence/care-v2-2026-11-26')
+read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+d=read(r/'trial.json');samples=read(r/'resources.json')['samples']
+assert read(r/'exit.json')['exit_code']==0 and d['completed']
+assert [x['run_id'] for x in d['runs']]==['raw_v1','raw_v2','policy_v2']
+by={x['run_id']:x for x in d['runs']}
+for run in d['runs']:assert len(run['rows'])==36 and len({x['id'] for x in run['rows']})==36
+class RecordedModelFailure(RuntimeError):pass
+replay=[]
+for row in by['raw_v1']['rows']:
+ def cached(text):
+  if row['status']!='ok':raise RecordedModelFailure()
+  return {'intent':row['intent']}
+ out=legacy(row['text'],cached)
+ replay.append({'id':row['id'],'expected':row['expected'],'status':'ok','intent':out['intent'],'policy':out,'replay_only':True})
+(r/'legacy-policy-replay.json').write_bytes((json.dumps({'note':'仅确定性语义回放，无独立模型请求、延迟或资源测量。','rows':replay},ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+def score(rows):
+ valid=[x for x in rows if x['status']=='ok']
+ return {'total':len(rows),'valid_results':len(valid),'request_errors':len(rows)-len(valid),'correct':sum(x['intent']==x['expected'] for x in valid),'help_total':sum(x['expected']=='needs_help' for x in rows),'help_missed':sum(x['expected']=='needs_help' and (x['status']!='ok' or x.get('intent')!='needs_help') for x in rows),'wrong_okay':sum(x['intent']=='okay' and x['expected']!='okay' for x in valid),'false_help':sum(x['intent']=='needs_help' and x['expected']!='needs_help' for x in valid),'unclear_on_definite':sum(x['intent']=='unclear' and x['expected']!='unclear' for x in valid),'error_types':dict(collections.Counter(x['error'] for x in rows if x['status']!='ok')),'confusion':{label:dict(collections.Counter(x.get('intent','error') if x['status']=='ok' else 'error' for x in rows if x['expected']==label)) for label in ['okay','needs_help','unclear']}}
+output={'scores':{key:score(run['rows']) for key,run in by.items()},'legacy_replay_score':score(replay),'timings':{},'resources':{},'policy':{}}
+for key in ['raw_v1','raw_v2']:
+ rows=by[key]['rows'];valid=[x for x in rows if x['status']=='ok'];output['timings'][key]={'successful_median':statistics.median(x['wall_seconds'] for x in valid) if valid else None,'successful_max':max((x['wall_seconds'] for x in valid),default=None),'all_attempt_median':statistics.median(x['wall_seconds'] for x in rows),'complete_within_5':sum(x['wall_seconds']<=5 for x in valid),'correct_within_5':sum(x['wall_seconds']<=5 and x['intent']==x['expected'] for x in valid)}
+policy=by['policy_v2']['rows'];called=[x for x in policy if x['policy']['model_called']];rules=[x for x in policy if not x['policy']['model_called']]
+output['policy']={'sources':dict(collections.Counter(x['policy']['source'] for x in policy)),'actual_model_calls':len(called),'actual_model_completions':sum('model_timing' in x for x in policy),'model_error_types':dict(collections.Counter(x['model_error'] for x in policy if 'model_error' in x)),'correct_without_fallback':sum(x['intent']==x['expected'] and x['policy']['source']!='fallback' for x in policy),'correct_from_fallback':sum(x['intent']==x['expected'] and x['policy']['source']=='fallback' for x in policy),'rule_only_max_seconds':max((x['wall_seconds'] for x in rules),default=None),'model_called_median_seconds':statistics.median(x['wall_seconds'] for x in called) if called else None,'all_max_seconds':max(x['wall_seconds'] for x in policy)}
+assert d['http_requests_sent']==72+6+len(called)
+assert len(samples)==d['resource_sample_count'] and not d['safety_triggered'] and not d['monitor_errors'] and not d['cleanup_errors']
+assert d['monitor_alive_before_stop'] and d['last_resource_age_seconds']<10
+assert all(d[k] for k in ['production_files_unchanged','service_unit_unchanged','model_port_closed'])
+assert d['initial_service']==d['final_service'] and d['final_stats']['care_mode']=='off' and d['video_after']['complete_jpeg']
+assert all(x['policy']['preserve_alert'] and not x['policy']['auto_cancel'] for x in policy)
+for key,run in by.items():
+ group=[x for x in samples if x['run_id']==key];formal=[x for x in group if x['phase']=='formal']
+ output['resources'][key]={'sample_count':len(group),'formal_sample_count':len(formal),'baseline_fps':run['baseline_fps_median'],'formal_fps_mean':statistics.mean(x['stats']['fps'] for x in formal) if formal else None,'formal_fps_min':min((x['stats']['fps'] for x in formal),default=None),'formal_cpu_mean':statistics.mean(x['cpu_busy_percent'] for x in formal) if formal else None,'mem_available_min_gib':min(x['mem_available_bytes'] for x in group)/1024**3,'model_hwm_max_mib':max(x['model_memory']['VmHWM'] for x in group if x.get('model_memory'))/1024**2}
+output['diagnostics']={key:run['diagnostics'] for key,run in by.items()}
+output['counts']={'formal_raw_requests':72,'policy_case_evaluations':36,'diagnostic_requests':6,'actual_classifier_attempts':d['http_requests_sent'],'resource_samples':len(samples),'max_sample_gap_seconds':max(b['elapsed']-a['elapsed'] for a,b in zip(samples,samples[1:]))}
+(r/'summary.json').write_bytes((json.dumps(output,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(output,ensure_ascii=True,indent=2))
