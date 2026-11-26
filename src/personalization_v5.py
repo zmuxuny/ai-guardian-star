@@ -161,7 +161,8 @@ class Store:
 
     def _new(self, db, payload, slot):
         now = self.clock()
-        state = {'phase':'pending' if slot else 'registered', 'prompt_count':0, 'ever_input':False}
+        state = {'phase':'pending' if slot else 'registered', 'prompt_count':0, 'ever_input':False,
+                 'last_seen_wall':now}
         db.execute('INSERT INTO events(event_id,reminder,saved_at,state,slot) VALUES (?,?,?,?,?)',
                    (payload['event_id'], encoded(payload), now, encoded(state), slot))
 
@@ -243,6 +244,7 @@ class Store:
         with self.write() as db:
             event = self._event(db, event_id)
             result = step(event)
+            event['state']['last_seen_wall']=max(event['state'].get('last_seen_wall',event['saved_at']),self.clock())
             db.execute('UPDATE events SET state=? WHERE event_id=?', (encoded(event['state']), event_id))
             if result is not None:
                 return self._save_result(db, event, **result)
