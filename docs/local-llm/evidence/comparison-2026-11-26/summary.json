@@ -1,0 +1,218 @@
+{
+  "models": {
+    "qwen25-15b-q4km": {
+      "total": 36,
+      "completed": 36,
+      "errors": 0,
+      "correct": 24,
+      "help_total": 12,
+      "help_missed": 0,
+      "wrong_okay": 5,
+      "false_help": 7,
+      "completed_within_5_seconds": 32,
+      "median_complete_seconds": 4.761603678000029,
+      "max_complete_seconds": 5.259642478999922,
+      "confusion": {
+        "okay": {
+          "okay": 12
+        },
+        "needs_help": {
+          "needs_help": 12
+        },
+        "unclear": {
+          "needs_help": 7,
+          "okay": 5
+        }
+      }
+    },
+    "qwen3-06b-q8": {
+      "total": 36,
+      "completed": 36,
+      "errors": 0,
+      "correct": 12,
+      "help_total": 12,
+      "help_missed": 0,
+      "wrong_okay": 1,
+      "false_help": 23,
+      "completed_within_5_seconds": 36,
+      "median_complete_seconds": 2.315470024499973,
+      "max_complete_seconds": 2.470910011000342,
+      "confusion": {
+        "okay": {
+          "needs_help": 12
+        },
+        "needs_help": {
+          "needs_help": 12
+        },
+        "unclear": {
+          "needs_help": 11,
+          "okay": 1
+        }
+      }
+    }
+  },
+  "runs": {
+    "a1": {
+      "model_id": "qwen25-15b-q4km",
+      "baseline_fps_median": 7.4,
+      "samples": 48,
+      "formal_samples": 27,
+      "baseline_cpu_mean": 12.71312352115057,
+      "formal_fps_mean": 7.448148148148148,
+      "formal_fps_min": 6.9,
+      "formal_cpu_mean": 59.41530028221172,
+      "mem_available_min_gib": 13.464519500732422,
+      "model_hwm_sample_max_mib": 1166.296875,
+      "all_camera_connected": true,
+      "all_mqtt_connected": true
+    },
+    "b1": {
+      "model_id": "qwen3-06b-q8",
+      "baseline_fps_median": 7.55,
+      "samples": 32,
+      "formal_samples": 14,
+      "baseline_cpu_mean": 9.12145732528672,
+      "formal_fps_mean": 7.521428571428571,
+      "formal_fps_min": 7.4,
+      "formal_cpu_mean": 58.31910460940383,
+      "mem_available_min_gib": 13.431739807128906,
+      "model_hwm_sample_max_mib": 789.83984375,
+      "all_camera_connected": true,
+      "all_mqtt_connected": true
+    },
+    "b2": {
+      "model_id": "qwen3-06b-q8",
+      "baseline_fps_median": 7.45,
+      "samples": 32,
+      "formal_samples": 14,
+      "baseline_cpu_mean": 10.88800397071973,
+      "formal_fps_mean": 7.45,
+      "formal_fps_min": 7.1,
+      "formal_cpu_mean": 58.580715813304444,
+      "mem_available_min_gib": 13.428474426269531,
+      "model_hwm_sample_max_mib": 789.9765625,
+      "all_camera_connected": true,
+      "all_mqtt_connected": true
+    },
+    "a2": {
+      "model_id": "qwen25-15b-q4km",
+      "baseline_fps_median": 7.45,
+      "samples": 54,
+      "formal_samples": 29,
+      "baseline_cpu_mean": 7.760015961838337,
+      "formal_fps_mean": 7.479310344827586,
+      "formal_fps_min": 6.9,
+      "formal_cpu_mean": 60.78065209775868,
+      "mem_available_min_gib": 13.457263946533203,
+      "model_hwm_sample_max_mib": 1166.45703125,
+      "all_camera_connected": true,
+      "all_mqtt_connected": true
+    }
+  },
+  "diagnostics": {
+    "qwen25-15b-q4km": [
+      {
+        "run_id": "a1",
+        "ready_seconds": 2.5171744550002586,
+        "measurements": [
+          {
+            "kind": "first_prompt_and_warmup_cost",
+            "status": "ok",
+            "content": "{\"intent\": \"okay\"}",
+            "first_token_seconds": 13.128049017000194,
+            "total_seconds": 14.790476103999936,
+            "intent": "okay",
+            "wall_seconds": 14.79088750200026
+          },
+          {
+            "kind": "after_warmup",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 2.0706595300002846,
+            "total_seconds": 4.000799745000222,
+            "intent": "needs_help",
+            "wall_seconds": 4.001156226000148
+          }
+        ]
+      },
+      {
+        "run_id": "a2",
+        "ready_seconds": 2.5167694070000834,
+        "measurements": [
+          {
+            "kind": "first_prompt_and_warmup_cost",
+            "status": "ok",
+            "content": "{\"intent\": \"okay\"}",
+            "first_token_seconds": 13.28535432400031,
+            "total_seconds": 14.975342843999897,
+            "intent": "okay",
+            "wall_seconds": 14.975740014999701
+          },
+          {
+            "kind": "after_warmup",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 2.0251635879999412,
+            "total_seconds": 4.036987945999954,
+            "intent": "needs_help",
+            "wall_seconds": 4.03735251199987
+          }
+        ]
+      }
+    ],
+    "qwen3-06b-q8": [
+      {
+        "run_id": "b1",
+        "ready_seconds": 2.606940324000334,
+        "measurements": [
+          {
+            "kind": "first_prompt_and_warmup_cost",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 5.500567229999888,
+            "total_seconds": 6.449354287999995,
+            "intent": "needs_help",
+            "wall_seconds": 6.449769650000235
+          },
+          {
+            "kind": "after_warmup",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 1.1216312680003284,
+            "total_seconds": 2.0591461040003196,
+            "intent": "needs_help",
+            "wall_seconds": 2.0595396749999964
+          }
+        ]
+      },
+      {
+        "run_id": "b2",
+        "ready_seconds": 2.5437829659999807,
+        "measurements": [
+          {
+            "kind": "first_prompt_and_warmup_cost",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 5.52576092199979,
+            "total_seconds": 6.471052517999851,
+            "intent": "needs_help",
+            "wall_seconds": 6.471473523999975
+          },
+          {
+            "kind": "after_warmup",
+            "status": "ok",
+            "content": "{\"intent\": \"needs_help\"}",
+            "first_token_seconds": 1.131051808000393,
+            "total_seconds": 2.0693307110000205,
+            "intent": "needs_help",
+            "wall_seconds": 2.06966502799969
+          }
+        ]
+      }
+    ]
+  },
+  "resources": {
+    "sample_count": 166,
+    "max_gap_seconds": 3.052598309000132
+  }
+}
