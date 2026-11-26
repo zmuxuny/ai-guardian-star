@@ -1,0 +1,3251 @@
+{
+  "note": "仅包含选取的状态和资源，无图像或生产日志正文。",
+  "samples": [
+    {
+      "elapsed": 3.027338004000285,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 23.36911643270025,
+      "mem_available_bytes": 14561763328,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 6.04303658300023,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 18.040816326530614,
+      "mem_available_bytes": 14561742848,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 9.048603246000312,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 14.524207011686144,
+      "mem_available_bytes": 14560460800,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 12.053231813000366,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 12.952060555088309,
+      "mem_available_bytes": 14612217856,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 15.05920750300038,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.15126050420168,
+      "mem_available_bytes": 14612189184,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 18.09969806800018,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.369817578772803,
+      "mem_available_bytes": 14613270528,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 21.10620222500029,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 15.551839464882944,
+      "mem_available_bytes": 14614454272,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 24.11106720500038,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.046979865771812,
+      "mem_available_bytes": 14614458368,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 27.121545561000403,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 6.902356902356902,
+      "mem_available_bytes": 14617497600,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 30.126407247000316,
+      "run_id": "a1",
+      "phase": "baseline",
+      "cpu_busy_percent": 11.222780569514239,
+      "mem_available_bytes": 14616768512,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 33.1325101880002,
+      "run_id": "a1",
+      "phase": "load",
+      "cpu_busy_percent": 30.058774139378674,
+      "mem_available_bytes": 14528417792,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1211748352,
+        "VmRSS": 1211748352
+      }
+    },
+    {
+      "elapsed": 36.15768360300035,
+      "run_id": "a1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 56.239600665557404,
+      "mem_available_bytes": 14512304128,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 39.164730928000154,
+      "run_id": "a1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 58.44481605351171,
+      "mem_available_bytes": 14512443392,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 42.1708280050002,
+      "run_id": "a1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 58.22890559732665,
+      "mem_available_bytes": 14512189440,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 628441088
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 45.1894735310002,
+      "run_id": "a1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 59.26849542809643,
+      "mem_available_bytes": 14509166592,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 48.19605358100034,
+      "run_id": "a1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 58.208955223880594,
+      "mem_available_bytes": 14509940736,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 51.2022861610003,
+      "run_id": "a1",
+      "phase": "after_warmup",
+      "cpu_busy_percent": 59.16317991631799,
+      "mem_available_bytes": 14506852352,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 54.215379296000265,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 59.049207673060884,
+      "mem_available_bytes": 14505054208,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 57.22141519000024,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 59.41422594142259,
+      "mem_available_bytes": 14506913792,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 60.229480958000295,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 66.2771285475793,
+      "mem_available_bytes": 14458699776,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 6.9,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 63.2710488280004,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 65.7331136738056,
+      "mem_available_bytes": 14457417728,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 66.289449074,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 64.97504159733776,
+      "mem_available_bytes": 14457430016,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 69.29653919700013,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 66.22185154295246,
+      "mem_available_bytes": 14503186432,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 72.30501013500043,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.68113522537563,
+      "mem_available_bytes": 14505160704,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 75.33730547600044,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.78145695364238,
+      "mem_available_bytes": 14504660992,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 78.34378899000012,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.79816513761468,
+      "mem_available_bytes": 14506397696,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 81.35226088700028,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.701915070774355,
+      "mem_available_bytes": 14506422272,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 84.3603923290002,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.666666666666664,
+      "mem_available_bytes": 14506168320,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 87.37196384700019,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.43973399833749,
+      "mem_available_bytes": 14506168320,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 90.37830816900032,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 60.618729096989966,
+      "mem_available_bytes": 14510473216,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 93.39318604200025,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.98668885191348,
+      "mem_available_bytes": 14510473216,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 96.40035304900039,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 59.833333333333336,
+      "mem_available_bytes": 14507323392,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 99.40712437900038,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 61.37123745819398,
+      "mem_available_bytes": 14516674560,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.7,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 102.41928608600028,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.89473684210526,
+      "mem_available_bytes": 14516699136,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 105.4343919160001,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.785179017485426,
+      "mem_available_bytes": 14517223424,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 108.44141345000025,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.6214405360134,
+      "mem_available_bytes": 14518456320,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 111.44761083100002,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.465387823185985,
+      "mem_available_bytes": 14518751232,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 114.45918082300022,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.63135946622185,
+      "mem_available_bytes": 14518755328,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 117.47126508300016,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.75,
+      "mem_available_bytes": 14519021568,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 120.48507971900017,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.82029950083194,
+      "mem_available_bytes": 14521597952,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 123.49105192200022,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.45393634840871,
+      "mem_available_bytes": 14521606144,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 126.50107032100004,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.71476230191826,
+      "mem_available_bytes": 14521610240,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 129.51304418300015,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.46455379482902,
+      "mem_available_bytes": 14521610240,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 132.5198269350003,
+      "run_id": "a1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.06182121971596,
+      "mem_available_bytes": 14520590336,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1222950912,
+        "VmRSS": 1222950912
+      }
+    },
+    {
+      "elapsed": 135.53005090500028,
+      "run_id": "a1",
+      "phase": "recovery",
+      "cpu_busy_percent": 25.291181364392678,
+      "mem_available_bytes": 14620368896,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 138.537457335,
+      "run_id": "a1",
+      "phase": "recovery",
+      "cpu_busy_percent": 7.980049875311721,
+      "mem_available_bytes": 14621659136,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 141.5511252170004,
+      "run_id": "a1",
+      "phase": "recovery",
+      "cpu_busy_percent": 8.13953488372093,
+      "mem_available_bytes": 14621925376,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 144.55924859900006,
+      "run_id": "a1",
+      "phase": "recovery",
+      "cpu_busy_percent": 7.973421926910299,
+      "mem_available_bytes": 14621925376,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 147.56387031900022,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.993338884263114,
+      "mem_available_bytes": 14621671424,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 150.5702375310002,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 13.050706566916043,
+      "mem_available_bytes": 14619791360,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 153.57577650300027,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.583333333333334,
+      "mem_available_bytes": 14619308032,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 156.58073777900017,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.816971713810316,
+      "mem_available_bytes": 14614081536,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 159.59059249100028,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.872305140961858,
+      "mem_available_bytes": 14615662592,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.7,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 162.60634226300044,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.602150537634408,
+      "mem_available_bytes": 14616178688,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 165.62961768800005,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.181818181818182,
+      "mem_available_bytes": 14616330240,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 168.6342681250003,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.924103419516264,
+      "mem_available_bytes": 14615158784,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 171.65004684800033,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.02317880794702,
+      "mem_available_bytes": 14618247168,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 174.66030388100035,
+      "run_id": "b1",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.166666666666666,
+      "mem_available_bytes": 14615666688,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 177.66529775800018,
+      "run_id": "b1",
+      "phase": "load",
+      "cpu_busy_percent": 22.987551867219917,
+      "mem_available_bytes": 14567329792,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 68956160,
+        "VmRSS": 59658240
+      }
+    },
+    {
+      "elapsed": 180.67202135300022,
+      "run_id": "b1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 43.20266889074229,
+      "mem_available_bytes": 14434336768,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 183.69845602800024,
+      "run_id": "b1",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 57.663628831814414,
+      "mem_available_bytes": 14433837056,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 186.7041704940002,
+      "run_id": "b1",
+      "phase": "after_warmup",
+      "cpu_busy_percent": 57.701915070774355,
+      "mem_available_bytes": 14433566720,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 189.72113578900007,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.28476269775187,
+      "mem_available_bytes": 14432501760,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 192.72828258400023,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.37520938023451,
+      "mem_available_bytes": 14425505792,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 195.73422765700025,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.005029337803855,
+      "mem_available_bytes": 14422220800,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 198.74411527600023,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.381984987489574,
+      "mem_available_bytes": 14423375872,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 201.76336098300044,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.595993322203675,
+      "mem_available_bytes": 14425579520,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 204.7714409510004,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.68661679135494,
+      "mem_available_bytes": 14425296896,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 207.7772953560002,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.68261964735516,
+      "mem_available_bytes": 14425194496,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 210.78672074600036,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 60.18363939899833,
+      "mem_available_bytes": 14429626368,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 213.79481836500008,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.381984987489574,
+      "mem_available_bytes": 14429700096,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 216.80127498300044,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.02675585284281,
+      "mem_available_bytes": 14429118464,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 219.81955413700007,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 57.82932891466446,
+      "mem_available_bytes": 14429708288,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 222.82606436000015,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.09128630705394,
+      "mem_available_bytes": 14433869824,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 225.83226161400034,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.45012366034625,
+      "mem_available_bytes": 14433705984,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 228.8479949710004,
+      "run_id": "b1",
+      "phase": "formal",
+      "cpu_busy_percent": 58.49212924606462,
+      "mem_available_bytes": 14432526336,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828207104,
+        "VmRSS": 828207104
+      }
+    },
+    {
+      "elapsed": 231.8589894920001,
+      "run_id": "b1",
+      "phase": "recovery",
+      "cpu_busy_percent": 16.89909762100082,
+      "mem_available_bytes": 14612082688,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 234.88785640900005,
+      "run_id": "b1",
+      "phase": "recovery",
+      "cpu_busy_percent": 10.804224207961008,
+      "mem_available_bytes": 14610677760,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 237.8934206920003,
+      "run_id": "b1",
+      "phase": "recovery",
+      "cpu_busy_percent": 9.93485342019544,
+      "mem_available_bytes": 14608478208,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 240.89867108200042,
+      "run_id": "b1",
+      "phase": "recovery",
+      "cpu_busy_percent": 11.69255928045789,
+      "mem_available_bytes": 14606348288,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 243.90406381900038,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 10.260586319218241,
+      "mem_available_bytes": 14609399808,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 246.90879622300008,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 10.586319218241043,
+      "mem_available_bytes": 14609514496,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 249.91390956600026,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 10.065466448445171,
+      "mem_available_bytes": 14610309120,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 252.9400144000001,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 19.381107491856678,
+      "mem_available_bytes": 14613925888,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 255.96744602000035,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 10.218978102189782,
+      "mem_available_bytes": 14613413888,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 258.98030527300034,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.49628406275805,
+      "mem_available_bytes": 14610321408,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 261.9858731400004,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.962655601659751,
+      "mem_available_bytes": 14614970368,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 265.0263243640002,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.508196721311476,
+      "mem_available_bytes": 14613917696,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 268.0318746160001,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.347245409015025,
+      "mem_available_bytes": 14613667840,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 271.04384198100024,
+      "run_id": "b2",
+      "phase": "baseline",
+      "cpu_busy_percent": 12.053200332502078,
+      "mem_available_bytes": 14611484672,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 274.06860741300034,
+      "run_id": "b2",
+      "phase": "load",
+      "cpu_busy_percent": 23.178807947019866,
+      "mem_available_bytes": 14440579072,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 820482048,
+        "VmRSS": 820482048
+      }
+    },
+    {
+      "elapsed": 277.074072848,
+      "run_id": "b2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 50.7910074937552,
+      "mem_available_bytes": 14432956416,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.7,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 280.09944006600017,
+      "run_id": "b2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 59.673469387755105,
+      "mem_available_bytes": 14426161152,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 283.12681078800006,
+      "run_id": "b2",
+      "phase": "after_warmup",
+      "cpu_busy_percent": 58.89164598842018,
+      "mem_available_bytes": 14425604096,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 286.13373780200027,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.81856540084388,
+      "mem_available_bytes": 14421737472,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 289.140343734,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.36120401337793,
+      "mem_available_bytes": 14421741568,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 292.14650062400005,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.94648829431438,
+      "mem_available_bytes": 14422052864,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 295.15437444400004,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.36120401337793,
+      "mem_available_bytes": 14421282816,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 298.17100175700034,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.53947368421053,
+      "mem_available_bytes": 14418714624,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 301.1779932950003,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.125315391084946,
+      "mem_available_bytes": 14420242432,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.9,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 304.18559819200027,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.92707460184409,
+      "mem_available_bytes": 14425608192,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 307.2115684920004,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 57.95644891122278,
+      "mem_available_bytes": 14425608192,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 310.2173990450001,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 57.516891891891895,
+      "mem_available_bytes": 14425608192,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 313.2231543900002,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 57.983193277310924,
+      "mem_available_bytes": 14429122560,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 316.23537057800013,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 57.263513513513516,
+      "mem_available_bytes": 14429126656,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 319.24169904400014,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.97651006711409,
+      "mem_available_bytes": 14426750976,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 322.25279677100025,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.37762825904121,
+      "mem_available_bytes": 14423056384,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 325.25962715800006,
+      "run_id": "b2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.97651006711409,
+      "mem_available_bytes": 14425706496,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 828350464,
+        "VmRSS": 828350464
+      }
+    },
+    {
+      "elapsed": 328.26652728800036,
+      "run_id": "b2",
+      "phase": "recovery",
+      "cpu_busy_percent": 19.68040370058873,
+      "mem_available_bytes": 14608310272,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 331.2740445850004,
+      "run_id": "b2",
+      "phase": "recovery",
+      "cpu_busy_percent": 7.504215851602024,
+      "mem_available_bytes": 14607294464,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 334.28018142300016,
+      "run_id": "b2",
+      "phase": "recovery",
+      "cpu_busy_percent": 12.205387205387206,
+      "mem_available_bytes": 14608416768,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 337.2959701140003,
+      "run_id": "b2",
+      "phase": "recovery",
+      "cpu_busy_percent": 8.955223880597014,
+      "mem_available_bytes": 14608158720,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 340.3007980990001,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.205020920502092,
+      "mem_available_bytes": 14607900672,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 343.3124081730002,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 8.13758389261745,
+      "mem_available_bytes": 14605094912,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 346.3179413810003,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 6.925675675675675,
+      "mem_available_bytes": 14606114816,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 349.32499078200044,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.485281749369218,
+      "mem_available_bytes": 14605602816,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 352.3432772670003,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.202680067001675,
+      "mem_available_bytes": 14605602816,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629362688
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 355.34811480400003,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.9391891891891895,
+      "mem_available_bytes": 14606372864,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 358.358795695,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.142857142857143,
+      "mem_available_bytes": 14605082624,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 361.3845083010001,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.124895222129086,
+      "mem_available_bytes": 14603546624,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 364.38940144200023,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 9.312080536912752,
+      "mem_available_bytes": 14608277504,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 367.39915065900004,
+      "run_id": "a2",
+      "phase": "baseline",
+      "cpu_busy_percent": 7.124895222129086,
+      "mem_available_bytes": 14608306176,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 370.4047757430003,
+      "run_id": "a2",
+      "phase": "load",
+      "cpu_busy_percent": 18.923465096719934,
+      "mem_available_bytes": 14553591808,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 69181440,
+        "VmRSS": 69181440
+      }
+    },
+    {
+      "elapsed": 373.4103866820001,
+      "run_id": "a2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 54.39330543933055,
+      "mem_available_bytes": 14509010944,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 376.42797268000004,
+      "run_id": "a2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 62.7906976744186,
+      "mem_available_bytes": 14509334528,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 379.44157959300037,
+      "run_id": "a2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 58.09682804674458,
+      "mem_available_bytes": 14509342720,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 382.4479649730001,
+      "run_id": "a2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 58.75,
+      "mem_available_bytes": 14509088768,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 385.4641044910004,
+      "run_id": "a2",
+      "phase": "first_prompt_and_warmup_cost",
+      "cpu_busy_percent": 59.18032786885246,
+      "mem_available_bytes": 14515310592,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 388.4721947420003,
+      "run_id": "a2",
+      "phase": "after_warmup",
+      "cpu_busy_percent": 58.97858319604613,
+      "mem_available_bytes": 14515290112,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 391.479050033,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.66942148760331,
+      "mem_available_bytes": 14511656960,
+      "guardian_memory": {
+        "VmHWM": 632819712,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 394.4933714830004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 62.27347611202636,
+      "mem_available_bytes": 14509854720,
+      "guardian_memory": {
+        "VmHWM": 633720832,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 397.50240434900024,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.30521091811414,
+      "mem_available_bytes": 14509862912,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 400.519995096,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.11740216486262,
+      "mem_available_bytes": 14509637632,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629366784
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 403.5267147450004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.216013344453714,
+      "mem_available_bytes": 14507806720,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629370880
+      },
+      "stats": {
+        "fps": 7.9,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 406.53426598800024,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 64.49456975772765,
+      "mem_available_bytes": 14458171392,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629370880
+      },
+      "stats": {
+        "fps": 6.9,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 409.5443476360001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 66.66666666666667,
+      "mem_available_bytes": 14454652928,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629370880
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 412.5514300900004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 64.5,
+      "mem_available_bytes": 14452289536,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629370880
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 415.5596123950004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 66.41666666666667,
+      "mem_available_bytes": 14449627136,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629370880
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 418.5734430570001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 62.46872393661384,
+      "mem_available_bytes": 14505099264,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 421.580998333,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.94648829431438,
+      "mem_available_bytes": 14505111552,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 424.59557396000037,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.53372189841799,
+      "mem_available_bytes": 14503575552,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 427.6031441360001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.966638865721436,
+      "mem_available_bytes": 14503579648,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 430.6104606370004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.03413821815154,
+      "mem_available_bytes": 14503596032,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 433.6275229150001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 60.0,
+      "mem_available_bytes": 14503612416,
+      "guardian_memory": {
+        "VmHWM": 633729024,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 436.6344115930001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.98329156223893,
+      "mem_available_bytes": 14508007424,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 439.64834671200015,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 60.10016694490818,
+      "mem_available_bytes": 14507003904,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 442.6561264830002,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.448160535117054,
+      "mem_available_bytes": 14508568576,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 445.70872479200034,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 62.75805119735755,
+      "mem_available_bytes": 14507282432,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 448.7207816470004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 60.18363939899833,
+      "mem_available_bytes": 14509346816,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 451.738347557,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 58.666666666666664,
+      "mem_available_bytes": 14509776896,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 454.76913629900037,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 62.06896551724138,
+      "mem_available_bytes": 14506188800,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 457.8013378090004,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.98349834983498,
+      "mem_available_bytes": 14504337408,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 460.8082768150002,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.36719400499584,
+      "mem_available_bytes": 14503297024,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 463.8193857870001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.26544240400668,
+      "mem_available_bytes": 14502772736,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 466.8289073850001,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.716430358632195,
+      "mem_available_bytes": 14503399424,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 469.83566264300043,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.950248756218905,
+      "mem_available_bytes": 14502105088,
+      "guardian_memory": {
+        "VmHWM": 633753600,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 472.842477441,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 60.06519967400163,
+      "mem_available_bytes": 14502178816,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 475.84934486300017,
+      "run_id": "a2",
+      "phase": "formal",
+      "cpu_busy_percent": 59.472817133443165,
+      "mem_available_bytes": 14502408192,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      },
+      "model_memory": {
+        "VmHWM": 1223118848,
+        "VmRSS": 1223118848
+      }
+    },
+    {
+      "elapsed": 478.8679410470004,
+      "run_id": "a2",
+      "phase": "recovery",
+      "cpu_busy_percent": 32.65139116202946,
+      "mem_available_bytes": 14605012992,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.8,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 481.9087949730001,
+      "run_id": "a2",
+      "phase": "recovery",
+      "cpu_busy_percent": 9.555189456342669,
+      "mem_available_bytes": 14604488704,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 484.91434272100014,
+      "run_id": "a2",
+      "phase": "recovery",
+      "cpu_busy_percent": 9.816971713810316,
+      "mem_available_bytes": 14605537280,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.2,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 487.91995678700005,
+      "run_id": "a2",
+      "phase": "recovery",
+      "cpu_busy_percent": 10.141313383208646,
+      "mem_available_bytes": 14613291008,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 490.9256399240003,
+      "run_id": "a2",
+      "phase": "final-recovery",
+      "cpu_busy_percent": 9.523809523809524,
+      "mem_available_bytes": 14609969152,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 493.9321934720001,
+      "run_id": "a2",
+      "phase": "final-recovery",
+      "cpu_busy_percent": 11.01141924959217,
+      "mem_available_bytes": 14608429056,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 496.9388901970001,
+      "run_id": "a2",
+      "phase": "final-recovery",
+      "cpu_busy_percent": 11.475409836065573,
+      "mem_available_bytes": 14606639104,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.1,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "elapsed": 499.94429746700007,
+      "run_id": "a2",
+      "phase": "final-recovery",
+      "cpu_busy_percent": 10.72013093289689,
+      "mem_available_bytes": 14610153472,
+      "guardian_memory": {
+        "VmHWM": 633761792,
+        "VmRSS": 629374976
+      },
+      "stats": {
+        "fps": 7.3,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    }
+  ]
+}
