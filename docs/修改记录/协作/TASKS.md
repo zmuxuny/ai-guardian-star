@@ -73,6 +73,8 @@
 
 | T-20261126-01 | 开发板1.5B隔离文字原型复测、延迟与兜底；通过PR交付zy | codex | wip/codex-20261126-board-llm-retest @ fad32be；PR #30复查通过；用户本次已授权合并 | 已完成 | 2026-11-26 |
 
+| T-20261126-03 | 修正1.5B文字原型边界、短输出和超时；新样本验证 | codex | wip/codex-20261126-care-text-boundaries；独立于未合并PR #31 | 进行中 | 2026-11-26 |
+
 ## 备注
 
 - `T-20261025-01` 的代码已在 `zy` 工作区，但尚未提交；归属和验收边界以 `STATUS-codex.md` / `STATUS-deepseek.md` 的最新记录为准。
