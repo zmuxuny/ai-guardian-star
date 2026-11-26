@@ -114,5 +114,19 @@ class HTTPTests(unittest.TestCase):
         self.assertGreater(output['backend_attempts'],0)
         self.assertRaises(FileExistsError,run_demo,Path(self.tmp.name)/'demo')
 
+    def test_http_model_adapter_reads_real_sse_transport_with_a_standin_backend(self):
+        from test_local_care_prototype import Handler
+        from tools.personalization_v5_text import run_demo
+        Handler.mode='valid'
+        backend=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        worker=threading.Thread(target=backend.serve_forever,daemon=True);worker.start()
+        try:
+            output=run_demo(Path(self.tmp.name)/'sse-demo',model_url='http://127.0.0.1:'+str(backend.server_port))
+            self.assertEqual(output['mode'],'text_with_HTTP_model_backend')
+            self.assertEqual(output['backend_attempts'],2)
+            decisions=output['cases'][2]['policy_decisions']
+            self.assertTrue(all(x['source']=='model_advisory' and x['model_intent']=='unclear' for x in decisions))
+        finally:backend.shutdown();backend.server_close();worker.join()
+
 
 if __name__=='__main__':unittest.main()

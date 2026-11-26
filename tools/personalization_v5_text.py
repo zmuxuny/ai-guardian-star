@@ -187,7 +187,7 @@ def run_demo(workdir, *, model_url=None, model_id='qwen25-15b-q4km'):
     session=Session(model,classify)
     servers=[]
     output={'synthetic':True,'personalization_peer':'simulated','transport':'real_loopback_HTTP',
-            'mode':'text_with_real_model_backend' if client else 'text_rules_with_stub','cases':[]}
+            'mode':'text_with_HTTP_model_backend' if client else 'text_rules_with_stub','cases':[]}
     try:
         for store,engine in ((model,session),(peer,None)):
             server=Server(store,engine);server.start();servers.append(server)
