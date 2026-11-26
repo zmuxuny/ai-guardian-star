@@ -42,6 +42,18 @@ class V3BoundaryTests(unittest.TestCase):
     def test_unexplained_remainder_does_not_confirm_okay(self):
         self.assert_rule('我没事，我不确定现在是什么情况。', 'unclear')
 
+    def test_word_internal_contrast_does_not_split_breathing_difficulty(self):
+        self.assert_rule('我现在喘不过气。', 'needs_help')
+        self.assert_rule('我没事，我现在喘不过气。', 'needs_help')
+
+    def test_future_condition_scopes_following_request_but_not_current_help(self):
+        self.assert_rule('如果哪天我需要帮助，再麻烦你来陪我。', 'unclear')
+        self.assert_rule('要是以后我需要帮助，能不能来陪我？', 'unclear')
+        self.assert_rule('如果以后需要帮助再说，但我现在起不来。', 'needs_help')
+
+    def test_quoted_condition_does_not_scope_the_speakers_actual_help(self):
+        self.assert_rule('电视里说如果遇到困难就喊救命。这次是我本人求助，能不能来陪我一会儿？', 'needs_help')
+
 
 if __name__ == '__main__':
     unittest.main()

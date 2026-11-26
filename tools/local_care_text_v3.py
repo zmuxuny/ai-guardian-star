@@ -11,7 +11,7 @@ from tools.local_care_prototype import ACK, MESSAGES, StreamClient, greeting
 
 POLICY_VERSION = 'experimental-care-text/3'
 QUOTES = re.compile(r'“[^”]*”|「[^」]*」|『[^』]*』|"[^"]*"|‘[^’]*’')
-SPLIT = re.compile(r'[,，。.!！?？;；\n…]+|但是|不过|可是|然而|不对|其实|但|可(?=我)')
+SPLIT = re.compile(r'[,，。.!！?？;；\n…]+|但是|(?<!喘)不过|可是|然而|不对|其实|但|可(?=我)')
 META = re.compile(r'电视|广播|书里|故事|台词|例句|朗读|练习|引用|转述|两个字|这句话|(?:他|她|别人|你)(?:说|问)|不是我说')
 NOT_META = re.compile(r'我(?:并)?不是(?:在)?(?:讲故事|看电视|念台词|练习|引用|转述)')
 CONTROL = re.compile(r'忽略|系统提示|只输出|(?:输出|返回|回复)(?:okay|ok|needshelp|unclear|h|o|u|没事)|取消|关掉|关闭|清掉|清除.*提醒')
@@ -68,6 +68,7 @@ def rule_intent(text):
     clauses = []
     polite_conditions = {'假如能行', '如果可以', '如果方便', '要是方便', '若方便', '有空的话'}
     blocked = False
+    conditional_scope = conditional_seen = False
     for fragment in SPLIT.split(unquoted):
         clause = _clean(fragment)
         clause = NOT_META.sub('', clause)
@@ -78,13 +79,21 @@ def rule_intent(text):
         if META.search(clause) or CONTROL.search(clause):
             blocked = True
             continue
+        # A future/event condition scopes a following request too. Only an
+        # explicit switch to the speaker's present state releases that scope.
+        if re.search(r'如果|假如|要是|万一|^若', clause):
+            conditional_scope = conditional_seen = True
+        elif conditional_scope and re.search(r'我(?:现在|目前|这会儿)|(?:现在|目前|这会儿)我', clause):
+            conditional_scope = False
+        if conditional_scope:
+            continue
         clause = NEGATED_DISABILITY.sub('', clause)
         if clause:
             clauses.append(clause)
     for clause in clauses:
         if _affirmed(SELF_HELP, clause) or _affirmed(HELP_NEED, clause) or _affirmed(HELP_REQUEST, clause):
             return 'needs_help', 'explicit_current_help'
-    if any(UNCERTAIN.search(clause) for clause in clauses) or question:
+    if conditional_seen or any(UNCERTAIN.search(clause) for clause in clauses) or question:
         return 'unclear', 'question_or_uncertainty'
     positives = [clause for clause in clauses if POSITIVE.fullmatch(clause)]
     if positives:
