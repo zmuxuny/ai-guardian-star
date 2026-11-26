@@ -1,0 +1,159 @@
+{
+  "synthetic": true,
+  "personalization_peer": "simulated",
+  "transport": "real_loopback_HTTP",
+  "mode": "text_rules_with_stub",
+  "cases": [
+    {
+      "event_id": "synthetic-v5-1",
+      "text": "我现在没事，谢谢关心。",
+      "prompts": 1,
+      "result": {
+        "event_id": "synthetic-v5-1",
+        "prompted_at": "2026-11-26T12:15:34.632769+00:00",
+        "response": "ok",
+        "revision": 1,
+        "schema_version": "2",
+        "status": "completed",
+        "timestamp": "2026-11-26T12:15:34.645443+00:00"
+      },
+      "policy_decisions": [
+        {
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "http_responses": [
+        {
+          "http_status": 200,
+          "body": {
+            "schema_version": "2",
+            "event_id": "synthetic-v5-1",
+            "timestamp": "2026-11-26T12:15:34.645443+00:00",
+            "revision": 1,
+            "status": "completed",
+            "response": "ok",
+            "prompted_at": "2026-11-26T12:15:34.632769+00:00"
+          }
+        }
+      ],
+      "wall_seconds": 0.034771899998304434
+    },
+    {
+      "event_id": "synthetic-v5-2",
+      "text": "我现在起不来，帮帮我。",
+      "prompts": 1,
+      "result": {
+        "event_id": "synthetic-v5-2",
+        "prompted_at": "2026-11-26T12:15:34.694833+00:00",
+        "response": "needs_help",
+        "revision": 1,
+        "schema_version": "2",
+        "status": "completed",
+        "timestamp": "2026-11-26T12:15:34.718277+00:00"
+      },
+      "policy_decisions": [
+        {
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "http_responses": [
+        {
+          "http_status": 200,
+          "body": {
+            "schema_version": "2",
+            "event_id": "synthetic-v5-2",
+            "timestamp": "2026-11-26T12:15:34.718277+00:00",
+            "revision": 1,
+            "status": "completed",
+            "response": "needs_help",
+            "prompted_at": "2026-11-26T12:15:34.694833+00:00"
+          }
+        }
+      ],
+      "wall_seconds": 0.06288929999936954
+    },
+    {
+      "event_id": "synthetic-v5-3",
+      "text": "我想找人来看看我。",
+      "prompts": 2,
+      "result": {
+        "event_id": "synthetic-v5-3",
+        "prompted_at": "2026-11-26T12:15:34.775268+00:00",
+        "response": "unclear",
+        "revision": 1,
+        "schema_version": "2",
+        "status": "completed",
+        "timestamp": "2026-11-26T12:15:34.812503+00:00"
+      },
+      "policy_decisions": [
+        {
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "http_responses": [
+        {
+          "http_status": 202,
+          "body": {
+            "disposition": "clarification_pending",
+            "mode": "text"
+          }
+        },
+        {
+          "http_status": 200,
+          "body": {
+            "schema_version": "2",
+            "event_id": "synthetic-v5-3",
+            "timestamp": "2026-11-26T12:15:34.812503+00:00",
+            "revision": 1,
+            "status": "completed",
+            "response": "unclear",
+            "prompted_at": "2026-11-26T12:15:34.775268+00:00"
+          }
+        }
+      ],
+      "wall_seconds": 0.05905530000018189
+    }
+  ],
+  "backend_attempts": 2,
+  "help_tasks": 1,
+  "manual_deliveries": 0
+}

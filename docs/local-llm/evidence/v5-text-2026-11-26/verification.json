@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "python": "3.14.6",
+  "new_v5_tests": 40,
+  "related_tests_total": 105,
+  "related_tests_passed": 105,
+  "compile": "passed",
+  "scope": "local text, real loopback HTTP, model stub and SSE standin; no board deployment",
+  "review": "initial nested-JSON delivery defect reproduced and fixed; final read-only review passed",
+  "classification_policy_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e",
+  "unverified": [
+    "real-weight inference with new v5 flow",
+    "real personalization module",
+    "production care adapter and App",
+    "model-generated greeting",
+    "voice and physical power/network failures",
+    "independent help route outside association window",
+    "long-term capacity maintenance"
+  ]
+}

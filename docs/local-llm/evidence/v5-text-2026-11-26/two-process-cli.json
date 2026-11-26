@@ -1,0 +1,31 @@
+{
+  "synthetic": true,
+  "mode": "two_CLI_processes_with_model_stub",
+  "send": {
+    "registered": "cli-synthetic-1",
+    "pending_now": 0,
+    "mode": "simulated_personalization"
+  },
+  "answer": {
+    "http_status": 200,
+    "body": {
+      "schema_version": "2",
+      "event_id": "cli-synthetic-1",
+      "timestamp": "2026-11-26T12:17:11.454400+00:00",
+      "revision": 1,
+      "status": "completed",
+      "response": "needs_help",
+      "prompted_at": "2026-11-26T12:17:11.241219+00:00"
+    }
+  },
+  "peer_result": {
+    "event_id": "cli-synthetic-1",
+    "prompted_at": "2026-11-26T12:17:11.241219+00:00",
+    "response": "needs_help",
+    "revision": 1,
+    "schema_version": "2",
+    "status": "completed",
+    "timestamp": "2026-11-26T12:17:11.454400+00:00"
+  },
+  "help_tasks": 1
+}

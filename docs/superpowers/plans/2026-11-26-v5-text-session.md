@@ -31,9 +31,9 @@
 
 ## Tasks
 
-- [ ] 1. 写失败测试：载荷校验、去重/名额、结果乱序/求助粘滞、outbox/期限/重启；实现 src/personalization_v5.py 与 test_personalization_v5.py，运行并提交。
-- [ ] 2. 写失败测试：2次问候/20秒等待/90秒总时限、5秒分类、迟到回答/恢复；实现 src/personalization_v5_session.py 与 test_personalization_v5_session.py；不改变V3，运行并提交。
-- [ ] 3. 写真实回环HTTP测试：两个入口、3秒发送、错误回执、忙/错误码、重复/断连补发；实现 tools/personalization_v5_text.py 与 test_personalization_v5_http.py，提供交互文字及合成演示入口。
+- [x] 1. 写失败测试：载荷校验、去重/名额、结果乱序/求助粘滞、outbox/期限/重启；实现 src/personalization_v5.py 与 test_personalization_v5.py，运行并提交。
+- [x] 2. 写失败测试：2次问候/20秒等待/90秒总时限、5秒分类、迟到回答/恢复；实现 src/personalization_v5_session.py 与 test_personalization_v5_session.py；不改变V3，运行并提交。
+- [x] 3. 写真实回环HTTP测试：两个入口、3秒发送、错误回执、忙/错误码、重复/断连补发；实现 tools/personalization_v5_text.py 与 test_personalization_v5_http.py，提供交互文字及合成演示入口。
 - [ ] 4. 对照v5的18项逐项验收，记录模拟/真实模型/设备边界；独立审查、相关回归与CI，更新TASKS/STATUS，push任务分支并提PR到zy。
 
 工作状态工具本会话未暴露，进度临时记录于忽略的.tmp/v5-text-session-20261126/work-state.json；本文件是可审阅实施计划。

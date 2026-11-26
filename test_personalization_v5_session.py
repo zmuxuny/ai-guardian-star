@@ -125,6 +125,11 @@ class SessionTests(unittest.TestCase):
         restored.recover()
         self.assertEqual(self.store.event('e1')['latest']['error_code'],'interrupted')
         self.assertIsNone(restored.tick('e1'))
+        restored.accept(reminder('after-display'));restored.tick('after-display');restored.displayed('after-display')
+        restored.recover()
+        self.assertEqual(self.store.event('after-display')['latest']['error_code'],'interrupted')
+        self.assertEqual(self.store.event('after-display')['latest']['revision'],1)
+        self.assertEqual(self.store.event('after-display')['state']['prompt_count'],1)
 
     def test_help_arriving_after_total_timer_is_a_late_update(self):
         self.begin();self.advance(91)
