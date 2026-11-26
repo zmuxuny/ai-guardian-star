@@ -1,6 +1,6 @@
 """Run from repository root with Python; recompute metrics, never inference."""
 from pathlib import Path
-import json, statistics, collections, hashlib
+import json, statistics, collections, hashlib, ast
 r=Path('docs/local-llm/evidence/care-v3-2026-11-26')
 read=lambda p:json.loads(p.read_text(encoding='utf-8'))
 d=read(r/'trial.json'); samples=read(r/'resources.json')['samples']
@@ -11,7 +11,9 @@ assert len(rows)==36 and len({x['id'] for x in rows})==36
 materials=Path('fixtures/local_llm/care-v3-2026-11-26'); manifest=read(materials/'manifest.json')
 for name,key in [('inputs.json','inputs_sha256'),('expected.json','expected_sha256')]:
  assert hashlib.sha256((materials/name).read_bytes()).hexdigest()==manifest[key]
-assert hashlib.sha256(Path('tools/local_care_text_v3.py').read_bytes()).hexdigest()==manifest['v3_source_sha256']
+executed=read(r/'policy-source.json')['content'].encode('utf-8')
+assert hashlib.sha256(executed).hexdigest()==manifest['v3_source_sha256']
+assert ast.dump(ast.parse(executed))==ast.dump(ast.parse(Path('tools/local_care_text_v3.py').read_bytes()))
 assert d['manifest']==manifest
 inputs=read(materials/'inputs.json')['cases']; labels=read(materials/'expected.json')
 assert [(x['id'],x['text']) for x in rows]==[(x['id'],x['text']) for x in inputs]

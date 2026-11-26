@@ -140,4 +140,3 @@ class SemanticIntentClient(StreamClient):
     """Keep the established semantic JSON format with a five-second default."""
     def classify(self, text, *, timeout=5):
         return super().classify(text, timeout=timeout)
-
