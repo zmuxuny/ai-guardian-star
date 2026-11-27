@@ -29,7 +29,7 @@ def capture_probe(operation, errors, name, default=None):
         return default
 
 
-def summarize_model(rows):
+def summarize_policy(rows):
     valid = [x for x in rows if x['status'] == 'ok']
     times = [x['wall_seconds'] for x in valid]
     return {
@@ -73,6 +73,11 @@ def main():
     done, unsafe = threading.Event(), threading.Event()
     samples, monitor_errors = [], []
     http_requests = [0]
+    original_classify = SemanticIntentClient.classify
+    def counted_classify(self, text, *, timeout=5):
+        http_requests[0] += 1
+        return original_classify(self, text, timeout=timeout)
+    SemanticIntentClient.classify = counted_classify
     process = None
     current_run = None
     phase = 'initial'
@@ -190,7 +195,6 @@ def main():
                     phase = kind
                     t = time.monotonic()
                     try:
-                        http_requests[0] += 1
                         diagnostic = {'kind': kind, 'status': 'ok', **client.classify(text, timeout=60)}
                     except Exception as error:
                         diagnostic = {'kind': kind, 'status': 'error', 'error': type(error).__name__}
@@ -202,11 +206,12 @@ def main():
                 assert not unsafe.is_set()
                 demo = run_demo(root / ('results/' + current_run), model_url='http://127.0.0.1:18081', model_id=model['id'])
                 item['demo'] = demo
-                http_requests[0] += demo['backend_attempts']
                 for case, expected in zip(demo['cases'], ['okay','needs_help','needs_help']):
                     row = {'id':case['event_id'],'text':case['text'],'expected':expected,
                            'intent':{'ok':'okay'}.get(case['result']['response'],case['result']['response']),
-                           'status':'ok','wall_seconds':case['wall_seconds']}
+                           'status':'ok','wall_seconds':case['wall_seconds'],
+                           'policy_sources':[x['source'] for x in case['policy_decisions']],
+                           'model_called':any(x['model_called'] for x in case['policy_decisions'])}
                     item['rows'].append(row)
                     rows_file.write(json.dumps(row,ensure_ascii=False)+'\n'); rows_file.flush()
                 assert not unsafe.is_set()
@@ -245,19 +250,19 @@ def main():
                          if line.split()[3] == '0A' and line.split()[1].endswith(':46A1')],
             cleanup_errors, 'model_port', False)
         result['cleanup_errors'] = cleanup_errors
-        result['http_requests_sent'] = http_requests[0]
-        result['summaries'] = {run['run_id']: summarize_model(run['rows']) for run in result['runs']}
+        result['classification_client_attempts'] = http_requests[0]
+        result['policy_summaries'] = {run['run_id']: summarize_policy(run['rows']) for run in result['runs']}
         with (root / 'results/trial.json').open('x', encoding='utf-8') as stream:
             json.dump(result, stream, ensure_ascii=False, indent=2)
         print(json.dumps({'stage': 'finished', 'completed': result.get('completed', False),
-                          'summaries': result['summaries'], 'safety': result['safety_triggered']}), flush=True)
+                          'summaries': result['policy_summaries'], 'safety': result['safety_triggered']}), flush=True)
     assert result['completed'] and not unsafe.is_set() and not monitor_errors
     assert not cleanup_errors, 'Cleanup checks failed; evidence retained'
     assert result['monitor_alive_before_stop'] and result['last_resource_age_seconds'] < 10
     assert result['production_files_unchanged'] and result['service_unit_unchanged'] and result['model_port_closed']
     assert result['final_service'] == initial and result['final_stats']['care_mode'] == 'off'
     assert result['final_stats']['camera_connected'] and result['video_after']['complete_jpeg']
-    assert all(x['total'] == 3 for x in result['summaries'].values())
+    assert all(x['total'] == 3 for x in result['policy_summaries'].values())
 
 
 if __name__ == '__main__':
