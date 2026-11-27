@@ -16,6 +16,47 @@ from test_personalization_v5 import NOW, reminder, result
 
 
 class HTTPTests(unittest.TestCase):
+    def test_shared_service_factory_revokes_gate_on_transport_failure_but_accepts_rule_help(self):
+        from test_local_care_prototype import Handler
+        from tools.personalization_v5_text import prepared_session
+        from tools.local_care_text_v3 import SemanticIntentClient
+        Handler.mode='valid'
+        backend=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+        worker=threading.Thread(target=backend.serve_forever,daemon=True);worker.start()
+        client=SemanticIntentClient('http://127.0.0.1:'+str(backend.server_port),'standin')
+        session,gate=prepared_session(self.model,client)
+        self.model_server.close()
+        server=Server(self.model,session,readiness=gate);server.start();self.addCleanup(server.close)
+        try:
+            self.assertEqual(post(server.url+'/personalization/v2/reminders',reminder())[0],503)
+            self.assertTrue(gate.warm())
+            self.assertEqual(post(server.url+'/personalization/v2/reminders',reminder())[0],200)
+            session.tick('e1');session.displayed('e1')
+            backend.shutdown();backend.server_close();worker.join()
+            self.assertEqual(post(server.url+'/text/v1/answers',{'event_id':'e1','text':'我想找人来看看我。'},timeout=7)[0],202)
+            self.assertFalse(gate.ready)
+            self.assertEqual(post(server.url+'/personalization/v2/reminders',reminder('new'))[0],503)
+            code,out=post(server.url+'/text/v1/answers',{'event_id':'e1','text':'我现在起不来，帮帮我。'},timeout=7)
+            self.assertEqual(code,200);self.assertEqual(out['response'],'needs_help')
+        finally:
+            if worker.is_alive():backend.shutdown();backend.server_close();worker.join()
+
+    def test_readiness_blocks_new_reminders_without_reserving_slot_but_preserves_duplicates(self):
+        from src.local_model_readiness import ModelReadiness
+        gate=ModelReadiness(lambda text,timeout:{'intent':'okay'})
+        self.model_server.readiness=gate
+        url=self.model_server.url+'/personalization/v2/reminders'
+        self.assertEqual(post(url,reminder())[0],503)
+        self.assertEqual(self.model.events(),[])
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(self.model_server.url+'/health/ready',timeout=3)
+        self.assertEqual(caught.exception.code,503);caught.exception.close()
+        self.assertTrue(gate.warm())
+        self.assertEqual(post(url,reminder())[1]['disposition'],'accepted')
+        gate.invalidate()
+        self.assertEqual(post(url,reminder())[1]['disposition'],'duplicate')
+        self.assertEqual(post(url,reminder('new'))[0],503)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.now=NOW+1
