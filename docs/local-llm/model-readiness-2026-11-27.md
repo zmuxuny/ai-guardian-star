@@ -1,6 +1,6 @@
 # 模型预热与就绪门禁
 
-本轮按用户“继续下一步”实施预热和就绪控制，基于zy@8594dc2的独立分支`wip/codex-20261127-model-readiness`，不合并或改写未合并的[PR #34](https://github.com/zmuxuny/ai-guardian-star/pull/34)。该PR中的冷启动分类失败保留，本次将准备成本移到接收新提醒之前，而非宣称消除了冷启动耗时。
+本轮按用户“继续下一步”实施预热和就绪控制，基于zy@8594dc2的独立分支`wip/codex-20261127-model-readiness`，不合并或改写未合并的[PR #34](https://github.com/zmuxuny/ai-guardian-star/pull/34)。本轮交付为[PR #35](https://github.com/zmuxuny/ai-guardian-star/pull/35)。该PR #34中的冷启动分类失败保留，本次将准备成本移到接收新提醒之前，而非宣称消除了冷启动耗时。
 
 ## 实现与协议边界
 
