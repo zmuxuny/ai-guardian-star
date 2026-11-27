@@ -1,0 +1,45 @@
+from pathlib import Path
+import json,subprocess,sys,time,os
+sys.path.insert(0,str(Path.cwd()))
+from src.personalization_v5 import Store,iso
+root=Path('.tmp/v5-text-session-20261126/cli-smoke-01').resolve();root.mkdir()
+children=[];logs=[]
+env={**os.environ,'PYTHONUTF8':'1','PYTHONUNBUFFERED':'1'}
+def run(args):
+ p=subprocess.run([sys.executable,'-m','tools.personalization_v5_text',*args],env=env,capture_output=True,text=True,encoding='utf-8',timeout=15)
+ assert p.returncode==0,p.stderr
+ return json.loads(p.stdout)
+def launch(role,extra=()):
+ log=root/(role+'.out');stream=log.open('w',encoding='utf-8');logs.append(stream)
+ p=subprocess.Popen([sys.executable,'-m','tools.personalization_v5_text','serve','--role',role,'--db',str(root/(role+'.sqlite')),'--device','cli-synthetic','--port','0',*extra],env=env,stdout=stream,stderr=subprocess.STDOUT,creationflags=0x08000000 if os.name=='nt' else 0)
+ children.append(p)
+ for _ in range(100):
+  time.sleep(.05)
+  lines=log.read_text(encoding='utf-8').splitlines()
+  if lines:return json.loads(lines[0])['listening']
+  assert p.poll() is None
+ raise TimeoutError('server startup')
+try:
+ peer=launch('peer');model=launch('model',('--simulate','--peer-url',peer))
+ now=time.time();payload=dict(schema_version='2',event_id='cli-synthetic-1',alert_type='late_wakeup',timestamp=iso(now),expires_at=iso(now+120),reason='合成CLI演示')
+ fixture=root/'reminder.json';fixture.write_text(json.dumps(payload,ensure_ascii=False),encoding='utf-8')
+ sent=run(['send','--db',str(root/'peer.sqlite'),'--device','cli-synthetic','--reminder',str(fixture),'--target',model])
+ for _ in range(100):
+  if '"kind": "prompt"' in (root/'model.out').read_text(encoding='utf-8'):break
+  time.sleep(.05)
+ else:raise TimeoutError('prompt absent')
+ answer=run(['answer','--target',model,'--event-id','cli-synthetic-1','--text','我现在起不来，帮帮我。'])
+ store=Store(root/'peer.sqlite','cli-synthetic','peer')
+ for _ in range(100):
+  event=store.event('cli-synthetic-1')
+  if event['latest']:break
+  time.sleep(.05)
+ assert event['latest']['response']=='needs_help' and len(store.help_tasks())==1
+ output={'synthetic':True,'mode':'two_CLI_processes_with_model_stub','send':sent,'answer':answer,'peer_result':event['latest'],'help_tasks':len(store.help_tasks())}
+ (root/'result.json').write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding='utf-8')
+ print(json.dumps(output,ensure_ascii=False))
+finally:
+ for p in children:
+  if p.poll() is None:p.terminate()
+  p.wait(timeout=10)
+ for stream in logs:stream.close()
