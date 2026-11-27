@@ -1,0 +1,27 @@
+from pathlib import Path
+import json,statistics
+r=Path('docs/local-llm/evidence/model-readiness-2026-11-27/automatic-recovery')
+read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+d=read(r/'trial.json');demo=d['runs'][0]['demo'];samples=read(r/'resources.json')['samples']
+assert read(r/'exit.json')['exit_code']==0 and d['completed']
+assert not d['safety_triggered'] and not d['monitor_errors'] and not d['cleanup_errors']
+assert d['monitor_alive_before_stop'] and d['last_resource_age_seconds']<10
+assert all(d[k] for k in ('production_files_unchanged','service_unit_unchanged','model_port_closed'))
+assert d['initial_service']==d['final_service'] and d['final_stats']['care_mode']=='off'
+assert d['final_stats']['camera_connected'] and d['video_after']['complete_jpeg']
+assert demo['same_session_and_gate'] and demo['before']['ready'] and demo['after']['ready']
+assert demo['after']['warm_calls']>demo['before']['warm_calls'] and demo['after']['probe_calls']>demo['before']['probe_calls']
+assert demo['help_preserved']['response']=='needs_help'
+case=demo['cases'][0]
+assert case['result']['response']=='needs_help' and case['policy_decisions'][0]['source']=='model_advisory'
+assert d['classification_client_attempts']==demo['backend_attempts']==sum(demo['final_counters'][k] for k in ('warm_calls','probe_calls','classification_calls'))
+active=[s for s in samples if s['phase']=='formal']
+out={'synthetic':True,'same_service_automatic_recovery':True,'initial_wait_seconds':demo['initial_wait_seconds'],
+     'recovery_wait_seconds':demo['recovery_wait_seconds'],'model_assisted_seconds':case['wall_seconds'],
+     'client_attempts':demo['backend_attempts'],'counters':demo['final_counters'],
+     'resource_samples':len(samples),'active_samples':len(active),'baseline_fps':d['runs'][0]['baseline_fps_median'],
+     'active_fps_mean':statistics.mean(s['stats']['fps'] for s in active),
+     'active_fps_min':min(s['stats']['fps'] for s in active),'active_cpu_mean':statistics.mean(s['cpu_busy_percent'] for s in active),
+     'max_gap_seconds':max(b['elapsed']-a['elapsed'] for a,b in zip(samples,samples[1:]))}
+(r/'summary.json').write_bytes((json.dumps(out,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(out,ensure_ascii=False,indent=2))
