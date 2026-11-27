@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "frozen_policy_commit": "aff145b",
+  "inputs_sha256": "ad260af14e79095668771523fbf8b794a91477884a80296be2f8019c3531ec8d",
+  "expected_sha256": "3f7dad556e6c74f107614569dd4a1dd13e3189ca80889d9f49ba362d8d4fd096",
+  "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+  "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+  "models": [
+    {
+      "id": "qwen25-15b-q4km",
+      "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+      "bytes": 1117320736,
+      "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+    }
+  ],
+  "v3_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e",
+  "fast_source_commit": "dc55e90",
+  "baseline_source_commit": "833a323",
+  "fast_sha256": "a177ec9573906956022a0473cf14957dee76853fad01d9198f1ac26c8faf065b",
+  "baseline_sha256": "4e9205e2eff8fec84ea5c3063afd469b0cab972b00c79effb1c5dbb3e936ceb3"
+}
