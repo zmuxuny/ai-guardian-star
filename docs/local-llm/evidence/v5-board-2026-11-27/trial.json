@@ -1,0 +1,584 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-27T21:06:07.692220+08:00",
+  "manifest": {
+    "schema_version": 1,
+    "frozen_policy_commit": "aff145b",
+    "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+    "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+    "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+    "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+    "models": [
+      {
+        "id": "qwen25-15b-q4km",
+        "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+        "bytes": 1117320736,
+        "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+      }
+    ],
+    "v3_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e"
+  },
+  "initial_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_before": {
+    "http_status": 200,
+    "bytes": 4529,
+    "complete_jpeg": true
+  },
+  "parameters": {
+    "threads": 2,
+    "context": 1024,
+    "parallel": 1,
+    "gpu_layers": 0,
+    "thinking": false,
+    "formal_deadline_seconds": 5,
+    "diagnostic_deadline_seconds": 60
+  },
+  "runs": [
+    {
+      "run_id": "cold_v5",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "id": "synthetic-v5-1",
+          "text": "我现在没事，谢谢关心。",
+          "expected": "okay",
+          "intent": "okay",
+          "status": "ok",
+          "wall_seconds": 0.0649000480000268,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "synthetic-v5-2",
+          "text": "我现在起不来，帮帮我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 0.06515543599999774,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "synthetic-v5-3",
+          "text": "我想找人来看看我。",
+          "expected": "needs_help",
+          "intent": "unclear",
+          "status": "ok",
+          "wall_seconds": 10.12439885599997,
+          "policy_sources": [
+            "fallback",
+            "fallback"
+          ],
+          "model_called": true
+        }
+      ],
+      "diagnostics": [],
+      "baseline_fps_median": 7.55,
+      "ready_seconds": 3.0184652410000012,
+      "demo": {
+        "synthetic": true,
+        "personalization_peer": "simulated",
+        "transport": "real_loopback_HTTP",
+        "mode": "text_with_HTTP_model_backend",
+        "cases": [
+          {
+            "event_id": "synthetic-v5-1",
+            "text": "我现在没事，谢谢关心。",
+            "prompts": 1,
+            "result": {
+              "event_id": "synthetic-v5-1",
+              "prompted_at": "2026-11-27T13:06:41.827111+00:00",
+              "response": "ok",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:06:41.847890+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "okay",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_positive_clauses",
+                "message": "知道了。如果需要帮助，请告诉我。",
+                "clarification_needed": false
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-1",
+                  "timestamp": "2026-11-27T13:06:41.847890+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "ok",
+                  "prompted_at": "2026-11-27T13:06:41.827111+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 0.0649000480000268
+          },
+          {
+            "event_id": "synthetic-v5-2",
+            "text": "我现在起不来，帮帮我。",
+            "prompts": 1,
+            "result": {
+              "event_id": "synthetic-v5-2",
+              "prompted_at": "2026-11-27T13:06:41.923877+00:00",
+              "response": "needs_help",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:06:41.946311+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "needs_help",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_current_help",
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-2",
+                  "timestamp": "2026-11-27T13:06:41.946311+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "needs_help",
+                  "prompted_at": "2026-11-27T13:06:41.923877+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 0.06515543599999774
+          },
+          {
+            "event_id": "synthetic-v5-3",
+            "text": "我想找人来看看我。",
+            "prompts": 2,
+            "result": {
+              "event_id": "synthetic-v5-3",
+              "prompted_at": "2026-11-27T13:06:42.022059+00:00",
+              "response": "unclear",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:06:52.091290+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "fallback",
+                "intent": "unclear",
+                "model_called": true,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "TimeoutError",
+                "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+                "clarification_needed": true
+              },
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "fallback",
+                "intent": "unclear",
+                "model_called": true,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "RemoteDisconnected",
+                "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+                "clarification_needed": true
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 202,
+                "body": {
+                  "disposition": "clarification_pending",
+                  "mode": "text"
+                }
+              },
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-3",
+                  "timestamp": "2026-11-27T13:06:52.091290+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "unclear",
+                  "prompted_at": "2026-11-27T13:06:42.022059+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 10.12439885599997
+          }
+        ],
+        "backend_attempts": 2,
+        "help_tasks": 1,
+        "manual_deliveries": 0
+      },
+      "after_stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "run_id": "warm_v5",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "id": "synthetic-v5-1",
+          "text": "我现在没事，谢谢关心。",
+          "expected": "okay",
+          "intent": "okay",
+          "status": "ok",
+          "wall_seconds": 0.06545724400001518,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "synthetic-v5-2",
+          "text": "我现在起不来，帮帮我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 0.06578251100000898,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "synthetic-v5-3",
+          "text": "我想找人来看看我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 3.928426265999974,
+          "policy_sources": [
+            "model_advisory"
+          ],
+          "model_called": true
+        }
+      ],
+      "diagnostics": [
+        {
+          "kind": "first_prompt_and_warmup_cost",
+          "status": "ok",
+          "content": "{\"intent\": \"okay\"}",
+          "first_token_seconds": 13.163633848000018,
+          "total_seconds": 14.865197351000006,
+          "intent": "okay",
+          "wall_seconds": 14.865536471999974
+        },
+        {
+          "kind": "after_warmup",
+          "status": "ok",
+          "content": "{\"intent\": \"needs_help\"}",
+          "first_token_seconds": 2.0481781959999807,
+          "total_seconds": 4.010819992999984,
+          "intent": "needs_help",
+          "wall_seconds": 4.011171237999974
+        }
+      ],
+      "baseline_fps_median": 7.55,
+      "ready_seconds": 2.5122869159999937,
+      "demo": {
+        "synthetic": true,
+        "personalization_peer": "simulated",
+        "transport": "real_loopback_HTTP",
+        "mode": "text_with_HTTP_model_backend",
+        "cases": [
+          {
+            "event_id": "synthetic-v5-1",
+            "text": "我现在没事，谢谢关心。",
+            "prompts": 1,
+            "result": {
+              "event_id": "synthetic-v5-1",
+              "prompted_at": "2026-11-27T13:07:58.765772+00:00",
+              "response": "ok",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:07:58.783747+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "okay",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_positive_clauses",
+                "message": "知道了。如果需要帮助，请告诉我。",
+                "clarification_needed": false
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-1",
+                  "timestamp": "2026-11-27T13:07:58.783747+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "ok",
+                  "prompted_at": "2026-11-27T13:07:58.765772+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 0.06545724400001518
+          },
+          {
+            "event_id": "synthetic-v5-2",
+            "text": "我现在起不来，帮帮我。",
+            "prompts": 1,
+            "result": {
+              "event_id": "synthetic-v5-2",
+              "prompted_at": "2026-11-27T13:07:58.921287+00:00",
+              "response": "needs_help",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:07:58.940828+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "needs_help",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_current_help",
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-2",
+                  "timestamp": "2026-11-27T13:07:58.940828+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "needs_help",
+                  "prompted_at": "2026-11-27T13:07:58.921287+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 0.06578251100000898
+          },
+          {
+            "event_id": "synthetic-v5-3",
+            "text": "我想找人来看看我。",
+            "prompts": 1,
+            "result": {
+              "event_id": "synthetic-v5-3",
+              "prompted_at": "2026-11-27T13:07:59.022005+00:00",
+              "response": "needs_help",
+              "revision": 1,
+              "schema_version": "2",
+              "status": "completed",
+              "timestamp": "2026-11-27T13:08:02.903569+00:00"
+            },
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "model_advisory",
+                "intent": "needs_help",
+                "model_called": true,
+                "model_intent": "needs_help",
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": null,
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ],
+            "http_responses": [
+              {
+                "http_status": 200,
+                "body": {
+                  "schema_version": "2",
+                  "event_id": "synthetic-v5-3",
+                  "timestamp": "2026-11-27T13:08:02.903569+00:00",
+                  "revision": 1,
+                  "status": "completed",
+                  "response": "needs_help",
+                  "prompted_at": "2026-11-27T13:07:59.022005+00:00"
+                }
+              }
+            ],
+            "wall_seconds": 3.928426265999974
+          }
+        ],
+        "backend_attempts": 1,
+        "help_tasks": 2,
+        "manual_deliveries": 0
+      },
+      "after_stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    }
+  ],
+  "recovery_tests": {
+    "synthetic": true,
+    "process_restart": "actual independent Python child exits/reopens; not power loss",
+    "classification": "V3 explicit-help rule; no inference in recovery checks",
+    "help_payload_unchanged": true,
+    "help_result": {
+      "event_id": "help-restart",
+      "prompted_at": "2026-11-27T13:08:15.459311+00:00",
+      "response": "needs_help",
+      "revision": 1,
+      "schema_version": "2",
+      "status": "completed",
+      "timestamp": "2026-11-27T13:08:15.495069+00:00"
+    },
+    "help_tasks": 1,
+    "disconnected_attempts_before_restart": 1,
+    "crash_points": [
+      {
+        "stage": "marked_before_display",
+        "result": {
+          "error_code": "interrupted",
+          "event_id": "marked_before_display",
+          "revision": 1,
+          "schema_version": "2",
+          "status": "error",
+          "timestamp": "2026-11-27T13:08:21.485164+00:00"
+        },
+        "prompt_count": 1
+      },
+      {
+        "stage": "displayed_before_result",
+        "result": {
+          "error_code": "interrupted",
+          "event_id": "displayed_before_result",
+          "prompted_at": "2026-11-27T13:08:21.719971+00:00",
+          "revision": 1,
+          "schema_version": "2",
+          "status": "error",
+          "timestamp": "2026-11-27T13:08:21.922720+00:00"
+        },
+        "prompt_count": 1
+      }
+    ]
+  },
+  "completed": true,
+  "monitor_alive_before_stop": true,
+  "monitor_errors": [],
+  "resource_sample_count": 48,
+  "last_resource_age_seconds": 1.8859967600000118,
+  "safety_triggered": false,
+  "finished_at": "2026-11-27T21:08:33.980230+08:00",
+  "final_stats": {
+    "fps": 7.5,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 4517,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true,
+  "cleanup_errors": {},
+  "classification_client_attempts": 5,
+  "policy_summaries": {
+    "cold_v5": {
+      "total": 3,
+      "completed": 3,
+      "errors": 0,
+      "correct": 2,
+      "help_total": 2,
+      "help_missed": 1,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 2,
+      "median_complete_seconds": 0.06515543599999774,
+      "max_complete_seconds": 10.12439885599997,
+      "confusion": {
+        "okay": {
+          "okay": 1
+        },
+        "needs_help": {
+          "needs_help": 1,
+          "unclear": 1
+        },
+        "unclear": {}
+      }
+    },
+    "warm_v5": {
+      "total": 3,
+      "completed": 3,
+      "errors": 0,
+      "correct": 3,
+      "help_total": 2,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 3,
+      "median_complete_seconds": 0.06578251100000898,
+      "max_complete_seconds": 3.928426265999974,
+      "confusion": {
+        "okay": {
+          "okay": 1
+        },
+        "needs_help": {
+          "needs_help": 2
+        },
+        "unclear": {}
+      }
+    }
+  }
+}
