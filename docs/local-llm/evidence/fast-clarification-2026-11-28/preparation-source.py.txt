@@ -1,0 +1,49 @@
+import datetime, hashlib, json, os, pathlib, socket, sqlite3, subprocess, tarfile, time, urllib.request
+R=pathlib.Path('/root/guardian-llm-lab/20261128-fast-01')
+P=pathlib.Path('/root/ai_guardian')
+def cmd(args): return subprocess.check_output(args,text=True).strip()
+def digest(p):
+    h=hashlib.sha256()
+    with p.open('rb') as f:
+        for b in iter(lambda:f.read(1024*1024),b''): h.update(b)
+    return h.hexdigest()
+def getstats():
+    op=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with op.open('http://127.0.0.1:5000/api/stats',timeout=3) as response: d=json.load(response)
+    return {**{k:d.get(k) for k in ('fps','camera_connected','mqtt_connected','frame_count')},'care_mode':d.get('care',{}).get('mode')}
+def cpu(): return [int(x) for x in pathlib.Path('/proc/stat').read_text().splitlines()[0].split()[1:9]]
+def mem(): return int(next(l.split()[1] for l in pathlib.Path('/proc/meminfo').read_text().splitlines() if l.startswith('MemAvailable:')))*1024
+assert cmd(['systemctl','is-active','guardian-board.service'])=='active'
+s=socket.socket(); s.bind(('127.0.0.1',18081)); s.close()
+assert not R.exists(), 'Session already exists'
+R.mkdir(parents=True,mode=0o700); os.chmod(R,0o700)
+for d in ('backup','models','results','logs','tools','fixtures/local_llm'): (R/d).mkdir(parents=True,mode=0o700)
+files=[p for p in P.iterdir() if p.is_file() and (p.suffix in ('.py','.so','.om','.json','.yaml','.yml','.sh','.env') or p.name.startswith('.env'))]
+for folder in ('models','migrations','care_audio_assets'):
+    base=P/folder
+    if base.is_dir(): files += [p for p in base.rglob('*') if p.is_file() and not p.is_symlink()]
+manifest={str(p.relative_to(P)):digest(p) for p in files}
+(R/'backup/production-files.before.json').write_text(json.dumps(manifest,indent=2))
+with tarfile.open(R/'backup/code-model-config.tar','x') as tar:
+    for p in files: tar.add(p,arcname=str(p.relative_to(P)),recursive=False)
+(R/'backup/guardian-board.service.txt').write_text(cmd(['systemctl','cat','guardian-board.service']))
+dbs=[]
+for base in (P,P/'data',P/'db'):
+    if not base.exists(): continue
+    iterator=base.iterdir() if base==P else base.rglob('*')
+    for p in iterator:
+        if p.is_file() and p.suffix in ('.db','.sqlite','.sqlite3') and p not in dbs: dbs.append(p)
+for i,p in enumerate(dbs):
+    src=sqlite3.connect(p.as_uri()+'?mode=ro',uri=True,timeout=5)
+    dst=sqlite3.connect(str(R/('backup/db-%02d.sqlite'%i)))
+    src.backup(dst,pages=128,sleep=.05); assert dst.execute('PRAGMA quick_check').fetchone()[0]=='ok'; dst.close(); src.close()
+for p in (R/'backup').iterdir(): os.chmod(p,0o600)
+baseline=[]; pid=int(cmd(['systemctl','show','guardian-board.service','-p','MainPID','--value']))
+for i in range(12):
+    a=cpu(); time.sleep(5); b=cpu(); total=sum(b)-sum(a); idle=b[3]+b[4]-a[3]-a[4]
+    baseline.append({'at':datetime.datetime.now().astimezone().isoformat(),'system_cpu_busy_percent':100*(total-idle)/total,'mem_available_bytes':mem(),'stats':getstats()})
+    if i in (0,5): print('BASELINE %d/12'%(i+1),flush=True)
+assert all(r['stats']['camera_connected'] and r['stats']['fps']>0 for r in baseline), 'Camera baseline failed'
+result={'stage':'prepared','at':datetime.datetime.now().astimezone().isoformat(),'session':str(R),'backed_up_files':len(files),'sqlite_backups_verified':len(dbs),'backup_tar_sha256':digest(R/'backup/code-model-config.tar'),'service_pid':pid,'service_state':cmd(['systemctl','show','guardian-board.service','-p','ActiveState','-p','NRestarts']),'baseline':baseline}
+(R/'results/preparation.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:v for k,v in result.items() if k!='baseline'}),flush=True)

@@ -1,0 +1,182 @@
+{
+  "synthetic": true,
+  "run_order": [
+    "baseline_v4",
+    "fast"
+  ],
+  "client_classification_attempts": 16,
+  "policies": {
+    "baseline_v4": {
+      "correct": 22,
+      "total": 24,
+      "model_attempts_formal": 10,
+      "diagnostic_attempts": 2,
+      "model_failure_fallbacks": 0,
+      "sources": {
+        "model_advisory": 10,
+        "rule": 14
+      },
+      "wrong_ids": [
+        "f18",
+        "f21"
+      ],
+      "formal_timing": {
+        "count": 24,
+        "sum_seconds": 41.48416952000008,
+        "median_seconds": 0.0001690530000075796,
+        "max_seconds": 4.7233254910000255
+      },
+      "by_expected": {
+        "unclear": {
+          "count": 8,
+          "sum_seconds": 32.053798269000026,
+          "median_seconds": 3.988651122499988,
+          "max_seconds": 4.2547063330000015
+        },
+        "needs_help": {
+          "count": 8,
+          "sum_seconds": 4.706126440000048,
+          "median_seconds": 0.00016417850000038925,
+          "max_seconds": 4.704999849000046
+        },
+        "okay": {
+          "count": 8,
+          "sum_seconds": 4.7242448110000055,
+          "median_seconds": 0.0001306154999838327,
+          "max_seconds": 4.7233254910000255
+        }
+      },
+      "baseline_fps_median": 7.6,
+      "formal_resource_samples": 14,
+      "formal_mean_fps": 7.485714285714286,
+      "formal_min_fps": 7.3,
+      "formal_mean_cpu_percent": 57.99517255630383,
+      "diagnostics": [
+        {
+          "kind": "first_prompt_and_warmup_cost",
+          "status": "ok",
+          "wall_seconds": 14.885345626999992
+        },
+        {
+          "kind": "after_warmup",
+          "status": "ok",
+          "wall_seconds": 4.076099569999997
+        }
+      ],
+      "policy_summary": {
+        "total": 24,
+        "completed": 24,
+        "errors": 0,
+        "correct": 22,
+        "help_total": 8,
+        "help_missed": 0,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 24,
+        "median_complete_seconds": 0.0001690530000075796,
+        "max_complete_seconds": 4.7233254910000255,
+        "confusion": {
+          "okay": {
+            "okay": 6,
+            "unclear": 2
+          },
+          "needs_help": {
+            "needs_help": 8
+          },
+          "unclear": {
+            "unclear": 8
+          }
+        }
+      }
+    },
+    "fast": {
+      "correct": 22,
+      "total": 24,
+      "model_attempts_formal": 2,
+      "diagnostic_attempts": 2,
+      "model_failure_fallbacks": 0,
+      "sources": {
+        "rule": 22,
+        "model_advisory": 2
+      },
+      "wrong_ids": [
+        "f18",
+        "f21"
+      ],
+      "formal_timing": {
+        "count": 24,
+        "sum_seconds": 9.530513347999829,
+        "median_seconds": 0.0001070110000114255,
+        "max_seconds": 4.827879139000004
+      },
+      "by_expected": {
+        "unclear": {
+          "count": 8,
+          "sum_seconds": 0.0006449619998534217,
+          "median_seconds": 6.679200001258323e-05,
+          "max_seconds": 0.00013977199995451883
+        },
+        "needs_help": {
+          "count": 8,
+          "sum_seconds": 4.701215844999922,
+          "median_seconds": 0.00011667749998878207,
+          "max_seconds": 4.700342111999987
+        },
+        "okay": {
+          "count": 8,
+          "sum_seconds": 4.828652541000054,
+          "median_seconds": 0.00010678199998892524,
+          "max_seconds": 4.827879139000004
+        }
+      },
+      "baseline_fps_median": 7.6,
+      "formal_resource_samples": 4,
+      "formal_mean_fps": 7.475,
+      "formal_min_fps": 7.4,
+      "formal_mean_cpu_percent": 57.7627012964769,
+      "diagnostics": [
+        {
+          "kind": "first_prompt_and_warmup_cost",
+          "status": "ok",
+          "wall_seconds": 15.041315433000022
+        },
+        {
+          "kind": "after_warmup",
+          "status": "ok",
+          "wall_seconds": 4.021871358999988
+        }
+      ],
+      "policy_summary": {
+        "total": 24,
+        "completed": 24,
+        "errors": 0,
+        "correct": 22,
+        "help_total": 8,
+        "help_missed": 0,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 24,
+        "median_complete_seconds": 0.0001070110000114255,
+        "max_complete_seconds": 4.827879139000004,
+        "confusion": {
+          "okay": {
+            "okay": 6,
+            "unclear": 2
+          },
+          "needs_help": {
+            "needs_help": 8
+          },
+          "unclear": {
+            "unclear": 8
+          }
+        }
+      }
+    }
+  },
+  "resource_sample_count": 64,
+  "maximum_sample_gap_seconds": 3.0273646630000144,
+  "minimum_available_gib": 13.58682632446289,
+  "peak_guardian_rss_mib": 550.84375,
+  "peak_model_hwm_mib": 1166.54296875,
+  "changed_decisions": []
+}
