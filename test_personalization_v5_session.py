@@ -10,6 +10,38 @@ from test_personalization_v5 import NOW, reminder
 
 
 class SessionTests(unittest.TestCase):
+    def test_classification_failure_invalidates_readiness_without_changing_result_rules(self):
+        from src.local_model_readiness import ModelReadiness
+        gate=ModelReadiness(lambda text,timeout:{'intent':'okay'});gate.warm()
+        self.session.on_failure=gate.invalidate
+        self.begin()
+        def broken(text,timeout):raise ConnectionError()
+        self.session.classify=broken
+        self.assertIsNone(self.session.answer('e1','含糊输入'))
+        self.assertFalse(gate.ready)
+        self.assertIsNone(self.session.tick('e1',prompt_available=gate.ready))
+        self.assertIsNone(self.store.event('e1')['latest'])
+
+    def test_pending_followup_accepts_help_while_model_prepares(self):
+        self.begin()
+        self.assertIsNone(self.session.answer('e1','含糊输入'))
+        self.assertIsNone(self.session.tick('e1',prompt_available=False))
+        out=self.session.answer('e1','帮忙')
+        self.assertEqual(out['response'],'needs_help')
+        self.assertEqual(self.store.event('e1')['state']['prompt_count'],1)
+
+    def test_restart_pending_followup_is_interrupted_not_reprompted(self):
+        self.begin();self.session.answer('e1','含糊输入')
+        self.session.recover()
+        self.assertEqual(self.store.event('e1')['latest']['error_code'],'interrupted')
+
+    def test_preparation_wait_still_enforces_session_and_expiry_deadlines(self):
+        self.session.accept(reminder())
+        self.assertIsNone(self.session.tick('e1',prompt_available=False))
+        self.assertEqual(self.store.event('e1')['state']['prompt_count'],0)
+        self.advance(90)
+        self.assertEqual(self.session.tick('e1',prompt_available=False)['error_code'],'session_timeout')
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.wall, self.mono = NOW+1, 100.0

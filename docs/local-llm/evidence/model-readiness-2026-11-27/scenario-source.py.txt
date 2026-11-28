@@ -1,0 +1,88 @@
+import json,threading,time,urllib.request,urllib.error
+from pathlib import Path
+from src.personalization_v5 import Store,iso
+from tools.local_care_text_v3 import SemanticIntentClient
+from tools.personalization_v5_text import Server,prepared_session,post,flush_outbox
+
+
+def run_demo(root,*,model_url,model_id,stop_backend=None):
+    root.mkdir()
+    shared=root.parent/'readiness-shared';shared.mkdir(exist_ok=True)
+    device='readiness-synthetic'
+    model=Store(shared/'model.sqlite',device,'model')
+    peer=Store(shared/'peer.sqlite',device,'peer')
+    session,gate=prepared_session(model,SemanticIntentClient(model_url,model_id))
+    decisions=[]
+    original=session.classify
+    def observed(text,*,timeout):
+        decision=original(text,timeout=timeout);decisions.append(decision);return decision
+    session.classify=observed
+    session.recover()
+    prior={x['event_id']:x['latest'] for x in model.events()}
+    server=Server(model,session,readiness=gate);receiver=Server(peer)
+    stop=threading.Event();worker=None
+    output={'synthetic':True,'cases':[],'backend_attempts':0,'mode':'real_model_with_readiness',
+            'personalization_peer':'simulated','server_restart':'new service instance and model process; not power loss'}
+    def payload(name):
+        now=time.time()
+        return dict(schema_version='2',event_id=root.name+'_'+name,alert_type='late_wakeup',timestamp=iso(now),expires_at=iso(now+120),reason='合成就绪验证')
+    try:
+        server.start();receiver.start()
+        blocked=payload('blocked')
+        code,body=post(server.url+'/personalization/v2/reminders',blocked)
+        assert code==503 and not gate.ready
+        assert not any(x['event_id']==blocked['event_id'] for x in model.events())
+        output['before_ready_http']=code
+        start=time.monotonic();worker=threading.Thread(target=gate.run,args=(stop,),daemon=True);worker.start()
+        while time.monotonic()-start<75:
+            try:
+                with urllib.request.urlopen(server.url+'/health/ready',timeout=3) as response:
+                    health=json.load(response)
+                if health['ready']:break
+            except urllib.error.HTTPError as error:
+                assert error.code==503;error.close()
+            time.sleep(.1)
+        else:raise TimeoutError('readiness did not open')
+        output['ready_wall_seconds']=time.monotonic()-start;output['prepared']=gate.snapshot()
+        assert all(model.event(key)['latest']==value for key,value in prior.items())
+        output['prior_results_unchanged']=True
+        for index,text in enumerate(('我现在没事，谢谢关心。','我现在起不来，帮帮我。','我想找人来看看我。')):
+            reminder=payload(str(index));key=reminder['event_id'];peer.register_reminder(reminder)
+            flush_outbox(peer,server.url)
+            assert model.event(key)['latest'] is None
+            action=session.tick(key,prompt_available=gate.ready);assert action['kind']=='prompt'
+            print(json.dumps(action,ensure_ascii=False),flush=True);session.displayed(key)
+            first_decision=len(decisions);started=time.monotonic()
+            code,value=post(server.url+'/text/v1/answers',dict(event_id=key,text=text),timeout=7)
+            elapsed=time.monotonic()-started
+            assert code==200,(code,value)
+            flush_outbox(model,receiver.url)
+            assert peer.event(key)['latest']==value
+            output['cases'].append({'event_id':key,'text':text,'result':value,'prompts':1,
+                                    'wall_seconds':elapsed,'policy_decisions':decisions[first_decision:]})
+            assert post(server.url+'/personalization/v2/reminders',reminder)[1]['disposition']=='duplicate'
+        if stop_backend:
+            reminder=payload('outage');key=reminder['event_id'];peer.register_reminder(reminder);flush_outbox(peer,server.url)
+            action=session.tick(key);print(json.dumps(action,ensure_ascii=False),flush=True);session.displayed(key)
+            stop_backend()
+            code,value=post(server.url+'/text/v1/answers',dict(event_id=key,text='我想找人来看看我。'),timeout=7)
+            assert code==202 and not gate.ready
+            rejected=payload('rejected_after_failure')
+            assert post(server.url+'/personalization/v2/reminders',rejected)[0]==503
+            assert post(server.url+'/personalization/v2/reminders',reminder)[1]['disposition']=='duplicate'
+            started=time.monotonic()
+            code,value=post(server.url+'/text/v1/answers',dict(event_id=key,text='我现在起不来，帮帮我。'),timeout=7)
+            assert code==200 and value['response']=='needs_help'
+            flush_outbox(model,receiver.url)
+            assert peer.event(key)['help_required']
+            output['outage']={'new_reminder_http':503,'existing_rule_help':value,'help_wall_seconds':time.monotonic()-started}
+        stop.set()
+        if worker:worker.join(timeout=3)
+        output['final_readiness']=gate.snapshot()
+        output['backend_attempts']=sum(output['final_readiness'][k] for k in ('warm_calls','probe_calls','classification_calls'))
+        (root/'result.json').write_text(json.dumps(output,ensure_ascii=False,indent=2),encoding='utf-8')
+        return output
+    finally:
+        stop.set()
+        if worker:worker.join(timeout=1)
+        server.close();receiver.close()

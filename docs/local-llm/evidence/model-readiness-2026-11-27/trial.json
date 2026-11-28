@@ -1,0 +1,471 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-27T21:29:10.992116+08:00",
+  "manifest": {
+    "schema_version": 1,
+    "frozen_policy_commit": "aff145b",
+    "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+    "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+    "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+    "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+    "models": [
+      {
+        "id": "qwen25-15b-q4km",
+        "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+        "bytes": 1117320736,
+        "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+      }
+    ],
+    "v3_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e"
+  },
+  "initial_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_before": {
+    "http_status": 200,
+    "bytes": 4506,
+    "complete_jpeg": true
+  },
+  "parameters": {
+    "threads": 2,
+    "context": 1024,
+    "parallel": 1,
+    "gpu_layers": 0,
+    "thinking": false,
+    "formal_deadline_seconds": 5,
+    "diagnostic_deadline_seconds": 60
+  },
+  "runs": [
+    {
+      "run_id": "initial_readiness",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "id": "initial_readiness_0",
+          "text": "我现在没事，谢谢关心。",
+          "expected": "okay",
+          "intent": "okay",
+          "status": "ok",
+          "wall_seconds": 0.021407753999937995,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "initial_readiness_1",
+          "text": "我现在起不来，帮帮我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 0.07032551499992223,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "initial_readiness_2",
+          "text": "我想找人来看看我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 3.9372050219999437,
+          "policy_sources": [
+            "model_advisory"
+          ],
+          "model_called": true
+        }
+      ],
+      "diagnostics": [],
+      "baseline_fps_median": 7.45,
+      "ready_seconds": 2.5128624339999988,
+      "demo": {
+        "synthetic": true,
+        "cases": [
+          {
+            "event_id": "initial_readiness_0",
+            "text": "我现在没事，谢谢关心。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "initial_readiness_0",
+              "timestamp": "2026-11-27T13:30:03.864480+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "ok",
+              "prompted_at": "2026-11-27T13:30:03.841420+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 0.021407753999937995,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "okay",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_positive_clauses",
+                "message": "知道了。如果需要帮助，请告诉我。",
+                "clarification_needed": false
+              }
+            ]
+          },
+          {
+            "event_id": "initial_readiness_1",
+            "text": "我现在起不来，帮帮我。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "initial_readiness_1",
+              "timestamp": "2026-11-27T13:30:04.006274+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "needs_help",
+              "prompted_at": "2026-11-27T13:30:03.941688+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 0.07032551499992223,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "needs_help",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_current_help",
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ]
+          },
+          {
+            "event_id": "initial_readiness_2",
+            "text": "我想找人来看看我。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "initial_readiness_2",
+              "timestamp": "2026-11-27T13:30:08.024732+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "needs_help",
+              "prompted_at": "2026-11-27T13:30:04.091123+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 3.9372050219999437,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "model_advisory",
+                "intent": "needs_help",
+                "model_called": true,
+                "model_intent": "needs_help",
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": null,
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ]
+          }
+        ],
+        "backend_attempts": 5,
+        "mode": "real_model_with_readiness",
+        "personalization_peer": "simulated",
+        "server_restart": "new service instance and model process; not power loss",
+        "before_ready_http": 503,
+        "ready_wall_seconds": 19.21973387800017,
+        "prepared": {
+          "state": "ready",
+          "last_error": null,
+          "warm_seconds": 15.116910865000136,
+          "probe_seconds": 4.0690283030000955,
+          "warm_calls": 1,
+          "probe_calls": 1,
+          "classification_calls": 0,
+          "ready": true
+        },
+        "prior_results_unchanged": true,
+        "outage": {
+          "new_reminder_http": 503,
+          "existing_rule_help": {
+            "schema_version": "2",
+            "event_id": "initial_readiness_outage",
+            "timestamp": "2026-11-27T13:30:08.363015+00:00",
+            "revision": 1,
+            "status": "completed",
+            "response": "needs_help",
+            "prompted_at": "2026-11-27T13:30:08.102732+00:00"
+          },
+          "help_wall_seconds": 0.04776184100001046
+        },
+        "final_readiness": {
+          "state": "failed",
+          "last_error": "stopped",
+          "warm_seconds": null,
+          "probe_seconds": null,
+          "warm_calls": 2,
+          "probe_calls": 1,
+          "classification_calls": 2,
+          "ready": false
+        }
+      },
+      "after_stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    },
+    {
+      "run_id": "restart_readiness",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "id": "restart_readiness_0",
+          "text": "我现在没事，谢谢关心。",
+          "expected": "okay",
+          "intent": "okay",
+          "status": "ok",
+          "wall_seconds": 0.021131533000016134,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "restart_readiness_1",
+          "text": "我现在起不来，帮帮我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 0.021171031999983825,
+          "policy_sources": [
+            "rule"
+          ],
+          "model_called": false
+        },
+        {
+          "id": "restart_readiness_2",
+          "text": "我想找人来看看我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 3.8659574979999434,
+          "policy_sources": [
+            "model_advisory"
+          ],
+          "model_called": true
+        }
+      ],
+      "diagnostics": [],
+      "baseline_fps_median": 7.55,
+      "ready_seconds": 2.5222218870001143,
+      "demo": {
+        "synthetic": true,
+        "cases": [
+          {
+            "event_id": "restart_readiness_0",
+            "text": "我现在没事，谢谢关心。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "restart_readiness_0",
+              "timestamp": "2026-11-27T13:31:12.998987+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "ok",
+              "prompted_at": "2026-11-27T13:31:12.981300+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 0.021131533000016134,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "okay",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_positive_clauses",
+                "message": "知道了。如果需要帮助，请告诉我。",
+                "clarification_needed": false
+              }
+            ]
+          },
+          {
+            "event_id": "restart_readiness_1",
+            "text": "我现在起不来，帮帮我。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "restart_readiness_1",
+              "timestamp": "2026-11-27T13:31:13.097678+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "needs_help",
+              "prompted_at": "2026-11-27T13:31:13.079528+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 0.021171031999983825,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "rule",
+                "intent": "needs_help",
+                "model_called": false,
+                "model_intent": null,
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": "explicit_current_help",
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ]
+          },
+          {
+            "event_id": "restart_readiness_2",
+            "text": "我想找人来看看我。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "restart_readiness_2",
+              "timestamp": "2026-11-27T13:31:17.037286+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "needs_help",
+              "prompted_at": "2026-11-27T13:31:13.177480+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 3.8659574979999434,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "model_advisory",
+                "intent": "needs_help",
+                "model_called": true,
+                "model_intent": "needs_help",
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": null,
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ]
+          }
+        ],
+        "backend_attempts": 3,
+        "mode": "real_model_with_readiness",
+        "personalization_peer": "simulated",
+        "server_restart": "new service instance and model process; not power loss",
+        "before_ready_http": 503,
+        "ready_wall_seconds": 18.894519602999935,
+        "prepared": {
+          "state": "ready",
+          "last_error": null,
+          "warm_seconds": 14.823590180999872,
+          "probe_seconds": 3.9815940140001658,
+          "warm_calls": 1,
+          "probe_calls": 1,
+          "classification_calls": 0,
+          "ready": true
+        },
+        "prior_results_unchanged": true,
+        "final_readiness": {
+          "state": "failed",
+          "last_error": "stopped",
+          "warm_seconds": 14.823590180999872,
+          "probe_seconds": 3.9815940140001658,
+          "warm_calls": 1,
+          "probe_calls": 1,
+          "classification_calls": 1,
+          "ready": false
+        }
+      },
+      "after_stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    }
+  ],
+  "completed": true,
+  "monitor_alive_before_stop": true,
+  "monitor_errors": [],
+  "resource_sample_count": 50,
+  "last_resource_age_seconds": 0.027366531000097893,
+  "safety_triggered": false,
+  "finished_at": "2026-11-27T21:31:41.394547+08:00",
+  "final_stats": {
+    "fps": 7.4,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 4503,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true,
+  "cleanup_errors": {},
+  "classification_client_attempts": 8,
+  "policy_summaries": {
+    "initial_readiness": {
+      "total": 3,
+      "completed": 3,
+      "errors": 0,
+      "correct": 3,
+      "help_total": 2,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 3,
+      "median_complete_seconds": 0.07032551499992223,
+      "max_complete_seconds": 3.9372050219999437,
+      "confusion": {
+        "okay": {
+          "okay": 1
+        },
+        "needs_help": {
+          "needs_help": 2
+        },
+        "unclear": {}
+      }
+    },
+    "restart_readiness": {
+      "total": 3,
+      "completed": 3,
+      "errors": 0,
+      "correct": 3,
+      "help_total": 2,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 3,
+      "median_complete_seconds": 0.021171031999983825,
+      "max_complete_seconds": 3.8659574979999434,
+      "confusion": {
+        "okay": {
+          "okay": 1
+        },
+        "needs_help": {
+          "needs_help": 2
+        },
+        "unclear": {}
+      }
+    }
+  }
+}

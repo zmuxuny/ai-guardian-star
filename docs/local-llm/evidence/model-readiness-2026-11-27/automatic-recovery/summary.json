@@ -1,0 +1,25 @@
+{
+  "synthetic": true,
+  "same_service_automatic_recovery": true,
+  "initial_wait_seconds": 19.438706865999848,
+  "recovery_wait_seconds": 23.90476446499997,
+  "model_assisted_seconds": 3.888849781999852,
+  "client_attempts": 7,
+  "counters": {
+    "state": "failed",
+    "last_error": "stopped",
+    "warm_seconds": 14.850595001999864,
+    "probe_seconds": 3.968719857999986,
+    "warm_calls": 3,
+    "probe_calls": 2,
+    "classification_calls": 2,
+    "ready": false
+  },
+  "resource_samples": 35,
+  "active_samples": 16,
+  "baseline_fps": 7.6,
+  "active_fps_mean": 7.45625,
+  "active_fps_min": 7.3,
+  "active_cpu_mean": 54.604757039754986,
+  "max_gap_seconds": 3.0224124879996452
+}

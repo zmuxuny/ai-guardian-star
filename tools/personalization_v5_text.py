@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from src.personalization_v5 import ProtocolError, Store, string, iso
 from src.personalization_v5_session import Session
+from src.local_model_readiness import ModelReadiness
 from tools.local_care_text_v3 import SemanticIntentClient, classify_reply
 from tools.local_llm_prep import endpoint, unique_object
 
@@ -102,10 +103,11 @@ class Lease:
 
 
 class Server:
-    def __init__(self,store,session=None,*,host='127.0.0.1',port=0):
+    def __init__(self,store,session=None,*,host='127.0.0.1',port=0,readiness=None):
         if host!='127.0.0.1':raise ValueError('bind explicit IPv4 loopback only')
         if (store.role=='model') != (session is not None):raise ValueError('model requires session; peer must not have one')
         self.store,self.session=store,session
+        self.readiness=readiness
         self.input_healthy=True
         self._lease=Lease(store.path)
         owner=self
@@ -118,6 +120,12 @@ class Server:
                 raw=json.dumps(body,ensure_ascii=False,allow_nan=False).encode('utf-8')
                 self.send_response(code);self.send_header('Content-Type','application/json; charset=utf-8')
                 self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+
+            def do_GET(self):
+                if self.path!='/health/ready':
+                    self.reply(404,{'error':'unknown endpoint'});return
+                state=owner.readiness.snapshot() if owner.readiness else {'state':'not_required','ready':True}
+                self.reply(200 if state['ready'] else 503,state)
 
             def do_POST(self):
                 try:
@@ -138,7 +146,8 @@ class Server:
                     if len(raw)!=length:raise ProtocolError(400,'incomplete body')
                     payload=read_json(raw.decode('utf-8'))
                     if self.path=='/personalization/v2/reminders' and owner.session:
-                        value=owner.session.accept(payload,available=owner.input_healthy)
+                        def accept(ready):return owner.session.accept(payload,available=owner.input_healthy and ready)
+                        value=owner.readiness.accept(accept) if owner.readiness else accept(True)
                         self.reply(200,value)
                     elif self.path=='/personalization/v2/results' and owner.store.role=='peer':
                         self.reply(200,owner.store.accept_result(payload))
@@ -224,6 +233,15 @@ def run_demo(workdir, *, model_url=None, model_id='qwen25-15b-q4km'):
         for server in reversed(servers):server.close()
 
 
+def prepared_session(store,client,*,simulate=False):
+    """Shared setup for the service and isolated board acceptance."""
+    readiness=None if simulate else ModelReadiness(client.classify)
+    def classify(text,*,timeout):
+        infer=(lambda value:{'intent':'unclear'}) if simulate else (lambda value:readiness.classify(value,timeout=timeout))
+        return classify_reply(text,infer)
+    return Session(store,classify,on_failure=readiness.invalidate if readiness else None),readiness
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
@@ -258,19 +276,19 @@ def main():
         print(json.dumps({'registered':payload['event_id'],'pending_now':len(store.pending()),'mode':'simulated_personalization'}))
         return
     if args.peer_url:endpoint(args.peer_url)
-    session=None
+    session=None;readiness=None
     if args.role=='model':
         client=SemanticIntentClient(args.model_url,args.model_id)
-        def classify(text,*,timeout):
-            infer=(lambda value:{'intent':'unclear'}) if args.simulate else (lambda value:client.classify(value,timeout=timeout))
-            return classify_reply(text,infer)
-        session=Session(store,classify)
-    server=Server(store,session,port=args.port)
+        session,readiness=prepared_session(store,client,simulate=args.simulate)
+    server=Server(store,session,port=args.port,readiness=readiness)
     stop=threading.Event()
-    delivery_thread=None
+    delivery_thread=None;preparation_thread=None
     try:
         if session:session.recover()
         server.start()
+        if readiness:
+            preparation_thread=threading.Thread(target=readiness.run,args=(stop,),daemon=True)
+            preparation_thread.start()
         print(json.dumps({'listening':server.url,'role':args.role,'mode':'text',
                           'classifier':('rules_with_stub' if args.simulate else 'V3_with_real_backend') if session else None,
                           'personalization_peer':'simulated' if args.role=='peer' else 'separate_module'},ensure_ascii=False),flush=True)
@@ -286,7 +304,8 @@ def main():
             if session:
                 for event in store.events():
                     if event['latest'] is not None:continue
-                    action=session.tick(event['event_id'],input_healthy=server.input_healthy)
+                    action=session.tick(event['event_id'],input_healthy=server.input_healthy,
+                                        prompt_available=readiness is None or readiness.ready)
                     if action and action.get('kind')=='prompt':
                         try:print(json.dumps(action,ensure_ascii=False),flush=True)
                         except (OSError,UnicodeError):session.displayed(event['event_id'],success=False)
@@ -297,6 +316,7 @@ def main():
         stop.set()
         if delivery_thread:delivery_thread.join(timeout=4)
         server.close()
+        if preparation_thread:preparation_thread.join(timeout=1)
 
 
 if __name__=='__main__':main()

@@ -1,0 +1,36 @@
+from pathlib import Path
+import json,statistics
+r=Path('docs/local-llm/evidence/model-readiness-2026-11-27')
+read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+d=read(r/'trial.json');samples=read(r/'resources.json')['samples']
+assert read(r/'exit.json')['exit_code']==0 and d['completed']
+assert not d['safety_triggered'] and not d['monitor_errors'] and not d['cleanup_errors']
+assert d['monitor_alive_before_stop'] and d['last_resource_age_seconds']<10
+assert d['initial_service']==d['final_service']
+assert all(d[k] for k in ('production_files_unchanged','service_unit_unchanged','model_port_closed'))
+assert d['final_stats']['care_mode']=='off' and d['final_stats']['camera_connected'] and d['video_after']['complete_jpeg']
+assert d['classification_client_attempts']==sum(run['demo']['backend_attempts'] for run in d['runs'])
+out={'synthetic':True,'scope':'real cold model processes and v5 readiness; simulated personalization',
+     'classification_client_attempts':d['classification_client_attempts'],'runs':{}}
+for run in d['runs']:
+ demo=run['demo'];key=run['run_id']
+ assert demo['before_ready_http']==503 and demo['prepared']['ready'] and demo['prior_results_unchanged']
+ assert len(demo['cases'])==3 and [x['result']['response'] for x in demo['cases']]==['ok','needs_help','needs_help']
+ group=[s for s in samples if s['run_id']==key];active=[s for s in group if s['phase']=='formal']
+ out['runs'][key]={'before_ready_http':503,'ready_wall_seconds':demo['ready_wall_seconds'],
+ 'prepared':demo['prepared'],'final_counters':demo['final_readiness'],
+ 'policy_summary':d['policy_summaries'][key],
+ 'cases':[{'text':c['text'],'response':c['result']['response'],'wall_seconds':c['wall_seconds'],
+           'sources':[v['source'] for v in c['policy_decisions']]} for c in demo['cases']],
+ 'outage':demo.get('outage'),'prior_results_unchanged':demo['prior_results_unchanged'],
+ 'baseline_fps':run['baseline_fps_median'],'active_samples':len(active),
+ 'active_fps_mean':statistics.mean(s['stats']['fps'] for s in active),
+ 'active_fps_min':min(s['stats']['fps'] for s in active),
+ 'active_cpu_mean':statistics.mean(s['cpu_busy_percent'] for s in active),
+ 'mem_available_min_gib':min(s['mem_available_bytes'] for s in group)/1024**3,
+ 'model_hwm_max_mib':max(s['model_memory']['VmHWM'] for s in group if s.get('model_memory'))/1024**2}
+first=d['runs'][0]['demo']['outage']
+assert first['new_reminder_http']==503 and first['existing_rule_help']['response']=='needs_help'
+out['resources']={'samples':len(samples),'max_gap_seconds':max(b['elapsed']-a['elapsed'] for a,b in zip(samples,samples[1:]))}
+(r/'summary.json').write_bytes((json.dumps(out,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(out,ensure_ascii=False,indent=2))

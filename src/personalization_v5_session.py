@@ -10,10 +10,11 @@ FIXED_PROMPT = '您好，想问问您现在还好吗，需要帮助吗？'
 
 
 class Session:
-    def __init__(self, store, classify, *, monotonic=None):
+    def __init__(self, store, classify, *, monotonic=None, on_failure=None):
         if store.role != 'model':
             raise ValueError('model store required')
         self.store, self.classify = store, classify
+        self.on_failure=on_failure
         self.monotonic = monotonic or time.monotonic
         self.origins, self.waits, self.late_deadlines = {}, {}, {}
         self._worker = None
@@ -42,7 +43,7 @@ class Session:
                 self.late_deadlines[event_id]=self.monotonic()+max(0,event['late_until']-self.store.clock())
         return result
 
-    def tick(self, event_id, *, input_healthy=True):
+    def tick(self, event_id, *, input_healthy=True, prompt_available=True):
         action = []
         def step(event):
             state = event['state']
@@ -62,7 +63,7 @@ class Session:
                 if state['prompt_count']>=2:
                     return {'response':'unclear' if state['ever_input'] else 'no_response'}
                 state['phase']='pending'
-            if state['phase']=='pending':
+            if state['phase']=='pending' and prompt_available:
                 state.update(phase='prompting',prompt_count=state['prompt_count']+1)
                 action.append({'kind':'prompt','text':FIXED_PROMPT,'event_id':event_id,
                                'attempt':state['prompt_count'],'mode':'text'})
@@ -132,7 +133,7 @@ class Session:
                     raise ProtocolError(410,'window closed; independent help/manual route required')
                 if event['latest'].get('response')=='needs_help':
                     skip.append(event['latest']);return None
-            elif state['phase']!='waiting':
+            elif not (state['phase']=='waiting' or (state['phase']=='pending' and state['prompt_count']>0)):
                 raise ProtocolError(409,'text channel is not awaiting input')
             if state.get('classifying'):
                 raise ProtocolError(503,'classification in progress')
@@ -147,9 +148,11 @@ class Session:
             prediction = self._infer(text)
             intent = prediction.get('intent') if isinstance(prediction,dict) else None
             response = {'okay':'ok','needs_help':'needs_help','unclear':'unclear'}.get(intent,'unclear')
-        except Exception:
+        except Exception as error:
+            if self.on_failure:self.on_failure(type(error).__name__)
             response = 'unclear'
         if self.monotonic()-received_mono>5:
+            if self.on_failure:self.on_failure('classification_deadline')
             response = 'unclear'
         def finish(event):
             state = event['state']
@@ -194,7 +197,7 @@ class Session:
                 if event['latest']:
                     return None
                 origin=self._origin(event)
-                if state['phase']!='pending' or origin is None or state.get('window_uncertain'):
+                if state['phase']!='pending' or state['prompt_count']>0 or origin is None or state.get('window_uncertain'):
                     return {'error':'interrupted'}
                 if self.monotonic()-origin>=90:
                     return {'error':'session_timeout'}
