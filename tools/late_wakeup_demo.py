@@ -119,11 +119,11 @@ def read_samples(path: Path) -> dict[datetime, Observation]:
 
 
 def morning_samples(
-    day: date, samples: dict[datetime, Observation]
+    day: date, samples: dict[datetime, Observation], *, until: datetime | None = None
 ) -> Iterator[Observation]:
     """从 06:00 回放连续的在床区记录，最多读到首次离开床区。"""
     start = at(day, MORNING_START)
-    end = at(day, MORNING_END)
+    end = until if until is not None else at(day, MORNING_END)
     cursor = start
     while cursor < end:
         sample = samples.get(cursor)
@@ -185,7 +185,9 @@ def replay_day(samples: dict[datetime, Observation], typical: time) -> ReplayRes
     day = days.pop()
     threshold = at(day, typical) + LATE_AFTER
     result = ReplayResult()
-    for sample in morning_samples(day, samples):
+    # Training still ends at MORNING_END; detection must include every supported
+    # departure plus LATE_AFTER, including 09:55 -> 11:25.
+    for sample in morning_samples(day, samples, until=at(day, MORNING_END) + LATE_AFTER):
         now = sample.timestamp
         if sample.zone != "bed":
             break
