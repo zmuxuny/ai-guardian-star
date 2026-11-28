@@ -1,5 +1,6 @@
 """Read complete observation CSVs, persist routine events and exchange v5 on loopback."""
 import argparse
+import csv
 from datetime import datetime, timezone
 import json
 import math
@@ -91,7 +92,7 @@ def main():
                         report = scanner.scan(args.observations)
                         if report['registered']:
                             print(json.dumps(report, ensure_ascii=False), flush=True)
-                    except (OSError, ValueError) as error:
+                    except (OSError, ValueError, csv.Error, OverflowError) as error:
                         # A partial CSV write must not stop result reception or durable retries.
                         print(json.dumps({'scan_error': str(error)}, ensure_ascii=False), file=sys.stderr, flush=True)
                     next_scan = time.monotonic()+args.scan_seconds
@@ -99,7 +100,7 @@ def main():
                 time.sleep(.25)
     except KeyboardInterrupt:
         pass
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, csv.Error, OverflowError) as error:
         parser.exit(1, str(error)+'\n')
 
 

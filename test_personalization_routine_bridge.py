@@ -1,10 +1,13 @@
 from datetime import date, time, timedelta
 import json
+import csv
 from pathlib import Path
+from datetime import datetime, timezone
 import tempfile
 import socket
 import subprocess
 import sys
+import threading
 import unittest
 from unittest.mock import patch
 from tools import late_wakeup_demo as replay
@@ -142,6 +145,48 @@ class RoutineBridgeTests(unittest.TestCase):
         self.assertEqual([d['source'] for d in result['outage']['policy_decisions']], ['fallback', 'rule'])
         self.assertEqual(result['outage']['classification_attempts'], 1)
         self.assertTrue(all(c['rescan_and_reopen_duplicate'] for c in result['cases']))
+
+    def test_malformed_csv_does_not_stop_existing_delivery_or_result_reception(self):
+        malformed = self.root/'malformed.csv'
+        malformed.write_text('timestamp,zone,state\n2026-11-24T08:30:00+08:00,'+
+                             'x'*(csv.field_size_limit()+1)+',lying\n', encoding='utf-8')
+        db = self.root/'resilient.sqlite'
+        now = datetime.now(timezone.utc)
+        app = self.http.Personalization(db, lambda: datetime.now(timezone.utc), 'test-device')
+        payload = dict(schema_version='2', event_id='synthetic-existing', device_id='test-device',
+                       alert_type='late_wakeup', timestamp=now.isoformat(),
+                       expires_at=(now+timedelta(seconds=120)).isoformat(), reason='合成持久化重试')
+        app.register(payload)
+        delivered = threading.Event()
+        def receive_reminder(body):
+            self.assertEqual(body, payload)
+            delivered.set()
+            return 'accepted'
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            result_port = sock.getsockname()[1]
+        with self.http.serve(self.http.REMINDERS, receive_reminder) as model_port:
+            command = [sys.executable, '-m', 'tools.personalization_routine_peer',
+                       '--history', str(self.root/'history.csv'), '--observations', str(malformed),
+                       '--db', str(db), '--device-id', 'test-device', '--model-port', str(model_port),
+                       '--results-port', str(result_port), '--seconds', '3']
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, encoding='utf-8')
+            try:
+                self.assertEqual(json.loads(process.stdout.readline())['mode'], 'CSV_rules_peer')
+                self.assertTrue(delivered.wait(1.5), 'pending reminder stopped with malformed CSV')
+                result = dict(schema_version='2', event_id=payload['event_id'], device_id='test-device',
+                              revision=1, status='completed', response='needs_help', timestamp=now.isoformat())
+                code, ack = self.http.post(result_port, self.http.RESULTS, result)
+                self.assertEqual((code, ack['disposition']), (200, 'accepted'))
+                _out, error = process.communicate(timeout=6)
+                self.assertEqual(process.returncode, 0, error)
+                self.assertIn('scan_error', error)
+                self.assertEqual(app.summary(payload['event_id'])['help_tasks'], 1)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                process.communicate(timeout=6)
 
     def test_three_rules_cross_actual_peer_and_model_http_implementations(self):
         from src.personalization_v5 import Store
