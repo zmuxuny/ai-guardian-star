@@ -1,0 +1,185 @@
+{
+  "synthetic": true,
+  "scope": "real cold model processes and v5 readiness; simulated personalization",
+  "classification_client_attempts": 8,
+  "runs": {
+    "initial_readiness": {
+      "before_ready_http": 503,
+      "ready_wall_seconds": 19.21973387800017,
+      "prepared": {
+        "state": "ready",
+        "last_error": null,
+        "warm_seconds": 15.116910865000136,
+        "probe_seconds": 4.0690283030000955,
+        "warm_calls": 1,
+        "probe_calls": 1,
+        "classification_calls": 0,
+        "ready": true
+      },
+      "final_counters": {
+        "state": "failed",
+        "last_error": "stopped",
+        "warm_seconds": null,
+        "probe_seconds": null,
+        "warm_calls": 2,
+        "probe_calls": 1,
+        "classification_calls": 2,
+        "ready": false
+      },
+      "policy_summary": {
+        "total": 3,
+        "completed": 3,
+        "errors": 0,
+        "correct": 3,
+        "help_total": 2,
+        "help_missed": 0,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 3,
+        "median_complete_seconds": 0.07032551499992223,
+        "max_complete_seconds": 3.9372050219999437,
+        "confusion": {
+          "okay": {
+            "okay": 1
+          },
+          "needs_help": {
+            "needs_help": 2
+          },
+          "unclear": {}
+        }
+      },
+      "cases": [
+        {
+          "text": "我现在没事，谢谢关心。",
+          "response": "ok",
+          "wall_seconds": 0.021407753999937995,
+          "sources": [
+            "rule"
+          ]
+        },
+        {
+          "text": "我现在起不来，帮帮我。",
+          "response": "needs_help",
+          "wall_seconds": 0.07032551499992223,
+          "sources": [
+            "rule"
+          ]
+        },
+        {
+          "text": "我想找人来看看我。",
+          "response": "needs_help",
+          "wall_seconds": 3.9372050219999437,
+          "sources": [
+            "model_advisory"
+          ]
+        }
+      ],
+      "outage": {
+        "new_reminder_http": 503,
+        "existing_rule_help": {
+          "schema_version": "2",
+          "event_id": "initial_readiness_outage",
+          "timestamp": "2026-11-27T13:30:08.363015+00:00",
+          "revision": 1,
+          "status": "completed",
+          "response": "needs_help",
+          "prompted_at": "2026-11-27T13:30:08.102732+00:00"
+        },
+        "help_wall_seconds": 0.04776184100001046
+      },
+      "prior_results_unchanged": true,
+      "baseline_fps": 7.45,
+      "active_samples": 8,
+      "active_fps_mean": 7.425,
+      "active_fps_min": 7.3,
+      "active_cpu_mean": 57.438899185565774,
+      "mem_available_min_gib": 13.583114624023438,
+      "model_hwm_max_mib": 1167.1328125
+    },
+    "restart_readiness": {
+      "before_ready_http": 503,
+      "ready_wall_seconds": 18.894519602999935,
+      "prepared": {
+        "state": "ready",
+        "last_error": null,
+        "warm_seconds": 14.823590180999872,
+        "probe_seconds": 3.9815940140001658,
+        "warm_calls": 1,
+        "probe_calls": 1,
+        "classification_calls": 0,
+        "ready": true
+      },
+      "final_counters": {
+        "state": "failed",
+        "last_error": "stopped",
+        "warm_seconds": 14.823590180999872,
+        "probe_seconds": 3.9815940140001658,
+        "warm_calls": 1,
+        "probe_calls": 1,
+        "classification_calls": 1,
+        "ready": false
+      },
+      "policy_summary": {
+        "total": 3,
+        "completed": 3,
+        "errors": 0,
+        "correct": 3,
+        "help_total": 2,
+        "help_missed": 0,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 3,
+        "median_complete_seconds": 0.021171031999983825,
+        "max_complete_seconds": 3.8659574979999434,
+        "confusion": {
+          "okay": {
+            "okay": 1
+          },
+          "needs_help": {
+            "needs_help": 2
+          },
+          "unclear": {}
+        }
+      },
+      "cases": [
+        {
+          "text": "我现在没事，谢谢关心。",
+          "response": "ok",
+          "wall_seconds": 0.021131533000016134,
+          "sources": [
+            "rule"
+          ]
+        },
+        {
+          "text": "我现在起不来，帮帮我。",
+          "response": "needs_help",
+          "wall_seconds": 0.021171031999983825,
+          "sources": [
+            "rule"
+          ]
+        },
+        {
+          "text": "我想找人来看看我。",
+          "response": "needs_help",
+          "wall_seconds": 3.8659574979999434,
+          "sources": [
+            "model_advisory"
+          ]
+        }
+      ],
+      "outage": null,
+      "prior_results_unchanged": true,
+      "baseline_fps": 7.55,
+      "active_samples": 8,
+      "active_fps_mean": 7.5125,
+      "active_fps_min": 7.3,
+      "active_cpu_mean": 56.506343780430065,
+      "mem_available_min_gib": 13.58359146118164,
+      "model_hwm_max_mib": 1166.38671875
+    }
+  },
+  "resources": {
+    "samples": 50,
+    "max_gap_seconds": 3.023243635999961
+  }
+}

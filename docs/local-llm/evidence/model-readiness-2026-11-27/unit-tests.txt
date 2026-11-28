@@ -1,0 +1,12 @@
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-1", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-2", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-3", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-3", "attempt": 2, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-1", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-2", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-3", "attempt": 1, "mode": "text"}
+{"kind": "prompt", "text": "您好，想问问您现在还好吗，需要帮助吗？", "event_id": "synthetic-v5-3", "attempt": 2, "mode": "text"}
+----------------------------------------------------------------------
+Ran 51 tests in 11.366s
+
+OK

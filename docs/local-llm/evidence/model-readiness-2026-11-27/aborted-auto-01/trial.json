@@ -1,0 +1,99 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-27T21:35:26.469664+08:00",
+  "manifest": {
+    "schema_version": 1,
+    "frozen_policy_commit": "aff145b",
+    "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+    "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+    "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+    "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+    "models": [
+      {
+        "id": "qwen25-15b-q4km",
+        "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+        "bytes": 1117320736,
+        "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+      }
+    ],
+    "v3_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e"
+  },
+  "initial_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_before": {
+    "http_status": 200,
+    "bytes": 4538,
+    "complete_jpeg": true
+  },
+  "parameters": {
+    "threads": 2,
+    "context": 1024,
+    "parallel": 1,
+    "gpu_layers": 0,
+    "thinking": false,
+    "formal_deadline_seconds": 5,
+    "diagnostic_deadline_seconds": 60
+  },
+  "runs": [
+    {
+      "run_id": "automatic_recovery",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [],
+      "diagnostics": [],
+      "baseline_fps_median": 7.5,
+      "ready_seconds": 2.513030580999839
+    }
+  ],
+  "monitor_alive_before_stop": true,
+  "monitor_errors": [],
+  "resource_sample_count": 28,
+  "last_resource_age_seconds": 0.9262708430001112,
+  "safety_triggered": false,
+  "finished_at": "2026-11-27T21:36:51.633533+08:00",
+  "final_stats": {
+    "fps": 7.6,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 4516,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true,
+  "cleanup_errors": {},
+  "classification_client_attempts": 5,
+  "policy_summaries": {
+    "automatic_recovery": {
+      "total": 0,
+      "completed": 0,
+      "errors": 0,
+      "correct": 0,
+      "help_total": 0,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 0,
+      "median_complete_seconds": null,
+      "max_complete_seconds": null,
+      "confusion": {
+        "okay": {},
+        "needs_help": {},
+        "unclear": {}
+      }
+    }
+  }
+}

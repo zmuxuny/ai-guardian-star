@@ -1,0 +1,199 @@
+{
+  "synthetic": true,
+  "started_at": "2026-11-27T21:39:16.486159+08:00",
+  "manifest": {
+    "schema_version": 1,
+    "frozen_policy_commit": "aff145b",
+    "inputs_sha256": "5fa9fdd1f139226762f30be174b2c2984f4cc24c95dc2dc7d0b0ce64c5f86e80",
+    "expected_sha256": "be63b0a9b0c2e198920b09a6d2d262d27a8bc5cd24fc38427f9ea41556f84092",
+    "prompt_source_sha256": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+    "binary_sha256": "94028ef29551277f495715865aa6f056202d95622dcd2802293c065713d4a853",
+    "models": [
+      {
+        "id": "qwen25-15b-q4km",
+        "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+        "bytes": 1117320736,
+        "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+      }
+    ],
+    "v3_source_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e"
+  },
+  "initial_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_before": {
+    "http_status": 200,
+    "bytes": 4479,
+    "complete_jpeg": true
+  },
+  "parameters": {
+    "threads": 2,
+    "context": 1024,
+    "parallel": 1,
+    "gpu_layers": 0,
+    "thinking": false,
+    "formal_deadline_seconds": 5,
+    "diagnostic_deadline_seconds": 60
+  },
+  "runs": [
+    {
+      "run_id": "automatic_recovery",
+      "model_id": "qwen25-15b-q4km",
+      "rows": [
+        {
+          "id": "after_auto_recovery",
+          "text": "我想找人来看看我。",
+          "expected": "needs_help",
+          "intent": "needs_help",
+          "status": "ok",
+          "wall_seconds": 3.888849781999852,
+          "policy_sources": [
+            "model_advisory"
+          ],
+          "model_called": true
+        }
+      ],
+      "diagnostics": [],
+      "baseline_fps_median": 7.6,
+      "ready_seconds": 2.5170008800000687,
+      "demo": {
+        "synthetic": true,
+        "mode": "same_service_automatic_model_recovery",
+        "initial_wait_seconds": 19.438706865999848,
+        "recovery_wait_seconds": 23.90476446499997,
+        "before": {
+          "state": "ready",
+          "last_error": null,
+          "warm_seconds": 15.04364114100008,
+          "probe_seconds": 4.3057401949999985,
+          "warm_calls": 1,
+          "probe_calls": 1,
+          "classification_calls": 0,
+          "ready": true
+        },
+        "after": {
+          "state": "ready",
+          "last_error": null,
+          "warm_seconds": 14.850595001999864,
+          "probe_seconds": 3.968719857999986,
+          "warm_calls": 3,
+          "probe_calls": 2,
+          "classification_calls": 1,
+          "ready": true
+        },
+        "final_counters": {
+          "state": "failed",
+          "last_error": "stopped",
+          "warm_seconds": 14.850595001999864,
+          "probe_seconds": 3.968719857999986,
+          "warm_calls": 3,
+          "probe_calls": 2,
+          "classification_calls": 2,
+          "ready": false
+        },
+        "same_session_and_gate": true,
+        "help_preserved": {
+          "schema_version": "2",
+          "event_id": "outage",
+          "timestamp": "2026-11-27T13:40:09.814845+00:00",
+          "revision": 1,
+          "status": "completed",
+          "response": "needs_help",
+          "prompted_at": "2026-11-27T13:40:09.555271+00:00"
+        },
+        "backend_attempts": 7,
+        "cases": [
+          {
+            "event_id": "after_auto_recovery",
+            "text": "我想找人来看看我。",
+            "result": {
+              "schema_version": "2",
+              "event_id": "after_auto_recovery",
+              "timestamp": "2026-11-27T13:40:37.660315+00:00",
+              "revision": 1,
+              "status": "completed",
+              "response": "needs_help",
+              "prompted_at": "2026-11-27T13:40:33.776728+00:00"
+            },
+            "prompts": 1,
+            "wall_seconds": 3.888849781999852,
+            "policy_decisions": [
+              {
+                "policy_version": "experimental-care-text/3",
+                "source": "model_advisory",
+                "intent": "needs_help",
+                "model_called": true,
+                "model_intent": "needs_help",
+                "auto_cancel": false,
+                "preserve_alert": true,
+                "fallback_reason": null,
+                "message": "听到了，您需要帮助。",
+                "clarification_needed": false
+              }
+            ]
+          }
+        ]
+      },
+      "after_stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "care_mode": "off"
+      }
+    }
+  ],
+  "completed": true,
+  "monitor_alive_before_stop": true,
+  "monitor_errors": [],
+  "resource_sample_count": 35,
+  "last_resource_age_seconds": 0.23510467999994944,
+  "safety_triggered": false,
+  "finished_at": "2026-11-27T21:41:01.989472+08:00",
+  "final_stats": {
+    "fps": 7.4,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  },
+  "final_service": {
+    "MainPID": "2144",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "video_after": {
+    "http_status": 200,
+    "bytes": 4508,
+    "complete_jpeg": true
+  },
+  "production_file_count": 62,
+  "production_files_unchanged": true,
+  "service_unit_unchanged": true,
+  "model_port_closed": true,
+  "cleanup_errors": {},
+  "classification_client_attempts": 7,
+  "policy_summaries": {
+    "automatic_recovery": {
+      "total": 1,
+      "completed": 1,
+      "errors": 0,
+      "correct": 1,
+      "help_total": 1,
+      "help_missed": 0,
+      "wrong_okay": 0,
+      "false_help": 0,
+      "completed_within_5_seconds": 1,
+      "median_complete_seconds": 3.888849781999852,
+      "max_complete_seconds": 3.888849781999852,
+      "confusion": {
+        "okay": {},
+        "needs_help": {
+          "needs_help": 1
+        },
+        "unclear": {}
+      }
+    }
+  }
+}
