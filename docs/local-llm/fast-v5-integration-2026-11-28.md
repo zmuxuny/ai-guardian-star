@@ -47,6 +47,6 @@ python -m tools.personalization_v5_text serve --role model --db '.tmp/fast-v5-se
 
 ## 重算与边界
 
-在仓库根执行`python docs/local-llm/evidence/fast-v5-2026-11-28/analysis-source.py.txt`，可重算全部决策与调用加和、五行之外故障阶段、资源及收尾断言，无需连接设备。准备/启动快照与上传哈希位于同目录；trial.py对应57a9f3b的`tools/local_fast_v5_board_trial.py`。重跑须使用新的私有目录并同步修改快照内路径，不能覆盖既有结果或使用生产数据库。
+在仓库根执行`python docs/local-llm/evidence/fast-v5-2026-11-28/analysis-source.py.txt`，可重算全部决策与调用加和、五行之外故障阶段、资源及收尾断言，无需连接设备。准备/启动快照与上传哈希位于同目录；trial.py对应57a9f3b的`tools/local_fast_v5_board_trial.py`，asset-manifest.json对应同提交的`fixtures/local_llm/fast-clarification-2026-11-27/manifest.json`，均按Git原始字节核验。重跑须使用新的私有目录并同步修改快照内路径，不能覆盖既有结果或使用生产数据库。
 
 本次依赖PR #37的候选代码，交付PR目标zy，不自动合并。尚未接入真实个性化服务、生产care/App、模型生成问候、语音、物理断电断网、窗口外独立求助或长期运行。下一步与个性化方核对真实接收端和既定v5参数，再做双方联调。
