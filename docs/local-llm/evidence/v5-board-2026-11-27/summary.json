@@ -1,0 +1,219 @@
+{
+  "synthetic": true,
+  "not_quality_benchmark": true,
+  "classification_attempts": 5,
+  "runs": {
+    "cold_v5": {
+      "policy_summary": {
+        "total": 3,
+        "completed": 3,
+        "errors": 0,
+        "correct": 2,
+        "help_total": 2,
+        "help_missed": 1,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 2,
+        "median_complete_seconds": 0.06515543599999774,
+        "max_complete_seconds": 10.12439885599997,
+        "confusion": {
+          "okay": {
+            "okay": 1
+          },
+          "needs_help": {
+            "needs_help": 1,
+            "unclear": 1
+          },
+          "unclear": {}
+        }
+      },
+      "classification_attempts": 2,
+      "diagnostics": [],
+      "cases": [
+        {
+          "text": "我现在没事，谢谢关心。",
+          "response": "ok",
+          "prompts": 1,
+          "wall_seconds": 0.0649000480000268,
+          "sources": [
+            "rule"
+          ],
+          "fallback_reasons": [
+            "explicit_positive_clauses"
+          ]
+        },
+        {
+          "text": "我现在起不来，帮帮我。",
+          "response": "needs_help",
+          "prompts": 1,
+          "wall_seconds": 0.06515543599999774,
+          "sources": [
+            "rule"
+          ],
+          "fallback_reasons": [
+            "explicit_current_help"
+          ]
+        },
+        {
+          "text": "我想找人来看看我。",
+          "response": "unclear",
+          "prompts": 2,
+          "wall_seconds": 10.12439885599997,
+          "sources": [
+            "fallback",
+            "fallback"
+          ],
+          "fallback_reasons": [
+            "TimeoutError",
+            "RemoteDisconnected"
+          ]
+        }
+      ],
+      "baseline_fps": 7.55,
+      "formal_samples": 4,
+      "formal_fps_mean": 7.35,
+      "formal_fps_min": 7.3,
+      "formal_cpu_mean": 56.01895213516596,
+      "mem_available_min_gib": 13.599014282226562,
+      "model_hwm_max_mib": 1165.23046875
+    },
+    "warm_v5": {
+      "policy_summary": {
+        "total": 3,
+        "completed": 3,
+        "errors": 0,
+        "correct": 3,
+        "help_total": 2,
+        "help_missed": 0,
+        "wrong_okay": 0,
+        "false_help": 0,
+        "completed_within_5_seconds": 3,
+        "median_complete_seconds": 0.06578251100000898,
+        "max_complete_seconds": 3.928426265999974,
+        "confusion": {
+          "okay": {
+            "okay": 1
+          },
+          "needs_help": {
+            "needs_help": 2
+          },
+          "unclear": {}
+        }
+      },
+      "classification_attempts": 1,
+      "diagnostics": [
+        {
+          "kind": "first_prompt_and_warmup_cost",
+          "status": "ok",
+          "content": "{\"intent\": \"okay\"}",
+          "first_token_seconds": 13.163633848000018,
+          "total_seconds": 14.865197351000006,
+          "intent": "okay",
+          "wall_seconds": 14.865536471999974
+        },
+        {
+          "kind": "after_warmup",
+          "status": "ok",
+          "content": "{\"intent\": \"needs_help\"}",
+          "first_token_seconds": 2.0481781959999807,
+          "total_seconds": 4.010819992999984,
+          "intent": "needs_help",
+          "wall_seconds": 4.011171237999974
+        }
+      ],
+      "cases": [
+        {
+          "text": "我现在没事，谢谢关心。",
+          "response": "ok",
+          "prompts": 1,
+          "wall_seconds": 0.06545724400001518,
+          "sources": [
+            "rule"
+          ],
+          "fallback_reasons": [
+            "explicit_positive_clauses"
+          ]
+        },
+        {
+          "text": "我现在起不来，帮帮我。",
+          "response": "needs_help",
+          "prompts": 1,
+          "wall_seconds": 0.06578251100000898,
+          "sources": [
+            "rule"
+          ],
+          "fallback_reasons": [
+            "explicit_current_help"
+          ]
+        },
+        {
+          "text": "我想找人来看看我。",
+          "response": "needs_help",
+          "prompts": 1,
+          "wall_seconds": 3.928426265999974,
+          "sources": [
+            "model_advisory"
+          ],
+          "fallback_reasons": [
+            null
+          ]
+        }
+      ],
+      "baseline_fps": 7.55,
+      "formal_samples": 2,
+      "formal_fps_mean": 7.55,
+      "formal_fps_min": 7.5,
+      "formal_cpu_mean": 55.149046434494196,
+      "mem_available_min_gib": 13.59811782836914,
+      "model_hwm_max_mib": 1166.3359375
+    }
+  },
+  "resources": {
+    "total_samples": 48,
+    "max_gap_seconds": 3.0237086169999543
+  },
+  "recovery_tests": {
+    "synthetic": true,
+    "process_restart": "actual independent Python child exits/reopens; not power loss",
+    "classification": "V3 explicit-help rule; no inference in recovery checks",
+    "help_payload_unchanged": true,
+    "help_result": {
+      "event_id": "help-restart",
+      "prompted_at": "2026-11-27T13:08:15.459311+00:00",
+      "response": "needs_help",
+      "revision": 1,
+      "schema_version": "2",
+      "status": "completed",
+      "timestamp": "2026-11-27T13:08:15.495069+00:00"
+    },
+    "help_tasks": 1,
+    "disconnected_attempts_before_restart": 1,
+    "crash_points": [
+      {
+        "stage": "marked_before_display",
+        "result": {
+          "error_code": "interrupted",
+          "event_id": "marked_before_display",
+          "revision": 1,
+          "schema_version": "2",
+          "status": "error",
+          "timestamp": "2026-11-27T13:08:21.485164+00:00"
+        },
+        "prompt_count": 1
+      },
+      {
+        "stage": "displayed_before_result",
+        "result": {
+          "error_code": "interrupted",
+          "event_id": "displayed_before_result",
+          "prompted_at": "2026-11-27T13:08:21.719971+00:00",
+          "revision": 1,
+          "schema_version": "2",
+          "status": "error",
+          "timestamp": "2026-11-27T13:08:21.922720+00:00"
+        },
+        "prompt_count": 1
+      }
+    ]
+  }
+}

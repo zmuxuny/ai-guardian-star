@@ -1,0 +1,2433 @@
+{
+  "synthetic": true,
+  "real_model_requests": 0,
+  "note": "三个可能建议逐一枚举；只检验规则与仲裁，不是模型质量或速度。",
+  "summary": {
+    "v3": {
+      "inputs": 24,
+      "policy_evaluations": 72,
+      "robust_correct": 14,
+      "robust_help": 8,
+      "wrong_help_inputs": 8,
+      "wrong_okay_inputs": 0,
+      "model_stub_callbacks": 9,
+      "remaining": [
+        {
+          "id": "q01",
+          "text": "我并没有说我需要家人过来帮忙。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        },
+        {
+          "id": "q04",
+          "text": "我未曾表示需要医生来扶我。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        },
+        {
+          "id": "q06",
+          "text": "我现在没有不舒服，只是在看书。",
+          "expected": "okay",
+          "actual": [
+            "unclear"
+          ]
+        },
+        {
+          "id": "q07",
+          "text": "我不曾要求你来帮我拿东西。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        },
+        {
+          "id": "q10",
+          "text": "我没请求过有人来陪我。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help",
+            "unclear"
+          ]
+        },
+        {
+          "id": "q13",
+          "text": "我不是说现在需要你来搭把手。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        },
+        {
+          "id": "q16",
+          "text": "我并非提出要你帮我联系家人。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        },
+        {
+          "id": "q19",
+          "text": "我没有说我想找人陪着我。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help",
+            "unclear"
+          ]
+        },
+        {
+          "id": "q21",
+          "text": "我状态很好，刚晒完衣服，现在不需要帮助。",
+          "expected": "okay",
+          "actual": [
+            "unclear"
+          ]
+        },
+        {
+          "id": "q22",
+          "text": "我并没有表示我需要人帮一下。",
+          "expected": "unclear",
+          "actual": [
+            "needs_help"
+          ]
+        }
+      ]
+    },
+    "v4": {
+      "inputs": 24,
+      "policy_evaluations": 72,
+      "robust_correct": 22,
+      "robust_help": 8,
+      "wrong_help_inputs": 0,
+      "wrong_okay_inputs": 0,
+      "model_stub_callbacks": 27,
+      "remaining": [
+        {
+          "id": "q06",
+          "text": "我现在没有不舒服，只是在看书。",
+          "expected": "okay",
+          "actual": [
+            "unclear"
+          ]
+        },
+        {
+          "id": "q21",
+          "text": "我状态很好，刚晒完衣服，现在不需要帮助。",
+          "expected": "okay",
+          "actual": [
+            "unclear"
+          ]
+        }
+      ]
+    }
+  },
+  "rows": [
+    {
+      "id": "q01",
+      "text": "我并没有说我需要家人过来帮忙。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q02",
+      "text": "我没有说要你拿东西，不过我现在动不了。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q03",
+      "text": "我目前挺好的，谢谢惦记。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q04",
+      "text": "我未曾表示需要医生来扶我。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q05",
+      "text": "不是要你猜，麻烦你来扶一下我。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q06",
+      "text": "我现在没有不舒服，只是在看书。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q07",
+      "text": "我不曾要求你来帮我拿东西。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q08",
+      "text": "我没请求过你帮我收拾，现在我需要人来帮忙。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q09",
+      "text": "我自己能正常起身活动，别担心。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q10",
+      "text": "我没请求过有人来陪我。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "needs_help",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": null,
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q11",
+      "text": "我不是说我不舒服，但能否来陪我片刻？",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q12",
+      "text": "我今天没事，刚才坐着休息了一会儿。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q13",
+      "text": "我不是说现在需要你来搭把手。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q14",
+      "text": "我未曾提出让你找医生，不过我目前起不来。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q15",
+      "text": "我已经解决好了，不必你帮忙。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q16",
+      "text": "我并非提出要你帮我联系家人。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q17",
+      "text": "我不是说要叫家人，我现在自己走不了。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q18",
+      "text": "我没有碰到问题，精神不错，谢谢提醒。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q19",
+      "text": "我没有说我想找人陪着我。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "needs_help",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": null,
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q20",
+      "text": "我没有说过你要扶我，但请你过来搭把手。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q21",
+      "text": "我状态很好，刚晒完衣服，现在不需要帮助。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q22",
+      "text": "我并没有表示我需要人帮一下。",
+      "expected": "unclear",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q23",
+      "text": "我没说我需要人来，但现在帮帮我。",
+      "expected": "needs_help",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q24",
+      "text": "我这会儿身体没问题，请放心。",
+      "expected": "okay",
+      "version": "v3",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/3",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q01",
+      "text": "我并没有说我需要家人过来帮忙。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q02",
+      "text": "我没有说要你拿东西，不过我现在动不了。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q03",
+      "text": "我目前挺好的，谢谢惦记。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q04",
+      "text": "我未曾表示需要医生来扶我。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q05",
+      "text": "不是要你猜，麻烦你来扶一下我。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q06",
+      "text": "我现在没有不舒服，只是在看书。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "unclear",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "positive_with_unresolved_clause",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q07",
+      "text": "我不曾要求你来帮我拿东西。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q08",
+      "text": "我没请求过你帮我收拾，现在我需要人来帮忙。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q09",
+      "text": "我自己能正常起身活动，别担心。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q10",
+      "text": "我没请求过有人来陪我。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q11",
+      "text": "我不是说我不舒服，但能否来陪我片刻？",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q12",
+      "text": "我今天没事，刚才坐着休息了一会儿。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q13",
+      "text": "我不是说现在需要你来搭把手。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q14",
+      "text": "我未曾提出让你找医生，不过我目前起不来。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q15",
+      "text": "我已经解决好了，不必你帮忙。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q16",
+      "text": "我并非提出要你帮我联系家人。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q17",
+      "text": "我不是说要叫家人，我现在自己走不了。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q18",
+      "text": "我没有碰到问题，精神不错，谢谢提醒。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q19",
+      "text": "我没有说我想找人陪着我。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q20",
+      "text": "我没有说过你要扶我，但请你过来搭把手。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q21",
+      "text": "我状态很好，刚晒完衣服，现在不需要帮助。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": false
+    },
+    {
+      "id": "q22",
+      "text": "我并没有表示我需要人帮一下。",
+      "expected": "unclear",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "okay",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "needs_help",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "model_advisory",
+          "intent": "unclear",
+          "model_called": true,
+          "model_intent": "unclear",
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "model_requires_confirmation",
+          "message": "我还不能确认您的意思，请明确告诉我是否需要帮助。",
+          "clarification_needed": true
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q23",
+      "text": "我没说我需要人来，但现在帮帮我。",
+      "expected": "needs_help",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "needs_help",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_current_help",
+          "message": "听到了，您需要帮助。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    },
+    {
+      "id": "q24",
+      "text": "我这会儿身体没问题，请放心。",
+      "expected": "okay",
+      "version": "v4",
+      "outputs": [
+        {
+          "advisory": "okay",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "needs_help",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        },
+        {
+          "advisory": "unclear",
+          "policy_version": "experimental-care-text/4",
+          "source": "rule",
+          "intent": "okay",
+          "model_called": false,
+          "model_intent": null,
+          "auto_cancel": false,
+          "preserve_alert": true,
+          "fallback_reason": "explicit_positive_clauses",
+          "message": "知道了。如果需要帮助，请告诉我。",
+          "clarification_needed": false
+        }
+      ],
+      "robust_correct": true
+    }
+  ]
+}
