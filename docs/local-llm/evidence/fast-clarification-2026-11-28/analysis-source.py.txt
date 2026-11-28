@@ -1,0 +1,72 @@
+"""Recompute only synthetic trial evidence; never opens private backups."""
+import json
+import statistics
+from collections import Counter
+from pathlib import Path
+
+root = Path('docs/local-llm/evidence/fast-clarification-2026-11-28')
+trial = json.loads((root / 'trial.json').read_text(encoding='utf-8'))
+resources = json.loads((root / 'resources.json').read_text(encoding='utf-8'))
+exit_record = json.loads((root / 'exit.json').read_text(encoding='utf-8'))
+assert exit_record['exit_code'] == 0
+assert trial['completed'] and not trial['safety_triggered']
+assert not trial['monitor_errors'] and not trial['cleanup_errors']
+assert trial['monitor_alive_before_stop'] and trial['last_resource_age_seconds'] < 10
+assert trial['production_files_unchanged'] and trial['service_unit_unchanged']
+assert trial['final_service'] == trial['initial_service']
+assert trial['model_port_closed'] and trial['final_stats']['care_mode'] == 'off'
+assert trial['final_stats']['camera_connected'] and trial['final_stats']['mqtt_connected']
+assert trial['video_after']['complete_jpeg']
+assert len(resources) == trial['resource_sample_count']
+assert not any(row.get('safety_stop') for row in resources)
+assert {run['run_id'] for run in trial['runs']} == {'baseline_v4', 'fast'}
+
+def timing(values):
+    return {'count': len(values), 'sum_seconds': sum(values),
+            'median_seconds': statistics.median(values) if values else None,
+            'max_seconds': max(values) if values else None}
+
+summary = {'synthetic': True, 'run_order': ['baseline_v4', 'fast'],
+           'client_classification_attempts': trial['http_requests_sent'],
+           'policies': {}, 'resource_sample_count': len(resources),
+           'maximum_sample_gap_seconds': max(b['elapsed'] - a['elapsed']
+                                            for a, b in zip(resources, resources[1:])),
+           'minimum_available_gib': min(r['mem_available_bytes'] for r in resources) / 2**30,
+           'peak_guardian_rss_mib': max(r['guardian_memory']['VmRSS'] for r in resources) / 2**20,
+           'peak_model_hwm_mib': max(r['model_memory']['VmHWM'] for r in resources
+                                     if r.get('model_memory')) / 2**20}
+count = 0
+for run in trial['runs']:
+    rows = run['rows']
+    assert len(rows) == 24 and len({r['id'] for r in rows}) == 24
+    assert Counter(r['expected'] for r in rows) == {'okay': 8, 'needs_help': 8, 'unclear': 8}
+    assert all(r['status'] == 'ok' and r['policy']['preserve_alert']
+               and not r['policy']['auto_cancel'] for r in rows)
+    attempts = sum(r['policy']['model_called'] for r in rows)
+    count += attempts + len(run['diagnostics'])
+    formal = [r for r in resources if r['run_id'] == run['run_id'] and r['phase'] == 'formal']
+    summary['policies'][run['run_id']] = {
+        'correct': sum(r['intent'] == r['expected'] for r in rows), 'total': len(rows),
+        'model_attempts_formal': attempts, 'diagnostic_attempts': len(run['diagnostics']),
+        'model_failure_fallbacks': sum('model_error' in r for r in rows),
+        'sources': dict(Counter(r['policy']['source'] for r in rows)),
+        'wrong_ids': [r['id'] for r in rows if r['intent'] != r['expected']],
+        'formal_timing': timing([r['wall_seconds'] for r in rows]),
+        'by_expected': {label: timing([r['wall_seconds'] for r in rows if r['expected'] == label])
+                        for label in ('unclear', 'needs_help', 'okay')},
+        'baseline_fps_median': run['baseline_fps_median'],
+        'formal_resource_samples': len(formal),
+        'formal_mean_fps': statistics.mean(r['stats']['fps'] for r in formal) if formal else None,
+        'formal_min_fps': min(r['stats']['fps'] for r in formal) if formal else None,
+        'formal_mean_cpu_percent': statistics.mean(r['cpu_busy_percent'] for r in formal) if formal else None,
+        'diagnostics': [{'kind': d['kind'], 'status': d['status'], 'wall_seconds': d['wall_seconds']}
+                        for d in run['diagnostics']],
+        'policy_summary': trial['policy_summaries'][run['run_id']],
+    }
+assert count == trial['http_requests_sent']
+before, after = trial['runs']
+summary['changed_decisions'] = [{'id': a['id'], 'baseline': a['intent'], 'fast': b['intent']}
+                                for a, b in zip(before['rows'], after['rows'])
+                                if a['intent'] != b['intent']]
+assert [r['id'] for r in before['rows']] == [r['id'] for r in after['rows']]
+print(json.dumps(summary, ensure_ascii=False, indent=2))

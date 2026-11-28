@@ -1,0 +1,12 @@
+{
+  "tools/local_care_text_v4_fast.py": "a177ec9573906956022a0473cf14957dee76853fad01d9198f1ac26c8faf065b",
+  "tools/local_care_prototype.py": "be360fdc1fe784253df9d44ed06263fbecd2d04bb10cb46c1efca85b77f6192a",
+  "tools/local_care_board_trial.py": "231f14fbb4193adb72ae033c711ee768576242becb5e4deaffb080bf02f3a232",
+  "tools/local_llm_prep.py": "a1876c2ded6f9cfc69e53cc6d3ddd471dd9687f077ffd09394d8bcabf66cf995",
+  "test_local_care_fast_clarification.py": "b51ffbf0639ac46733f0e36a846b4f3aa794dd6d29ecca47e3ed3093399dae99",
+  "fixtures/local_llm/fast-clarification-2026-11-27/expected.json": "3f7dad556e6c74f107614569dd4a1dd13e3189ca80889d9f49ba362d8d4fd096",
+  "fixtures/local_llm/fast-clarification-2026-11-27/inputs.json": "ad260af14e79095668771523fbf8b794a91477884a80296be2f8019c3531ec8d",
+  "fixtures/local_llm/fast-clarification-2026-11-27/manifest.json": "966b836da5fe778616e6f6155df78892b7ad93b19cbb3bccfac66f376cd37c2c",
+  "baseline_v4.py": "4e9205e2eff8fec84ea5c3063afd469b0cab972b00c79effb1c5dbb3e936ceb3",
+  "trial.py": "5103e42b76360f86b4031f10278946c17c029837ae191eb11085ca99c9852c40"
+}
