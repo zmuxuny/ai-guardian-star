@@ -1,0 +1,79 @@
+{
+  "synthetic": true,
+  "policy": "v4-fast",
+  "initial_readiness_seconds": 18.96556274600016,
+  "same_service_recovery_seconds": 24.03583353399995,
+  "cases": [
+    {
+      "event_id": "rule_ok",
+      "response": "ok",
+      "prompts": 1,
+      "wall_seconds": 0.023771884000097998,
+      "model_calls": 0
+    },
+    {
+      "event_id": "denial",
+      "response": "unclear",
+      "prompts": 2,
+      "wall_seconds": 0.10819673599985435,
+      "model_calls": 0
+    },
+    {
+      "event_id": "mixed_help",
+      "response": "needs_help",
+      "prompts": 1,
+      "wall_seconds": 0.025448826000001645,
+      "model_calls": 0
+    },
+    {
+      "event_id": "weak_help",
+      "response": "needs_help",
+      "prompts": 1,
+      "wall_seconds": 4.660764113999903,
+      "model_calls": 1
+    },
+    {
+      "event_id": "after_auto_recovery",
+      "response": "needs_help",
+      "prompts": 1,
+      "wall_seconds": 3.9661706370000047,
+      "model_calls": 1
+    }
+  ],
+  "scored_case_count": 5,
+  "additional_outage": {
+    "failed_answer_http": 202,
+    "failure_wall_seconds": 0.021611959999972896,
+    "rule_help_wall_seconds": 0.024364493999883052,
+    "help_response": "needs_help"
+  },
+  "all_policy_sources": {
+    "rule": 5,
+    "model_advisory": 2,
+    "fallback": 1
+  },
+  "all_classification_calls": 3,
+  "warm_calls": 3,
+  "probe_calls": 2,
+  "client_attempts_all_stages": 8,
+  "help_tasks": 4,
+  "resources_count": 36,
+  "max_sample_gap_seconds": 3.0278350749999845,
+  "baseline_fps_median": 7.6,
+  "formal_samples": 17,
+  "formal_mean_fps": 7.564705882352941,
+  "minimum_available_gib": 13.57613754272461,
+  "peak_guardian_rss_mib": 552.91796875,
+  "peak_model_hwm_mib": 1166.50390625,
+  "final_service": {
+    "MainPID": "2259",
+    "NRestarts": "0",
+    "ActiveState": "active"
+  },
+  "final_stats": {
+    "fps": 7.5,
+    "camera_connected": true,
+    "mqtt_connected": true,
+    "care_mode": "off"
+  }
+}

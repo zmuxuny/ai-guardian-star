@@ -1,0 +1,156 @@
+{
+  "stage": "prepared",
+  "at": "2026-11-28T11:04:58.365477+08:00",
+  "session": "/root/guardian-llm-lab/20261128-fast-v5-01",
+  "backed_up_files": 62,
+  "sqlite_backups_verified": 1,
+  "backup_tar_sha256": "6ed61d544483fdc0c3f66bbb6e606a3cfced79ce9323967a1bafc97e6abd12b3",
+  "service_pid": 2259,
+  "service_state": "NRestarts=0\nActiveState=active",
+  "baseline": [
+    {
+      "at": "2026-11-28T11:04:03.172666+08:00",
+      "system_cpu_busy_percent": 7.934131736526946,
+      "mem_available_bytes": 14697738240,
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 8859,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:08.197821+08:00",
+      "system_cpu_busy_percent": 8.195902048975512,
+      "mem_available_bytes": 14697218048,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 8897,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:13.205814+08:00",
+      "system_cpu_busy_percent": 7.884231536926148,
+      "mem_available_bytes": 14697226240,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 8935,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:18.213887+08:00",
+      "system_cpu_busy_percent": 8.982035928143713,
+      "mem_available_bytes": 14695931904,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 8972,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:23.241838+08:00",
+      "system_cpu_busy_percent": 7.8802992518703245,
+      "mem_available_bytes": 14695161856,
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9010,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:28.251520+08:00",
+      "system_cpu_busy_percent": 7.742257742257742,
+      "mem_available_bytes": 14695387136,
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9048,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:33.269805+08:00",
+      "system_cpu_busy_percent": 7.922272047832586,
+      "mem_available_bytes": 14696185856,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9086,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:38.278637+08:00",
+      "system_cpu_busy_percent": 7.646176911544228,
+      "mem_available_bytes": 14696710144,
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9124,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:43.285791+08:00",
+      "system_cpu_busy_percent": 7.826520438683948,
+      "mem_available_bytes": 14695927808,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9161,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:48.296017+08:00",
+      "system_cpu_busy_percent": 8.071748878923767,
+      "mem_available_bytes": 14695682048,
+      "stats": {
+        "fps": 7.4,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9199,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:53.309812+08:00",
+      "system_cpu_busy_percent": 7.75,
+      "mem_available_bytes": 14696452096,
+      "stats": {
+        "fps": 7.5,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9237,
+        "care_mode": "off"
+      }
+    },
+    {
+      "at": "2026-11-28T11:04:58.333864+08:00",
+      "system_cpu_busy_percent": 7.972097658196313,
+      "mem_available_bytes": 14695141376,
+      "stats": {
+        "fps": 7.6,
+        "camera_connected": true,
+        "mqtt_connected": true,
+        "frame_count": 9275,
+        "care_mode": "off"
+      }
+    }
+  ]
+}
