@@ -1,0 +1,9 @@
+{
+  "tools/late_wakeup_demo.py": "9a481431d60d0ef08f00f884944cfbfd43b1c3c83a0b3ccd6432587a0db314d1",
+  "tools/routine_alert_demo.py": "2928f972acc04f39499fb003b7c1726cfc478b045412e4f177d8ae26b4ce7e51",
+  "tools/personalization_http.py": "04418bcf916f7a06439c55ab6c1678dc9a66bba48e86ed8d130fca5a50a9ece2",
+  "tools/personalization_http_demo.py": "814526457685560de08c3bb73c49de598e34518887d815158c108f473992a214",
+  "tests/test_late_wakeup_demo.py": "5f56e73b7a0f50f99b8f63b22183b8b45e3c3d55fa2aec9e6e73327ac05243c8",
+  "tests/test_routine_alert_demo.py": "696e0a5a882ce68d1158300a4409ce17b8f378ece6e8e76f85ced2930dddcaf1",
+  "tests/test_personalization_http.py": "8737a2b052efe7689555d1de7e8a886651337490d64b74b4f9c4068810e37d2d"
+}

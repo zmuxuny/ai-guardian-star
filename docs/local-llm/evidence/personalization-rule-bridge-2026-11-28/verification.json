@@ -1,0 +1,13 @@
+{
+  "source_commit": "a10d22b",
+  "upstream_commit": "839edbe22ce9742e99ae36bcbdef93bc92308aa8",
+  "local_related_tests": 170,
+  "local_test_seconds": 29.328,
+  "independent_review": "Important CSV error isolation fixed; no remaining Critical/Important",
+  "board_status": "NOT_RUN: forwarded SSH connection closed and gateway localhost listener refused",
+  "remote_backup_performed": false,
+  "remote_upload_performed": false,
+  "real_model_joint_test_performed": false,
+  "production_deployment_performed": false,
+  "prepared_upload_files": 30
+}

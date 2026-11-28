@@ -97,6 +97,10 @@
 
 | T-20261128-04 | 按授权复核PR #37/#38并顺序合并 | codex | #37合并db87c31；#38最新审查7274ab4/CI46104423484通过，产品不变；本记录随#38交付，更新CI成功后按head匹配合并，最终SHA见PR | 已完成（合并复核；最终状态见PR） | 2026-11-28 |
 
+| T-20261128-05 | 查看个性化839edbe交付包并核对v5接口 | codex | wip/codex-20261128-personalization-handoff-review/zy@2f612e2；21测试与5类本机HTTP交叉验证通过；发现晚起窗口P2及已披露规则自动接线未完成；报告personalization-handoff-review-2026-11-28.md | 已完成（查看；仅本地记录，未修复/部署） | 2026-11-28 |
+
+| T-20261128-06 | 修正晚起窗口并接通规则CSV到模型HTTP，再隔离上板 | codex | wip/codex-20261128-personalization-rule-bridge；790c0c8/41e5158/a10d22b；170本机/独立复审通过，证据7f3cfe7/草稿PR #39，设备转发不可用未上板；报告personalization-rule-bridge-2026-11-28.md | 待验证（板端连接恢复后继续；草稿交付） | 2026-11-28 |
+
 ## 备注
 
 - `T-20261025-01` 的代码已在 `zy` 工作区，但尚未提交；归属和验收边界以 `STATUS-codex.md` / `STATUS-deepseek.md` 的最新记录为准。
