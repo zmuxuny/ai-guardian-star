@@ -1,0 +1,18 @@
+from pathlib import Path
+import hashlib,json,tarfile,subprocess
+r=Path('/root/guardian-llm-lab/20261128-fast-v5-02')
+with tarfile.open(r/'backup/code-model-config.tar') as t:
+ before=json.loads((r/'backup/production-files.before.json').read_text())
+ for name,h in before.items():assert hashlib.sha256(t.extractfile(name).read()).hexdigest()==h
+with tarfile.open(r/'upload.tar') as t:
+ assert all(not m.name.startswith('/') and '..' not in Path(m.name).parts for m in t.getmembers())
+ t.extractall(r)
+manifest=json.loads((r/'upload-manifest.json').read_text())
+assert all(hashlib.sha256((r/n).read_bytes()).hexdigest()==h for n,h in manifest.items())
+with (r/'results/unit-tests.txt').open('x') as log:
+ subprocess.run(['python3','-m','unittest','test_personalization_v5','test_personalization_v5_session','test_personalization_v5_http','test_local_model_readiness','test_personalization_v5_fast','-q'],cwd=r,stdout=log,stderr=subprocess.STDOUT,check=True)
+assert not (r/'logs/driver.log').exists()
+code="import subprocess,json,pathlib; r=pathlib.Path(%r); p=subprocess.run(['timeout','--signal=TERM','--kill-after=30','1800','python3','trial.py','--session',str(r)],cwd=r); (r/'results/exit.json').write_text(json.dumps({'exit_code':p.returncode})); raise SystemExit(p.returncode)"%str(r)
+with (r/'logs/driver.log').open('x') as log:
+ p=subprocess.Popen(['python3','-c',code],cwd=r,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+print(json.dumps({'launcher_pid':p.pid,'verified_backup_files':len(before),'uploaded_files':len(manifest),'unit_tests':'57 v5/readiness/fast tests passed'}))

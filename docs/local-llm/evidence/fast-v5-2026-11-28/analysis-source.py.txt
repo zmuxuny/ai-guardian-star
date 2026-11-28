@@ -1,0 +1,73 @@
+"""Recompute synthetic fast/v5 integration evidence, including outage decisions."""
+import json
+import statistics
+from collections import Counter
+from pathlib import Path
+
+root = Path('docs/local-llm/evidence/fast-v5-2026-11-28')
+trial = json.loads((root/'trial.json').read_text(encoding='utf-8'))
+resources = json.loads((root/'resources.json').read_text(encoding='utf-8'))
+assert json.loads((root/'exit.json').read_text())['exit_code'] == 0
+assert trial['completed'] and not trial['safety_triggered']
+assert not trial['monitor_errors'] and not trial['cleanup_errors']
+assert trial['monitor_alive_before_stop'] and trial['last_resource_age_seconds'] < 10
+assert trial['production_files_unchanged'] and trial['service_unit_unchanged']
+assert trial['final_service'] == trial['initial_service']
+assert trial['model_port_closed'] and trial['final_stats']['care_mode'] == 'off'
+assert trial['final_stats']['camera_connected'] and trial['final_stats']['mqtt_connected']
+assert trial['video_after']['complete_jpeg']
+assert len(resources) == trial['resource_sample_count']
+assert not any(r.get('safety_stop') for r in resources)
+assert len(trial['runs']) == 1
+run = trial['runs'][0]
+demo = run['demo']
+assert demo['policy'] == 'v4-fast' and demo['same_session_and_gate']
+assert demo['cold_new_reminder_http'] == demo['outage_new_reminder_http'] == 503
+assert demo['help_tasks'] == 4
+assert demo['after']['ready'] and demo['before']['ready']
+assert demo['help_preserved'] == demo['outage']['help_result']
+assert demo['outage']['failed_answer_http'] == 202
+assert demo['outage']['classification_attempts'] == 1
+assert not demo['outage']['after_failure']['ready']
+assert [d['source'] for d in demo['outage']['policy_decisions']] == ['fallback', 'rule']
+assert [c['result']['response'] for c in demo['cases']] == ['ok', 'unclear', 'needs_help', 'needs_help', 'needs_help']
+assert demo['cases'][1]['prompts'] == 2 and demo['cases'][1]['classification_attempts'] == 0
+assert all(d['source'] == 'rule' and not d['model_called']
+           for d in demo['cases'][1]['policy_decisions'])
+assert all(c['result']['schema_version'] == '2' for c in demo['cases'])
+assert all(row['intent'] == row['expected'] for row in run['rows'])
+decisions = [d for c in demo['cases'] for d in c['policy_decisions']]
+decisions += demo['outage']['policy_decisions']
+assert all(d['preserve_alert'] and not d['auto_cancel'] for d in decisions)
+counters = demo['final_counters']
+assert sum(d['model_called'] for d in decisions) == counters['classification_calls']
+assert sum(counters[k] for k in ('warm_calls', 'probe_calls', 'classification_calls')) == demo['backend_attempts'] == trial['classification_client_attempts']
+formal = [r for r in resources if r['phase'] == 'formal']
+summary = {
+    'synthetic': True, 'policy': 'v4-fast',
+    'initial_readiness_seconds': demo['initial_wait_seconds'],
+    'same_service_recovery_seconds': demo['recovery_wait_seconds'],
+    'cases': [{'event_id': c['event_id'], 'response': c['result']['response'],
+               'prompts': c['prompts'], 'wall_seconds': c['wall_seconds'],
+               'model_calls': sum(d['model_called'] for d in c['policy_decisions'])}
+              for c in demo['cases']],
+    'scored_case_count': len(demo['cases']),
+    'additional_outage': {'failed_answer_http': demo['outage']['failed_answer_http'],
+                          'failure_wall_seconds': demo['outage']['failure_wall_seconds'],
+                          'rule_help_wall_seconds': demo['outage']['help_wall_seconds'],
+                          'help_response': demo['outage']['help_result']['response']},
+    'all_policy_sources': dict(Counter(d['source'] for d in decisions)),
+    'all_classification_calls': counters['classification_calls'],
+    'warm_calls': counters['warm_calls'], 'probe_calls': counters['probe_calls'],
+    'client_attempts_all_stages': trial['classification_client_attempts'],
+    'help_tasks': demo['help_tasks'], 'resources_count': len(resources),
+    'max_sample_gap_seconds': max(b['elapsed']-a['elapsed'] for a,b in zip(resources,resources[1:])),
+    'baseline_fps_median': run['baseline_fps_median'],
+    'formal_samples': len(formal),
+    'formal_mean_fps': statistics.mean(r['stats']['fps'] for r in formal),
+    'minimum_available_gib': min(r['mem_available_bytes'] for r in resources)/2**30,
+    'peak_guardian_rss_mib': max(r['guardian_memory']['VmRSS'] for r in resources)/2**20,
+    'peak_model_hwm_mib': max(r['model_memory']['VmHWM'] for r in resources if r.get('model_memory'))/2**20,
+    'final_service': trial['final_service'], 'final_stats': trial['final_stats'],
+}
+print(json.dumps(summary, ensure_ascii=False, indent=2))

@@ -233,12 +233,18 @@ def run_demo(workdir, *, model_url=None, model_id='qwen25-15b-q4km'):
         for server in reversed(servers):server.close()
 
 
-def prepared_session(store,client,*,simulate=False):
+def prepared_session(store,client,*,simulate=False,policy='v3'):
     """Shared setup for the service and isolated board acceptance."""
+    if policy=='v3':
+        classify_policy=classify_reply
+    elif policy=='v4-fast':
+        from tools.local_care_text_v4_fast import classify_reply as classify_policy
+    else:
+        raise ValueError('unsupported text policy')
     readiness=None if simulate else ModelReadiness(client.classify)
     def classify(text,*,timeout):
         infer=(lambda value:{'intent':'unclear'}) if simulate else (lambda value:readiness.classify(value,timeout=timeout))
-        return classify_reply(text,infer)
+        return classify_policy(text,infer)
     return Session(store,classify,on_failure=readiness.invalidate if readiness else None),readiness
 
 
@@ -251,6 +257,8 @@ def main():
     serve.add_argument('--port',type=int,required=True);serve.add_argument('--peer-url')
     serve.add_argument('--model-url',default='http://127.0.0.1:18081')
     serve.add_argument('--model-id',default='qwen25-15b-q4km')
+    serve.add_argument('--policy',choices=('v3','v4-fast'),default='v3',
+                       help='text policy; v4-fast is an explicit research candidate')
     serve.add_argument('--simulate',action='store_true',help='rules plus fixed unclear model stub; not real inference')
     send=sub.add_parser('send',help='persist simulated reminder before first HTTP send')
     send.add_argument('--db',required=True);send.add_argument('--device',required=True)
@@ -279,7 +287,7 @@ def main():
     session=None;readiness=None
     if args.role=='model':
         client=SemanticIntentClient(args.model_url,args.model_id)
-        session,readiness=prepared_session(store,client,simulate=args.simulate)
+        session,readiness=prepared_session(store,client,simulate=args.simulate,policy=args.policy)
     server=Server(store,session,port=args.port,readiness=readiness)
     stop=threading.Event()
     delivery_thread=None;preparation_thread=None
@@ -290,7 +298,9 @@ def main():
             preparation_thread=threading.Thread(target=readiness.run,args=(stop,),daemon=True)
             preparation_thread.start()
         print(json.dumps({'listening':server.url,'role':args.role,'mode':'text',
-                          'classifier':('rules_with_stub' if args.simulate else 'V3_with_real_backend') if session else None,
+                          'classifier':('rules_with_stub' if args.simulate else
+                                        ('V3_with_real_backend' if args.policy=='v3' else 'V4_FAST_with_real_backend')) if session else None,
+                          'policy':args.policy if session else None,
                           'personalization_peer':'simulated' if args.role=='peer' else 'separate_module'},ensure_ascii=False),flush=True)
         if args.peer_url:
             def deliver():
