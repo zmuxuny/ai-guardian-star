@@ -253,7 +253,7 @@ def main():
     assert result['monitor_alive_before_stop'] and result['last_resource_age_seconds'] < 10
     assert result['production_files_unchanged'] and result['service_unit_unchanged'] and result['model_port_closed']
     assert result['final_service'] == initial and result['final_stats']['care_mode'] == 'off'
-    assert result['final_stats']['camera_connected'] and result['video_after']['complete_jpeg']
+    assert result['final_stats']['camera_connected'] and result['final_stats']['mqtt_connected'] and result['video_after']['complete_jpeg']
     assert all(x['total'] == 5 for x in result['policy_summaries'].values())
 
 

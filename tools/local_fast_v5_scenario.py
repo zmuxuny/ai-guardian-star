@@ -61,13 +61,20 @@ def run_demo(root,*,model_url,model_id,stop_backend,restart_backend):
                           'classification_attempts':gate.snapshot()['classification_calls']-count_before})
         accept('outage')
         stop_backend()
-        code,_=post(server.url+'/text/v1/answers',dict(event_id='outage',text='我想找人来看看我。'),timeout=7)
+        outage_first=len(decisions);outage_calls=gate.snapshot()['classification_calls'];start=time.monotonic()
+        code,failed_answer=post(server.url+'/text/v1/answers',dict(event_id='outage',text='我想找人来看看我。'),timeout=7)
         assert code==202 and not gate.ready
+        outage={'failed_answer_http':code,'failed_answer':failed_answer,
+                'failure_wall_seconds':time.monotonic()-start,'after_failure':gate.snapshot()}
         now=time.time();blocked=dict(schema_version='2',event_id='outage-rejected',alert_type='late_wakeup',timestamp=iso(now),expires_at=iso(now+120),reason='合成故障门禁')
         assert post(server.url+'/personalization/v2/reminders',blocked)[0]==503
         assert not any(e['event_id']==blocked['event_id'] for e in model.events())
+        start=time.monotonic()
         code,help_result=post(server.url+'/text/v1/answers',dict(event_id='outage',text='我现在起不来，帮帮我。'),timeout=7)
         assert code==200 and help_result['response']=='needs_help'
+        outage.update(help_result=help_result,help_wall_seconds=time.monotonic()-start,
+                      policy_decisions=decisions[outage_first:],
+                      classification_attempts=gate.snapshot()['classification_calls']-outage_calls)
         restart_backend()
         recovery_wait=wait_ready();after=gate.snapshot()
         assert id(session)==service_identity and id(gate)==gate_identity
@@ -84,7 +91,7 @@ def run_demo(root,*,model_url,model_id,stop_backend,restart_backend):
         final=gate.snapshot()
         output={'synthetic':True,'mode':'fast_v5_same_service_automatic_model_recovery','policy':'v4-fast','cold_new_reminder_http':503,'outage_new_reminder_http':503,'initial_wait_seconds':initial_wait,
                 'recovery_wait_seconds':recovery_wait,'before':before,'after':after,'final_counters':final,
-                'same_session_and_gate':True,'help_preserved':help_result,'help_tasks':len(peer.help_tasks()),
+                'same_session_and_gate':True,'help_preserved':help_result,'help_tasks':len(peer.help_tasks()),'outage':outage,
                 'backend_attempts':sum(final[k] for k in ('warm_calls','probe_calls','classification_calls')),
                 'cases':cases+[{'event_id':'after_auto_recovery','text':'我想找人来看看我。','result':result,
                           'prompts':1,'wall_seconds':elapsed,'policy_decisions':decisions[first:]}]}

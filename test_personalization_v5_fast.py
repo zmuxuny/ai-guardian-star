@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from src.personalization_v5 import Store
 from test_personalization_v5 import NOW, reminder
@@ -116,3 +117,23 @@ class FastV5Tests(unittest.TestCase):
                                          '--port', '0', '--policy', 'unknown'], capture_output=True)
         self.assertEqual(invalid.returncode, 2)
         self.assertFalse(path.exists())
+
+    def test_scenario_exports_outage_fallback_and_rule_help_separately(self):
+        from tools import local_fast_v5_scenario as scenario
+        def stop_backend():
+            self.client.fail = True
+        def restart_backend():
+            self.client.fail = False
+        def factory(*args, **kwargs):
+            session, gate = prepared_session(*args, **kwargs)
+            gate.retry_seconds = .02
+            return session, gate
+        with patch.object(scenario, 'SemanticIntentClient', return_value=self.client), \
+                patch.object(scenario, 'prepared_session', side_effect=factory):
+            out = scenario.run_demo(Path(self.tmp.name)/'scenario', model_url='http://127.0.0.1:1',
+                                    model_id='synthetic', stop_backend=stop_backend,
+                                    restart_backend=restart_backend)
+        self.assertEqual(out['outage']['failed_answer_http'], 202)
+        self.assertEqual(out['outage']['classification_attempts'], 1)
+        self.assertEqual([d['source'] for d in out['outage']['policy_decisions']], ['fallback', 'rule'])
+        self.assertEqual(out['outage']['help_result']['response'], 'needs_help')
