@@ -1,0 +1,31 @@
+from pathlib import Path
+import json,statistics,collections
+r=Path('docs/local-llm/evidence/v5-board-2026-11-27')
+read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+d=read(r/'trial.json');samples=read(r/'resources.json')['samples']
+assert read(r/'exit.json')['exit_code']==0 and d['completed']
+assert not d['safety_triggered'] and not d['monitor_errors'] and not d['cleanup_errors']
+assert d['monitor_alive_before_stop'] and d['last_resource_age_seconds']<10
+assert d['initial_service']==d['final_service']
+assert all(d[k] for k in ['production_files_unchanged','service_unit_unchanged','model_port_closed'])
+assert d['final_stats']['care_mode']=='off' and d['final_stats']['camera_connected'] and d['video_after']['complete_jpeg']
+assert d['recovery_tests']['help_payload_unchanged'] and d['recovery_tests']['help_tasks']==1
+expected_attempts=sum(run['demo']['backend_attempts']+len(run['diagnostics']) for run in d['runs'])
+assert d['classification_client_attempts']==expected_attempts
+out={'synthetic':True,'not_quality_benchmark':True,'classification_attempts':expected_attempts,'runs':{}}
+for run in d['runs']:
+ key=run['run_id'];demo=run['demo'];group=[x for x in samples if x['run_id']==key];formal=[x for x in group if x['phase']=='formal']
+ assert len(demo['cases'])==3 and all(x['http_responses'][-1]['http_status']==200 for x in demo['cases'])
+ out['runs'][key]={'policy_summary':d['policy_summaries'][key],'classification_attempts':demo['backend_attempts'],
+ 'diagnostics':run['diagnostics'],'cases':[{'text':x['text'],'response':x['result']['response'],'prompts':x['prompts'],
+ 'wall_seconds':x['wall_seconds'],'sources':[y['source'] for y in x['policy_decisions']],
+ 'fallback_reasons':[y['fallback_reason'] for y in x['policy_decisions']]} for x in demo['cases']],
+ 'baseline_fps':run['baseline_fps_median'],'formal_samples':len(formal),
+ 'formal_fps_mean':statistics.mean(x['stats']['fps'] for x in formal),'formal_fps_min':min(x['stats']['fps'] for x in formal),
+ 'formal_cpu_mean':statistics.mean(x['cpu_busy_percent'] for x in formal),
+ 'mem_available_min_gib':min(x['mem_available_bytes'] for x in group)/1024**3,
+ 'model_hwm_max_mib':max(x['model_memory']['VmHWM'] for x in group if x.get('model_memory'))/1024**2}
+out['resources']={'total_samples':len(samples),'max_gap_seconds':max(b['elapsed']-a['elapsed'] for a,b in zip(samples,samples[1:]))}
+out['recovery_tests']=d['recovery_tests']
+(r/'summary.json').write_bytes((json.dumps(out,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(out,ensure_ascii=False,indent=2))
