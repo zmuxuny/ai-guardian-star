@@ -1,0 +1,37 @@
+[
+  {
+    "text": "我没有说我需要帮助。",
+    "v3": "needs_help",
+    "v4": "unclear"
+  },
+  {
+    "text": "我不是说我需要帮助。",
+    "v3": "needs_help",
+    "v4": "unclear"
+  },
+  {
+    "text": "我没说我现在起不来。",
+    "v3": "needs_help",
+    "v4": "unclear"
+  },
+  {
+    "text": "我并非表示需要你来帮我。",
+    "v3": "needs_help",
+    "v4": "unclear"
+  },
+  {
+    "text": "我没有要求你帮我。",
+    "v3": "needs_help",
+    "v4": "unclear"
+  },
+  {
+    "text": "我没说我需要帮助，但我现在起不来。",
+    "v3": "needs_help",
+    "v4": "needs_help"
+  },
+  {
+    "text": "我不是说我没事，我现在需要人帮忙。",
+    "v3": "needs_help",
+    "v4": "needs_help"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "frozen_policy_commit": "833a323",
+  "v3_sha256": "bff3a87d2f5b5f856f9f3405b4e567a18d92969cfe3c30c7b8484fc38fad0a9e",
+  "v4_sha256": "4e9205e2eff8fec84ea5c3063afd469b0cab972b00c79effb1c5dbb3e936ceb3",
+  "inputs_sha256": "dc54bcada1fed9a5d275154334873e1532cc4010c913454f3b74becd9d0ba79c",
+  "expected_sha256": "6702facc9fa971911484a2e18a02bbd16c10165db285effb3b9d6499ecaab849",
+  "evaluation": "offline exhaustive advisory enumeration, not real model inference"
+}

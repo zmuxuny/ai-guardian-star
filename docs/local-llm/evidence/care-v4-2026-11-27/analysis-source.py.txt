@@ -1,0 +1,32 @@
+from pathlib import Path
+import json,hashlib,collections
+from tools.local_care_text_v3 import classify_reply as v3
+from tools.local_care_text_v4 import classify_reply as v4
+r=Path('fixtures/local_llm/care-v4-2026-11-27');read=lambda p:json.loads(p.read_text(encoding='utf-8'))
+m=read(r/'manifest.json')
+for p,key in [(r/'inputs.json','inputs_sha256'),(r/'expected.json','expected_sha256'),(Path('tools/local_care_text_v3.py'),'v3_sha256'),(Path('tools/local_care_text_v4.py'),'v4_sha256')]:
+ assert hashlib.sha256(p.read_bytes()).hexdigest()==m[key]
+inputs=read(r/'inputs.json')['cases'];labels=read(r/'expected.json');rows=[]
+summary={}
+for version,policy in [('v3',v3),('v4',v4)]:
+ group=[]
+ for case in inputs:
+  outputs=[]
+  for advisory in ('okay','needs_help','unclear'):
+   decision=policy(case['text'],lambda _,v=advisory:{'intent':v})
+   assert decision['preserve_alert'] and not decision['auto_cancel']
+   outputs.append({'advisory':advisory,**decision})
+  row={**case,'expected':labels[case['id']],'version':version,'outputs':outputs,
+       'robust_correct':all(x['intent']==labels[case['id']] for x in outputs)}
+  group.append(row);rows.append(row)
+ summary[version]={'inputs':len(inputs),'policy_evaluations':len(inputs)*3,
+ 'robust_correct':sum(x['robust_correct'] for x in group),
+ 'robust_help':sum(x['robust_correct'] and x['expected']=='needs_help' for x in group),
+ 'wrong_help_inputs':sum(any(o['intent']=='needs_help' for o in x['outputs']) and x['expected']!='needs_help' for x in group),
+ 'wrong_okay_inputs':sum(any(o['intent']=='okay' for o in x['outputs']) and x['expected']!='okay' for x in group),
+ 'model_stub_callbacks':sum(o['model_called'] for x in group for o in x['outputs']),
+ 'remaining':[{'id':x['id'],'text':x['text'],'expected':x['expected'],'actual':sorted({o['intent'] for o in x['outputs']})} for x in group if not x['robust_correct']]}
+out={'synthetic':True,'real_model_requests':0,'note':'三个可能建议逐一枚举；只检验规则与仲裁，不是模型质量或速度。','summary':summary,'rows':rows}
+target=Path('docs/local-llm/evidence/care-v4-2026-11-27');target.mkdir(parents=True,exist_ok=True)
+(target/'evaluation.json').write_bytes((json.dumps(out,ensure_ascii=False,indent=2)+'\n').encode('utf-8'))
+print(json.dumps(summary,ensure_ascii=False,indent=2))
